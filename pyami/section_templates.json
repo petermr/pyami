@@ -1,0 +1,261 @@
+{
+  "abstract": {
+    "_DESC": "abstract(s) usually in front; sometimes duplicated",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "*article-meta",
+    "FILE": "*abstract",
+    "SUFFIX": "xml",
+    "_MAKE": [
+      "AmiSection.makeSections"
+      ]
+  },
+  "acknowledge": {
+    "_DESC": "acknowledgments (may include funders)",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_back",
+    "SUBSUB": "_NULL",
+    "FILE": "*ack",
+    "SUFFIX": "xml"
+  },  
+  "affiliation": {
+    "_DESC": "author affiliations, usually institutiom and country; aometimes structured",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "*article-meta",
+    "FILE": "*aff",
+    "SUFFIX": "xml"
+  },  
+  "author": {
+    "_DESC": "authors, maybe with affiliation links (e.g. #aff1 etc.)",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "*article-meta",
+    "FILE": "*contrib-group",
+    "SUFFIX": "xml"
+  },
+    "conclusion": {
+    "_DESC": "conclusion (might overlap with discussion)",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "**",
+    "SUBSECT": "*conclusion*",
+    "SUBSUB": "**",
+	"FILE": "*p",
+    "SUFFIX": "xml"
+  },
+    "discussion": {
+    "_DESC": "discussion",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "**",
+    "SUBSECT": "*discussion*",
+    "SUBSUB": "**",
+	"FILE": "*p",
+    "SUFFIX": "xml"
+  },
+  "ethics": {
+    "_DESC": "ethics statements; often in methods but found elsewhere",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "**",
+    "SUBSUB": "*ethic*",
+    "FILE": "*p*",
+    "SUFFIX": "xml"
+  },
+  "fig_caption": {
+    "_DESC": "captions of figures",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "figures",
+    "SUBSUB": "_NULL",
+    "FILE": "*figure*",
+    "SUFFIX": "xml"
+  },
+  "front": {
+    "_DESC": "ALL front matter; recommend constraining with SUBSUB and FILE",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "**",
+    "FILE": "_REQD",
+    "SUFFIX": "xml"
+  },
+  "introduction": {
+    "_DESC": "introduction or background; looks for these words anywhere in file titles",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "**",
+    "SUBSECT": [
+    	"*introduction*",
+		"*background*"
+    ],
+    "SUBSUB": "**",
+    "FILE": "*",
+    "SUFFIX": "xml"
+  },  
+  "jrnl_title": {
+    "_DESC": "journal title (may contain alternatives)",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "*journal-meta",
+    "FILE": "*journal-title-group",
+    "SUFFIX": "xml"
+  },
+  "keyword": {
+    "_DESC": "publisher or author keywords",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "*article-meta",
+    "FILE": "*kwd-group",
+    "SUFFIX": "xml"
+  },  
+  "method": {
+    "_DESC": "methods and/or materials; looks for these words anywhere in file titles",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "**",
+    "SUBSECT": [
+    	"*method*",
+		"*material*"
+    ],
+    "SUBSUB": "**",
+    "FILE": "*p",
+    "SUFFIX": "xml"
+  },  
+  "octree": {
+	"_DESC": "octree colour channels; requires octree to have been run",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "pdfimages",
+    "SUBSECT": "image*",
+    "SUBSUB": "*octree",
+    "FILE": "channel*",
+    "SUFFIX": "png"
+  },
+  "pdfimage": {
+  	"_DESC": "images extracted from PDF; default raw.png; requires ami pdfbox to have been run",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "pdfimages",
+    "SUBSECT": "image*",
+    "SUBSUB": "_NULL",
+    "FILE": "raw",
+    "SUFFIX": "png"
+  },
+  "pub_date": {
+    "_DESC": "publication date(s); front; a variety of types and granularity",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "*article-meta",
+    "FILE": "*pub-date",
+    "SUFFIX": "xml"
+  },  
+  "publisher": {
+    "_DESC": "publisher; journal",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "*journal-meta",
+    "FILE": "*publisher",
+    "SUFFIX": "xml"
+  },
+  "reference": {
+    "_DESC": "references often called citations; semi-structured or structured",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_back",
+    "SUBSUB": "*ref-list",
+    "FILE": "*ref",
+    "SUFFIX": "xml"
+  },  
+  
+  "results_discuss": {
+    "_DESC": "results and/or discussion ",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "**",
+    "SUBSECT": [
+      "*results*",
+      "*discussion*"
+    ],
+    "SUBSUB": "**",
+	"FILE": "*p",
+    "SUFFIX": "xml"
+  },
+  "search_results": {
+    "_DESC": "result of AMI search (search|word) * (result|empty); ami search should have been run (will update for pyamisearch)",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "results",
+    "SUBSECT": [
+      "search",
+      "word"
+    ],
+    "SUBSUB": "**",
+    "FILE": [
+      "results",
+      "empty"
+    ],
+    "SUFFIX": "xml"
+  },
+  "sections": {
+    "_DESC": "ALL *.xml under sections/; often constrained with SUBSECT/ and SUBSET/",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "**",
+    "SUBSUB": "**",
+    "FILE": "*",
+    "SUFFIX": "xml"
+  },
+  "svg": {
+    "_DESC": "svg pages extracted from PDF; after running ami pdfbox",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "svg",
+    "SUBSECT": "_NULL",
+    "SUBSUB": "_NULL",
+    "FILE": "fulltext-page*",
+    "SUFFIX": "svg"
+  },
+  "table": {
+    "_DESC": "tables including caption; extracted from floats-group",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "tables",
+    "SUBSUB": "_NULL",
+    "FILE": "*table*",
+    "SUFFIX": "xml"
+  },
+  "title": {
+    "_DESC": "article title (may contain alternatives)",
+    "PROJ": "_REQD",
+    "TREE": "*",
+    "SECTS": "sections",
+    "SUBSECT": "*_front",
+    "SUBSUB": "*article-meta",
+    "FILE": "*title-group",
+    "SUFFIX": "xml"
+  }  
+}
