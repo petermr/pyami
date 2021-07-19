@@ -2,7 +2,10 @@ import logging
 logging.info("loading pyami.py")
 import sys
 import os
+import re
 import glob
+import lxml.etree as etree
+
 from file_lib import FileLib
 from xml_lib import XmlLib
 from text_lib import TextUtil
@@ -28,9 +31,11 @@ class PyAMI:
     PRINT_SYMBOLS = "print_symbols"
     PROJ          = "proj"
     RECURSE       = "recurse"
+    REGEX         = "regex"
     SECT          = "sect"
     SPLIT         = "split"
     TEST          = "test"
+    XPATH         = "xpath"
     # apply methods 1:1 input-output
     PDF2TXT       = "pdf2txt"
     TXT2SENT      = "txt2sent"
@@ -222,6 +227,12 @@ class PyAMI:
         self.add_selected_keys_to_symbols_ini(key, new_val)
         return (key, new_val)
 
+    def get_symbol(self, symb):
+        """gets symbol from pyami symbol table
+
+        """
+        return self.symbol_ini.symbols.get(symb)
+
     def extract_parsed_arg_tuples(self, arglist, parser):
         """
 
@@ -378,6 +389,8 @@ class PyAMI:
 
     def filter_file(self):
         filter_expr = self.args[self.FILTER]
+        self.logger.warning(f"filter: {filter_expr}")
+
         files = set()
         # record hits
         for file in self.file_dict:
@@ -391,12 +404,46 @@ class PyAMI:
 
     def apply_filter(self, file, filter_expr):
         found = False
+        if not filter_expr:
+            self.logger.error(f"No filter expression")
+            return found
         with open(file, "r", encoding="utf-8") as f:
             content = f.read()
-        if filter_expr and filter_expr.startswith(self.CONTAINS):
-            search_str = filter_expr[len(self.CONTAINS) + 1:-1]
-            found = search_str in content
-        return found
+        hits = []
+        if isinstance(filter_expr, list):
+            # and'ed at present
+            for f_expr in filter_expr:
+                hits = self.apply_filter_expr(content, file, f_expr, hits)
+        else:
+            hits = self.apply_filter_expr(content, file, filter_expr, hits)
+
+        return hits
+
+    def apply_filter_expr(self, content, file, filter_expr, hit_list):
+        """ applies filters to hit list, usually AND"""
+        if filter_expr.startswith(self.CONTAINS) and file.endswith(".txt"):
+            search_str = self.get_search_string(filter_expr, self.CONTAINS)
+            if search_str in content:
+                hit_list.append(search_str)
+        elif filter_expr.startswith(self.XPATH) and file.endswith(".xml"):
+            xpath_str = self.get_search_string(filter_expr, self.XPATH)
+            tree = etree.parse(file)
+            # print(f"xpath: {xpath_str}")
+            hits = tree.xpath(xpath_str)
+            hit_list.extend(hits)
+        elif filter_expr.startswith(self.REGEX):
+            hits = self.apply_regex(hit_list, self.get_search_string(filter_expr, self.REGEX))
+            if hits:
+                print(f"hits {hits}")
+                hit_list = hits
+        return hit_list
+
+    def apply_regex(self, hits, regex):
+        print(f"REGEX {regex}")
+        return [hit for hit in hits if re.match(regex, hit)]
+
+    def get_search_string(self, filter_expr, search_method):
+        return filter_expr[len(search_method) + 1:-1]
 
     def read_file_content(self, to_str=True):
         """read file content as bytes into file_dict
@@ -609,7 +656,9 @@ class PyAMI:
     def test_filter(self):
         from shutil import copyfile
 
-        proj_dir = os.path.abspath(os.path.join(__file__, "../src", "tst", "proj"))
+        # proj_dir = os.path.abspath(os.path.join(__file__, "..", "tst", "proj"))
+        proj_dir = self.get_symbol("oil26.p")
+        print(f"proj_dir {proj_dir}")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.run_commands([
                         "--proj", proj_dir,
@@ -620,11 +669,27 @@ class PyAMI:
                         "--outfile", "cell.txt"
                         ])
 
+    def test_filter_italics(self):
+        from shutil import copyfile
+
+        # proj_dir = os.path.abspath(os.path.join(__file__, "..", "tst", "proj"))
+        # prof_dir = ${oil26}
+        proj_dir = self.get_symbol("oil26.p")
+        print("file", proj_dir, os.path.exists(proj_dir))
+        self.run_commands([
+                        "--proj", proj_dir,
+                        "--glob", "${proj}/**/*_p.xml",
+                        "--filter", "xpath('//p//italic/text()')",
+                        # "regex('[A-Z][a-z]+\s+[a-z]{3,}')",
+                        "--combine", "concat_xml",
+                        "--outfile", "italic.xml"
+                        ])
+
 
     def test_pdf2txt(self):
         from shutil import copyfile
 
-        proj_dir = os.path.abspath(os.path.join(__file__, "../src", "tst", "proj"))
+        proj_dir = os.path.abspath(os.path.join(__file__, "..", "tst", "proj"))
         assert os.path.exists(proj_dir), f"proj_dir {proj_dir} exists"
         self.run_commands([
                         "--proj", proj_dir,
@@ -638,7 +703,7 @@ class PyAMI:
     def run_tests(self):
         # self.test_glob() # also does sectioning?
 
-        self.test_pdf2txt()
+        # self.test_pdf2txt()
         # self.test_split_pdf_txt_paras()
 
         # self.test_xml2sect()
@@ -647,6 +712,7 @@ class PyAMI:
         # self.test_split_sentences()
         # self.test_xml2sect()
         # self.test_filter()
+        self.test_filter_italics()
 
 
 
@@ -657,13 +723,18 @@ def main():
     """
 
     run_dsl = False
+    run_tests = True
+    run_commands = False
+
     print(f"\n============== running pyami main ===============\n{sys.argv[1:]}")
     # this needs commandline
-    pyami = PyAMI()
-    pyami.run_commands()
+    if run_commands:
+        PyAMI().run_commands()
     # pyami.run_tests()
     if run_dsl:
         DSLParser.run_tests(sys.argv[1:])
+    if run_tests:
+        PyAMI().run_tests()
     # pyami.run_commands(sys.argv[1:])
 
 
