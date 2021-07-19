@@ -421,6 +421,7 @@ class PyAMI:
 
     def apply_filter_expr(self, content, file, filter_expr, hit_list):
         """ applies filters to hit list, usually AND"""
+        filter_expr = filter_expr.strip()
         if filter_expr.startswith(self.CONTAINS) and file.endswith(".txt"):
             search_str = self.get_search_string(filter_expr, self.CONTAINS)
             if search_str in content:
@@ -428,18 +429,22 @@ class PyAMI:
         elif filter_expr.startswith(self.XPATH) and file.endswith(".xml"):
             xpath_str = self.get_search_string(filter_expr, self.XPATH)
             tree = etree.parse(file)
+            # root = etree.getroot()
+            # print(f"{root}")
             # print(f"xpath: {xpath_str}")
-            hits = tree.xpath(xpath_str)
-            hit_list.extend(hits)
+            hits = list(tree.xpath(xpath_str))
+            hits = [h.strip() for h in hits]
+            if len(hits) > 0:
+                self.logger.debug(f"xpath {type(hits)} {hits}")
+                hit_list.extend(hits)
         elif filter_expr.startswith(self.REGEX):
             hits = self.apply_regex(hit_list, self.get_search_string(filter_expr, self.REGEX))
             if hits:
-                print(f"hits {hits}")
+                print(f"regex hits {hits}")
                 hit_list = hits
         return hit_list
 
     def apply_regex(self, hits, regex):
-        print(f"REGEX {regex}")
         return [hit for hit in hits if re.match(regex, hit)]
 
     def get_search_string(self, filter_expr, search_method):
@@ -679,8 +684,10 @@ class PyAMI:
         self.run_commands([
                         "--proj", proj_dir,
                         "--glob", "${proj}/**/*_p.xml",
-                        "--filter", "xpath('//p//italic/text()')",
-                        # "regex('[A-Z][a-z]+\s+[a-z]{3,}')",
+                        "--filter",
+                        "            xpath(//p//italic/text())",
+                        "            regex([A-Z][a-z]?(\.|[a-z]+\s+[a-z]{3,}))",
+                        "--dict", "${eo_plant.d}",
                         "--combine", "concat_xml",
                         "--outfile", "italic.xml"
                         ])
