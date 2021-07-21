@@ -478,7 +478,7 @@ class AmiSearch:
         """ TODO
         with open(outfile, "w") as f:
             print("<dictionary title='" + tool + "'>")
-            for k, v in counter.items():
+            for k, v in hit_counter.items():
                 if v > self.min_hits:
                     print("  <entry term=`" + k.lower() + "'/>")
             print("</dictionary>")

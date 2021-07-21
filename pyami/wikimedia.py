@@ -59,6 +59,7 @@ class WikidataLookup:
 #            pprint.pprint(sort_orders[0:3])
         #  take the first
             qitem = sort_orders[0]
+            # TODO fix non-tuples
         return qitem[0], qitem[1]["desc"], wikidata_hits
 
     def create_dict_for_all_possible_wd_matches(self, ul):
@@ -201,7 +202,7 @@ class WikidataPage:
       <div class="wikibase-sitelinkgroupview mw-collapsible" data-wb-sitelinks-group="wikipedia">
         <div class="wikibase-sitelinkgroupview-heading-section">
           <div class="wikibase-sitelinkgroupview-heading-container">
-            <h3 class="wb-sitelinks-heading" dir="auto" id="sitelinks-wikipedia">Wikipedia<span class="wikibase-sitelinkgroupview-counter">(27 entries)</span></h3>
+            <h3 class="wb-sitelinks-heading" dir="auto" id="sitelinks-wikipedia">Wikipedia<span class="wikibase-sitelinkgroupview-hit_counter">(27 entries)</span></h3>
             <span class="wikibase-toolbar-container">
               <span class="wikibase-toolbar-item wikibase-toolbar ">
                 <span class="wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-edit">

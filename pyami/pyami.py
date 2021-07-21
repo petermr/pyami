@@ -5,16 +5,17 @@ import os
 import re
 import glob
 import lxml.etree as etree
-
-from file_lib import FileLib
-from xml_lib import XmlLib
-from text_lib import TextUtil
-from text_lib import DSLParser
-from pdfreader import PdfReader
-from symbol import SymbolIni
 import pprint
 import ast
+from collections import Counter
 
+from dict_lib import AmiDictionary
+from file_lib import FileLib
+from xml_lib import XmlLib
+from text_lib import TextUtil, DSLParser
+from pdfreader import PdfReader
+from symbol import SymbolIni
+from wikimedia import WikidataLookup
 
 class PyAMI:
     """ """
@@ -26,8 +27,10 @@ class PyAMI:
     CHECK_URLS    = "check_urls"
     COMBINE       = "combine"
     CONTAINS      = "contains"
+    DICTIONARY    = "dictionary"
     FILTER        = "filter"
     GLOB          = "glob"
+    LOOKUP        = "lookup"
     PRINT_SYMBOLS = "print_symbols"
     PROJ          = "proj"
     RECURSE       = "recurse"
@@ -35,6 +38,7 @@ class PyAMI:
     SECT          = "sect"
     SPLIT         = "split"
     TEST          = "test"
+    WIKIDATA_SPARQL = "wikidata_sparql"
     XPATH         = "xpath"
     # apply methods 1:1 input-output
     PDF2TXT       = "pdf2txt"
@@ -63,11 +67,15 @@ class PyAMI:
         self.func_dict = {}
         self.result = None
         self.set_flags()
+        self.wikidata_lookup = None
+        self.hit_counter = None
         self.symbol_ini = SymbolIni(self)
         self.set_funcs()
         self.show_symbols = False
+        self.ami_dictionary = None
         if self.show_symbols:
             pprint.pp(f"SYMBOLS\n {self.symbol_ini.symbols}")
+
 
     def set_flags(self):
         """ """
@@ -181,6 +189,7 @@ class PyAMI:
     def run_workflows(self):
         """ """
         # file workflow
+        self.wikipedia_lookup = WikidataLookup()
         self.logger.warning(f"commandline args {self.args}")
         if self.PROJ in self.args:
             if self.SECT in self.args or self.GLOB in self.args:
@@ -288,7 +297,9 @@ class PyAMI:
         if not self.args:
             self.logger.error("no args given; try --proj or --test")
         elif self.args[self.PROJ]:
+            self.hit_counter = Counter()
             self.run_proj()
+            print(f"hit counter: {self.hit_counter}")
         elif self.args[self.TEST]:
             self.run_arg_tests()
         else:
@@ -421,35 +432,93 @@ class PyAMI:
 
     def apply_filter_expr(self, content, file, filter_expr, hit_list):
         """ applies filters to hit list, usually AND"""
+        self.logger.warning(f"filter_expr {filter_expr}")
         filter_expr = filter_expr.strip()
-        if filter_expr.startswith(self.CONTAINS) and file.endswith(".txt"):
-            search_str = self.get_search_string(filter_expr, self.CONTAINS)
-            if search_str in content:
-                hit_list.append(search_str)
-        elif filter_expr.startswith(self.XPATH) and file.endswith(".xml"):
-            xpath_str = self.get_search_string(filter_expr, self.XPATH)
-            tree = etree.parse(file)
-            # root = etree.getroot()
-            # print(f"{root}")
-            # print(f"xpath: {xpath_str}")
-            hits = list(tree.xpath(xpath_str))
-            hits = [h.strip() for h in hits]
+        filter_value = self.extract_command_value(filter_expr)
+        if filter_value is None:
+            self.logger.error(f"bad filter_expr {filter_expr}")
+            return None
+        filter = filter_value[0]
+        value = filter_value[1]
+        if False:
+            pass
+        elif filter == self.CONTAINS and file.endswith(".txt"):
+            if value in content:
+                hit_list.append(value)
+
+        elif filter == self.DICTIONARY and file.endswith(".xml"):
+            hits = self.apply_dictionary(hit_list, value)
             if len(hits) > 0:
                 self.logger.debug(f"xpath {type(hits)} {hits}")
                 hit_list.extend(hits)
-        elif filter_expr.startswith(self.REGEX):
-            hits = self.apply_regex(hit_list, self.get_search_string(filter_expr, self.REGEX))
+
+        elif filter == self.LOOKUP:
+            print(f"LOOKUP VALUE {value}")
+            hits = self.apply_lookup(hit_list, value)
+            if hits:
+                hit_list = hits
+        elif filter == self.REGEX:
+            hits = self.apply_regex(hit_list, value)
             if hits:
                 print(f"regex hits {hits}")
                 hit_list = hits
+        elif filter == self.WIKIDATA_SPARQL:
+            hits = self.apply_wikidata_sparql(hit_list, value)
+            if hits:
+                print(f"wikidata_sparql hits {hits}")
+                hit_list = hits
+
+        elif filter == self.XPATH and file.endswith(".xml"):
+            tree = etree.parse(file)
+            hits = list(tree.xpath(value))
+            hits = [h.strip() for h in hits]
+            if len(hits) > 0:
+                self.logger.warning(f"xpath {type(hits)} {hits}")
+                hit_list.extend(hits)
+
+        self.logger.warning(f"hit list {hit_list}")
+        if hit_list:
+            print(f"non-zero list {hit_list}")
         return hit_list
+
+    @classmethod
+    def extract_command_value(cls, command_expr):
+        """split command(value) into tuple
+
+        value may have nested commands.
+
+        :returns: tuple of command, value
+        """
+        if command_expr is None:
+            return None
+        bits = command_expr.split("(", 1)
+        print(f"BITS {bits}")
+
+        return (bits[0], bits[1][:-1]) if len(bits) > 1 and bits[1].endswith(")") else None
+
+    def apply_dictionary(self, hits, name):
+
+        dictionary_file = self.get_symbol(name)
+        if dictionary_file is None:
+            dictionary_file = name
+        self.ami_dictionary = AmiDictionary.read_dictionary(file=dictionary_file)
+        new_hits = []
+        if self.ami_dictionary is not None:
+            for hit in hits:
+                entry = self.ami_dictionary.get_entry(hit.lower())
+                if entry:
+                    new_hits.append(hit)
+                    self.hit_counter[hit] += 1
+
+        # return [hit for hit in hits if re.match(regex, hit)]
+        return new_hits
 
     def apply_regex(self, hits, regex):
         return [hit for hit in hits if re.match(regex, hit)]
 
-    def get_search_string(self, filter_expr, search_method):
-        return filter_expr[len(search_method) + 1:-1]
-
+    # def get_search_string(self, filter_expr, search_method):
+    #     return filter_expr[len(search_method) + 1:-1]
+    #
     def read_file_content(self, to_str=True):
         """read file content as bytes into file_dict
         
@@ -471,6 +540,30 @@ class PyAMI:
             else:
                 self.logger.warning(f"cannot read file into string {file}")
 
+    def apply_lookup(self, hits, value):
+        print(f"LOOKUP: {hits} {value}")
+        for hit in hits:
+            if False:
+                pass
+            elif self.get_dictionary(value) is not None:
+                dictionary = self.get_dictionary(value)
+                print("USE DICTIONARY: NYI", value, dictionary)
+            elif value == 'wikidata':
+                qnumber = self.wikipedia_lookup.lookup_wikidata(hit)
+                print(f"qnumber {qnumber}")
+            else:
+                self.logger.error(f"cannot parse lookup: {value}")
+
+    def apply_wikidata_sparql(self, hit_list, value):
+        if hit_list:
+            print(f"wikidata input {hit_list}")
+        return hit_list
+
+    def get_dictionary(self, value):
+        dictionary = None
+        command_value = self.extract_command_value(value)
+        if command_value is not None and command_value[0] == "dictionary":
+            dictionary = command_value[1]
 
     def read_string_content(self, file, to_str):
         """reads file into string
@@ -659,9 +752,6 @@ class PyAMI:
                         ])
 
     def test_filter(self):
-        from shutil import copyfile
-
-        # proj_dir = os.path.abspath(os.path.join(__file__, "..", "tst", "proj"))
         proj_dir = self.get_symbol("oil26.p")
         print(f"proj_dir {proj_dir}")
         print("file", proj_dir, os.path.exists(proj_dir))
@@ -675,19 +765,25 @@ class PyAMI:
                         ])
 
     def test_filter_italics(self):
-        from shutil import copyfile
-
-        # proj_dir = os.path.abspath(os.path.join(__file__, "..", "tst", "proj"))
-        # prof_dir = ${oil26}
         proj_dir = self.get_symbol("oil26.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.run_commands([
-                        "--proj", proj_dir,
+                        "--proj", "/Users/pm286/projects/openDiagram/physchem/resources/oil26",
                         "--glob", "${proj}/**/*_p.xml",
                         "--filter",
-                        "            xpath(//p//italic/text())",
-                        "            regex([A-Z][a-z]?(\.|[a-z]+\s+[a-z]{3,}))",
-                        "--dict", "${eo_plant.d}",
+                             "xpath(//p//italic/text())",
+                             "regex([A-Z][a-z]?(\.|[a-z]{2,})\s+[a-z]{3,})",
+                             "dictionary(eo_plant.d)", # local, snowballed
+                             # "lookup(wikidata)", # crude and obsolete
+                             "wikidata_sparql(P225)",
+            # plants
+            # SELECT ?item ?itemLabel
+            # WHERE {?item wdt: P225 "Ocimum sanctum".
+            # SERVICE wikibase: label {bd: serviceParam wikibase: language "[AUTO_LANGUAGE],en".}
+            #}
+                            # "wiki_sparql(read sparql_query"Qxxx for plant_species")"
+                        # "--update(eo_plant.d),"
+                        # " --dict", "${eo_plant.d}",
                         "--combine", "concat_xml",
                         "--outfile", "italic.xml"
                         ])

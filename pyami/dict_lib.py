@@ -2,10 +2,11 @@
 import logging
 import os
 logging.warning("loading dict_lib")
+from lxml import etree as ET
+
 from constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3, PHYSCHEM_RESOURCES
 from util import Util
-from lxml import etree as ET
-#  html tags/attributes
+from wikimedia import WikidataLookup, WikidataPage
 
 # elements in amidict
 DICTIONARY = "dictionary"
@@ -24,7 +25,7 @@ WIKIDATA_SITE = "https://www.wikidata.org/wiki/"
 WIKIPEDIA_PAGE = "wikipediaPage"
 # elements
 
-class SearchDictionary:
+class AmiDictionary:
     """wrapper for an ami dictionary including search flags
 
     """
@@ -69,7 +70,7 @@ class SearchDictionary:
         """use raw list of words and lookup each. choosing WD page and using languages """
         if name is None:
             name="no_name"
-        dictionary = SearchDictionary(name=name, wikilangs=wikilangs)
+        dictionary = AmiDictionary(name=name, wikilangs=wikilangs)
         dictionary.root = ET.Element(DICTIONARY)
         dictionary.root.attrib[TITLE] = name
         if desc:
@@ -82,10 +83,16 @@ class SearchDictionary:
             dictionary.entries.append(entry)
         return dictionary
 
+    @classmethod
+    def read_dictionary(cls, file, ignorecase=True):
+        return AmiDictionary(xml_file=file) if file is not None else None
+
+
     def read_dictionary_from_xml_file(self, file, ignorecase=True):
         self.file = file
         self.amidict = ET.parse(file, parser=ET.XMLParser(encoding="utf-8"))
         self.root = self.amidict.getroot()
+        print("ROOT", ET.tostring(self.root)[:50])
         self.name = self.root.attrib["title"]
         self.ignorecase = ignorecase
 
@@ -97,7 +104,7 @@ class SearchDictionary:
     def get_or_create_term_set(self):
         if len(self.term_set) == 0:
             for entry in self.entries:
-                if SearchDictionary.TERM in entry.attrib:
+                if AmiDictionary.TERM in entry.attrib:
                     term = self.term_from_entry(entry)
 #                    print("tterm", term)
                     # single word terms
@@ -121,7 +128,7 @@ class SearchDictionary:
         """NYI"""
         if len(self.multiwords) == 0:
             for entry in self.entries:
-                if SearchDictionary.TERM in entry.attrib:
+                if AmiDictionary.TERM in entry.attrib:
                     term = self.term_from_entry(entry)
                     # single word terms
                     if not " " in term:
@@ -136,11 +143,11 @@ class SearchDictionary:
         return self.term_set
 
     def term_from_entry(self, entry):
-        if SearchDictionary.TERM not in entry.attrib:
+        if AmiDictionary.TERM not in entry.attrib:
             print("missing term", ET.tostring(entry))
             term = None
         else:
-            term = entry.attrib[SearchDictionary.TERM].strip()
+            term = entry.attrib[AmiDictionary.TERM].strip()
         return term.lower() if term is not None and self.ignorecase else term
 
     def get_xml_and_image_url(self, term):
@@ -210,7 +217,6 @@ class SearchDictionary:
             et.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
     def add_wikidata_from_terms(self):
-        from wikimedia import WikidataLookup, WikidataPage
 
         wikidata_lookup = WikidataLookup()
         entries = self.root.findall(ENTRY)
@@ -390,7 +396,7 @@ class AmiDictionaries:
             raise Exception("duplicate dictionary key " + key + " in "+ str(self.dictionary_dict))
         Util.check_exists(file)
         try:
-            dictionary = SearchDictionary(file)
+            dictionary = AmiDictionary(file)
             self.dictionary_dict[key] = dictionary
         except Exception as ex:
             print("Failed to read dictionary", file, ex)
