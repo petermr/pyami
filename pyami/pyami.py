@@ -171,17 +171,19 @@ class PyAMI:
             arglist = []
         parser = self.create_arg_parser()
         self.args = self.extract_parsed_arg_tuples(arglist, parser)
-        self.logger.info("ARGS: "+str(self.args))
+        self.logger.warning("ARGS: "+str(self.args))
         self.substitute_args()
+        self.logger.warning("ARGS1: "+str(self.args))
         self.set_loglevel_from_args()
         self.run_workflows()
 
     def substitute_args(self):
         """ """
         new_items = {}
+        self.logger.warning(f"SYMBOLS1 {self.symbol_ini.symbols}")
         for item in self.args.items():
             new_item = self.make_substitutions(item)
-            self.logger.debug(f"++++++++{item} ==> {new_item}")
+            self.logger.warning(f"++++++++{item} ==> {new_item}")
             new_items[new_item[0]] = new_item[1]
         self.args = new_items
         self.logger.info(f"******** substituted ARGS {self.args}")
@@ -217,7 +219,9 @@ class PyAMI:
         elif isinstance(old_val, list):
             new_list = []
             for val_item in old_val:
+                self.logger.warning(f"OLD SYM {val_item}")
                 new_v = self.symbol_ini.replace_symbols_in_arg(val_item)
+                self.logger.warning(f"NEW SYM {new_v}")
                 new_list.append(new_v)
             self.logger.debug(f"UPDATED LIST ITEMS: {new_list}")
             new_val = new_list
@@ -764,18 +768,19 @@ class PyAMI:
                         "--outfile", "cell.txt"
                         ])
 
-    def test_filter_italics(self):
+    def test_filter_species(self):
         proj_dir = self.get_symbol("oil26.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.run_commands([
-                        "--proj", "/Users/pm286/projects/openDiagram/physchem/resources/oil26",
+                        "--proj", proj_dir, # "/Users/pm286/projects/openDiagram/physchem/resources/oil26",
                         "--glob", "${proj}/**/*_p.xml",
                         "--filter",
-                             "xpath(//p//italic/text())",
-                             "regex([A-Z][a-z]?(\.|[a-z]{2,})\s+[a-z]{3,})",
-                             "dictionary(eo_plant.d)", # local, snowballed
+                            "xpath(${all_italics.x})", #"xpath(//p//italic/text())",
+                            "regex(${species.r})", # "regex([A-Z][a-z]?(\.|[a-z]{2,})\s+[a-z]{3,})",
+                            "dictionary(${eo_plant.d})", # local, snowballed
                              # "lookup(wikidata)", # crude and obsolete
-                             "wikidata_sparql(P225)",
+                            "wikidata_sparql(${taxon_name.w})", # "wikidata_sparql(P225)",
+                            # "_NOT", "dictionary(stopwrds)"
             # plants
             # SELECT ?item ?itemLabel
             # WHERE {?item wdt: P225 "Ocimum sanctum".
@@ -815,7 +820,7 @@ class PyAMI:
         # self.test_split_sentences()
         # self.test_xml2sect()
         # self.test_filter()
-        self.test_filter_italics()
+        self.test_filter_species()
 
 
 

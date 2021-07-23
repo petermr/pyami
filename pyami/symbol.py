@@ -94,6 +94,7 @@ class SymbolIni:
         files_read = self.config.read(file)
         sections = self.config.sections()
         for section in sections:
+            self.logger.warning(f"SECTiON in config file: {section}")
             self.convert_section_into_symbols_dict(file, section)
 
         self.check_targets_exist(file)
@@ -101,7 +102,7 @@ class SymbolIni:
 
     def check_targets_exist(self, file):
         """
-
+assumes value
         :param file:
 
         """
@@ -118,7 +119,7 @@ class SymbolIni:
                 if not os.path.exists(val):  # all files
                     self.logger.error(f"{val} in {file} does not exist as file")
             else:
-                print("non-existent: " + val + " in " + file)
+                print("non-existent target: " + val + " in " + file)
 
     def setup_environment(self):
         """ """
@@ -132,7 +133,7 @@ class SymbolIni:
         :param section:
 
         """
-        self.logger.info("============" + section + "============" + file)
+        self.logger.warning("============" + section + "============" + file)
         for name in self.config[section].keys():
             if name in self.symbols:
                 self.logger.debug(f"{name} already defined, skipped")
@@ -157,8 +158,9 @@ class SymbolIni:
                     print("NAME", name)
 
                 self.symbols[name] = new_value
+                self.logger.warning(f"added symbol: {name} => {new_value}")
 
-        self.logger.debug(f"symbols for {file} {section}\n {self.symbols}")
+        self.logger.warning(f"symbols for {file} {section}\n {self.symbols}")
 
     def recurse_ini_files(self):
         """follows links to all *_ini files and runs them recursively
@@ -184,6 +186,8 @@ class SymbolIni:
 
         """
         # print(f"ARGLIST {type(arglist)} {arglist}")
+        self.logger.warning(f"SYMBOLS: {self.symbols}")
+
         if arg is None:
             return None
         elif isinstance(arg, str):

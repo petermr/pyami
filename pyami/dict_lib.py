@@ -92,7 +92,7 @@ class AmiDictionary:
         self.file = file
         self.amidict = ET.parse(file, parser=ET.XMLParser(encoding="utf-8"))
         self.root = self.amidict.getroot()
-        print("ROOT", ET.tostring(self.root)[:50])
+        # print("ROOT", ET.tostring(self.root)[:50])
         self.name = self.root.attrib["title"]
         self.ignorecase = ignorecase
 
@@ -196,7 +196,7 @@ class AmiDictionary:
         self.entry_by_term = {self.term_from_entry(entry) : entry  for entry in self.entries}
 
     def check_unique_wikidata_ids(self):
-        print("entries", len(self.entries))
+        # print("entries", len(self.entries))
         self.entry_by_wikidata_id = {}
         for entry in self.entries:
             if WIKIDATA_ID not in entry.attrib:
