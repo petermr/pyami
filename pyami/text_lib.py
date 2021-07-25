@@ -777,7 +777,13 @@ class DSLParser():
             return None, None
         args = []
         while len(argstr) > 0:
-            arg, rest_argstr = self.grab_next_arg(argstr)
+            grabbed = self.grab_next_arg(argstr)
+            if not grabbed:
+                self.logger.warning(f"Null args")
+                break
+                # continue
+            arg = grabbed[0]
+            rest_argstr = grabbed[1]
             self.logger.info(f"               EXTRACTED {arg} "
                   f"                         ... {rest_argstr}")
             if arg is not None:
@@ -821,7 +827,11 @@ class DSLParser():
         else:  # expressiom
             arg, rest_args = self.grab_expr(argstr)
             self.logger.debug(f"arg: [{arg}] === rest_args: [{rest_args}]")
-            funct, funct_args = self.get_function_and_args(arg)
+            funct_arg = self.get_function_and_args(arg)
+            if not funct_arg:
+                return None
+            funct = funct_arg[0]
+            funct_args = funct_arg[1]
             self.logger.debug(f"               FUNCT: [{funct}] \n"
                   f"                    ... ARGS [{funct_args}]")
             self.parse_args(funct_args)
@@ -830,6 +840,8 @@ class DSLParser():
         return arg, rest_args
 
     def get_function_and_args(self, argstr):
+        if not argstr:
+            return None
         idx = argstr.index("(")
         funct = argstr[:idx]
         funct_args = argstr[idx+1:-1]

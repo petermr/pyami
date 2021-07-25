@@ -1,8 +1,7 @@
 """tests for file_lib"""
 import os
 import logging
-from file_lib import AmiPath
-from file_lib import PROJ, FILE
+from file_lib import AmiPath, PROJ, FILE
 
 logger = logging.getLogger("test_file")
 def test_templates():
