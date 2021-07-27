@@ -1,10 +1,9 @@
 # from xml.etree import ElementTree as ET
 import logging
-logging.warning("loading xml_lib")
+logging.debug("loading xml_lib")
 from lxml import etree as LXET
 import os
 from pathlib import Path
-
 from file_lib import FileLib
 
 # make leafnodes and copy remaning content as XML

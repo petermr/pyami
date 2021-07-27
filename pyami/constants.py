@@ -1,7 +1,7 @@
 """constants shared over the AMI system
 """
 import logging
-logging.warning("loading constants.py")
+logging.debug("loading constants.py")
 import os
 
 HOME = os.path.expanduser("~")

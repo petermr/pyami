@@ -1,7 +1,7 @@
 """AMI dictionary classes"""
 import logging
 import os
-logging.warning("loading dict_lib")
+logging.debug("loading dict_lib")
 from lxml import etree as ET
 
 from constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3, PHYSCHEM_RESOURCES
@@ -25,6 +25,7 @@ WIKIDATA_SITE = "https://www.wikidata.org/wiki/"
 WIKIPEDIA_PAGE = "wikipediaPage"
 # elements
 
+logger = logging.getLogger("dict_lib")
 class AmiDictionary:
     """wrapper for an ami dictionary including search flags
 
@@ -32,6 +33,7 @@ class AmiDictionary:
     TERM = "term"
 
     def __init__(self, xml_file=None, name=None, wikilangs=None, **kwargs):
+        self.logger = logger
         self.amidict = None
         self.entries = []
         self.entry_by_term = {}
@@ -46,6 +48,7 @@ class AmiDictionary:
         self.split_terms = False
         self.term_set = set()
         self.wikilangs = wikilangs
+
 
         if xml_file is not None:
             if not os.path.exists(xml_file):
@@ -188,7 +191,7 @@ class AmiDictionary:
             self.create_entry_by_term()
         entry = self.entry_by_term[term] if term in self.entry_by_term else None
         if entry is None:
-            print("entry by term", self.entry_by_term)
+            self.logger.debug("entry by term", self.entry_by_term) # very large
             pass
         return entry
 

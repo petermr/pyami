@@ -2,7 +2,7 @@
 
 """
 import logging
-logging.warning("loading file_lib")
+logging.debug("loading file_lib")
 import os, glob, copy, json
 import pathlib
 

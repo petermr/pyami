@@ -1,15 +1,21 @@
 import logging
 import os
+import sys
 from pyami import PyAMI
+
+logger = logging.getLogger("examples")
 
 class Examples():
     """runs pyami with various examples of commands
 
     experimental
     """
+
+    pyamix = PyAMI()
     def __init__(self, pyamix=None):
-        self.logger = logging.getLogger("examples")
-        self.pyamix = pyamix if pyamix is not None else PyAMI()
+        # self.pyamix = pyamix if pyamix is not None else PyAMI()
+        self.logger = logger
+        pass
 
     def example_glob(self):
         """ """
@@ -53,8 +59,8 @@ class Examples():
         from shutil import copyfile
         self.banner(self.example_xml2sect.__name__)
 
-        proj_dir = os.path.abspath(os.path.join(__file__, "../src", "tst", "proj"))
-        assert (os.path.exists(proj_dir), "DIR DOES NOT EXIST")
+        proj_dir = self.pyamix.get_symbol("oil3.p")
+        print("file", proj_dir, os.path.exists(proj_dir))
         # split into sections
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -68,7 +74,7 @@ class Examples():
         self.logger.loglevel = logging.DEBUG
         self.banner(self.example_split_pdf_txt_paras.__name__)
 
-        proj_dir = os.path.abspath(os.path.join(__file__, "../src", "tst", "proj"))
+        proj_dir = self.pyamix.get_symbol("oil3.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -83,8 +89,7 @@ class Examples():
         from shutil import copyfile
         self.banner(self.example_split_sentences.__name__)
         self.logger.loglevel = logging.DEBUG
-
-        proj_dir = os.path.abspath(os.path.join(__file__, "../src", "tst", "proj"))
+        proj_dir = self.pyamix.get_symbol("oil3.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -101,7 +106,8 @@ class Examples():
 
 
     def example_split_oil26(self):
-        proj_dir = os.path.abspath(os.path.join(__file__, "../src", "..", "resources", "oil26"))
+        proj_dir = self.pyamix.get_symbol("oil3.p")
+        print("file", proj_dir, os.path.exists(proj_dir))
         self.banner(self.example_split_oil26.__name__)
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
@@ -114,8 +120,7 @@ class Examples():
     def example_filter(self):
         self.banner(self.example_filter.__name__)
 
-        proj_dir = self.pyamix.get_symbol("oil26.p")
-        print(f"proj_dir {proj_dir}")
+        proj_dir = self.pyamix.get_symbol("oil3.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -129,7 +134,7 @@ class Examples():
 
     def example_filter_species(self):
         self.banner(self.example_filter_species.__name__)
-        proj_dir = self.pyamix.get_symbol("oil26.p")
+        proj_dir = self.pyamix.get_symbol("oil3.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,  # "/Users/pm286/projects/openDiagram/physchem/resources/oil26",
@@ -159,8 +164,8 @@ class Examples():
 
         from shutil import copyfile
 
-        proj_dir = os.path.abspath(os.path.join(__file__, "..", "tst", "proj"))
-        assert os.path.exists(proj_dir), f"proj_dir {proj_dir} exists"
+        proj_dir = self.pyamix.get_symbol("oil3.p")
+        print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
             "--glob", "${proj}/*/fulltext.pdf",
@@ -174,32 +179,46 @@ class Examples():
         print(f"===================={msg}==================")
         print(f"====================       ==================")
 
-    def run_examples(self):
-        self.example_glob() # also does sectioning?
+    def run_examples(self, example_list):
+        example_dict = {
+            "gl": (self.example_glob, "globbing files"),
+            "pd": (self.example_pdf2txt, "convert pdf to text"),
+            "pa": (self.example_split_pdf_txt_paras, "split pdf text into paragraphs"),
+            "sc": (self.example_xml2sect, "split xml into sections"),
+            "sl": (self.example_split_oil26, "split oil26 project into sections"),
+            "se": (self.example_split_sentences, "split text to sentences"),
+            "fi": (self.example_filter, "simple filter (not complete)"),
+            "sp": (self.example_filter_species, "extract species with italics and regex (not finalised)"),
+        }
+        if not example_list:
+            print(f"choose from:")
+            for abbrev in example_dict:
+                print(f"{abbrev} => {example_dict[abbrev][1]}")
+            print(f"\nall => all examples")
+        elif len(example_list) == 1 and example_list[0] == 'all':
+            self.logger.warning(f"RUNNING ALL EXAMPLES: ")
+            self.run_example_list(example_dict, list(example_dict.keys()))
+        else:
+            self.run_example_list(example_dict, example_list)
 
-        # self.example_pdf2txt()
-        # self.example_split_pdf_txt_paras()
+    def run_example_list(self, example_dict, example_list):
+        for example in example_list:
+            if example in example_dict:
+                example_dict[example][0]()
+            else:
+                print(f"unknown example: {example}\nchoose from: {example_dict.keys()}")
 
-        print(f"========================example_xml2sect======================")
-        self.example_xml2sect()
-        self.example_split_oil26()
-
-        self.example_split_sentences()
-        self.example_xml2sect()
-        self.example_filter()
-        # self.example_filter_species()
 
 def main():
+    print(f" examples args: {sys.argv}")
     examples = Examples()
     # test_me = PyAMITest()
     # test_me.run_tests()
-    examples.run_examples()
+    examples.run_examples(sys.argv[1:])
 
 if __name__ == "__main__":
     main()
 
 else:
-
-    print("running search main anyway")
-    main()
+    logger.debug("not running main()")
 

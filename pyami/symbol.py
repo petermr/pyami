@@ -28,7 +28,7 @@ class SymbolIni:
 
     def __init__(self, pyami):
         # FileLib.force_mkdir(self.LOGDIR)
-        # self.logger.setLevel(logging.INFO)
+        self.logger.warning(f"new PyAMI Object in SymbolIni")
         self.symbols = None
         self.pyami = pyami
         pyami.symbol_ini = self
@@ -94,7 +94,7 @@ class SymbolIni:
         files_read = self.config.read(file)
         sections = self.config.sections()
         for section in sections:
-            self.logger.warning(f"SECTiON in config file: {section}")
+            self.logger.debug(f"SECTiON in config file: {section}")
             self.convert_section_into_symbols_dict(file, section)
 
         self.check_targets_exist(file)
@@ -107,6 +107,7 @@ assumes value
 
         """
         for item in self.symbols.items():
+            # we are going through ALL the symbols? possibly needs rethinking
             val = item[1];
             if val.startswith("http"):
                 if self.pyami.flagged(self.pyami.CHECK_URLS):
@@ -116,10 +117,11 @@ assumes value
                     except urllib.error.HTTPError as ex:
                         print(f"Cannot read {val} as url {ex}")
             elif "/" in val:  # assume slash means file or url
+                # Logic not yet worked out
                 if not os.path.exists(val):  # all files
-                    self.logger.error(f"{val} in {file} does not exist as file")
+                    self.logger.debug(f"{val} called from {file} does not exist as file")
             else:
-                print("non-existent target: " + val + " in " + file)
+                self.logger.debug(f"not a file: {val} in {file}")
 
     def setup_environment(self):
         """ """
@@ -133,8 +135,9 @@ assumes value
         :param section:
 
         """
-        self.logger.warning("============" + section + "============" + file)
+        self.logger.warning("============" + section + "============ in: " + file)
         for name in self.config[section].keys():
+            self.logger.debug(f" self.symbols {len(self.symbols.keys())}")
             if name in self.symbols:
                 self.logger.debug(f"{name} already defined, skipped")
             else:
@@ -156,11 +159,16 @@ assumes value
                 if name.startswith(self.NS):
                     name = os.environ["LOGNAME"] + name[len(self.NS):]
                     print("NAME", name)
+                if not name in self.symbols:
+                    self.symbols[name] = new_value
+                    self.logger.warning(f"added symbol: {name} => {new_value}")
+                elif self.symbols[name] != new_value:
+                    self.logger.warning(f"changed symbol: {name} from {self.symbols[name]} => {new_value}")
+                    self.symbols[name] = new_value
 
-                self.symbols[name] = new_value
-                self.logger.warning(f"added symbol: {name} => {new_value}")
 
-        self.logger.warning(f"symbols for {file} {section}\n {self.symbols}")
+        self.logger.debug(f"symbols for {file} {section}\n {self.symbols}")
+
 
     def recurse_ini_files(self):
         """follows links to all *_ini files and runs them recursively
@@ -237,6 +245,7 @@ assumes value
             replace = self.symbols.get(symbol)
             if replace != symbol:
                 self.logger.debug(symbol, " REPLACE", replace)
+            self.logger.warning(f"{idx0} {idx1} {symbol} {replace}")
             end = idx1 + 1
             result += replace if replace is not None else arg[idx0: idx1 + len(SYM_END)]
             start = end

@@ -1,5 +1,5 @@
 import logging
-logging.warning("loading pdfreader.py")
+logging.debug("loading pdfreader.py")
 # https://stackoverflow.com/questions/56494070/how-to-use-pdfminer-six-with-python-3
 
 class PdfReader:

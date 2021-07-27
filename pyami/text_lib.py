@@ -1,7 +1,7 @@
 import os
 import glob
 import logging
-logging.warning("loading text_lib")
+logging.debug("loading text_lib")
 from bs4 import BeautifulSoup
 from collections import Counter
 import nltk, unicodedata
@@ -754,7 +754,7 @@ class DSLParser():
 
     }
 
-    logger = logging.getLogger("expr_parser")
+    logger = logging.getLogger("dsl_parser")
     def __init__(self):
         self.tree = {} #
         self.argstr = None
@@ -779,7 +779,7 @@ class DSLParser():
         while len(argstr) > 0:
             grabbed = self.grab_next_arg(argstr)
             if not grabbed:
-                self.logger.warning(f"Null args")
+                self.logger.debug(f"DSL Null args")
                 break
                 # continue
             arg = grabbed[0]

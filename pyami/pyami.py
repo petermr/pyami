@@ -1,5 +1,5 @@
 import logging
-logging.info("loading pyami.py")
+logging.debug("loading pyami.py")
 import sys
 import os
 import re
@@ -8,6 +8,7 @@ import lxml.etree as etree
 import pprint
 import ast
 from collections import Counter
+import traceback
 
 #from cmd_runner import CommandRunner
 from dict_lib import AmiDictionary
@@ -58,6 +59,11 @@ class PyAMI:
     symbol_ini = None
 
     def __init__(self):
+
+        self.logger.debug(f"===============Examples=================")
+        if self.logger.getEffectiveLevel() <= logging.DEBUG:
+            traceback.print_stack(file=sys.stdout)
+
         self.args = {} # args captured in here as name/value without "-" or "--"
         self.apply = []
         self.combine = None
@@ -100,8 +106,8 @@ class PyAMI:
         """creates adds the arguments for pyami commandline"""
         import argparse
         parser = argparse.ArgumentParser(description='Search sections with dictionaries and patterns')
-        # apply_choices = [self.PDF2TXT, self.TXT2SENT, self.XML2TXT]
-        # print("ch", apply_choices)
+        apply_choices = [self.PDF2TXT, self.TXT2SENT, self.XML2TXT]
+        self.logger.debug("ch", apply_choices)
         parser.add_argument('--apply', nargs="+",
                             choices=['pdf2txt','txt2sent','xml2txt'],
                             help='list of sequential transformations (1:1 map) to apply to pipeline ({self.TXT2SENT} NYI)')
@@ -155,7 +161,6 @@ class PyAMI:
         :param arglist:  (Default value = None)
 
         """
-        print("*********RUN COMMANDS*********")
         self.logger.info(f"********** raw arglist {arglist}")
         self.parse_and_run_args(arglist)
         if self.flagged(self.PRINT_SYMBOLS):
@@ -172,19 +177,19 @@ class PyAMI:
             arglist = []
         parser = self.create_arg_parser()
         self.args = self.extract_parsed_arg_tuples(arglist, parser)
-        self.logger.warning("ARGS: "+str(self.args))
+        self.logger.debug("ARGS: "+str(self.args))
         self.substitute_args()
-        self.logger.warning("ARGS1: "+str(self.args))
+        self.logger.debug("ARGS1: "+str(self.args))
         self.set_loglevel_from_args()
         self.run_workflows()
 
     def substitute_args(self):
         """ """
         new_items = {}
-        self.logger.warning(f"SYMBOLS1 {self.symbol_ini.symbols}")
+        self.logger.debug(f"SYMBOLS1 {self.symbol_ini.symbols}")
         for item in self.args.items():
             new_item = self.make_substitutions(item)
-            self.logger.warning(f"++++++++{item} ==> {new_item}")
+            self.logger.debug(f"++++++++{item} ==> {new_item}")
             new_items[new_item[0]] = new_item[1]
         self.args = new_items
         self.logger.info(f"******** substituted ARGS {self.args}")
@@ -197,8 +202,8 @@ class PyAMI:
         if self.PROJ in self.args:
             if self.SECT in self.args or self.GLOB in self.args:
                 self.run_file_workflow()
-        if self.TEST in self.args:
-            print(f"TEST in **args {self.args}")
+        elif self.TEST in self.args:
+            self.logger.warning(f"TEST in **args {self.args}")
             self.run_arg_tests()
 
 
@@ -220,9 +225,9 @@ class PyAMI:
         elif isinstance(old_val, list):
             new_list = []
             for val_item in old_val:
-                self.logger.warning(f"OLD SYM {val_item}")
+                self.logger.debug(f"OLD SYM {val_item}")
                 new_v = self.symbol_ini.replace_symbols_in_arg(val_item)
-                self.logger.warning(f"NEW SYM {new_v}")
+                self.logger.debug(f"NEW SYM {new_v}")
                 new_list.append(new_v)
             self.logger.debug(f"UPDATED LIST ITEMS: {new_list}")
             new_val = new_list
@@ -304,7 +309,7 @@ class PyAMI:
         elif self.args[self.PROJ]:
             self.hit_counter = Counter()
             self.run_proj()
-            print(f"hit counter: {self.hit_counter}")
+            self.logger.debug(f"hit counter: {self.hit_counter}")
         elif self.args[self.TEST]:
             self.run_arg_tests()
         else:
@@ -332,19 +337,19 @@ class PyAMI:
         self.logger.warning(f"*****running tests : {self.args[self.TEST]}")
         _TESTS = ["file_lib", "pdf_lib", "text_lib"]
         if not self.args[self.TEST]:
-            print (f"No tests given: choose some/all of {_TESTS}")
+            self.logger.warning(f"No tests given: choose some/all of {_TESTS}")
             return
         if "file_lib" in self.args[self.TEST]:
             import test_file
-            print("run test_file")
+            self.logger.warning("run test_file")
             test_file.main()
         if "pdf_lib" in self.args[self.TEST]:
             import test_pdf
-            print("run test_pdf")
+            self.logger.warning("run test_pdf")
             test_pdf.test_read_pdf()
         if "text_lib" in self.args[self.TEST]:
             # import test_text
-            print("run test_text NYI")
+            self.logger.warning("run test_text NYI")
             # test_text.main()
 
     def glob_files(self):
@@ -381,7 +386,7 @@ class PyAMI:
             sections = TextUtil.split_at_empty_newline(text)
         self.file_dict[file] = sections
         for sect in sections:
-            print(sect)
+            self.logger.warning(sect)
 
 
     def apply_func(self, apply_type):
@@ -399,7 +404,7 @@ class PyAMI:
 
     def normalize(self, unistr):
         import unicodedata
-        print("NYI")
+        self.logger.error("NYI")
         unicodedata.normalize('NFKC', unistr)
         pass
 
@@ -442,9 +447,13 @@ class PyAMI:
         filter_value = self.extract_command_value(filter_expr)
         if filter_value is None:
             self.logger.error(f"bad filter_expr {filter_expr}")
-            return None
+            return hit_list
         filter = filter_value[0]
         value = filter_value[1]
+        value = self.symbol_ini.replace_symbols_in_arg(value)
+        if value is None:
+            self.logger.warning(f"null value in filter {filter}")
+            return None
         if False:
             pass
         elif filter == self.CONTAINS and file.endswith(".txt"):
@@ -458,23 +467,24 @@ class PyAMI:
                 hit_list.extend(hits)
 
         elif filter == self.LOOKUP:
-            print(f"LOOKUP VALUE {value}")
+            self.logger.debug(f"LOOKUP VALUE {value}")
             hits = self.apply_lookup(hit_list, value)
             if hits:
                 hit_list = hits
         elif filter == self.REGEX:
             hits = self.apply_regex(hit_list, value)
             if hits:
-                print(f"regex hits {hits}")
+                self.logger.debug(f"regex hits {hits}")
                 hit_list = hits
         elif filter == self.WIKIDATA_SPARQL:
             hits = self.apply_wikidata_sparql(hit_list, value)
             if hits:
-                print(f"wikidata_sparql hits {hits}")
+                self.logger.warning(f"wikidata_sparql hits {hits}")
                 hit_list = hits
 
         elif filter == self.XPATH and file.endswith(".xml"):
             tree = etree.parse(file)
+            self.logger.warning(f"xpath {value}")
             hits = list(tree.xpath(value))
             hits = [h.strip() for h in hits]
             if len(hits) > 0:
@@ -483,7 +493,7 @@ class PyAMI:
 
         self.logger.warning(f"hit list {hit_list}")
         if hit_list:
-            print(f"non-zero list {hit_list}")
+            self.logger.warning(f"non-zero list {hit_list}")
         return hit_list
 
     @classmethod
@@ -497,7 +507,7 @@ class PyAMI:
         if command_expr is None:
             return None
         bits = command_expr.split("(", 1)
-        print(f"BITS {bits}")
+        cls.logger.debug(f"BITS {bits}")
 
         return (bits[0], bits[1][:-1]) if len(bits) > 1 and bits[1].endswith(")") else None
 
@@ -546,22 +556,22 @@ class PyAMI:
                 self.logger.warning(f"cannot read file into string {file}")
 
     def apply_lookup(self, hits, value):
-        print(f"LOOKUP: {hits} {value}")
+        self.logger.debug(f"LOOKUP: {hits} {value}")
         for hit in hits:
             if False:
                 pass
             elif self.get_dictionary(value) is not None:
                 dictionary = self.get_dictionary(value)
-                print("USE DICTIONARY: NYI", value, dictionary)
+                self.logger.warning("USE DICTIONARY: NYI", value, dictionary)
             elif value == 'wikidata':
                 qnumber = self.wikipedia_lookup.lookup_wikidata(hit)
-                print(f"qnumber {qnumber}")
+                self.logger.info(f"qnumber {qnumber}")
             else:
                 self.logger.error(f"cannot parse lookup: {value}")
 
     def apply_wikidata_sparql(self, hit_list, value):
         if hit_list:
-            print(f"wikidata input {hit_list}")
+            self.logger.warning(f"wikidata input {hit_list}")
         return hit_list
 
     def get_dictionary(self, value):
@@ -605,7 +615,7 @@ class PyAMI:
         """
         for file in self.file_dict:
             data = self.file_dict.get(file)
-            self.logger.warning(f"file: {file} => {type(data)} => {func}")
+            self.logger.debug(f"file: {file} => {func}")
             new_data = func(data)
             self.file_dict[file] = new_data
         return
@@ -615,7 +625,7 @@ class PyAMI:
         methods = self.args.get(self.COMBINE)
         if methods and methods == self.CONCAT_STR:
             self.result = "\n".join(self.file_dict.values())
-            # print(self.result)
+            self.logger.debug(self.result)
 
     def write_output(self):
         """ """
@@ -691,7 +701,7 @@ def main():
     examples = True
     run_commands = False
 
-    print(f"\n============== running pyami main ===============\n{sys.argv[1:]}")
+    PyAMI.logger.warning(f"\n============== running pyami main ===============\n{sys.argv[1:]}")
     pyami = PyAMI()
     # this needs commandline
     if run_commands:
@@ -707,10 +717,10 @@ def main():
 
 if __name__ == "__main__":
 
-    print(f"sys.argv: {sys.argv}")
+    PyAMI.logger.warning(f"sys.argv: {sys.argv}")
+    # DONT rune main
     main()
 
 else:
 
-    print("running search main anyway")
-    main()
+    PyAMI.logger.debug(" NOT running search main anyway")
