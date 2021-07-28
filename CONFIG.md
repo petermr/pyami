@@ -2,7 +2,7 @@
 
 Although `pyami` can be used with explict names 
 ````
-pyami -p /user/monty/python/myfiles/plants/PMC123456/sections...
+pyami -p /user/monty/python/myfiles/plants
 ````
 it is easier and less error prone to use symbols such as 
 ````
