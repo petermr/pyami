@@ -71,6 +71,82 @@ optional arguments:
                         run tests for modules; no selection runs all
 ````
 
+# getting started
+There are an alpha series of commandline examples which show the operation of the system. Currently:
+````
+ examples args: ['examples.py']
+choose from:
+gl => globbing files
+pd => convert pdf to text
+pa => split pdf text into paragraphs
+sc => split xml into sections
+sl => split oil26 project into sections
+se => split text to sentences
+fi => simple filter (not complete)
+sp => extract species with italics and regex (not finalised)
+
+all => all examples
+````
+
+## config file
+````
+(base) pm286macbook:pyami pm286$ more ~/pyami/config.ini
+; NOTE. All files use forward slash even on Windows
+; use slash (/) to separate filename components, we will convert to file-separator automatically
+; variables can be substituted using {}
+
+[DIRS]
+home           = ~
+dictionary_url = https://github.com/petermr/dictionary
+project_dir =    ${home}/projects
+cev_open =       ${DIRS:project_dir}/CEVOpen
+code_dir =       ${DIRS:project_dir}/openDiagram/physchem/python
+; # wikidata taxon name property
+; taxon_name.w = P225777
+; # italic content
+; all_italics.x = xpath(//p//italic/text())
+; # species, e.g. Zea mays, T. rex, An. gambiae
+; species.r = [A-Z][a-z]?(\.|[a-z]{2,})\s+[a-z]{3,})
+
+[URLS]
+petermr_url = https://github.com/petermr
+petermr_raw_url = https://raw.githubusercontent.com/petermr
+tigr2ess.u =        https://github.com/petermr/tigr2ess/tree/master
+
+[AMISEARCH]
+oil3.p = ${DIRS:code_dir}/tst/proj
+# wikidata taxon name property
+taxon_name = P225
+# italic content
+all_italics.x = //p//italic/text()
+# species, e.g. Zea mays, T. rex, An. gambiae
+species.r = [A-Z][a-z]?(\.|[a-z]{2,})\s+[a-z]{3,}
+
+[DICTIONARIES]
+dict_dir     = ${DIRS:home}/dictionary
+
+ov_ini       = ${dict_dir}/openvirus20210120/amidict.ini
+cev_ini      = ${DIRS:cev_open}/dictionary/amidict.ini
+
+# docanal_ini  = ${dict_dir}/docanal/docanal.ini # not yet added
+
+
+[PROJECTS]
+open_battery =      ${DIRS:project_dir}/open-battery
+pr_liion =          ${open_battery}/liion
+tigr2ess =          ${DIRS:project_dir}/tigr2ess
+open_diagram =      ${DIRS:project_dir}/openDiagram
+open_virus =        ${DIRS:project_dir}/openVirus
+
+minicorpora_ini =   ${DIRS:cev_open}/minicorpora/config.ini
+cev_searches_ini =  ${DIRS:cev_open}/searches/config.ini
+open_diag_ini =     ${DIRS:project_dir}/openDiagram/physchem/resources/config.ini
+
+
+(base) pm286macbook:pyami pm286$ 
+````
+
+
 
 ## Notes for PMR?
 project organization: https://dev.to/codemouse92/dead-simple-python-project-structure-and-imports-38c6
