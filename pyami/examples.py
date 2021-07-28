@@ -37,7 +37,8 @@ class Examples():
     
         """
         self.pyamix.run_commands([
-            "--proj", "${oil26.p}",
+            # "--proj", "${oil26.p}",
+            "--proj", "${oil3.p}",
             "--glob", "${proj}/**/sections/**/*abstract.xml",
             "--dict", "${eo_plant.d}", "${ov_country.d}",
             "--apply", "xml2txt",
@@ -165,6 +166,7 @@ class Examples():
         from shutil import copyfile
 
         proj_dir = self.pyamix.get_symbol("oil3.p")
+        print("======PPPPPP=====", proj_dir)
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -180,6 +182,8 @@ class Examples():
         print(f"====================       ==================")
 
     def run_examples(self, example_list):
+        """WARNING:symbol.ini:0 6 proj /Users/pm286/projects/openDiagram/physchem/resources/oil26
+        this is being pulled from somewhere?"""
         example_dict = {
             "gl": (self.example_glob, "globbing files"),
             "pd": (self.example_pdf2txt, "convert pdf to text"),
@@ -204,6 +208,10 @@ class Examples():
     def run_example_list(self, example_dict, example_list):
         for example in example_list:
             if example in example_dict:
+                print(f"\n\n\n"
+                      f"+++++++++++++++++++++++++++++++++++++++\n"
+                      f"                    {example}\n"
+                      f"+++++++++++++++++++++++++++++++++++++++\n")
                 example_dict[example][0]()
             else:
                 print(f"unknown example: {example}\nchoose from: {example_dict.keys()}")
