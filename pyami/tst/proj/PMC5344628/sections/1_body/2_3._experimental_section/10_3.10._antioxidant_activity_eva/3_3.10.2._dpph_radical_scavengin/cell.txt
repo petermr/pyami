@@ -1,0 +1,3 @@
+The radical scavenging activity was calculated according to the following equation:
+(3)%RSA=100×(Acontrol−AsampleAcontrol)
+where Asample represents the absorbance of the sample solution in the presence of DPPH, and Acontrol is the absorbance of the standard DPPH solution. For more details, see ref. [72].

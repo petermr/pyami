@@ -36,14 +36,16 @@ class Examples():
      python pyami.py --proj ${oil26} --glob '**/*abstract.xml' --apply xml2txt --combine to_csv --outfile ${oil26}/files/abstracts.csv
     
         """
+
         self.pyamix.run_commands([
             # "--proj", "${oil26.p}",
-            "--proj", "${oil3.p}",
+            "--debug", "dummy", "symbols",
+            "--proj", "${misc4.p}",
             "--glob", "${proj}/**/sections/**/*abstract.xml",
             "--dict", "${eo_plant.d}", "${ov_country.d}",
             "--apply", "xml2txt",
             "--combine", "concat_str",
-            "--outfile", "${proj}/files/shweata_10.txt",
+            "--outfile", "${proj}/files/misc4.txt",
             "--assert", "file_exists(${proj}/files/xml_files.txt)",
         ])
 
@@ -60,7 +62,7 @@ class Examples():
         from shutil import copyfile
         self.banner(self.example_xml2sect.__name__)
 
-        proj_dir = self.pyamix.get_symbol("oil3.p")
+        proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         # split into sections
         self.pyamix.run_commands([
@@ -75,7 +77,7 @@ class Examples():
         self.logger.loglevel = logging.DEBUG
         self.banner(self.example_split_pdf_txt_paras.__name__)
 
-        proj_dir = self.pyamix.get_symbol("oil3.p")
+        proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -90,7 +92,7 @@ class Examples():
         from shutil import copyfile
         self.banner(self.example_split_sentences.__name__)
         self.logger.loglevel = logging.DEBUG
-        proj_dir = self.pyamix.get_symbol("oil3.p")
+        proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -107,7 +109,7 @@ class Examples():
 
 
     def example_split_oil26(self):
-        proj_dir = self.pyamix.get_symbol("oil3.p")
+        proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.banner(self.example_split_oil26.__name__)
         print("file", proj_dir, os.path.exists(proj_dir))
@@ -121,7 +123,7 @@ class Examples():
     def example_filter(self):
         self.banner(self.example_filter.__name__)
 
-        proj_dir = self.pyamix.get_symbol("oil3.p")
+        proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -135,7 +137,7 @@ class Examples():
 
     def example_filter_species(self):
         self.banner(self.example_filter_species.__name__)
-        proj_dir = self.pyamix.get_symbol("oil3.p")
+        proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,  # "/Users/pm286/projects/openDiagram/physchem/resources/oil26",
@@ -165,8 +167,7 @@ class Examples():
 
         from shutil import copyfile
 
-        proj_dir = self.pyamix.get_symbol("oil3.p")
-        print("======PPPPPP=====", proj_dir)
+        proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
@@ -179,7 +180,8 @@ class Examples():
 
     def banner(self, msg):
         print(f"===================={msg}==================")
-        print(f"====================       ==================")
+        ss = " "*len(msg)
+        print(f"===================={ss}==================")
 
     def run_examples(self, example_list):
         """WARNING:symbol.ini:0 6 proj /Users/pm286/projects/openDiagram/physchem/resources/oil26

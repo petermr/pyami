@@ -29,6 +29,7 @@ class PyAMI:
     CHECK_URLS    = "check_urls"
     COMBINE       = "combine"
     CONTAINS      = "contains"
+    DEBUG         = "debug"
     DICTIONARY    = "dictionary"
     FILTER        = "filter"
     GLOB          = "glob"
@@ -39,6 +40,7 @@ class PyAMI:
     REGEX         = "regex"
     SECT          = "sect"
     SPLIT         = "split"
+    SYMBOLS       = "symbols"
     TEST          = "test"
     WIKIDATA_SPARQL = "wikidata_sparql"
     XPATH         = "xpath"
@@ -118,7 +120,7 @@ class PyAMI:
         parser.add_argument('--config', '-c', nargs="*", default="PYAMI",
                             help='file (e.g. ~/pyami/config.ini) with list of config file(s) or config vars')
         parser.add_argument('--debug', nargs="+",
-                            help='debugging commands , numbers, (not formalised)')
+                            help='debugging commands , symbols, numbers, (not formalised)')
         parser.add_argument('--demo', nargs="*",
                             help='simple demos (NYI). empty gives list. May need downloading corpora')
         parser.add_argument('--dict', '-d', nargs="+",
@@ -306,6 +308,8 @@ class PyAMI:
         self.logger.debug(f"ARGS {self.args}")
         if not self.args:
             self.logger.error("no args given; try --proj or --test")
+        elif self.args[self.DEBUG]:
+            self.run_debug()
         elif self.args[self.PROJ]:
             self.hit_counter = Counter()
             self.run_proj()
@@ -315,6 +319,13 @@ class PyAMI:
         else:
             self.logger.error("{self.args} requires --proj or --test")
         return
+
+    def run_debug(self):
+        for arg in self.args[self.DEBUG]:
+            if arg == self.SYMBOLS:
+                self.symbol_ini.print_symbols()
+            else:
+                self.logger.warning(f"unknown arg {arg} in  debug: ")
 
     def run_proj(self):
         self.proj = self.args[self.PROJ]
@@ -442,7 +453,7 @@ class PyAMI:
 
     def apply_filter_expr(self, content, file, filter_expr, hit_list):
         """ applies filters to hit list, usually AND"""
-        self.logger.warning(f"filter_expr {filter_expr}")
+        self.logger.debug(f"filter_expr {filter_expr}")
         filter_expr = filter_expr.strip()
         filter_value = self.extract_command_value(filter_expr)
         if filter_value is None:
@@ -484,16 +495,14 @@ class PyAMI:
 
         elif filter == self.XPATH and file.endswith(".xml"):
             tree = etree.parse(file)
-            self.logger.warning(f"xpath {value}")
-            hits = list(tree.xpath(value))
-            hits = [h.strip() for h in hits]
+            hits = [h.strip() for h in tree.xpath(value)]
             if len(hits) > 0:
                 self.logger.warning(f"xpath {type(hits)} {hits}")
                 hit_list.extend(hits)
 
-        self.logger.warning(f"hit list {hit_list}")
+        self.logger.debug(f"hit list {hit_list}")
         if hit_list:
-            self.logger.warning(f"non-zero list {hit_list}")
+            self.logger.info(f"non-zero list {hit_list}")
         return hit_list
 
     @classmethod
@@ -521,7 +530,7 @@ class PyAMI:
         if self.ami_dictionary is not None:
             for hit in hits:
                 entry = self.ami_dictionary.get_entry(hit.lower())
-                if entry:
+                if entry is not None:
                     new_hits.append(hit)
                     self.hit_counter[hit] += 1
 
@@ -604,7 +613,7 @@ class PyAMI:
             try:
                 data = f.read()
                 self.file_dict[file] = data
-            except Error as e:
+            except Exception as e:
                 self.logger.error(f"skipped reading error {e}")
 
     def apply_to_file_content(self, func):

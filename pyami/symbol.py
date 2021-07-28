@@ -28,7 +28,7 @@ class SymbolIni:
 
     def __init__(self, pyami):
         # FileLib.force_mkdir(self.LOGDIR)
-        self.logger.warning(f"new PyAMI Object in SymbolIni")
+        self.logger.debug(f"new PyAMI Object in SymbolIni")
         self.symbols = None
         self.pyami = pyami
         pyami.symbol_ini = self
@@ -91,11 +91,14 @@ class SymbolIni:
 
         self.config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
         self.logger.info(f"reading config file {file}")
+        # we have to substitute ami values before the configParser gets there!!!!!
         files_read = self.config.read(file)
         sections = self.config.sections()
         for section in sections:
             self.logger.debug(f"SECTiON in config file: {section}")
             self.convert_section_into_symbols_dict(file, section)
+
+        # self.print_symbols()
 
         self.check_targets_exist(file)
         self.recurse_ini_files()
@@ -135,37 +138,46 @@ assumes value
         :param section:
 
         """
-        self.logger.warning("============" + section + "============ in: " + file)
+        self.logger.debug("============" + section + "============ in: " + file)
+        self.logger.debug(f" self.symbols {self.symbols.keys()}")
         for name in self.config[section].keys():
-            self.logger.debug(f" self.symbols {len(self.symbols.keys())}")
-            if name in self.symbols:
-                self.logger.debug(f"{name} already defined, skipped")
+            self.logger.debug(f"name in config: {name} {self.config[section]} {list(self.config[section].keys())}")
+
+            raw_value = self.config[section][name]
+            self.logger.debug(f"raw_value {raw_value}")
+            # make substitutions
+            # we replace __file__ with parent dir of dictionary
+            parent_dir = str(FileLib.get_parent_dir(file))
+            if raw_value.startswith("~"):
+                # home directory on all OS (?)
+                new_value = os.path.expanduser("~") + raw_value[len("~"):]
+            elif raw_value.startswith(self.PARENT):
+                #  the prefix __file__ may have been expanded by the parser
+                new_value = parent_dir + raw_value[len(self.PARENT):]
+            elif raw_value.startswith("__file__"):
+                print("__file__ is obsolete ", file)
             else:
-                raw_value = self.config[section][name]
-                # make substitutions
-                # we replace __file__ with parent dir of dictionary
-                parent_dir = str(FileLib.get_parent_dir(file))
-                if raw_value.startswith("~"):
-                    # home directory on all OS (?)
-                    new_value = os.path.expanduser("~") + raw_value[len("~"):]
-                elif raw_value.startswith(self.PARENT):
-                    #  the prefix __file__ may have been expanded by the parser
-                    new_value = parent_dir + raw_value[len(self.PARENT):]
-                elif raw_value.startswith("__file__"):
-                    print("__file__ is obsolete ", file)
-                else:
-                    new_value = raw_value
+                new_value = self.replace_symbols_in_arg(raw_value)
+                if new_value != raw_value:
+                    self.logger.debug(f"ami symbols replaced {raw_value} with {new_value}")
+                new_value = raw_value
 
-                if name.startswith(self.NS):
-                    name = os.environ["LOGNAME"] + name[len(self.NS):]
-                    print("NAME", name)
-                if not name in self.symbols:
-                    self.symbols[name] = new_value
-                    self.logger.warning(f"added symbol: {name} => {new_value}")
-                elif self.symbols[name] != new_value:
-                    self.logger.warning(f"changed symbol: {name} from {self.symbols[name]} => {new_value}")
-                    self.symbols[name] = new_value
+            if name.startswith(self.NS):
+                name = os.environ["LOGNAME"] + name[len(self.NS):]
+                print("NAME", name)
+            if "${" in new_value:
+                self.logger.debug(f"Replaced local symbols")
+                new_value = self.replace_symbols_in_arg(new_value)
 
+            if not name in self.symbols:
+                self.symbols[name] = new_value
+                self.logger.debug(f"added symbol: {name} => {new_value}")
+            elif self.symbols[name] != new_value:
+                self.logger.info(f"changed symbol: {name} from {self.symbols[name]} => {new_value}")
+                self.symbols[name] = new_value
+            elif self.symbols[name] == new_value:
+                self.logger.debug(f"retained symbol: {name} with {self.symbols[name]}")
+                self.symbols[name] = new_value
 
         self.logger.debug(f"symbols for {file} {section}\n {self.symbols}")
 
@@ -187,41 +199,42 @@ assumes value
                     file = self.symbols[name]
                     self.apply_config_file(file)
 
-    def replace_symbols(self, arg):
-        """
-
-        :param arg:
-
-        """
-        # print(f"ARGLIST {type(arglist)} {arglist}")
-        self.logger.warning(f"SYMBOLS: {self.symbols}")
-
-        if arg is None:
-            return None
-        elif isinstance(arg, str):
-            new_arg = self.replace_symbols_in_arg(arg)
-            print(f"{arg} => {new_arg}")
-            return new_arg
-        elif isinstance(arg, list):
-            new_arg = []
-            for item in arg:
-                print(f"SUBLIST_ITEM {item}")
-                new_item = self.replace_symbols_in_arg(item)
-                new_arg.append(new_item)
-            return new_arg
-        elif self.is_primitive(arg):
-            return arg
-        else:
-            print(f"Cannot process arg {arg}")
-            return arg
-
-    def is_primitive(self, arg):
-        """returns true if string of classtype is maps to int, bool, etc. Horrible
-
-        :param arg:
-
-        """
-        return str(type(arg)) in self.PRIMITIVES
+    # UNUSED?
+    # def replace_symbols(self, arg):
+    #     """
+    #
+    #     :param arg:
+    #
+    #     """
+    #     # print(f"ARGLIST {type(arglist)} {arglist}")
+    #     self.logger.debug(f"SYMBOLS: {self.symbols}")
+    #
+    #     if arg is None:
+    #         return None
+    #     elif isinstance(arg, str):
+    #         new_arg = self.replace_symbols_in_arg(arg)
+    #         self.logger.debug(f"{arg} => {new_arg}")
+    #         return new_arg
+    #     elif isinstance(arg, list):
+    #         new_arg = []
+    #         for item in arg:
+    #             self.logger.debug(f"SUBLIST_ITEM {item}")
+    #             new_item = self.replace_symbols_in_arg(item)
+    #             new_arg.append(new_item)
+    #         return new_arg
+    #     elif self.is_primitive(arg):
+    #         return arg
+    #     else:
+    #         self.logger.warning(f"Cannot process arg {arg}")
+    #         return arg
+    #
+    # def is_primitive(self, arg):
+    #     """returns true if string of classtype is maps to int, bool, etc. Horrible
+    #
+    #     :param arg:
+    #
+    #     """
+    #     return str(type(arg)) in self.PRIMITIVES
 
     def replace_symbols_in_arg(self, arg):
         """replaces ${foo} with value of foo if in symbols
@@ -237,6 +250,7 @@ assumes value
         SYM_START = "${"
         SYM_END = "}"
         self.logger.info(f"expanding symbols in {arg}")
+
         while SYM_START in arg[start:]:
             idx0 = arg.index(SYM_START, start)
             result += arg[start:idx0]
@@ -245,7 +259,7 @@ assumes value
             replace = self.symbols.get(symbol)
             if replace != symbol:
                 self.logger.debug(symbol, " REPLACE", replace)
-            self.logger.warning(f"{idx0} {idx1} {symbol} {replace}")
+            self.logger.debug(f"{idx0} {idx1} {symbol} {replace}")
             end = idx1 + 1
             result += replace if replace is not None else arg[idx0: idx1 + len(SYM_END)]
             start = end
@@ -258,6 +272,7 @@ assumes value
 
     def print_symbols(self):
         """ """
-        print("symbols>>")
+        print("\n\nsymbols>>")
         for name in self.symbols:
             print(f"{name}:{self.symbols[name]}")
+        print("<<\n\n")
