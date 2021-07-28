@@ -23,6 +23,12 @@ This is in very active alpha development and early documentatioon will appear on
 * the commandline can be used by workflow tools such as Jupyter Notebooks
 * The `pyami` code is packaged as a Python library for use by other tools
 
+# components
+There are several independent components. Many of these are customised for beginners. They can be referenced by symbols to avoid having to remember filenames. Users customise this with environment variables (often preset).
+* project. The CProject holding the corpus. Users can have as many projects as they like.
+* dictionary. Many searches use dictionaries and often several are used at once. There are currently over 50 dictionaries in a network but it's easy to create your own.
+* code. (in Python3)
+ 
 # commands
 This is a subset of current commands:
 ````
