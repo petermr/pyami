@@ -308,16 +308,17 @@ class PyAMI:
         self.logger.debug(f"ARGS {self.args}")
         if not self.args:
             self.logger.error("no args given; try --proj or --test")
-        elif self.args[self.DEBUG]:
+            return
+        if self.args[self.DEBUG]:
             self.run_debug()
-        elif self.args[self.PROJ]:
+        if self.args[self.PROJ]:
             self.hit_counter = Counter()
             self.run_proj()
             self.logger.debug(f"hit counter: {self.hit_counter}")
-        elif self.args[self.TEST]:
+        if self.args[self.TEST]:
             self.run_arg_tests()
-        else:
-            self.logger.error("{self.args} requires --proj or --test")
+        # else:
+        #     self.logger.error("{self.args} requires --proj or --test")
         return
 
     def run_debug(self):

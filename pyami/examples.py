@@ -39,7 +39,7 @@ class Examples():
 
         self.pyamix.run_commands([
             # "--proj", "${oil26.p}",
-            "--debug", "dummy", "symbols",
+            "--debug", "debug", "symbols",
             "--proj", "${misc4.p}",
             "--glob", "${proj}/**/sections/**/*abstract.xml",
             "--dict", "${eo_plant.d}", "${ov_country.d}",
