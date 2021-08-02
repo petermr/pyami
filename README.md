@@ -1,11 +1,13 @@
 # pyami
-Semantic Reader of the Scientific Literature
+Semantic Reader of the Scientific Literature.
 
-## status
-This is in very active alpha development and early documentatioon will appear on the Wiki.
+A scientific article is not a singkle dumb file; it can be transformed into many semantic, useful sub-documnets. `pyami` is a Python framework for doing this; it reads the scientific literature in bulk transforms, searches and and analyses the contents.
+
+### status
+This is in very active alpha development and early documentation will appear on the Wiki.
 
 # overview
-* `pyami` is a personal tool that users can customise for their own needs and visions. It does not reply on remote service providers, though it can make its own use of Open sites. 
+* `pyami` is a personal (client-side) tool that users can customise for their own needs and visions. It does not reply on remote service providers, though it can make its own use of Open sites. 
 
 # scope
 * `pyami` can collect documents (of any sort) into a corpus or `CProject`. 
@@ -16,7 +18,8 @@ This is in very active alpha development and early documentatioon will appear on
 * search results can be transformed, filtered, aggregated, and used for iterative enhancement ("snowballing")
 
 # architecture
-* each document (`CTree`) in a CProject is split into a tree of many labelled text subsections (text, paragraphs, sentences, phrases, words). This is flexible (new types can be added bu users.
+* downloaded documents (a corpus) are stored on your disk in a folder/directory (a CProject`)
+* each document (`CTree`) in a `CProject` is a living subtree of many labelled text subsections (text, paragraphs, sentences, phrases, words) and images (`png`) . This is flexible (new types and subdirectories) can be added by users).
 * the CTree is held on disk and can be further processed by other programs (e.g. pandas, tesseract (image2text), matplotlib
 * a commandline supports many operations for searching, and transforming.
 * a GUI (`ami-gui`) is layered on the commandline to help navigation, query building and visualisation.
