@@ -1,7 +1,7 @@
 # pyami
 Semantic Reader of the Scientific Literature.
 
-A scientific article is not a single dumb file; it can be transformed into many semantic, useful sub-documnets. `pyami` is a Python framework for doing this; it reads the scientific literature in bulk transforms, searches and and analyses the contents.
+A scientific article is not a single dumb file; it can be transformed into many semantic, useful sub-documnets. `pyami` is a Python framework for doing this; it reads the scientific literature in bulk, transforms, searches and and analyses the contents.
 
 ### status
 This is in very active alpha development and early documentation will appear on the Wiki.
