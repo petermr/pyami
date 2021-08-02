@@ -528,7 +528,7 @@ class TextUtil:
         return section
 
     @staticmethod #OBSOLETE
-    def filter_words(words):
+    def filter_words(words) -> list:
         words = [w for w in words if len(w) > 2]
         words = [w for w in words if w.lower() not in STOPWORDS_EN]
         words = [w for w in words if w.lower() not in STOPWORDS_PUB]
@@ -536,7 +536,7 @@ class TextUtil:
         return words
 
     @classmethod
-    def replace_chars(cls, text, unwanted_chars, replacement):
+    def replace_chars(cls, text, unwanted_chars, replacement) -> str:
         """replaces all chars in unwanted chars with wanted_char
         
         :param text: source text
@@ -548,7 +548,7 @@ class TextUtil:
         return text0
 
     @classmethod
-    def split_into_sentences(cls, text, method="Spacy"):
+    def split_into_sentences(cls, text, method="Spacy") -> list:
         """ splits a paragraph into sentences
 
         uses nltk sent_tokenize
@@ -563,7 +563,7 @@ class TextUtil:
         return sentences
 
     @classmethod
-    def split_at_empty_newline(cls, text):
+    def split_at_empty_newline(cls, text) -> list:
         """create a new section at each empty newlines
 
         leading newline is ignored

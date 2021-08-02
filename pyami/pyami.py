@@ -9,6 +9,7 @@ import pprint
 import ast
 from collections import Counter
 import traceback
+from pathlib import Path
 
 #from cmd_runner import CommandRunner
 from dict_lib import AmiDictionary
@@ -16,7 +17,9 @@ from file_lib import FileLib
 from xml_lib import XmlLib
 from text_lib import TextUtil, DSLParser
 from pdfreader import PdfReader
+# from pdfminer import PDFSyntaxError
 from symbol import SymbolIni
+from util import AmiLogger
 from wikimedia import WikidataLookup
 
 class PyAMI:
@@ -27,12 +30,14 @@ class PyAMI:
     APPLY         = "apply"
     ASSERT        = "assert"
     CHECK_URLS    = "check_urls"
+    DELETE        = "delete"
     COMBINE       = "combine"
     CONTAINS      = "contains"
     DEBUG         = "debug"
     DICTIONARY    = "dictionary"
     FILTER        = "filter"
     GLOB          = "glob"
+    KEEP          = "keep"
     LOOKUP        = "lookup"
     PRINT_SYMBOLS = "print_symbols"
     PROJ          = "proj"
@@ -72,7 +77,8 @@ class PyAMI:
         self.config = None
         self.current_file = None
         self.fileset = None
-        self.file_dict = {}
+        self.file_dict = {} # possibly to be replaced by content_store.file_dict
+        # self.content_store =  ContentStore(self) # will expose content_store.file_dict
         self.func_dict = {}
         self.result = None
         self.set_flags()
@@ -82,6 +88,7 @@ class PyAMI:
         self.set_funcs()
         self.show_symbols = False
         self.ami_dictionary = None
+        self.ami_logger = None
         if self.show_symbols:
             pprint.pp(f"SYMBOLS\n {self.symbol_ini.symbols}")
 
@@ -98,9 +105,10 @@ class PyAMI:
     def set_funcs(self):
         """ """
         # 1:1 methods
-        self.func_dict[self.XML2TXT] = XmlLib.remove_all_tags
-        self.func_dict[self.PDF2TXT] = PdfReader.read_and_convert
-        self.func_dict[self.TXT2SENT] = TextUtil.split_into_sentences
+        # tuple of func+file_extnsion
+        self.func_dict[self.XML2TXT] = (XmlLib.remove_all_tags, ".xml.txt")
+        self.func_dict[self.PDF2TXT] = (PdfReader.read_and_convert, ".pdf.txt")
+        self.func_dict[self.TXT2SENT] = (TextUtil.split_into_sentences, ".sen.txt")
         # 1:n methods
 
 
@@ -115,6 +123,8 @@ class PyAMI:
                             help='list of sequential transformations (1:1 map) to apply to pipeline ({self.TXT2SENT} NYI)')
         parser.add_argument('--assert', nargs="+",
                             help='assertions; failure gives error message (prototype)')
+        parser.add_argument('--delete', nargs="+",
+                            help='delete globbed files. Argument/s <glob> are relative to `proj`')
         parser.add_argument('--combine', nargs=1,
                             help='operation to combine files into final object (e.g. concat text or CSV file')
         parser.add_argument('--config', '-c', nargs="*", default="PYAMI",
@@ -132,6 +142,8 @@ class PyAMI:
                                  'include alternatives in {...,...}. ')
         # parser.add_argument('--help', '-h', nargs="?",
         #                     help='output help; (NYI) an optional arg gives level')
+        parser.add_argument('--keep', nargs=1,
+                            help='delete all except globbed files. Single argument <glob> is relative to `proj`')
         parser.add_argument('--languages', nargs="+", default=["en"],
                             help='languages (NYI)')
         parser.add_argument('--loglevel', '-l', default="info",
@@ -330,6 +342,10 @@ class PyAMI:
 
     def run_proj(self):
         self.proj = self.args[self.PROJ]
+        if self.args[self.DELETE]:
+            self.delete_files()
+        if self.args[self.KEEP]: # NYI
+            self.keep_files()
         if self.args[self.GLOB]:
             self.glob_files()
         if self.args[self.SPLIT]:
@@ -364,18 +380,49 @@ class PyAMI:
             self.logger.warning("run test_text NYI")
             # test_text.main()
 
+    def delete_files(self):
+        if self.proj is None or self.proj == "":
+            self.ami_logger.error(f"delete requires --proj; ignored")
+            return
+        globs = self.args[self.DELETE]
+        for glob in globs:
+            self.delete_glob(glob)
+
+    def delete_glob(self, glob_exp):
+        if ".." in glob_exp or glob_exp.endswith("*"):
+            self.logger.error(f"glob {glob_exp} cannot contain .. or end in *")
+            return
+        full_glob = self.proj + "/" + glob_exp
+        self.logger.warning(f"delete: {full_glob}")
+        glob_recurse = True  # change this later
+        globs = glob.glob(full_glob, recursive=glob_recurse)
+        if globs is not None:
+            files = {file: None for file in globs}
+            self.logger.warning(f"deleting {len(files)} files ")
+            for f in files:
+                p = Path(f)
+                if p.is_dir():
+                    self.logger.warning(f"Cannot yet delete directories {p}")
+                else:
+                    p.unlink()
+
     def glob_files(self):
         import glob
         glob_recurse = self.flagged(self.RECURSE)
         glob_ = self.args[self.GLOB]
         self.logger.info(f"glob: {glob_}")
-        self.file_dict = {file: None for file in glob.glob(glob_, recursive=glob_recurse)}
+        files = {file: None for file in glob.glob(glob_, recursive=glob_recurse)}
+        self.file_dict = files
+        # self.content_store.create_file_dict(files)
+
         self.logger.info(f"glob file count {len(self.file_dict)}")
 
     def split(self, type):
         """ split fulltext.xml into sections"""
 
-        for file in self.file_dict:
+        # file_keys = self.content_store.get_file_keys()
+        file_keys = self.file_dict.keys()
+        for file in file_keys:
             suffix = FileLib.get_suffix(file)
             if ".xml" == suffix or type==self.XML2SECT:
                 self.make_xml_sections(file)
@@ -396,9 +443,10 @@ class PyAMI:
         with open(file, "r", encoding="utf-8") as f:
             text = f.read()
             sections = TextUtil.split_at_empty_newline(text)
-        self.file_dict[file] = sections
-        for sect in sections:
-            self.logger.warning(sect)
+            self.store_or_write_data(file, sections, )
+        # self.content_store.store(file, sections)
+        #     for sect in sections:
+        #         self.ami_logger.warning(f"{sect})
 
 
     def apply_func(self, apply_type):
@@ -406,12 +454,13 @@ class PyAMI:
         self.read_file_content()
         if apply_type :
             self.logger.info(f"apply {apply_type}")
-            func = self.func_dict[apply_type]
-            if (func is None):
+            func_tuple = self.func_dict[apply_type]
+            if (func_tuple is None):
                 self.logger.error(f"Cannot find func for {apply_type}")
             else:
                 # apply data is stored in self.file_dict
-                self.apply_to_file_content(func)
+                self.apply_to_file_content(func_tuple, apply_type)
+
         return
 
     def normalize(self, unistr):
@@ -426,7 +475,8 @@ class PyAMI:
 
         files = set()
         # record hits
-        for file in self.file_dict:
+        file_keys = self.file_dict.keys()
+        for file in file_keys:
             filter_true = self.apply_filter(file, filter_expr)
             if filter_true:
                 files.add(file)
@@ -491,19 +541,19 @@ class PyAMI:
         elif filter == self.WIKIDATA_SPARQL:
             hits = self.apply_wikidata_sparql(hit_list, value)
             if hits:
-                self.logger.warning(f"wikidata_sparql hits {hits}")
+                self.ami_logger.warning(f"wikidata_sparql hits {hits}")
                 hit_list = hits
 
         elif filter == self.XPATH and file.endswith(".xml"):
             tree = etree.parse(file)
             hits = [h.strip() for h in tree.xpath(value)]
             if len(hits) > 0:
-                self.logger.warning(f"xpath {type(hits)} {hits}")
+                self.ami_logger.warning(f"xpath {type(hits)} {hits}")
                 hit_list.extend(hits)
 
         self.logger.debug(f"hit list {hit_list}")
         if hit_list:
-            self.logger.info(f"non-zero list {hit_list}")
+            self.ami_logger.info(f"non-zero list {hit_list}")
         return hit_list
 
     @classmethod
@@ -552,16 +602,17 @@ class PyAMI:
         :param to_str:  (Default value = True)
 
         """
+        self.ami_logger = AmiLogger(self.logger, initial=10, routine = 100)
         for file in self.file_dict:
-            self.logger.info(f"reading {file}")
+            self.ami_logger.info(f"reading {file}")
             if file.endswith(".xml"):
-                self.read_string_content(file, to_str)
+                self.read_string_content_to_dict(file, to_str)
             elif file.endswith(".pdf"):
-                self.lazy_read_binary_file(file)
+                self.save_file_name_to_dict(file)
             elif file.endswith(".png"):
-                self.read_binary_content(file)
+                self.read_binary_content_to_dict(file)
             elif file.endswith(".txt"):
-                self.read_string_content(file, to_str=False)
+                self.read_string_content_to_dict(file, to_str=False)
             else:
                 self.logger.warning(f"cannot read file into string {file}")
 
@@ -575,13 +626,13 @@ class PyAMI:
                 self.logger.warning("USE DICTIONARY: NYI", value, dictionary)
             elif value == 'wikidata':
                 qnumber = self.wikipedia_lookup.lookup_wikidata(hit)
-                self.logger.info(f"qnumber {qnumber}")
+                self.ami_logger.info(f"qnumber {qnumber}")
             else:
                 self.logger.error(f"cannot parse lookup: {value}")
 
     def apply_wikidata_sparql(self, hit_list, value):
         if hit_list:
-            self.logger.warning(f"wikidata input {hit_list}")
+            self.ami_logger.warning(f"wikidata input {hit_list}")
         return hit_list
 
     def get_dictionary(self, value):
@@ -590,52 +641,85 @@ class PyAMI:
         if command_value is not None and command_value[0] == "dictionary":
             dictionary = command_value[1]
 
-    def read_string_content(self, file, to_str):
+    def read_string_content_to_dict(self, file, to_str):
         """reads file into string
         Can process bytes to string
 
+        DO WE NEED TO STORE THIS?
         """
         data = None
+        self.ami_logger.info(f"reading string content from {file}")
         with open(file, "r", encoding="utf-8") as f:
             try:
                 data = f.read()
                 if to_str and isinstance(data, bytes):
                     data = data.decode("utf-8")
-                self.file_dict[file] = data
+                self.store_or_write_data(file, data)
+                # self.file_dict[file] = data
             except UnicodeDecodeError as ude:
                 self.logger.error(f"skipped decoding error {ude}")
         return data
 
-    def lazy_read_binary_file(self, file):
-        self.file_dict[file] = file
+    def save_file_name_to_dict(self, file):
+        self.store_or_write_data(file, file)
+        # self.file_dict[file] = file
 
-    def read_binary_content(self, file):
+    def read_binary_content_to_dict(self, file):
         with open(file, "rb", ) as f:
             try:
                 data = f.read()
-                self.file_dict[file] = data
+                self.store_or_write_data(file, data)
+                # self.file_dict[file] = data
             except Exception as e:
                 self.logger.error(f"skipped reading error {e}")
 
-    def apply_to_file_content(self, func):
+    def apply_to_file_content(self, func_tuple, apply_type):
         """applies func to all string content in file_dict
 
         :param func: 
 
         """
-        for file in self.file_dict:
+        for file in self.file_dict.keys():
             data = self.file_dict.get(file)
-            self.logger.debug(f"file: {file} => {func}")
-            new_data = func(data)
-            self.file_dict[file] = new_data
+            self.logger.debug(f"file: {file} => {func_tuple[0]}")
+            new_file = self.create_file_name(file, func_tuple[1])
+
+            try:
+                new_data = func_tuple[0](data)
+                self.store_or_write_data(file, new_data, new_file)
+            except Exception as pdferr:
+                print(f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
         return
+
+    # needs fixing
+    def create_file_name(self, file, extension):
+        pathname = Path(file)
+        return str(pathname.with_suffix(extension))
+
+    def store_or_write_data(self, file, data, new_file=None) -> None:
+        """store or write data to disk"""
+        if file in self.file_dict:
+            old_data = self.file_dict[file]
+            if old_data is not None and old_data != data:
+                self.ami_logger.warning(f"===============================\n"
+                                    f"=========OVERWRITING data for {file}\n"
+                                    f"{self.file_dict[file]} \n========WITH======\n"
+                                    f"{data}")
+                if new_file is not None:
+                    self.ami_logger.warning(f"WROTE: {new_file}")
+                    with open(new_file, "w", encoding="utf-8") as f:
+                        f.write(data)
+                    self.file_dict[file] = new_file
+
+        # save data old-style
+        self.file_dict[file] = data
 
     def combine_files_to_object(self):
         """ """
         methods = self.args.get(self.COMBINE)
         if methods and methods == self.CONCAT_STR:
             self.result = "\n".join(self.file_dict.values())
-            self.logger.debug(self.result)
+            self.ami_logger.warning(f"combine {self.result}")
 
     def write_output(self):
         """ """
@@ -655,7 +739,7 @@ class PyAMI:
             #     # data = [data]
             #     pass # this was a  mistake
             with open(new_outfile, "w", encoding="utf-8") as f:
-                self.logger.warning(f"wrote results {new_outfile}")
+                self.ami_logger.warning(f"wrote results {new_outfile}")
                 # for d in data:
                 f.write(f"{str(data)}")
 
@@ -684,22 +768,32 @@ class PyAMI:
         """
         return True if self.flag_dict.get(flag) else False
 
-    def run_examples(self):
-        # from examples import Examples
-        examples = Examples()
+    # def run_examples(self):
+    #     # from examples import Examples
+    #     examples = Examples()
+    #
+    #     examples.example_pdf2txt()
+    #     examples.example_split_pdf_txt_paras()
+    #
+    #     examples.example_xml2sect()
+    #     examples.example_split_oil26()
+    #
+    #     examples.example_split_sentences()
+    #     examples.example_xml2sect()
+    #     examples.example_filter()
+    #     examples.example_filter_species()
+    #
+    #     pass
 
-        examples.example_pdf2txt()
-        examples.example_split_pdf_txt_paras()
+class ContentStore():
+    """caches content or writes it to disk
 
-        examples.example_xml2sect()
-        examples.example_split_oil26()
+    replaces earlier pyami.file_dict
+    """
 
-        examples.example_split_sentences()
-        examples.example_xml2sect()
-        examples.example_filter()
-        examples.example_filter_species()
-
-        pass
+    def __init__(self, pyami):
+        self.pyami = pyami
+        self.file_dict = {}
 
 def main():
 

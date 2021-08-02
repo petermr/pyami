@@ -95,3 +95,50 @@ class Util:
             dictionary = ast.literal_eval(contents)
             return dictionary
 
+class AmiLogger():
+    """wrapper for logger to limit or condense voluminous output
+
+    adds a dictionary of counts for each log level
+    """
+    def __init__(self, logger, initial=10, routine=100):
+        """create from an existing logger"""
+        self.logger = logger
+        self.func_dict = {
+            "debug": self.logger.debug,
+            "info": self.logger.info,
+            "warning": self.logger.warning,
+            "error": self.logger.error,
+
+        }
+        self.initial = initial
+        self.routine = routine
+        self.count = {
+        }
+        self.reset_counts()
+
+    def reset_counts(self):
+        for level in self.func_dict.keys():
+            self.count[level] = 0
+
+    # these will be called instead of logger
+    def debug(self, msg):
+        self._print_count(msg, "debug")
+    def info(self, msg):
+        self._print_count(msg, "info")
+    def warning(self, msg):
+        self._print_count(msg, "warning")
+    def error(self, msg):
+        self._print_count(msg, "error")
+    # =======
+
+    def _print_count(self, msg, level):
+        """called by the wrapper"""
+        logger_func = self.func_dict[level]
+        if not level in self.count:
+            self.count[level] = 0;
+        if self.count[level] <= self.initial or self.count[level] % self.routine == 1:
+            logger_func(f"{self.count[level]}: {msg}")
+        else:
+            print(".", end="")
+        self.count[level] += 1
+

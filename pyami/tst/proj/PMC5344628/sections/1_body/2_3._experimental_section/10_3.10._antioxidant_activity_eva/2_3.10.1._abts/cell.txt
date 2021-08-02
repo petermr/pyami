@@ -1,3 +1,0 @@
-The antioxidant capacity is expressed as percentage inhibition, calculated using the following formula [70]:
-(2)Inhibition(%)=[Acontrol−AsampleAcontrol×100]
-where Acontrol is the absorbance of the ABTS radical in methanol, and Asample is the absorbance of an ABTS radical solution mixed with the sample. All determinations were performed in triplicate.

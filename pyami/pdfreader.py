@@ -26,13 +26,13 @@ class PdfReader:
         # converter = XMLConverter(resource_manager, fake_file_handle, laparams=LAParams()) # not tested
         page_interpreter = PDFPageInterpreter(resource_manager, converter)
 
-        cls.logger.info("PDF FILE", file)
+        print(f" ====== PDF FILE {file} =====")
         with open(file, 'rb') as fh:
             for i, page in enumerate(PDFPage.get_pages(fh,
                                           caching=True,
                                           check_extractable=True)):
                 page_interpreter.process_page(page)
-                print(f"=================== page {i}=================")
+                print(f"=================== page {i+1}=================")
 
             text = fake_file_handle.getvalue()
 

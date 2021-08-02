@@ -1,3 +1,0 @@
-The inhibition rate was calculated as follows:
-(1)IR(%)=C−SC×100
-where C is the rate of the fungal mycelium growth of the control, and S is the rate of the fungal mycelium growth of the samples.

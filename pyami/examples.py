@@ -165,8 +165,6 @@ class Examples():
     def example_pdf2txt(self):
         self.banner(self.example_pdf2txt.__name__)
 
-        from shutil import copyfile
-
         proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
@@ -174,9 +172,18 @@ class Examples():
             "--glob", "${proj}/*/fulltext.pdf",
             "--apply", "pdf2txt",
             "--outfile", "fulltext.pd.txt",
-            # "--assert",
-            #     "file_glob_count(${proj}/*/fulltext.pd.txt,3)",
         ])
+
+    def example_delete(self):
+        self.banner(self.example_delete.__name__)
+
+        proj_dir = self.pyamix.get_symbol("misc4.p")
+        print("file", proj_dir, os.path.exists(proj_dir))
+        self.pyamix.run_commands([
+            "--proj", proj_dir,
+            "--delete", "**/*_p.xml", "**/*_p.xml.txt", "*/sections/", "**/italic.xml", "**/cell.txt"
+        ])
+
 
     def banner(self, msg):
         print(f"===================={msg}==================")
@@ -187,6 +194,7 @@ class Examples():
         """WARNING:symbol.ini:0 6 proj /Users/pm286/projects/openDiagram/physchem/resources/oil26
         this is being pulled from somewhere?"""
         example_dict = {
+            "de": (self.example_delete, "deleting files"),
             "gl": (self.example_glob, "globbing files"),
             "pd": (self.example_pdf2txt, "convert pdf to text"),
             "pa": (self.example_split_pdf_txt_paras, "split pdf text into paragraphs"),
@@ -203,7 +211,9 @@ class Examples():
             print(f"\nall => all examples")
         elif len(example_list) == 1 and example_list[0] == 'all':
             self.logger.warning(f"RUNNING ALL EXAMPLES: ")
-            self.run_example_list(example_dict, list(example_dict.keys()))
+            examples_keys = list(example_dict.keys())
+            examples_keys.remove("de")
+            self.run_example_list(example_dict, examples_keys)
         else:
             self.run_example_list(example_dict, example_list)
 

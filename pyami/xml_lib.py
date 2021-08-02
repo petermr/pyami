@@ -5,6 +5,7 @@ from lxml import etree as LXET
 import os
 from pathlib import Path
 from file_lib import FileLib
+from util import AmiLogger
 
 # make leafnodes and copy remaning content as XML
 TERMINAL_COPY = {
@@ -103,17 +104,19 @@ NS_MAP = {
     XMLNS_NS: "http://www.w3.org/2000/xmlns/",
     }
 
+logger = logging.getLogger("xml_lib")
+logger.setLevel(logging.INFO)
+
 class XmlLib:
 
-    logger = logging.getLogger("xml_lib")
-    logger.setLevel(logging.INFO)
 
     def __init__(self, file=None, section_dir=SECTIONS):
         self.max_file_len = 30
         self.file = None
         self.parent_path = None
         self.root = None
-
+        self.logger = logger
+        self.ami_logger = AmiLogger(self.logger)
 
     def read(self, file):
         if file is not None:
@@ -129,8 +132,9 @@ class XmlLib:
         # self.logger.debug(" " * indent, filename)
         # subdir = os.path.join(self.section_dir, filename)
         # FileLib.force_mkdir(subdir)
+
         self.make_descendant_tree(self.root, self.section_dir)
-        self.logger.info(f"wrote XML sections for {self.file} {self.section_dir}")
+        self.ami_logger.info(f"wrote XML sections for {self.file} {self.section_dir}")
 
     @staticmethod
     def parse_xml_file_to_root(file):
@@ -157,12 +161,12 @@ class XmlLib:
 
     def make_descendant_tree(self, elem, outdir):
         if elem.tag in TERMINALS:
-            print("skipped ",elem.tag)
+            ami_logger.debug("skipped ",elem.tag)
             return
         TERMINAL = "T_"
         IGNORE = "I_"
         children = list(elem)
-        self.logger.debug(f"children> {len(children)}")
+        self.ami_logger.debug(f"children> {len(children)}")
         isect = 0
         for child in children:
             if "ProcessingInstruction" in str(type(child)):
@@ -188,7 +192,7 @@ class XmlLib:
             if flag == TERMINAL:
                 xml_string = LXET.tostring(child)
                 filename1 = os.path.join(outdir, filename + '.xml')
-                self.logger.debug(f"writing {filename1}")
+                self.ami_logger.debug(f"writing {filename1}")
                 try:
                     with open(filename1, "wb") as f:
                         f.write(xml_string)
@@ -198,7 +202,7 @@ class XmlLib:
                 subdir = os.path.join(outdir, filename)
                 FileLib.force_mkdir(subdir) # creates empty dir, may be bad idea
                 if flag == "":
-                    self.logger.debug(f">> {title} {child}")
+                    self.ami_logger.debug(f">> {title} {child}")
                     self.make_descendant_tree(child, subdir)
             isect += 1
 
