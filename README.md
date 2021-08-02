@@ -33,7 +33,7 @@ There are several independent components. Many of these are customised for begin
 * code. (in Python3)
  
 # commands
-This is a subset of current commands:
+This is a subset of current commands (NYI=not yet implemented):
 ````
 optional arguments:
   -h, --help            show this help message and exit
