@@ -157,7 +157,7 @@ class AmiSearch:
         dict_list.append(dikt[name])
 
     def search_and_generate_section(self, file, filter=filter):
-        section = TextUtil.get_section_with_words(file, filter=filter)
+        section = AmiSection.get_section_with_words(file, filter=filter)
         total_hits_by_dict = {}
         self.matches_by_amidict, hits_by_dict = self.match_single_words_against_dictionaries(section.words)
         total_hits = 0

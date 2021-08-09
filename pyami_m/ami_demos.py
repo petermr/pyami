@@ -1,12 +1,12 @@
 
-from pyami.constants import PHYSCHEM_PYTHON
+from pyami_m.constants import PHYSCHEM_PYTHON
 import os
-from pyami.util import Util
-from pyami.text_lib import AmiSection
-from pyami.dict_lib import AmiDictionaries
-from pyami.projects import AmiProjects, AmiProject
-from pyami.text_lib import WordFilter
-from pyami.search_lib import AmiSearch
+from pyami_m.util import Util
+from pyami_m.text_lib import AmiSection
+from pyami_m.dict_lib import AmiDictionaries
+from pyami_m.projects import AmiProjects, AmiProject
+from pyami_m.text_lib import WordFilter
+from pyami_m.search_lib import AmiSearch
 
 class AmiDemos:
 

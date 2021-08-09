@@ -254,12 +254,11 @@ class FileLib:
 
         may throw exception from write
         """
-        import pyamix.file_lib
         if file is not None:
             if os.path.exists(file) and not overwrite:
                 logging.warning(f"not overwriting existsnt file {file}")
             else:
-                pyamix.file_lib.FileLib.force_mkparent(file)
+                cls.force_mkparent(file)
                 with open(file, "w", encoding="utf-8") as f:
                     f.write(data)
 
@@ -292,7 +291,7 @@ class FileLib:
         for filenames
 
         """
-        from pyamix.text_lib import TextUtil
+        from pyami_m.text_lib import TextUtil
         # this is non-trivial https://stackoverflow.com/questions/10017147/removing-a-list-of-characters-in-string
 
         non_file_punct = '\t \n{}!@#$%^&*()[]:;\'",|\\~+=/`'

@@ -8,8 +8,10 @@ import pprint
 from collections import Counter
 import traceback
 from pathlib import Path
+import shutil
 
 from pyami_m.dict_lib import AmiDictionary
+from pyami_m.examples import Examples
 from pyami_m.file_lib import FileLib
 from pyami_m.xml_lib import XmlLib
 from pyami_m.text_lib import TextUtil, DSLParser
@@ -21,27 +23,31 @@ from pyami_m.wikimedia import WikidataLookup
 logging.debug("loading pyamix.py")
 
 class PyAMI:
-    """ """
+    """ main entry point for running pyami
+     """
     OUTFILE       = "outfile"
 
     # flags
     APPLY         = "apply"
     ASSERT        = "assert"
     CHECK_URLS    = "check_urls"
+    COPY          = "copy"
     DELETE        = "delete"
+    DEST          = "dest"
     COMBINE       = "combine"
     CONTAINS      = "contains"
     DEBUG         = "debug"
     DICTIONARY    = "dictionary"
+    EXAMPLES      = "examples"
     FILTER        = "filter"
     GLOB          = "glob"
-    KEEP          = "keep"
     LOOKUP        = "lookup"
     PRINT_SYMBOLS = "print_symbols"
     PROJ          = "proj"
     RECURSE       = "recurse"
     REGEX         = "regex"
     SECT          = "sect"
+    SRC           = "src"
     SPLIT         = "split"
     SYMBOLS       = "symbols"
     TEST          = "test"
@@ -64,6 +70,10 @@ class PyAMI:
     symbol_ini = None
 
     def __init__(self):
+        """constructor 
+
+        creates symbols
+        """
 
         self.logger.debug(f"===============Examples=================")
         if self.logger.getEffectiveLevel() <= logging.DEBUG:
@@ -93,7 +103,9 @@ class PyAMI:
 
 
     def set_flags(self):
-        """ """
+        """initialises flag_dict
+        """
+
         self.flag_dict = {}
         self.flag_dict[self.APPLY] = None
         self.flag_dict[self.CHECK_URLS] = None
@@ -102,7 +114,8 @@ class PyAMI:
         self.flag_dict[self.RECURSE] = True
 
     def set_funcs(self):
-        """ """
+        """initializes func_dict
+        """
         # 1:1 methods
         # tuple of func+file_extnsion
         self.func_dict[self.XML2TXT] = (XmlLib.remove_all_tags, ".xml.txt")
@@ -112,28 +125,32 @@ class PyAMI:
 
 
     def create_arg_parser(self):
-        """creates adds the arguments for pyami commandline"""
+        """creates adds the arguments for pyami commandline
+        """
         import argparse
         parser = argparse.ArgumentParser(description='Search sections with dictionaries and patterns')
         apply_choices = [self.PDF2TXT, self.TXT2SENT, self.XML2TXT]
         self.logger.debug("ch", apply_choices)
         parser.add_argument('--apply', nargs="+",
-                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
+#                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
+                            choices=apply_choices,
                             help='list of sequential transformations (1:1 map) to apply to pipeline ({self.TXT2SENT} NYI)')
         parser.add_argument('--assert', nargs="+",
                             help='assertions; failure gives error message (prototype)')
-        parser.add_argument('--delete', nargs="+",
-                            help='delete globbed files. Argument/s <glob> are relative to `proj`')
         parser.add_argument('--combine', nargs=1,
                             help='operation to combine files into final object (e.g. concat text or CSV file')
         parser.add_argument('--config', '-c', nargs="*", default="PYAMI",
                             help='file (e.g. ~/pyami/config.ini) with list of config file(s) or config vars')
-        parser.add_argument('--debug', nargs="+",
+        parser.add_argument('--copy', nargs="+",
+                            help='copy file or directory from=<from> to=<to> overwrite=<yes/no default=no>')
+        parser.add_argument('--debug', nargs="+", type=str,
                             help='debugging commands , symbols, numbers, (not formalised)')
-        parser.add_argument('--demo', nargs="*",
-                            help='simple demos (NYI). empty gives list. May need downloading corpora')
+        parser.add_argument('--delete', nargs="+",
+                            help='delete globbed files. Argument/s <glob> are relative to `proj`')
         parser.add_argument('--dict', '-d', nargs="+",
                             help='dictionaries to ami-search with, _help gives list')
+        parser.add_argument('--examples', nargs="*", type=str,
+                            help='simple demos, empty gives list, "all" runes all. May need downloading corpora')
         parser.add_argument('--filter', nargs="+",
                             help='expr to filter with')
         parser.add_argument('--glob', '-g', nargs="+",
@@ -141,8 +158,6 @@ class PyAMI:
                                  'include alternatives in {...,...}. ')
         # parser.add_argument('--help', '-h', nargs="?",
         #                     help='output help; (NYI) an optional arg gives level')
-        parser.add_argument('--keep', nargs=1,
-                            help='delete all except globbed files. Single argument <glob> is relative to `proj`')
         parser.add_argument('--languages', nargs="+", default=["en"],
                             help='languages (NYI)')
         parser.add_argument('--loglevel', '-l', default="info",
@@ -178,7 +193,7 @@ class PyAMI:
         #     parser.print_help(sys.stderr)
         #     sys.exit()
 
-        self.logger.info(f"********** raw arglist {arglist}")
+        self.logger.debug(f"********** raw arglist {arglist}")
         self.parse_and_run_args(arglist)
         if self.flagged(self.PRINT_SYMBOLS):
             self.symbol_ini.print_symbols()
@@ -193,11 +208,13 @@ class PyAMI:
             arglist = []
         parser = self.create_arg_parser()
         self.args = self.extract_parsed_arg_tuples(arglist, parser)
-        self.logger.debug("ARGS: "+str(self.args))
+        self.logger.debug("ARGS before substitution: "+str(self.args))
         self.substitute_args()
-        self.logger.debug("ARGS1: "+str(self.args))
+        self.logger.debug(f"self.args {self.args}")
+        self.add_single_str_to_list()
+        self.logger.debug("ARGS after substitution: "+str(self.args))
         self.set_loglevel_from_args()
-        self.run_workflows()
+        self.run_arguments()
 
     def substitute_args(self):
         """ """
@@ -208,20 +225,60 @@ class PyAMI:
             self.logger.debug(f"++++++++{item} ==> {new_item}")
             new_items[new_item[0]] = new_item[1]
         self.args = new_items
-        self.logger.info(f"******** substituted ARGS {self.args}")
+        self.logger.debug(f"******** substituted ARGS {self.args}")
 
-    def run_workflows(self):
-        """ """
+    def add_single_str_to_list(self):
+        """convert single strings to list of one string"""
+        str_args = [self.DEBUG, self.EXAMPLES]
+        for str_arg in str_args:
+            self.logger.debug(f"key {str_arg}")
+            self.replace_single_values_in_self_args_with_list(str_arg)
+            self.logger.debug(f"args => {self.args}")
+
+    def run_arguments(self):
+        """ parse and expland arguments then ru options for
+
+        Currently:
+        * examples
+        * project
+        * tests
+
+        There will be more here
+
+         """
         # file workflow
         self.wikipedia_lookup = WikidataLookup()
-        self.logger.warning(f"commandline args {self.args}")
+        self.logger.debug(f"commandline args {self.args}")
+
+        if self.EXAMPLES in self.args:
+            example_args = self.args[self.EXAMPLES]
+            if example_args is not None:
+                self.logger.debug(f" examples args: {example_args}")
+                Examples(self).run_examples(example_args)
+
+        if self.COPY in self.args and not self.args[self.COPY] is None:
+            self.logger.warning(f"COPY {self.args[self.COPY]}")
+            self.copy_files()
+
         if self.PROJ in self.args:
             if self.SECT in self.args or self.GLOB in self.args:
-                self.run_file_workflow()
+                self.run_project_workflow()
+
         elif self.TEST in self.args:
             self.logger.warning(f"TEST in **args {self.args}")
             self.run_arg_tests()
 
+    def replace_single_values_in_self_args_with_list(self, key):
+        """always returns list even for single arg
+        """
+        argsx = None
+        if self.args is None:
+            self.logger.warning(f"NULL self.args")
+        elif key in self.args:
+            argsx = self.args[key]
+            if argsx is not None:
+                if type(argsx) != list:
+                    self.args[key] = [argsx]
 
     def make_substitutions(self, item):
         """
@@ -276,7 +333,7 @@ class PyAMI:
 
         """
         parsed_args = parser.parse_args() if not arglist else parser.parse_args(arglist)
-        self.logger.info(f"PARSED_ARGS {parsed_args}")
+        self.logger.debug(f"PARSED_ARGS {parsed_args}")
         args = {}
         arg_vars = vars(parsed_args)
         new_items = {}
@@ -313,8 +370,8 @@ class PyAMI:
                 level = levels[loglevel.lower()]
                 self.logger.setLevel(level)
 
-    def run_file_workflow(self):
-        """ """
+    def run_project_workflow(self):
+        """ run when PROJ is set"""
         # import glob
         # import pathlib
         # import file_lib
@@ -343,11 +400,10 @@ class PyAMI:
                 self.logger.warning(f"unknown arg {arg} in  debug: ")
 
     def run_proj(self):
+        """ project-related commands"""
         self.proj = self.args[self.PROJ]
         if self.args[self.DELETE]:
             self.delete_files()
-        # if self.args[self.KEEP]: # NYI
-        #     self.keep_files()
         if self.args[self.GLOB]:
             self.glob_files()
         if self.args[self.SPLIT]:
@@ -382,7 +438,61 @@ class PyAMI:
             self.logger.warning("run test_text NYI")
             # test_text.main()
 
+    def copy_files(self):
+        """copies file or directory 
+
+        copies a file or complete directory
+
+        Args:
+            src (str): file or dir to copy, must exist
+            dest (str): destination must be a directory. If file becomes a child of <to>; if a directory creates or replaces <to>
+            overwrite (bool, optional): whether to overwrite if file exists. Defaults to False.
+        Exceptions:
+            FileNotFoundError: if src does not exist, or dest cannot be created
+
+        """
+        # self.logger.warning(f"NOT IMPLERMENTED")
+        # return
+        print(self.args)
+        self.replace_single_values_in_self_args_with_list(self.COPY)
+        print(self.args)
+        argsx = self.args[self.COPY]
+        if len(argsx) < 2:
+            raise TypeError("copy needs >= 2 args")
+
+        src = argsx[0]
+        src_path = Path(src)
+        if not src_path.exists():
+            raise FileNotFoundError(str(src_path), "src must exist as file or directory")
+
+        dest = argsx[1]
+        dest_path = Path(dest)
+
+        overwrite = len(argsx) > 2 and argsx[2] == "overwrite"
+        if dest_path.exists():
+            if not overwrite:
+                file_type = "dir" if dest_path.is_dir() else "file"
+                raise TypeError(str(dest_path), f"cannot overwrite existing {file_type} (str({dest_path})")
+
+        else:
+            # assume directory
+            self.logger.warning(f"create directory {dest_path}")
+            dest_path.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"created directory {dest_path}")
+
+
+        if src_path.is_dir():
+            if os.path.exists(dest_path):
+                shutil.rmtree(dest_path)
+            shutil.copytree(src_path, dest_path)
+        else:
+            shutil.copy(src_path, dest_path) # will overwrite
+
     def delete_files(self):
+        """deletes files in glob
+
+        requires proj to be set
+        """
         if self.proj is None or self.proj == "":
             self.ami_logger.error(f"delete requires --proj; ignored")
             return
@@ -391,6 +501,13 @@ class PyAMI:
             self.delete_glob(glob)
 
     def delete_glob(self, glob_exp):
+        """deletes globbed files
+
+        Args:
+            glob_exp (str): glob expression
+
+        
+        """
         if ".." in glob_exp or glob_exp.endswith("*"):
             self.logger.error(f"glob {glob_exp} cannot contain .. or end in *")
             return
@@ -605,7 +722,7 @@ class PyAMI:
         """
         self.ami_logger = AmiLogger(self.logger, initial=10, routine=100)
         for file in self.file_dict:
-            self.ami_logger.info(f"reading {file}")
+            self.ami_logger.info(f"reading... {file}")
             if file.endswith(".xml"):
                 self.read_string_content_to_dict(file, to_str)
             elif file.endswith(".pdf"):
@@ -804,26 +921,22 @@ def main():
     """
 
     run_dsl = False
-    examples = True
-    run_commands = False
+    run_tests = False
+    run_commands = True
 
     PyAMI.logger.warning(f"\n============== running pyami main ===============\n{sys.argv[1:]}")
-    pyami = PyAMI()
+    pyamix = PyAMI()
     # this needs commandline
     if run_commands:
-        pyami.run_commands()
-    # pyami_m.run_tests()
+        pyamix.run_commands(sys.argv[1:])
+    if run_tests:
+        pyamix.run_tests()
     if run_dsl:
         DSLParser.run_tests(sys.argv[1:])
-    # if examples:
-    #     pyami_m.run_examples()
-    else:
-        pyami.run_commands(sys.argv[1:])
-
 
 if __name__ == "__main__":
 
-    PyAMI.logger.warning(f"sys.argv: {sys.argv}")
+    # PyAMI.logger.warning(f"sys.argv: {sys.argv}")
     # DONT rune main
     main()
 

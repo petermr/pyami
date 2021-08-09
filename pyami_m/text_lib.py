@@ -67,7 +67,7 @@ class ProjectCorpus:
         for file in self.files:
             section = AmiSection()
             section.read_file_get_text_filtered_words(file)
-            c = Counter(TextUtil.get_section_with_words(file).words)
+            c = Counter(AmiSection.get_section_with_words(file).words)
 #            self.logger.warning("most common", file.split("/")[-2:-1], c.most_common(20))
         wordz = TextUtil.get_aggregate_words_from_files(self.files)
         self.logger.warning(wordz)
@@ -239,6 +239,24 @@ class AmiSection:
         self.name = None
 #        self.read_section()
 
+        @classmethod
+        def get_section_with_words(cls, file, filter=True):
+            #        document = Document(file)  # level of tree
+            #        words = document.words
+            section = AmiSection()
+            section.read_file_get_text_filtered_words(file)
+            """
+            word_filter = WordFilter(
+                stopwords=[STOPWORDS_EN, STOPWORDS_PUB])
+
+            words = word_filter.filter_words(words)
+            """
+            # TODO
+            if filter:
+                section.words = TextUtil.filter_words(section.words)
+
+            return section
+
     @staticmethod
     def read_section_dict(file):
         """reads the dictionary of sections"""
@@ -379,7 +397,7 @@ class AmiSection:
 # should this be here??
 AmiSection.SECTION_LIST1 = AmiSection.read_section_dict("section_templates.json")
 AmiSection.SECTION_LIST = AmiSection.SECTION_LIST1
-logging.warning("reading section_templates")
+logging.warning("text_lib: reading section_templates")
 logging.debug("SECTION LIST", AmiSection.SECTION_LIST1)
 
 
@@ -505,25 +523,6 @@ class TextUtil:
             words = TextUtil.get_section_with_words(file).words
             all_words.extend(words)
         return all_words
-
-    @staticmethod
-    # move to AmiSection
-    def get_section_with_words(file, filter=True):
-#        document = Document(file)  # level of tree
-#        words = document.words
-        section = AmiSection()
-        section.read_file_get_text_filtered_words(file)
-        """
-        word_filter = WordFilter(
-            stopwords=[STOPWORDS_EN, STOPWORDS_PUB])
-
-        words = word_filter.filter_words(words)
-        """
-#TODO
-        if filter:
-            section.words = TextUtil.filter_words(section.words)
-
-        return section
 
     @staticmethod #OBSOLETE
     def filter_words(words) -> list:
