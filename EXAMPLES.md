@@ -5,12 +5,23 @@
 The examples can be run by
 
 ````
-python -m examples <args>
+<s>python -m examples <args></s>
+````
+Update:
+````
+python -m pyamix --examples all
 ````
 and the args are:
 ````
- examples args: ['pyami/examples.py']
-choose from:
+python -m pyamix --examples
+WARNING:root:loading templates.json
+WARNING:pyami:
+============== running pyami main ===============
+['--examples']
+choose example from:
+de => deleting files
+cp => copy files
+g0 => globbing files
 gl => globbing files
 pd => convert pdf to text
 pa => split pdf text into paragraphs
