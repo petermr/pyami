@@ -2,17 +2,20 @@
 
 `pyami` contains `emaples.py` with about 7 examples. Their basic operatiom is correct, but the output is messy and verbose.
 
-The examples can be run by
+The examples can be run from the `physchem/python` directory
+by
 
-````
-<s>python -m examples <args></s>
-````
 Update:
 ````
+cd <yourdir>/pyami/pyami_m
+pwd
+/Users/pm286/workspace/pyami/pyami_m
+
 python -m pyamix --examples all
 ````
 and the args are:
 ````
+
 python -m pyamix --examples
 WARNING:root:loading templates.json
 WARNING:pyami:
