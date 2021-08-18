@@ -3,10 +3,12 @@ import glob
 import logging
 logging.debug("loading text_lib")
 from bs4 import BeautifulSoup
+from pathlib import Path
 from collections import Counter
 import nltk, unicodedata
 import xml.etree.ElementTree as ET
 import re
+import json
 
 from pyami_m.file_lib import AmiPath, FileLib
 
@@ -228,6 +230,28 @@ class AmiSection:
         WORD,
     ]
 
+    SECTION_TEMPLATES_JSON = "section_templates.json"
+    TEMPLATES = None
+
+    def read_section_dict(file):
+        """reads the dictionary of sections"""
+
+        dictf = os.path.join(FileLib.get_pyami_m(), file)
+        dikt = FileLib.read_pydictionary(dictf)
+        logging.info(f"dict_keys: {dikt.keys()}")
+        return dikt
+
+    templates_json = Path(FileLib.get_pyami_resources(), SECTION_TEMPLATES_JSON)
+    SECTION_LIST1 = read_section_dict(templates_json)
+    SECTION_LIST = SECTION_LIST1
+    logging.debug("text_lib: reading section_templates")
+    logging.debug("SECTION LIST", SECTION_LIST1)
+
+    logging.warning("loading templates.json")
+    with open(templates_json, 'r') as json_file:
+        TEMPLATES = json.load(json_file)
+
+
     def __init__(self):
         self.words = []
         self.xml_file = None
@@ -239,36 +263,16 @@ class AmiSection:
         self.name = None
 #        self.read_section()
 
-        @classmethod
-        def get_section_with_words(cls, file, filter=True):
-            #        document = Document(file)  # level of tree
-            #        words = document.words
-            section = AmiSection()
-            section.read_file_get_text_filtered_words(file)
-            """
-            word_filter = WordFilter(
-                stopwords=[STOPWORDS_EN, STOPWORDS_PUB])
+    @classmethod
+    def get_section_with_words(cls, file, filter=True):
+        #        document = Document(file)  # level of tree
+        #        words = document.words
+        section = AmiSection()
+        section.read_file_get_text_filtered_words(file)
+        if filter:
+            section.words = TextUtil.filter_words(section.words)
 
-            words = word_filter.filter_words(words)
-            """
-            # TODO
-            if filter:
-                section.words = TextUtil.filter_words(section.words)
-
-            return section
-
-    @staticmethod
-    def read_section_dict(file):
-        """reads the dictionary of sections"""
-        import pathlib
-        dictf = os.path.join(pathlib.Path(__file__).parent, file)
-        dikt = FileLib.read_pydictionary(dictf)
-        logging.info(f"dict_keys: {dikt.keys()}")
-        return dikt
-
-    # #    SECTION_DICT1 = AmiSection.read_section_dict()
-    # SECTION_LIST = sorted(AmiSection.read_section_dict("section_templates.json").keys())
-    # logging.info("SEC", SECTION_LIST)
+        return section
 
     def add_name(self, file):
         """creates name (within a sections/) dir from file
@@ -394,12 +398,6 @@ class AmiSection:
             self.words.extend(words)
         return self.words
 
-# should this be here??
-AmiSection.SECTION_LIST1 = AmiSection.read_section_dict("section_templates.json")
-AmiSection.SECTION_LIST = AmiSection.SECTION_LIST1
-logging.warning("text_lib: reading section_templates")
-logging.debug("SECTION LIST", AmiSection.SECTION_LIST1)
-
 
 class Sentence:
 
@@ -429,7 +427,6 @@ class Sentence:
         """
         tokens = [token for token in tokens if not token in PUNCT]
         return tokens
-
 
     @staticmethod
     def read_numbered_line(text):

@@ -25,6 +25,14 @@ class Examples():
         ])
 
 
+    def example_glob0(self):
+        """ """
+
+        self.pyamix.run_commands([
+            "--proj", "${misc4.p}",
+            "--glob", "${proj}/**/sections/**/*abstract.xml",
+        ])
+
     def example_glob(self):
         """ """
 
@@ -71,10 +79,10 @@ class Examples():
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.pd.txt",
+            "--glob", "${proj}/*/fulltext.pdf.txt",
             "--split", "txt2para",
-            "--outfile", "fulltext.pd.sc.txt",
-            "--assert", "file_glob_count(${proj}/*/fulltext.pd.sc.txt,291)"
+            "--outfile", "fulltext.pdf.sec.txt",
+            "--assert", "file_glob_count(${proj}/*/fulltext.pdf.sec.txt,291)"
         ])
 
 
@@ -85,9 +93,9 @@ class Examples():
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.pd.txt",
+            "--glob", "${proj}/*/fulltext.pdf.txt",
             "--apply", "txt2sent",
-            "--outfile", "fulltext.pd.sn.txt",
+            "--outfile", "fulltext.pdf.sen.txt",
             "--split", "txt2para",
             "--assert",
             "glob_count(${proj}/*/fulltext.pd.sn.txt,3)",
@@ -120,7 +128,7 @@ class Examples():
             "--apply", "xml2txt",
             "--filter", "contains(cell)",
             "--combine", "concat_str",
-            "--outfile", "cell.txt"
+            "--outfile", "${proj}/results/cell.txt"
         ])
 
 
@@ -160,7 +168,7 @@ class Examples():
             "--proj", proj_dir,
             "--glob", "${proj}/*/fulltext.pdf",
             "--apply", "pdf2txt",
-            "--outfile", "fulltext.pd.txt",
+            "--outfile", "fulltext.pdf.txt",
         ])
 
     def example_delete(self):
@@ -185,6 +193,7 @@ class Examples():
         example_dict = {
             "de": (self.example_delete, "deleting files"),
             "cp": (self.example_copy, "copy files"),
+            "g0": (self.example_glob0, "globbing files"),
             "gl": (self.example_glob, "globbing files"),
             "pd": (self.example_pdf2txt, "convert pdf to text"),
             "pa": (self.example_split_pdf_txt_paras, "split pdf text into paragraphs"),

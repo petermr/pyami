@@ -9,6 +9,7 @@ from collections import Counter
 import traceback
 from pathlib import Path
 import shutil
+import argparse
 
 from pyami_m.dict_lib import AmiDictionary
 from pyami_m.examples import Examples
@@ -127,7 +128,6 @@ class PyAMI:
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
         """
-        import argparse
         parser = argparse.ArgumentParser(description='Search sections with dictionaries and patterns')
         apply_choices = [self.PDF2TXT, self.TXT2SENT, self.XML2TXT]
         self.logger.debug("ch", apply_choices)
@@ -372,10 +372,6 @@ class PyAMI:
 
     def run_project_workflow(self):
         """ run when PROJ is set"""
-        # import glob
-        # import pathlib
-        # import file_lib
-        # self.logger.info("globbing")
         self.logger.debug(f"ARGS {self.args}")
         if not self.args:
             self.logger.error("no args given; try --proj or --test")
@@ -420,23 +416,21 @@ class PyAMI:
             self.run_assertions()
 
     def run_arg_tests(self):
+        import test.test_file
+        import test.test_pdf
         self.logger.warning(f"*****running tests : {self.args[self.TEST]}")
         _TESTS = ["file_lib", "pdf_lib", "text_lib"]
         if not self.args[self.TEST]:
             self.logger.warning(f"No tests given: choose some/all of {_TESTS}")
             return
         if "file_lib" in self.args[self.TEST]:
-            import test_file
             self.logger.warning("run test_file")
-            test_file.main()
+            test.test_file.main()
         if "pdf_lib" in self.args[self.TEST]:
-            import test_pdf
             self.logger.warning("run test_pdf")
-            test_pdf.test_read_pdf()
+            test.test_pdf.test_read_pdf()
         if "text_lib" in self.args[self.TEST]:
-            # import test_text
             self.logger.warning("run test_text NYI")
-            # test_text.main()
 
     def copy_files(self):
         """copies file or directory 
@@ -526,7 +520,6 @@ class PyAMI:
                     p.unlink()
 
     def glob_files(self):
-        import glob
         glob_recurse = self.flagged(self.RECURSE)
         glob_ = self.args[self.GLOB]
         self.logger.info(f"glob: {glob_}")
