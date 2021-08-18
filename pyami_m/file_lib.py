@@ -4,29 +4,10 @@
 import logging
 logging.debug("loading file_lib")
 import os, glob, copy, json
-import pathlib
+from pathlib import Path, PurePath
 
-# from text_lib import TextUtil
-
-
-
-class Globber:
-    """ustilities for globbing - may be obsolete"""
-
-    def __init__(self, ami_path, recurse=True, cwd=None):
-        self.ami_path = ami_path
-        self.recurse = recurse
-        self.cwd = os.getcwd() if cwd is None else cwd
-
-    def get_globbed_files(self):
-        """uses the glob_string_list in ami_path to create a file list"""
-        files = []
-        if self.ami_path:
-            glob_list = self.ami_path.get_glob_string_list()
-            for globb in glob_list:
-                files += glob.glob(globb, recursive=self.recurse)
-        return files
-
+PYAMI_M   = "pyami_m"
+RESOURCES = "resources"
 
 # section keys
 _DESC = "_DESC"
@@ -76,6 +57,23 @@ EMPTY    = "empty"
 FULLTEXT_PAGE = "fulltext-page*"
 CHANNEL_STAR = "channel*"
 RAW = "raw"
+
+class Globber:
+    """ustilities for globbing - may be obsolete"""
+
+    def __init__(self, ami_path, recurse=True, cwd=None):
+        self.ami_path = ami_path
+        self.recurse = recurse
+        self.cwd = os.getcwd() if cwd is None else cwd
+
+    def get_globbed_files(self):
+        """uses the glob_string_list in ami_path to create a file list"""
+        files = []
+        if self.ami_path:
+            glob_list = self.ami_path.get_glob_string_list()
+            for globb in glob_list:
+                files += glob.glob(globb, recursive=self.recurse)
+        return files
 
 class AmiPath:
     """holds a (keyed) scheme for generating lists of file globs
@@ -254,18 +252,20 @@ class FileLib:
 
         may throw exception from write
         """
-        import pyamix.file_lib
         if file is not None:
             if os.path.exists(file) and not overwrite:
                 logging.warning(f"not overwriting existsnt file {file}")
             else:
-                pyamix.file_lib.FileLib.force_mkparent(file)
+                cls.force_mkparent(file)
                 with open(file, "w", encoding="utf-8") as f:
                     f.write(data)
 
     @staticmethod
     def create_absolute_name(file):
-        """create absolute name for a file"""
+        """create absolute/relative name for a file relative to pyami_m
+
+        TODO this is messy
+        """
         absolute_file = None
         if file is not None:
             file_dir = FileLib.get_parent_dir(__file__)
@@ -273,8 +273,29 @@ class FileLib:
         return absolute_file
 
     @classmethod
+    def get_pyami_m(cls):
+        """ gets paymi_m pathname
+
+        """
+        return Path(__file__).parent
+
+    @classmethod
+    def get_pyami_root(cls):
+        """ gets paymi root pathname
+
+        """
+        return Path(__file__).parent.parent
+
+    @classmethod
+    def get_pyami_resources(cls):
+        """ gets paymi root pathname
+
+        """
+        return Path(cls.get_pyami_root(), RESOURCES)
+
+    @classmethod
     def get_parent_dir(cls, file):
-        return None if file is None else pathlib.PurePath(file).parent
+        return None if file is None else PurePath(file).parent
 
     @classmethod
     def read_pydictionary(cls, file):
@@ -292,7 +313,7 @@ class FileLib:
         for filenames
 
         """
-        from pyamix.text_lib import TextUtil
+        from pyami_m.text_lib import TextUtil
         # this is non-trivial https://stackoverflow.com/questions/10017147/removing-a-list-of-characters-in-string
 
         non_file_punct = '\t \n{}!@#$%^&*()[]:;\'",|\\~+=/`'
@@ -308,14 +329,8 @@ class FileLib:
         INCLUDES the "."
 
         """
-        _suffix = None if file is None else pathlib.Path(file).suffix
+        _suffix = None if file is None else Path(file).suffix
         return _suffix
-
-
-SECTION_TEMPLATES_JSON = 'section_templates.json'
-templates_json = FileLib.create_absolute_name(SECTION_TEMPLATES_JSON)
-with open(templates_json, 'r') as json_file:
-    TEMPLATES = json.load(json_file)
 
 
 # see https://realpython.com/python-pathlib/

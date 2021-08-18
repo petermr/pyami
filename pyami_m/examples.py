@@ -9,20 +9,36 @@ class Examples():
 
     experimental
     """
-    from pyami_m.pyamix import PyAMI
 
-    pyamix = PyAMI()
     def __init__(self, pyamix=None):
         # self.pyamix = pyamix if pyamix is not None else PyAMI()
         self.logger = logger
-        pass
+        self.pyamix = pyamix
+
+
+    def example_copy(self):
+        self.pyamix.run_commands([
+            # "--debug", "symbols",
+            # "--delete", "${temp_dir}/misc4",
+            "--copy", "${misc4.p}", "${temp_dir}/misc4", "overwrite",
+            "--assert", "file_exists(${temp_dir}/misc4/files/xml_files.txt)",
+        ])
+
+
+    def example_glob0(self):
+        """ """
+
+        self.pyamix.run_commands([
+            "--proj", "${misc4.p}",
+            "--glob", "${proj}/**/sections/**/*abstract.xml",
+        ])
 
     def example_glob(self):
         """ """
 
         self.pyamix.run_commands([
             # "--proj", "${oil26.p}",
-            "--debug", "debug", "symbols",
+            "--debug", "symbols",
             "--proj", "${misc4.p}",
             "--glob", "${proj}/**/sections/**/*abstract.xml",
             "--dict", "${eo_plant.d}", "${ov_country.d}",
@@ -63,10 +79,10 @@ class Examples():
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.pd.txt",
+            "--glob", "${proj}/*/fulltext.pdf.txt",
             "--split", "txt2para",
-            "--outfile", "fulltext.pd.sc.txt",
-            "--assert", "file_glob_count(${proj}/*/fulltext.pd.sc.txt,291)"
+            "--outfile", "fulltext.pdf.sec.txt",
+            "--assert", "file_glob_count(${proj}/*/fulltext.pdf.sec.txt,291)"
         ])
 
 
@@ -77,9 +93,9 @@ class Examples():
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.pd.txt",
+            "--glob", "${proj}/*/fulltext.pdf.txt",
             "--apply", "txt2sent",
-            "--outfile", "fulltext.pd.sn.txt",
+            "--outfile", "fulltext.pdf.sen.txt",
             "--split", "txt2para",
             "--assert",
             "glob_count(${proj}/*/fulltext.pd.sn.txt,3)",
@@ -112,7 +128,7 @@ class Examples():
             "--apply", "xml2txt",
             "--filter", "contains(cell)",
             "--combine", "concat_str",
-            "--outfile", "cell.txt"
+            "--outfile", "${proj}/results/cell.txt"
         ])
 
 
@@ -152,7 +168,7 @@ class Examples():
             "--proj", proj_dir,
             "--glob", "${proj}/*/fulltext.pdf",
             "--apply", "pdf2txt",
-            "--outfile", "fulltext.pd.txt",
+            "--outfile", "fulltext.pdf.txt",
         ])
 
     def example_delete(self):
@@ -176,6 +192,8 @@ class Examples():
         this is being pulled from somewhere?"""
         example_dict = {
             "de": (self.example_delete, "deleting files"),
+            "cp": (self.example_copy, "copy files"),
+            "g0": (self.example_glob0, "globbing files"),
             "gl": (self.example_glob, "globbing files"),
             "pd": (self.example_pdf2txt, "convert pdf to text"),
             "pa": (self.example_split_pdf_txt_paras, "split pdf text into paragraphs"),
@@ -186,7 +204,7 @@ class Examples():
             "sp": (self.example_filter_species, "extract species with italics and regex (not finalised)"),
         }
         if not example_list:
-            print(f"choose from:")
+            print(f"choose example from:")
             for abbrev in example_dict:
                 print(f"{abbrev} => {example_dict[abbrev][1]}")
             print(f"\nall => all examples")
@@ -201,22 +219,27 @@ class Examples():
 
     def run_example_list(self, example_dict, example_list):
         for example in example_list:
+            self.logger.warning(f"EXAMPLE {example}")
             if example in example_dict:
                 print(f"\n\n\n"
                       f"+++++++++++++++++++++++++++++++++++++++\n"
                       f"                    {example}\n"
                       f"+++++++++++++++++++++++++++++++++++++++\n")
-                example_dict[example][0]()
-            else:
+                func = example_dict[example][0]
+                self.logger.debug(f"EXAMPLE_FUNC .. {func}")
+                func()
+
+            elif example is not None :
                 print(f"unknown example: {example}\nchoose from: {example_dict.keys()}")
 
 
 def main():
-    print(f" examples args: {sys.argv}")
     examples = Examples()
-    # test_me = PyAMITest()
-    # test_me.run_tests()
-    examples.run_examples(sys.argv[1:])
+    examples.logger.warning(f"calling examples directory will be phased out")
+    # print(f" examples args: {sys.argv}")
+    # # test_me = PyAMITest()
+    # # test_me.run_tests()
+    # examples.run_examples(sys.argv[1:])
 
 if __name__ == "__main__":
     main()

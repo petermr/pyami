@@ -21,6 +21,11 @@ class PdfReader:
 
     @classmethod
     def read_and_convert(cls, file):
+        """ converst a PDF file (to text)
+
+        Args:
+            file ([str]): filename
+         """
 
         resource_manager = PDFResourceManager()
         fake_file_handle = io.StringIO()
@@ -77,6 +82,8 @@ class PdfReader:
         return text
 
 def main():
+    """[main usually for testing
+    """
     pass
 
 if __name__ == "__main__":

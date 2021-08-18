@@ -70,7 +70,7 @@ class SymbolIni:
 
         if file is not None:
             if os.path.exists(file):
-                self.logger.debug("reading " + file)
+                self.logger.debug("reading. " + file)
                 self.apply_config_file(file)
             else:
                 self.logger.warning(f"*** cannot find config file {file} ***")

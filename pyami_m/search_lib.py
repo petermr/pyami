@@ -16,6 +16,7 @@ import tkinter as tk
 from rake_nltk import Rake
 import cProfile
 import argparse
+from pathlib import Path
 
 from pyami_m.ami_demos import AmiDemos
 from pyami_m.gutil import Gutil, ScrollingCheckboxList
@@ -34,6 +35,8 @@ WIKIDATA_ID = "wikidataID"
 NS_MAP = {'SPQ': 'http://www.w3.org/2005/sparql-results#'}  # add more as needed
 NS_URI = "SPQ:uri"
 NS_LITERAL = "SPQ:literal"
+
+SMART_STOP_LIST = "SmartStoplist.txt"
 
 class AmiSearch:
 
@@ -59,7 +62,6 @@ class AmiSearch:
         self.do_plot = True
         self.ami_projects = AmiProjects()
         self.use_rake = True    #change later
-        # self.use_rake = False
 
         self.param_dict = {
             "max_bars" : 10,
@@ -81,10 +83,8 @@ class AmiSearch:
         self.require_wikidata = False
 
         # look up how sections work
-#        self.ami_sections = AmiSections()
         self.ami_dictionaries = AmiDictionaries()
         self.ami_gui = None
-
         self.filter = True
         self.results_by_section = {}
 
@@ -157,7 +157,7 @@ class AmiSearch:
         dict_list.append(dikt[name])
 
     def search_and_generate_section(self, file, filter=filter):
-        section = TextUtil.get_section_with_words(file, filter=filter)
+        section = AmiSection.get_section_with_words(file, filter=filter)
         total_hits_by_dict = {}
         self.matches_by_amidict, hits_by_dict = self.match_single_words_against_dictionaries(section.words)
         total_hits = 0
@@ -742,7 +742,7 @@ class AmiRake:
             scl.add_string_values(phrases)
 
     def use_rake1(self, text):
-        stop_dir = FileLib.create_absolute_name("SmartStoplist.txt")
+        stop_dir = Path(FileLib.get_pyami_resources(), SMART_STOP_LIST)
         rake_object = RAKE.Rake(stop_dir)
         weighted_keywords = self.sort_tuple(rake_object.run(text))  # [-10:]
         weighted_keywords.reverse()
