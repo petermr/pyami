@@ -232,10 +232,54 @@ class Examples():
             elif example is not None :
                 print(f"unknown example: {example}\nchoose from: {example_dict.keys()}")
 
+    def transform_img_to_png(self, file):
+        from io import BytesIO
+        from PIL import Image
+        from pathlib import Path
+        import io
+        import binascii
+
+        outfile = Path(file + ".png")  # change this
+        print(f"file: {outfile}")
+        try:
+            with Image.open(file) as im:
+                print(file, im.format, f"{im.size}x{im.mode}")
+        except OSError:
+            try:
+                with open(file, "rb") as buffer:
+                    # buf = io.BytesIO(buffer)
+                    bb = buffer.read()
+                    bbx = binascii.unhexlify(bb)
+                    im = Image.open(bbx)
+            except OSError:
+                print(f"cannot parse {file}")
+        # with Image.open(file) as image:
+        #     print(f" binary {f}")
+        #     image.save(outfile)
+
+    def transform_images_to_png(self):
+        import glob
+        from pyami_m.file_lib import Globber
+        globstr = "/Users/pm286/misc/images/*.img"
+        files = glob.glob(globstr)
+        # files = Globber(globstr).get_globbed_files()
+        for ff in files:
+            self.transform_img_to_png(ff)
+
+
+"""
+from io import BytesIO
+
+imagefile = BytesIO()
+animage.save(imagefile, format='PNG')
+imagedata = imagefile.getvalue()"""
+
 
 def main():
-    examples = Examples()
-    examples.logger.warning(f"calling examples directory will be phased out")
+
+    Examples().transform_images_to_png()
+    # examples = Examples()
+    # examples.logger.warning(f"calling examples directory will be phased out")
     # print(f" examples args: {sys.argv}")
     # # test_me = PyAMITest()
     # # test_me.run_tests()

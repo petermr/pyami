@@ -9,8 +9,10 @@ from pdfminer3.pdfinterp import PDFPageInterpreter
 from pdfminer3.converter import PDFPageAggregator
 from pdfminer3.converter import TextConverter
 from pdfminer3.converter import XMLConverter
+from pdfminer3.image import ImageWriter
 import io
 
+from pathlib import Path
 
 class PdfReader:
 
@@ -29,10 +31,14 @@ class PdfReader:
 
         resource_manager = PDFResourceManager()
         fake_file_handle = io.StringIO()
-        converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
-        # converter = XMLConverter(resource_manager, fake_file_handle, laparams=LAParams()) # not tested
+        image_dir = Path('/Users/pm286/misc/images')
+        imageWriter = ImageWriter(image_dir)
+        layoutParams = LAParams()
+        converter = TextConverter(resource_manager, fake_file_handle,
+                                  codec='utf-8',
+                                  laparams=layoutParams,
+                                  imagewriter=imageWriter)
         page_interpreter = PDFPageInterpreter(resource_manager, converter)
-
         print(f" ====== PDF FILE {file} =====")
         with open(file, 'rb') as fh:
             for i, page in enumerate(PDFPage.get_pages(fh,
@@ -81,6 +87,7 @@ class PdfReader:
         print(f"\n......\n{text[:100]}\n...\n{text[-100:]}\n......\n")
         return text
 
+
 def main():
     """[main usually for testing
     """
@@ -88,3 +95,31 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+def temp():
+
+    resource_manager = PDFResourceManager()
+    fake_file_handle = io.StringIO()
+    converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
+    page_interpreter = PDFPageInterpreter(resource_manager, converter)
+
+    with open('/storage/emulated/0/Download/Rick-Riordan-The-Tyrants-Tomb-The-Trials-of-Apollo-4.pdf', 'rb') as fh:
+        for page in PDFPage.get_pages(fh,
+                                      caching=True,
+                                      check_extractable=True):
+            page_interpreter.process_page(page)
+
+        text = fake_file_handle.getvalue()
+
+    # close open handles
+    converter.close()
+    fake_file_handle.close()
+
+    print(text)
+
+    pdfResourceManager = PDFResourceManager()
+    convertedText = StringIO()
+    layoutParams = LAParams()
+    imageWriter = ImageWriter('pathToSaveImages/..')
+    converter = TextConverter(pdfResourceManager, convertedText, codec='utf-8', laparams=layoutParams,
+                              imagewriter=imageWriter)

@@ -9,7 +9,7 @@ with open('README.md') as readme_file:
 setup(
     name='py4ami',
     url='https://github.com/petermr/pyami',
-    version='0.0.4',
+    version='0.0.5',
     description='Semantic Reader of the Scientific Literature.',
     author="Peter Murray-Rust",
     author_email='petermurrayrust@googlemail.com',
@@ -22,7 +22,7 @@ setup(
     ],
     package_data={"pyami_m": ['section_templates.json']},
     classifiers=[
-        'Development Status :: 0.1 - Alpha',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
