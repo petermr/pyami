@@ -304,7 +304,7 @@ class FileLib:
 
     @classmethod
     def get_parent_dir(cls, file):
-        return None if file is None else PurePath(file).parent
+        return None if file is None else PurePath(file).parent.resolve()
 
     @classmethod
     def read_pydictionary(cls, file):
