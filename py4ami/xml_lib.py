@@ -1,12 +1,12 @@
 # from xml.etree import ElementTree as ET
+from py4ami.util import AmiLogger
+from py4ami.file_lib import FileLib
+from pathlib import Path
+import os
+from lxml import etree as LXET
 import logging
 logging.debug("loading xml_lib")
-from lxml import etree as LXET
-import os
-from pathlib import Path
 
-from pyami_m.file_lib import FileLib
-from pyami_m.util import AmiLogger
 
 # make leafnodes and copy remaning content as XML
 TERMINAL_COPY = {
@@ -38,13 +38,13 @@ TERMINAL_COPY = {
 }
 
 
-TERMINALS =[
+TERMINALS = [
     "inline-formula",
 ]
 
 TITLE = "title"
 
-IGNORE_CHILDREN= {
+IGNORE_CHILDREN = {
     "disp-formula",
 }
 
@@ -97,19 +97,19 @@ XLINK_NS = "XLINK_NS"
 XML_LANG = "{" + XML_NS + "}" + 'lang'
 
 NS_MAP = {
-    HTML_NS : "http://www.w3.org/1999/xhtml",
-    MATHML_NS : "http://www.w3.org/1998/Math/MathML",
-    SVG_NS : "http://www.w3.org/2000/svg",
-    XLINK_NS : "http://www.w3.org/1999/xlink",
-    XML_NS : "http://www.w3.org/XML/1998/namespace",
+    HTML_NS: "http://www.w3.org/1999/xhtml",
+    MATHML_NS: "http://www.w3.org/1998/Math/MathML",
+    SVG_NS: "http://www.w3.org/2000/svg",
+    XLINK_NS: "http://www.w3.org/1999/xlink",
+    XML_NS: "http://www.w3.org/XML/1998/namespace",
     XMLNS_NS: "http://www.w3.org/2000/xmlns/",
-    }
+}
 
 logger = logging.getLogger("xml_lib")
 logger.setLevel(logging.INFO)
 
-class XmlLib:
 
+class XmlLib:
 
     def __init__(self, file=None, section_dir=SECTIONS):
         self.max_file_len = 30
@@ -135,7 +135,8 @@ class XmlLib:
         # FileLib.force_mkdir(subdir)
 
         self.make_descendant_tree(self.root, self.section_dir)
-        self.ami_logger.info(f"wrote XML sections for {self.file} {self.section_dir}")
+        self.ami_logger.info(
+            f"wrote XML sections for {self.file} {self.section_dir}")
 
     @staticmethod
     def parse_xml_file_to_root(file):
@@ -162,7 +163,7 @@ class XmlLib:
 
     def make_descendant_tree(self, elem, outdir):
         if elem.tag in TERMINALS:
-            ami_logger.debug("skipped ",elem.tag)
+            ami_logger.debug("skipped ", elem.tag)
             return
         TERMINAL = "T_"
         IGNORE = "I_"
@@ -188,7 +189,8 @@ class XmlLib:
 
             if flag == IGNORE:
                 title = flag + title
-            filename = str(isect) + "_" + FileLib.punct2underscore(title).lower()[:self.max_file_len]
+            filename = str(
+                isect) + "_" + FileLib.punct2underscore(title).lower()[:self.max_file_len]
 
             if flag == TERMINAL:
                 xml_string = LXET.tostring(child)
@@ -201,7 +203,8 @@ class XmlLib:
                     print(f"cannot write {filename1}")
             else:
                 subdir = os.path.join(outdir, filename)
-                FileLib.force_mkdir(subdir) # creates empty dir, may be bad idea
+                # creates empty dir, may be bad idea
+                FileLib.force_mkdir(subdir)
                 if flag == "":
                     self.ami_logger.debug(f">> {title} {child}")
                     self.make_descendant_tree(child, subdir)
@@ -220,7 +223,7 @@ class XmlLib:
             if not hasattr(sec, "xml_file"):
                 title = "UNKNOWN"
             else:
-                title = "?_"+ str(sec["xml_file"][:20])
+                title = "?_" + str(sec["xml_file"][:20])
         title = FileLib.punct2underscore(title)
         return title
 
@@ -280,7 +283,8 @@ class XmlLib:
         :returns: flattened string
         """
         tree = LXET.fromstring(xml_string.encode("utf-8"))
-        strg = LXET.tostring(tree, encoding='utf8', method='text').decode("utf-8")
+        strg = LXET.tostring(tree, encoding='utf8',
+                             method='text').decode("utf-8")
         return strg
 
     @classmethod
@@ -300,9 +304,11 @@ class XmlLib:
         root = cls.xslt_transform(data, xslt_file)
         return LXET.tostring(root).decode("UTF-8") if root is not None else None
 
+
 class HtmlElement:
     """to provide fluent HTML builder and parser"""
     pass
+
 
 class DataTable:
     """
@@ -315,6 +321,7 @@ class DataTable:
   <script charset="UTF-8" type="text/javascript">$(function() { $("#results").dataTable(); }) </script>
  </head>
     """
+
     def __init__(self, title, colheads=None, rowdata=None):
         """create dataTables
         optionally add column headings (list) and rows (list of conformant lists)
@@ -349,19 +356,19 @@ class DataTable:
         link.attrib["rel"] = STYLESHEET
         link.attrib["type"] = TEXT_CSS
         link.attrib["href"] = "http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/css/jquery.dataTables.css"
-        link.text = '.' # messy, to stop formatter using "/>" which dataTables doesn't like
+        link.text = '.'  # messy, to stop formatter using "/>" which dataTables doesn't like
 
         script = LXET.SubElement(self.head, SCRIPT)
         script.attrib["src"] = "http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.8.2.min.js"
         script.attrib["charset"] = UTF_8
         script.attrib["type"] = TEXT_JAVASCRIPT
-        script.text = '.' # messy, to stop formatter using "/>" which dataTables doesn't like
+        script.text = '.'  # messy, to stop formatter using "/>" which dataTables doesn't like
 
         script = LXET.SubElement(self.head, SCRIPT)
         script.attrib["src"] = "http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/jquery.dataTables.min.js"
         script.attrib["charset"] = UTF_8
         script.attrib["type"] = TEXT_JAVASCRIPT
-        script.text = "." # messy, to stop formatter using "/>" which dataTables doesn't like
+        script.text = "."  # messy, to stop formatter using "/>" which dataTables doesn't like
 
         script = LXET.SubElement(self.head, SCRIPT)
         script.attrib["charset"] = UTF_8
@@ -388,7 +395,7 @@ class DataTable:
         self.div.attrib["class"] = "bs-example table-responsive"
         self.table = LXET.SubElement(self.div, H_TABLE)
         self.table.attrib["class"] = "table table-striped table-bordered table-hover"
-        self.table.attrib["id"]= RESULTS
+        self.table.attrib["id"] = RESULTS
         self.thead = LXET.SubElement(self.table, H_THEAD)
         self.tbody = LXET.SubElement(self.table, H_TBODY)
 
@@ -428,7 +435,7 @@ class DataTable:
     def append_contained_text(self, parent, tag, text):
         """create element <tag> and add text child
         :rtype: element
-        
+
         """
         subelem = LXET.SubElement(parent, tag)
         subelem.text = text
@@ -456,6 +463,7 @@ class DataTable:
         print("SELF", htmltext)
         return htmltext
 
+
 class Web:
     def __init__(self):
         import tkinter as tk
@@ -470,15 +478,17 @@ class Web:
         frame = tkinterweb.HtmlFrame(master)
         frame.load_website(site)
         frame.pack(fill="both", expand=True)
+
     @classmethod
     def tkinterweb_demo(cls):
         from tkinterweb import Demo
         Demo()
 
+
 def main():
     import pprint
 
-    XmlLib().test_recurse_sections() # recursively list sections
+    XmlLib().test_recurse_sections()  # recursively list sections
 
 #    test_data_table()
 #    test_xml()
@@ -486,9 +496,11 @@ def main():
 #    web = Web()
 #    Web.tkinterweb_demo()
 
+
 def test_xml():
     xml_string = "<a>foo <b>and</b> with <d/> bar</a>"
     print(XmlLib.remove_all_tags(xml_string))
+
 
 def test_data_table():
     import pprint
@@ -509,7 +521,6 @@ if __name__ == "__main__":
     print("running file_lib main")
     main()
 else:
-#    print("running file_lib main anyway")
-#    main()
+    #    print("running file_lib main anyway")
+    #    main()
     pass
-

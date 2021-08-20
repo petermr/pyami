@@ -1,6 +1,7 @@
 include LICENSE
-include resources/section_templates.json
+include py4ami/resources
+include py4ami/resources/section_templates.json
 include config.ini
-include pyami_m/pyami.ini
-include resources/SmartStoplist.txt
+include py4ami/pyami.ini
+include py4ami/resources/SmartStoplist.txt
 include CONFIG.md

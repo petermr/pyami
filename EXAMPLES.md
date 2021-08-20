@@ -7,9 +7,9 @@ by
 
 Update:
 ````
-cd <yourdir>/pyami/pyami_m
+cd <yourdir>/pyami/py4ami
 pwd
-/Users/pm286/workspace/pyami/pyami_m
+/Users/pm286/workspace/pyami/py4ami
 
 python -m pyamix --examples all
 ````

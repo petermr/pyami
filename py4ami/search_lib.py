@@ -18,25 +18,27 @@ import cProfile
 import argparse
 from pathlib import Path
 
-from pyami_m.ami_demos import AmiDemos
-from pyami_m.gutil import Gutil, ScrollingCheckboxList
+from py4ami.ami_demos import AmiDemos
+from py4ami.gutil import Gutil, ScrollingCheckboxList
 
-from pyami_m.dict_lib import AmiDictionaries
-from pyami_m.projects import AmiProjects
-from  pyami_m.file_lib import AmiPath, PROJ, FileLib
-from  pyami_m.text_lib import TextUtil, AmiSection
-from  pyami_m.xml_lib import XmlLib, H_TD, RESULTS, DataTable
+from py4ami.dict_lib import AmiDictionaries
+from py4ami.projects import AmiProjects
+from py4ami.file_lib import AmiPath, PROJ, FileLib
+from py4ami.text_lib import TextUtil, AmiSection
+from py4ami.xml_lib import XmlLib, H_TD, RESULTS, DataTable
 
 logging.warning("loading search_lib.py")
 
 # entry
 
 WIKIDATA_ID = "wikidataID"
-NS_MAP = {'SPQ': 'http://www.w3.org/2005/sparql-results#'}  # add more as needed
+# add more as needed
+NS_MAP = {'SPQ': 'http://www.w3.org/2005/sparql-results#'}
 NS_URI = "SPQ:uri"
 NS_LITERAL = "SPQ:literal"
 
 SMART_STOP_LIST = "SmartStoplist.txt"
+
 
 class AmiSearch:
 
@@ -61,16 +63,16 @@ class AmiSearch:
         self.do_search = True
         self.do_plot = True
         self.ami_projects = AmiProjects()
-        self.use_rake = True    #change later
+        self.use_rake = True  # change later
 
         self.param_dict = {
-            "max_bars" : 10,
-            "wikidata_label_lang" : "en",
-            "debug_cnt" : 10000,
-            "max_files" : 10000,
-            "min_hits" : 2,
-            "require_wikidata" : False,
-            "ami_gui" : None,
+            "max_bars": 10,
+            "wikidata_label_lang": "en",
+            "debug_cnt": 10000,
+            "max_files": 10000,
+            "min_hits": 2,
+            "require_wikidata": False,
+            "ami_gui": None,
         }
 #        self.max_bars = 10
         self.wikidata_label_lang = "en"
@@ -94,7 +96,7 @@ class AmiSearch:
         keys = [c[0] for c in commonest]
         values = [c[1] for c in commonest]
         plt.bar(keys[:self.max_bars], values[:self.max_bars], color='blue')
-        plt.xticks(rotation=45, ha='right') # this seems to work
+        plt.xticks(rotation=45, ha='right')  # this seems to work
         plt.title(self.make_title(dict_name))
         plt.show()
 
@@ -114,7 +116,8 @@ class AmiSearch:
 
     def add_dictionary(self, name):
         print("dict_name:", name)
-        AmiSearch._append_facet("dictionary", name, self.ami_dictionaries.dictionary_dict, self.dictionaries)
+        AmiSearch._append_facet(
+            "dictionary", name, self.ami_dictionaries.dictionary_dict, self.dictionaries)
 
     # crude till we work this out
     def use_patterns(self, args):
@@ -128,14 +131,14 @@ class AmiSearch:
         if name is None and "=" in pattern:
             name = pattern.split("=", 0)
             regex = pattern.split("=", 2)
-        print (name, "=", regex)
+        print(name, "=", regex)
         self.patterns.append(SearchPattern(regex, name))
-
 
     def use_projects(self, args):
         print("projects", args)
         if args is None or len(args) == 0:
-            print("=================", "\n", "must give projects; here are some to test with, but they may need checking out")
+            print("=================", "\n",
+                  "must give projects; here are some to test with, but they may need checking out")
             for key in AmiProjects().project_dict.keys():
                 proj = AmiProjects().project_dict[key]
                 print(key, "=>", proj.description)
@@ -145,7 +148,8 @@ class AmiSearch:
                 self.add_project(arg)
 
     def add_project(self, name):
-        AmiSearch._append_facet("project", name, self.ami_projects.project_dict, self.projects)
+        AmiSearch._append_facet(
+            "project", name, self.ami_projects.project_dict, self.projects)
 
     def use_filters(self, name):
         print("filters NYI")
@@ -153,17 +157,20 @@ class AmiSearch:
     @staticmethod
     def _append_facet(label, name, dikt, dict_list):
         if not name in dikt:
-            raise Exception("unknown name: " +  name + " in " + str(dikt.keys()))
+            raise Exception("unknown name: " + name +
+                            " in " + str(dikt.keys()))
         dict_list.append(dikt[name])
 
     def search_and_generate_section(self, file, filter=filter):
         section = AmiSection.get_section_with_words(file, filter=filter)
         total_hits_by_dict = {}
-        self.matches_by_amidict, hits_by_dict = self.match_single_words_against_dictionaries(section.words)
+        self.matches_by_amidict, hits_by_dict = self.match_single_words_against_dictionaries(
+            section.words)
         total_hits = 0
         self.list_hits(hits_by_dict, section)
         self.results_by_section[section.name] = hits_by_dict
-        matches_by_amidict_multiple, hits_by_mwdict = self.match_multiple_words_against_dictionaries(section.text)
+        matches_by_amidict_multiple, hits_by_mwdict = self.match_multiple_words_against_dictionaries(
+            section.text)
         self.list_hits(hits_by_mwdict, section)
 
         for key, value in matches_by_amidict_multiple.items():
@@ -189,7 +196,6 @@ class AmiSearch:
                 self.results_by_section[section_name][dict_name] = []
             self.results_by_section[section_name][dict_name] += hits
 
-
     def match_single_words_against_dictionaries(self, words):
         """matches the set of words in a section against set of terms in a dictionary"""
         found = False
@@ -212,12 +218,12 @@ class AmiSearch:
 #        print("token sents", tokenized_sents)
         hits_by_dict = {}
         for dictionary in self.dictionaries:
-            hits = dictionary.match_multiple_word_terms_against_sentences(tokenized_sents)
+            hits = dictionary.match_multiple_word_terms_against_sentences(
+                tokenized_sents)
 #            wid_hits = self.annotate_hits_with_wikidata(dictionary, hits)
             matches_by_multiple[dictionary.name] = hits
             hits_by_dict[dictionary.name] = hits
         return matches_by_multiple, hits_by_dict
-
 
     def annotate_hits_with_wikidata(self, dictionary, hits):
         wid_hits = []
@@ -242,7 +248,7 @@ class AmiSearch:
         synonyms = entry.findall("synonym")
         for synonym in synonyms:
             if len(synonym.attrib) > 0:
-#                print("attribs", synonym.attrib)
+                #                print("attribs", synonym.attrib)
                 pass
             if XmlLib.XML_LANG in synonym.attrib:
                 lang = synonym.attrib[XmlLib.XML_LANG]
@@ -255,9 +261,11 @@ class AmiSearch:
 
     def xpath_search(self, entry):
         """doesn't yet work"""
-        lang_path = "synonym[" + XmlLib.XML_LANG + "='" + self.wikidata_label_lang + "']"
+        lang_path = "synonym[" + XmlLib.XML_LANG + \
+            "='" + self.wikidata_label_lang + "']"
         #                            print("LP", lang_path)
-        lang_equivs = entry.xpath('synonym[@xml:lang]', namespaces={'xml': XmlLib.XML_NS})
+        lang_equivs = entry.xpath(
+            'synonym[@xml:lang]', namespaces={'xml': XmlLib.XML_NS})
         lang_equivs = entry.findall(lang_path)
         if len(lang_equivs) > 0:
             lang_equiv = lang_equivs[0]
@@ -284,11 +292,14 @@ class AmiSearch:
             if index % self.debug_cnt == 0:
                 # eg <project_dir> /oil26/PMC5203915/sections/0_front/1_article-meta/19_abstract.xml
                 print("collect words in file", target_file)
-            matches_by_amidict, matches_by_pattern, section = self.search_and_generate_section(target_file)
+            matches_by_amidict, matches_by_pattern, section = self.search_and_generate_section(
+                target_file)
             sections.append(section)
             all_lower_words += [w.lower() for w in section.words]
-            self.add_matches_to_counter_dict(dictionary_counter_dict, matches_by_amidict)
-            self.add_matches_to_counter_dict(pattern_counter_dict, matches_by_pattern)
+            self.add_matches_to_counter_dict(
+                dictionary_counter_dict, matches_by_amidict)
+            self.add_matches_to_counter_dict(
+                pattern_counter_dict, matches_by_pattern)
 
         self.print_results_by_section()
 
@@ -311,8 +322,8 @@ class AmiSearch:
             self.data_table.append_contained_text(row, H_TD, section)
 
             for dictionary in hits_by_dictionary:
-                self.add_hits_for_dictionary(dictionary, hits_by_dictionary, row)
-
+                self.add_hits_for_dictionary(
+                    dictionary, hits_by_dictionary, row)
 
     def add_hits_for_dictionary(self, dictionary, hits_by_dictionary, row):
         hit_list = hits_by_dictionary[dictionary]
@@ -363,7 +374,8 @@ class AmiSearch:
             if len(self.section_types) > 0:
                 for section_type in self.section_types:
                     self.glob_for_section_files(proj, section_type)
-                    sections = self.section_make_data_table_counter_and_plot(section_type)
+                    sections = self.section_make_data_table_counter_and_plot(
+                        section_type)
                     self.write_data_table(proj.dir, section_type)
                     if self.use_rake:
                         self.analyze_all_words_with_Rake(sections)
@@ -381,7 +393,8 @@ class AmiSearch:
     def write_data_table(self, project_dir, section_type):
 
         # lower case section name
-        result_section_dir = os.path.join(project_dir, RESULTS, section_type.lower())
+        result_section_dir = os.path.join(
+            project_dir, RESULTS, section_type.lower())
         # write_full_data_tables(self.data_table, result_section_dir)
         print("ERROR", "full_data_tables not linked in")
 
@@ -392,14 +405,15 @@ class AmiSearch:
 
     def glob_for_section_files(self, proj, section_type):
         self.cur_section_type = section_type
-        templates = AmiPath.create_ami_path_from_templates(section_type, {PROJ: proj.dir})
+        templates = AmiPath.create_ami_path_from_templates(
+            section_type, {PROJ: proj.dir})
         self.section_files = templates.get_globbed_files()
         print("***** section_files", section_type, len(self.section_files))
 
-
     def section_make_data_table_counter_and_plot(self, section_type):
         self.create_data_table(section_type)
-        counter_by_tool, pattern_dict, all_words, sections = self.search_and_count(self.section_files)
+        counter_by_tool, pattern_dict, all_words, sections = self.search_and_count(
+            self.section_files)
         self.plot_tool_hits(counter_by_tool)
         self.plot_tool_hits(pattern_dict)
         # _, _, all_words, sections = self.search_and_count(self.section_files)
@@ -455,7 +469,8 @@ class AmiSearch:
             self.plot_and_make_dictionary(counter, tool)
 
     def plot_and_make_dictionary(self, counter, tool):
-        min_counter = Counter({k: c for k, c in counter.items() if c >= self.min_hits})
+        min_counter = Counter(
+            {k: c for k, c in counter.items() if c >= self.min_hits})
         if self.do_plot:
             self.make_plot(min_counter, tool)
         print("tool:", tool, "\n", min_counter.most_common())
@@ -501,10 +516,10 @@ class AmiSearch:
             print("DEMOS SKIPPED")
             AmiDemos.run_demos(args.demo)
         else:
-#            ami_search = AmiSearch()
-#            copy_args_to_ami_search(args, ami_search)
-#            if ami_search.do_search:
-#                ami_search.run_search()
+            #            ami_search = AmiSearch()
+            #            copy_args_to_ami_search(args, ami_search)
+            #            if ami_search.do_search:
+            #                ami_search.run_search()
             copy_args_to_ami_search(args, self)
             if self.do_search:
                 self.run_search()
@@ -522,12 +537,14 @@ class AmiSearch:
         print("sections", sections)
         self.use_sections(sections)
 
-        dictionaries = Gutil.get_selections_from_listbox(ami_gui.dictionary_names_listbox)
-        print("dictionaries",dictionaries)
+        dictionaries = Gutil.get_selections_from_listbox(
+            ami_gui.dictionary_names_listbox)
+        print("dictionaries", dictionaries)
         self.use_dictionaries(dictionaries)
 
-        projects = Gutil.get_selections_from_listbox(ami_gui.project_names_listbox)
-        print("projects",projects)
+        projects = Gutil.get_selections_from_listbox(
+            ami_gui.project_names_listbox)
+        print("projects", projects)
         self.use_projects(projects)
 
         self.run_search()
@@ -591,11 +608,13 @@ class AmiRun:
 
         for section in self.sections:
             if section not in self.ami_sections.SECTION_LIST:
-                print("sectionsx ", section, "not in", self.ami_sections.SECTION_LIST)
+                print("sectionsx ", section, "not in",
+                      self.ami_sections.SECTION_LIST)
 
         for dictionary in self.dictionaries:
             if not dictionary in self.ami_dictionaries.dictionary_dict:
-                print("Cannot find dictionary:", dictionary, "\n", self.ami_dictionaries.dictionary_dict)
+                print("Cannot find dictionary:", dictionary,
+                      "\n", self.ami_dictionaries.dictionary_dict)
 
         for defalt in self.defalts.items():
             print("def", defalt)
@@ -614,7 +633,6 @@ class AmiRunner:
     DEFAULTS = "defaults"
     DEMOS = "demos"
 
-
     def __init__(self):
         self.runs = {}
         self.ami_dicts = AmiDictionaries()
@@ -626,11 +644,11 @@ class AmiRunner:
 
         self.resources = data[__class__.RESOURCES]
         print("RES keys", self.resources.keys())
-        self.classes   = self.resources[__class__.CLASSES]
-        self.projects  = self.resources[__class__.PROJECTS]
-        self.patterns  = self.resources[__class__.PATTERNS]
-        self.defalts  = self.resources[__class__.DEFAULTS]
-        self.demos     = data[__class__.DEMOS]
+        self.classes = self.resources[__class__.CLASSES]
+        self.projects = self.resources[__class__.PROJECTS]
+        self.patterns = self.resources[__class__.PATTERNS]
+        self.defalts = self.resources[__class__.DEFAULTS]
+        self.demos = data[__class__.DEMOS]
 
         print("resources", self.resources)
         print("classes", self.classes)
@@ -649,7 +667,6 @@ class AmiRunner:
         print("json", data)
 
 
-
 class SearchPattern:
 
     """ holds a regex or other pattern constraint (e.g. isnumeric) """
@@ -663,9 +680,9 @@ class SearchPattern:
     PATTERNS = [
         _ALL,
         ALL_CAPS,
-#        GENE,
+        #        GENE,
         NUMBER,
-#        SPECIES,
+        #        SPECIES,
     ]
 
     def __init__(self, value, name=None):
@@ -698,6 +715,7 @@ class SearchPattern:
 
         return matched_words
 
+
 class AmiRake:
     def __init__(self, ami_search=None):
         self.min_len = 2
@@ -715,7 +733,8 @@ class AmiRake:
     def analyze_text_with_RAKE(self, text):
 
         self.counter = Counter()
-        keywords = self.use_rake1(text) if self.method == 1 else self.use_rake2(text)
+        keywords = self.use_rake1(
+            text) if self.method == 1 else self.use_rake2(text)
 
 #        self.make_toplevel_phraselist(self.ami_search.ami_gui, keywords)
         text = text.lower()
@@ -723,11 +742,10 @@ class AmiRake:
         for keyword in keywords:
             matches_in_text = len(text.split(keyword)) - 1
             if matches_in_text > 1:
-                if all(x.isalpha() or x.isspace() or x=='-' for x in keyword):
+                if all(x.isalpha() or x.isspace() or x == '-' for x in keyword):
                     text_counter[keyword] = matches_in_text
         phrases = [item[0] for item in text_counter.most_common()]
         self.make_toplevel_phraselist(self.ami_search.ami_gui, phrases)
-
 
     def make_toplevel_phraselist(self, master, phrases):
 
@@ -755,9 +773,9 @@ class AmiRake:
         weighted_keywords = rake.extract_keywords_from_text(text)
         print("weighted_keywords", weighted_keywords)
         self.phrases = rake.get_ranked_phrases()  # [0:100]
-        self.phrases_with_scores = rake.get_ranked_phrases_with_scores()  # [0:100]
-        return self.phrases #, self.phrases_with_scores
-
+        # [0:100]
+        self.phrases_with_scores = rake.get_ranked_phrases_with_scores()
+        return self.phrases  # , self.phrases_with_scores
 
     def create_keywords1(self, weighted_keywords):
         keywords = []
@@ -774,7 +792,7 @@ class AmiRake:
         :reverse: None sort in ascending order
         uses second elements of sublist as sort key
         """
-        tup.sort(key = lambda x: x[1])
+        tup.sort(key=lambda x: x[1])
         return tup
 
     def receive_checked_values(self, values):
@@ -783,17 +801,16 @@ class AmiRake:
         self.ami_search.save_rake_keywords(values)
 
 
-
 def test_profile():
     """Python profiler"""
     print("profile")
     cProfile.run("[x for x in range(1500)]")
 
+
 def test_profile1():
     """Python profiler"""
     print("profile1")
     cProfile.run("AmiSearch.test_sect_dicts()")
-
 
 
 def main():
@@ -802,9 +819,9 @@ def main():
     # test_search()
 
 
-
 def create_arg_parser():
-    parser = argparse.ArgumentParser(description='Search sections with dictionaries and patterns')
+    parser = argparse.ArgumentParser(
+        description='Search sections with dictionaries and patterns')
     """
     """
     parser.add_argument('-d', '--dict', nargs="*",  # default=[AmiDictionaries.COUNTRY],
@@ -844,7 +861,7 @@ def copy_args_to_ami_search(args, ami_search):
     if args.languages:
         ami_search.languages = args.languages
     for k, v in vars(args).items():
-#        print("k, v", k, "=", v)
+        #        print("k, v", k, "=", v)
         pass
     return ami_search
 

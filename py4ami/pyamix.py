@@ -11,61 +11,63 @@ from pathlib import Path
 import shutil
 import argparse
 
-from pyami_m.dict_lib import AmiDictionary
-from pyami_m.examples import Examples
-from pyami_m.file_lib import FileLib
-from pyami_m.xml_lib import XmlLib
-from pyami_m.text_lib import TextUtil, DSLParser
-from pyami_m.pdfreader import PdfReader
-from pyami_m.symbol import SymbolIni
-from pyami_m.util import AmiLogger
-from pyami_m.wikimedia import WikidataLookup
+from py4ami.dict_lib import AmiDictionary
+from py4ami.examples import Examples
+from py4ami.file_lib import FileLib
+from py4ami.xml_lib import XmlLib
+from py4ami.text_lib import TextUtil, DSLParser
+from py4ami.pdfreader import PdfReader
+from py4ami.symbol import SymbolIni
+from py4ami.util import AmiLogger
+from py4ami.wikimedia import WikidataLookup
 
 logging.debug("loading pyamix.py")
+logging.warning(Path(__file__))
+
 
 class PyAMI:
     """ main entry point for running pyami
      """
-    OUTFILE       = "outfile"
+    OUTFILE = "outfile"
 
     # flags
-    APPLY         = "apply"
-    ASSERT        = "assert"
-    CHECK_URLS    = "check_urls"
-    COPY          = "copy"
-    DELETE        = "delete"
-    DEST          = "dest"
-    COMBINE       = "combine"
-    CONTAINS      = "contains"
-    DEBUG         = "debug"
-    DICTIONARY    = "dictionary"
-    EXAMPLES      = "examples"
-    FILTER        = "filter"
-    GLOB          = "glob"
-    LOOKUP        = "lookup"
+    APPLY = "apply"
+    ASSERT = "assert"
+    CHECK_URLS = "check_urls"
+    COPY = "copy"
+    DELETE = "delete"
+    DEST = "dest"
+    COMBINE = "combine"
+    CONTAINS = "contains"
+    DEBUG = "debug"
+    DICTIONARY = "dictionary"
+    EXAMPLES = "examples"
+    FILTER = "filter"
+    GLOB = "glob"
+    LOOKUP = "lookup"
     PRINT_SYMBOLS = "print_symbols"
-    PROJ          = "proj"
-    RECURSE       = "recurse"
-    REGEX         = "regex"
-    SECT          = "sect"
-    SRC           = "src"
-    SPLIT         = "split"
-    SYMBOLS       = "symbols"
-    TEST          = "test"
+    PROJ = "proj"
+    RECURSE = "recurse"
+    REGEX = "regex"
+    SECT = "sect"
+    SRC = "src"
+    SPLIT = "split"
+    SYMBOLS = "symbols"
+    TEST = "test"
     WIKIDATA_SPARQL = "wikidata_sparql"
-    XPATH         = "xpath"
+    XPATH = "xpath"
     # apply methods 1:1 input-output
-    PDF2TXT       = "pdf2txt"
-    TXT2SENT      = "txt2sent"
-    XML2TXT       = "xml2txt"
+    PDF2TXT = "pdf2txt"
+    TXT2SENT = "txt2sent"
+    XML2TXT = "xml2txt"
     # combine methods n:1 input-output
-    CONCAT_STR    = "concat_str"
+    CONCAT_STR = "concat_str"
     # split methods 1:n input-output
-    TXT2PARA      = "txt2para"
-    XML2SECT      = "xml2sect"
+    TXT2PARA = "txt2para"
+    XML2SECT = "xml2sect"
     # symbols to update table
-    NEW_SYMBOLS   = ["proj"]
-    LOGLEVEL      = "loglevel"
+    NEW_SYMBOLS = ["proj"]
+    LOGLEVEL = "loglevel"
 
     logger = logging.getLogger("pyami")
     symbol_ini = None
@@ -80,13 +82,13 @@ class PyAMI:
         if self.logger.getEffectiveLevel() <= logging.DEBUG:
             traceback.print_stack(file=sys.stdout)
 
-        self.args = {} # args captured in here as name/value without "-" or "--"
+        self.args = {}  # args captured in here as name/value without "-" or "--"
         self.apply = []
         self.combine = None
         self.config = None
         self.current_file = None
         self.fileset = None
-        self.file_dict = {} # possibly to be replaced by content_store.file_dict
+        self.file_dict = {}  # possibly to be replaced by content_store.file_dict
         # self.content_store =  ContentStore(self) # will expose content_store.file_dict
         self.func_dict = {}
         self.result = None
@@ -101,7 +103,6 @@ class PyAMI:
         self.ami_logger = None
         if self.show_symbols:
             pprint.pp(f"SYMBOLS\n {self.symbol_ini.symbols}")
-
 
     def set_flags(self):
         """initialises flag_dict
@@ -121,18 +122,19 @@ class PyAMI:
         # tuple of func+file_extnsion
         self.func_dict[self.XML2TXT] = (XmlLib.remove_all_tags, ".xml.txt")
         self.func_dict[self.PDF2TXT] = (PdfReader.read_and_convert, ".pdf.txt")
-        self.func_dict[self.TXT2SENT] = (TextUtil.split_into_sentences, ".sen.txt")
+        self.func_dict[self.TXT2SENT] = (
+            TextUtil.split_into_sentences, ".sen.txt")
         # 1:n methods
-
 
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
         """
-        parser = argparse.ArgumentParser(description='Search sections with dictionaries and patterns')
+        parser = argparse.ArgumentParser(
+            description='Search sections with dictionaries and patterns')
         apply_choices = [self.PDF2TXT, self.TXT2SENT, self.XML2TXT]
         self.logger.debug("ch", apply_choices)
         parser.add_argument('--apply', nargs="+",
-#                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
+                            #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
                             choices=apply_choices,
                             help='list of sequential transformations (1:1 map) to apply to pipeline ({self.TXT2SENT} NYI)')
         parser.add_argument('--assert', nargs="+",
@@ -176,10 +178,11 @@ class PyAMI:
                             help='projects to search; _help will give list')
         parser.add_argument('--sect', '-s', nargs="+",  # default=[AmiSection.INTRO, AmiSection.RESULTS],
                             help='sections to search; _help gives all(?)')
-        parser.add_argument('--split', nargs="+", choices=['txt2para','xml2sect'],  # split fulltext.xml,
+        parser.add_argument('--split', nargs="+", choices=['txt2para', 'xml2sect'],  # split fulltext.xml,
                             help='split fulltext.* into paras, sections')
         parser.add_argument('--test', nargs="*",
-                            choices=['file_lib', 'pdf_lib', 'text_lib'], # tests,
+                            choices=['file_lib', 'pdf_lib',
+                                     'text_lib'],  # tests,
                             help='run tests for modules; no selection runs all')
         return parser
 
@@ -291,7 +294,7 @@ class PyAMI:
         new_val = None
         if old_val is None:
             new_val = None
-        elif isinstance(old_val, list) and len(old_val) ==1: # single string in list
+        elif isinstance(old_val, list) and len(old_val) == 1:  # single string in list
             # not sure of list, is often used when only one value
             val_item = old_val[0]
             new_val = self.symbol_ini.replace_symbols_in_arg(val_item)
@@ -355,8 +358,8 @@ class PyAMI:
     def set_loglevel_from_args(self):
         """ """
         levels = {
-            "debug" : logging.DEBUG,
-            "info" : logging.INFO,
+            "debug": logging.DEBUG,
+            "info": logging.INFO,
             "warning": logging.WARNING,
             "error": logging.ERROR,
         }
@@ -457,7 +460,8 @@ class PyAMI:
         src = argsx[0]
         src_path = Path(src)
         if not src_path.exists():
-            raise FileNotFoundError(str(src_path), "src must exist as file or directory")
+            raise FileNotFoundError(
+                str(src_path), "src must exist as file or directory")
 
         dest = argsx[1]
         dest_path = Path(dest)
@@ -466,7 +470,8 @@ class PyAMI:
         if dest_path.exists():
             if not overwrite:
                 file_type = "dir" if dest_path.is_dir() else "file"
-                raise TypeError(str(dest_path), f"cannot overwrite existing {file_type} (str({dest_path})")
+                raise TypeError(
+                    str(dest_path), f"cannot overwrite existing {file_type} (str({dest_path})")
 
         else:
             # assume directory
@@ -474,13 +479,12 @@ class PyAMI:
             dest_path.mkdir(parents=True, exist_ok=True)
             self.logger.info(f"created directory {dest_path}")
 
-
         if src_path.is_dir():
             if os.path.exists(dest_path):
                 shutil.rmtree(dest_path)
             shutil.copytree(src_path, dest_path)
         else:
-            shutil.copy(src_path, dest_path) # will overwrite
+            shutil.copy(src_path, dest_path)  # will overwrite
 
     def delete_files(self):
         """deletes files in glob
@@ -500,7 +504,7 @@ class PyAMI:
         Args:
             glob_exp (str): glob expression
 
-        
+
         """
         if ".." in glob_exp or glob_exp.endswith("*"):
             self.logger.error(f"glob {glob_exp} cannot contain .. or end in *")
@@ -523,7 +527,8 @@ class PyAMI:
         glob_recurse = self.flagged(self.RECURSE)
         glob_ = self.args[self.GLOB]
         self.logger.info(f"glob: {glob_}")
-        files = {file: None for file in glob.glob(glob_, recursive=glob_recurse)}
+        files = {file: None for file in glob.glob(
+            glob_, recursive=glob_recurse)}
         self.file_dict = files
         # self.content_store.create_file_dict(files)
 
@@ -543,7 +548,6 @@ class PyAMI:
             else:
                 self.logger.warning(f"no match for suffix: {suffix}")
 
-
     def make_xml_sections(self, file):
         xml_libx = XmlLib()
         xml_libx.logger.setLevel(logging.DEBUG)
@@ -560,11 +564,10 @@ class PyAMI:
         #     for sect in sections:
         #         self.ami_logger.warning(f"{sect})
 
-
     def apply_func(self, apply_type):
         """ """
         self.read_file_content()
-        if apply_type :
+        if apply_type:
             self.logger.info(f"apply {apply_type}")
             func_tuple = self.func_dict[apply_type]
             if func_tuple is None:
@@ -686,7 +689,8 @@ class PyAMI:
         dictionary_file = self.get_symbol(name)
         if dictionary_file is None:
             dictionary_file = name
-        self.ami_dictionary = AmiDictionary.read_dictionary(file=dictionary_file)
+        self.ami_dictionary = AmiDictionary.read_dictionary(
+            file=dictionary_file)
         new_hits = []
         if self.ami_dictionary is not None:
             for hit in hits:
@@ -707,7 +711,7 @@ class PyAMI:
     #
     def read_file_content(self, to_str=True):
         """read file content as bytes into file_dict
-        
+
         :to_str: if true convert content to strings
 
         :param to_str:  (Default value = True)
@@ -800,7 +804,8 @@ class PyAMI:
                 new_data = func_tuple[0](data)
                 self.store_or_write_data(file, new_data, new_file)
             except Exception as pdferr:
-                print(f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
+                print(
+                    f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
         return
 
     # needs fixing
@@ -836,7 +841,7 @@ class PyAMI:
     def write_output(self):
         """ """
         self.outfile = self.args[self.OUTFILE]
-        if self.result: # single output
+        if self.result:  # single output
             self.write_single_result()
 
         if self.file_dict:
@@ -871,7 +876,7 @@ class PyAMI:
 
     def flagged(self, flag):
         """is flag set in flag_dict
-        
+
         if flag is in flag_dict and not falsy return true
         :flag:
 
@@ -897,18 +902,19 @@ class PyAMI:
     #
     #     pass
 
+
 class ContentStore():
     """caches content or writes it to disk
 
-    replaces earlier pyami_m.file_dict
+    replaces earlier py4ami.file_dict
     """
 
     def __init__(self, pyami):
         self.pyami = pyami
         self.file_dict = {}
 
-def main():
 
+def main():
     """ main entry point for cmdline
 
     """
@@ -917,7 +923,8 @@ def main():
     run_tests = False
     run_commands = True
 
-    PyAMI.logger.warning(f"\n============== running pyami main ===============\n{sys.argv[1:]}")
+    PyAMI.logger.warning(
+        f"\n============== running pyami main ===============\n{sys.argv[1:]}")
     pyamix = PyAMI()
     # this needs commandline
     if run_commands:
@@ -926,6 +933,7 @@ def main():
         pyamix.run_tests()
     if run_dsl:
         DSLParser.run_tests(sys.argv[1:])
+
 
 if __name__ == "__main__":
 

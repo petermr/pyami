@@ -4,6 +4,7 @@ import sys
 
 logger = logging.getLogger("examples")
 
+
 class Examples():
     """runs pyami with various examples of commands
 
@@ -15,7 +16,6 @@ class Examples():
         self.logger = logger
         self.pyamix = pyamix
 
-
     def example_copy(self):
         self.pyamix.run_commands([
             # "--debug", "symbols",
@@ -23,7 +23,6 @@ class Examples():
             "--copy", "${misc4.p}", "${temp_dir}/misc4", "overwrite",
             "--assert", "file_exists(${temp_dir}/misc4/files/xml_files.txt)",
         ])
-
 
     def example_glob0(self):
         """ """
@@ -48,7 +47,6 @@ class Examples():
             "--assert", "file_exists(${proj}/files/xml_files.txt)",
         ])
 
-
     # "--config", # defaults to config.ini,~/pyami/config.ini if omitted
 
     # on the commandline:
@@ -70,7 +68,6 @@ class Examples():
             "--assert", "file_glob_count(${proj}/*/sections/**/*.xml,291)"
         ])
 
-
     def example_split_pdf_txt_paras(self):
         self.logger.loglevel = logging.DEBUG
         self.banner(self.example_split_pdf_txt_paras.__name__)
@@ -84,7 +81,6 @@ class Examples():
             "--outfile", "fulltext.pdf.sec.txt",
             "--assert", "file_glob_count(${proj}/*/fulltext.pdf.sec.txt,291)"
         ])
-
 
     def example_split_sentences(self):
         self.banner(self.example_split_sentences.__name__)
@@ -104,7 +100,6 @@ class Examples():
 
         ])
 
-
     def example_split_oil26(self):
         proj_dir = self.pyamix.get_symbol("misc4.p")
         print("file", proj_dir, os.path.exists(proj_dir))
@@ -115,7 +110,6 @@ class Examples():
             "--glob", "${proj}/*/fulltext.xml",
             "--split", "xml2sect",
         ])
-
 
     def example_filter(self):
         self.banner(self.example_filter.__name__)
@@ -131,7 +125,6 @@ class Examples():
             "--outfile", "${proj}/results/cell.txt"
         ])
 
-
     def example_filter_species(self):
         self.banner(self.example_filter_species.__name__)
         proj_dir = self.pyamix.get_symbol("misc4.p")
@@ -141,7 +134,8 @@ class Examples():
             "--glob", "${proj}/**/*_p.xml",
             "--filter",
             "xpath(${all_italics.x})",  # "xpath(//p//italic/text())",
-            "regex(${species.r})",  # "regex([A-Z][a-z]?(\.|[a-z]{2,})\s+[a-z]{3,})",
+            # "regex([A-Z][a-z]?(\.|[a-z]{2,})\s+[a-z]{3,})",
+            "regex(${species.r})",
             "dictionary(${eo_plant.d})",  # local, snowballed
             # "lookup(wikidata)", # crude and obsolete
             "wikidata_sparql(${taxon_name.w})",  # "wikidata_sparql(P225)",
@@ -157,7 +151,6 @@ class Examples():
             "--combine", "concat_xml",
             "--outfile", "italic.xml"
         ])
-
 
     def example_pdf2txt(self):
         self.banner(self.example_pdf2txt.__name__)
@@ -180,7 +173,6 @@ class Examples():
             "--proj", proj_dir,
             "--delete", "**/*_p.xml", "**/*_p.xml.txt", "*/sections/", "**/italic.xml", "**/cell.txt"
         ])
-
 
     def banner(self, msg):
         print(f"===================={msg}==================")
@@ -229,8 +221,9 @@ class Examples():
                 self.logger.debug(f"EXAMPLE_FUNC .. {func}")
                 func()
 
-            elif example is not None :
-                print(f"unknown example: {example}\nchoose from: {example_dict.keys()}")
+            elif example is not None:
+                print(
+                    f"unknown example: {example}\nchoose from: {example_dict.keys()}")
 
     def transform_img_to_png(self, file):
         from io import BytesIO
@@ -259,7 +252,7 @@ class Examples():
 
     def transform_images_to_png(self):
         import glob
-        from pyami_m.file_lib import Globber
+        from py4ami.file_lib import Globber
         globstr = "/Users/pm286/misc/images/*.img"
         files = glob.glob(globstr)
         # files = Globber(globstr).get_globbed_files()
@@ -285,9 +278,9 @@ def main():
     # # test_me.run_tests()
     # examples.run_examples(sys.argv[1:])
 
+
 if __name__ == "__main__":
     main()
 
 else:
     logger.debug("not running main()")
-

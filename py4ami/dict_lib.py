@@ -1,12 +1,12 @@
 """AMI dictionary classes"""
+from py4ami.wikimedia import WikidataLookup, WikidataPage
+from py4ami.util import Util
+from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3, PHYSCHEM_RESOURCES
+from lxml import etree as ET
 import logging
 import os
 logging.debug("loading dict_lib")
-from lxml import etree as ET
 
-from pyami_m.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3, PHYSCHEM_RESOURCES
-from pyami_m.util import Util
-from pyami_m.wikimedia import WikidataLookup, WikidataPage
 
 # elements in amidict
 DICTIONARY = "dictionary"
@@ -26,6 +26,8 @@ WIKIPEDIA_PAGE = "wikipediaPage"
 # elements
 
 logger = logging.getLogger("dict_lib")
+
+
 class AmiDictionary:
     """wrapper for an ami dictionary including search flags
 
@@ -49,7 +51,6 @@ class AmiDictionary:
         self.term_set = set()
         self.wikilangs = wikilangs
 
-
         if xml_file is not None:
             if not os.path.exists(xml_file):
                 raise IOError("cannot find file " + str(xml_file))
@@ -72,7 +73,7 @@ class AmiDictionary:
     def create_from_words(cls, terms, name=None, desc=None, wikilangs=None):
         """use raw list of words and lookup each. choosing WD page and using languages """
         if name is None:
-            name="no_name"
+            name = "no_name"
         dictionary = AmiDictionary(name=name, wikilangs=wikilangs)
         dictionary.root = ET.Element(DICTIONARY)
         dictionary.root.attrib[TITLE] = name
@@ -90,7 +91,6 @@ class AmiDictionary:
     def read_dictionary(cls, file, ignorecase=True):
         return AmiDictionary(xml_file=file) if file is not None else None
 
-
     def read_dictionary_from_xml_file(self, file, ignorecase=True):
         self.file = file
         self.amidict = ET.parse(file, parser=ET.XMLParser(encoding="utf-8"))
@@ -100,7 +100,7 @@ class AmiDictionary:
         self.ignorecase = ignorecase
 
         self.entries = list(self.root.findall(ENTRY))
-        self.create_entry_by_term();
+        self.create_entry_by_term()
         self.term_set = set()
 #        print("read dictionary", self.name, "with", len(self.entries), "entries")
 
@@ -116,7 +116,7 @@ class AmiDictionary:
                     elif self.split_terms:
                         # multiword terms
                         for termx in term.split(" "):
-#                            print("term", termx)
+                            #                            print("term", termx)
                             self.add_processed_term(termx)
                     else:
                         # add multiword term
@@ -191,12 +191,14 @@ class AmiDictionary:
             self.create_entry_by_term()
         entry = self.entry_by_term[term] if term in self.entry_by_term else None
         if entry is None:
-            self.logger.debug("entry by term", self.entry_by_term) # very large
+            self.logger.debug(
+                "entry by term", self.entry_by_term)  # very large
             pass
         return entry
 
     def create_entry_by_term(self):
-        self.entry_by_term = {self.term_from_entry(entry) : entry  for entry in self.entries}
+        self.entry_by_term = {self.term_from_entry(
+            entry): entry for entry in self.entries}
 
     def check_unique_wikidata_ids(self):
         # print("entries", len(self.entries))
@@ -217,7 +219,8 @@ class AmiDictionary:
         from lxml import etree
         et = etree.ElementTree(self.root)
         with open(file, 'wb') as f:
-            et.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
+            et.write(f, encoding="utf-8",
+                     xml_declaration=True, pretty_print=True)
 
     def add_wikidata_from_terms(self):
 
@@ -233,7 +236,8 @@ class AmiDictionary:
             synonym.attrib["type"] = "wikidata_hits"
             synonym.text = str(qitems)
             wikidata_page = WikidataPage(qitem)
-            wikipedia_dict = wikidata_page.get_wikipedia_page_links(self.wikilangs)
+            wikipedia_dict = wikidata_page.get_wikipedia_page_links(
+                self.wikilangs)
             self.add_wikipedia_page_links(entry, wikipedia_dict)
 
     def add_wikipedia_page_links(self, entry, wikipedia_dict):
@@ -352,51 +356,51 @@ class AmiDictionaries:
     def make_ami3_dictionaries(self):
 
         self.ami3_dict_index = {
-            AmiDictionaries.ANIMAL_TEST : os.path.join(DICT_AMI3, "animaltest.xml"),
-            AmiDictionaries.COCHRANE : os.path.join(DICT_AMI3, "cochrane.xml"),
-            AmiDictionaries.COMP_CHEM : os.path.join(DICT_AMI3, "compchem.xml"),
-            AmiDictionaries.CRISPR : os.path.join(DICT_AMI3, "crispr.xml"),
-            AmiDictionaries.CRYSTAL : os.path.join(DICT_AMI3, "crystal.xml"),
-            AmiDictionaries.DISTRIBUTION : os.path.join(DICT_AMI3, "distributions.xml"),
-            AmiDictionaries.DITERPENE : os.path.join(DICT_AMI3, "diterpene.xml"),
-            AmiDictionaries.DRUG : os.path.join(DICT_AMI3, "drugs.xml"),
-            AmiDictionaries.EDGE_MAMMAL : os.path.join(DICT_AMI3, "edgemammals.xml"),
-            AmiDictionaries.ETHICS : os.path.join(DICT_AMI3, "ethics.xml"),
-            AmiDictionaries.CHEM_ELEMENT : os.path.join(DICT_AMI3, "elements.xml"),
-            AmiDictionaries.EPIDEMIC : os.path.join(DICT_AMI3, "epidemic.xml"),
+            AmiDictionaries.ANIMAL_TEST: os.path.join(DICT_AMI3, "animaltest.xml"),
+            AmiDictionaries.COCHRANE: os.path.join(DICT_AMI3, "cochrane.xml"),
+            AmiDictionaries.COMP_CHEM: os.path.join(DICT_AMI3, "compchem.xml"),
+            AmiDictionaries.CRISPR: os.path.join(DICT_AMI3, "crispr.xml"),
+            AmiDictionaries.CRYSTAL: os.path.join(DICT_AMI3, "crystal.xml"),
+            AmiDictionaries.DISTRIBUTION: os.path.join(DICT_AMI3, "distributions.xml"),
+            AmiDictionaries.DITERPENE: os.path.join(DICT_AMI3, "diterpene.xml"),
+            AmiDictionaries.DRUG: os.path.join(DICT_AMI3, "drugs.xml"),
+            AmiDictionaries.EDGE_MAMMAL: os.path.join(DICT_AMI3, "edgemammals.xml"),
+            AmiDictionaries.ETHICS: os.path.join(DICT_AMI3, "ethics.xml"),
+            AmiDictionaries.CHEM_ELEMENT: os.path.join(DICT_AMI3, "elements.xml"),
+            AmiDictionaries.EPIDEMIC: os.path.join(DICT_AMI3, "epidemic.xml"),
             AmiDictionaries.EUROFUNDER: os.path.join(DICT_AMI3, "eurofunders.xml"),
-            AmiDictionaries.ILLEGAL_DRUG : os.path.join(DICT_AMI3, "illegaldrugs.xml"),
-            AmiDictionaries.INN : os.path.join(DICT_AMI3, "inn.xml"),
-            AmiDictionaries.INSECTICIDE : os.path.join(DICT_AMI3, "insecticide.xml"),
-            AmiDictionaries.MAGNETISM : os.path.join(DICT_AMI3, "magnetism.xml"),
-            AmiDictionaries.MONOTERPENE : os.path.join(DICT_AMI3, "monoterpene.xml"),
-            AmiDictionaries.NAL : os.path.join(DICT_AMI3, "nal.xml"),
-            AmiDictionaries.NMR : os.path.join(DICT_AMI3, "nmrspectroscopy.xml"),
-            AmiDictionaries.OBESITY : os.path.join(DICT_AMI3, "obesity.xml"),
-            AmiDictionaries.OPTOGENETICS : os.path.join(DICT_AMI3, "optogenetics.xml"),
-            AmiDictionaries.PECTIN : os.path.join(DICT_AMI3, "pectin.xml"),
-            AmiDictionaries.PHOTOSYNTH : os.path.join(DICT_AMI3, "photosynth.xml"),
-            AmiDictionaries.PLANT_DEV : os.path.join(DICT_AMI3, "plantDevelopment.xml"),
-            AmiDictionaries.POVERTY : os.path.join(DICT_AMI3, "poverty.xml"),
-            AmiDictionaries.PROT_STRUCT : os.path.join(DICT_AMI3, "proteinstruct.xml"),
-            AmiDictionaries.PROT_PRED : os.path.join(DICT_AMI3, "protpredict.xml"),
-            AmiDictionaries.REFUGEE : os.path.join(DICT_AMI3, "refugeeUNHCR.xml"),
-            AmiDictionaries.SESQUITERPENE : os.path.join(DICT_AMI3, "sesquiterpene.xml"),
-            AmiDictionaries.SOLVENT : os.path.join(DICT_AMI3, "solvents.xml"),
-            AmiDictionaries.STATISTICS : os.path.join(DICT_AMI3, "statistics.xml"),
-            AmiDictionaries.TROPICAL_VIRUS : os.path.join(DICT_AMI3, "tropicalVirus.xml"),
-            AmiDictionaries.WETLANDS : os.path.join(DICT_AMI3, "wetlands.xml"),
-            AmiDictionaries.WILDLIFE : os.path.join(DICT_AMI3, "wildlife.xml"),
+            AmiDictionaries.ILLEGAL_DRUG: os.path.join(DICT_AMI3, "illegaldrugs.xml"),
+            AmiDictionaries.INN: os.path.join(DICT_AMI3, "inn.xml"),
+            AmiDictionaries.INSECTICIDE: os.path.join(DICT_AMI3, "insecticide.xml"),
+            AmiDictionaries.MAGNETISM: os.path.join(DICT_AMI3, "magnetism.xml"),
+            AmiDictionaries.MONOTERPENE: os.path.join(DICT_AMI3, "monoterpene.xml"),
+            AmiDictionaries.NAL: os.path.join(DICT_AMI3, "nal.xml"),
+            AmiDictionaries.NMR: os.path.join(DICT_AMI3, "nmrspectroscopy.xml"),
+            AmiDictionaries.OBESITY: os.path.join(DICT_AMI3, "obesity.xml"),
+            AmiDictionaries.OPTOGENETICS: os.path.join(DICT_AMI3, "optogenetics.xml"),
+            AmiDictionaries.PECTIN: os.path.join(DICT_AMI3, "pectin.xml"),
+            AmiDictionaries.PHOTOSYNTH: os.path.join(DICT_AMI3, "photosynth.xml"),
+            AmiDictionaries.PLANT_DEV: os.path.join(DICT_AMI3, "plantDevelopment.xml"),
+            AmiDictionaries.POVERTY: os.path.join(DICT_AMI3, "poverty.xml"),
+            AmiDictionaries.PROT_STRUCT: os.path.join(DICT_AMI3, "proteinstruct.xml"),
+            AmiDictionaries.PROT_PRED: os.path.join(DICT_AMI3, "protpredict.xml"),
+            AmiDictionaries.REFUGEE: os.path.join(DICT_AMI3, "refugeeUNHCR.xml"),
+            AmiDictionaries.SESQUITERPENE: os.path.join(DICT_AMI3, "sesquiterpene.xml"),
+            AmiDictionaries.SOLVENT: os.path.join(DICT_AMI3, "solvents.xml"),
+            AmiDictionaries.STATISTICS: os.path.join(DICT_AMI3, "statistics.xml"),
+            AmiDictionaries.TROPICAL_VIRUS: os.path.join(DICT_AMI3, "tropicalVirus.xml"),
+            AmiDictionaries.WETLANDS: os.path.join(DICT_AMI3, "wetlands.xml"),
+            AmiDictionaries.WILDLIFE: os.path.join(DICT_AMI3, "wildlife.xml"),
         }
 
         for item in self.ami3_dict_index.items():
             self.add_with_check(item[0], item[1])
 
-
     def add_with_check(self, key, file):
-#        print("adding dictionary", file)
+        #        print("adding dictionary", file)
         if key in self.dictionary_dict:
-            raise Exception("duplicate dictionary key " + key + " in "+ str(self.dictionary_dict))
+            raise Exception("duplicate dictionary key " +
+                            key + " in " + str(self.dictionary_dict))
         Util.check_exists(file)
         try:
             dictionary = AmiDictionary(file)
@@ -419,4 +423,3 @@ else:
     #    print("running search main anyway")
     #    main()
     pass
-

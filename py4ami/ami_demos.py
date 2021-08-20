@@ -1,12 +1,13 @@
 
-from pyami_m.constants import PHYSCHEM_PYTHON
+from py4ami.constants import PHYSCHEM_PYTHON
 import os
-from pyami_m.util import Util
-from pyami_m.text_lib import AmiSection
-from pyami_m.dict_lib import AmiDictionaries
-from pyami_m.projects import AmiProjects, AmiProject
-from pyami_m.text_lib import WordFilter
-from pyami_m.search_lib import AmiSearch
+from py4ami.util import Util
+from py4ami.text_lib import AmiSection
+from py4ami.dict_lib import AmiDictionaries
+from py4ami.projects import AmiProjects, AmiProject
+from py4ami.text_lib import WordFilter
+from py4ami.search_lib import AmiSearch
+
 
 class AmiDemos:
 
@@ -46,7 +47,6 @@ class AmiDemos:
                 AmiDemos.run_demo(demo_dict, demo)
         print("END DEMO")
 
-
     @staticmethod
     def run_demo(demo_dict, demo):
         if demo in demo_dict.keys():
@@ -57,7 +57,6 @@ class AmiDemos:
                 print("running:", demo_funct)
                 demo_funct()
 
-
     @staticmethod
     def plant_parts_demo():
         ami_search = AmiSearch()
@@ -65,10 +64,10 @@ class AmiDemos:
         ami_search.wikidata_label_lang = "en"
 
         ami_search.use_sections([
-#            "method",
+            #            "method",
             AmiSection.INTRO,
             AmiSection.METHOD,
-#            AmiSection.TABLE,
+            #            AmiSection.TABLE,
             #            "fig_caption"
         ])
         ami_search.use_dictionaries([
@@ -100,9 +99,10 @@ class AmiDemos:
         ami_search = AmiSearch()
         ami_search.min_hits = 2
 
-        ami_search.use_sections([AmiSection.METHOD,])
-        ami_search.use_dictionaries([AmiDictionaries.PROT_STRUCT, AmiDictionaries.PROT_PRED, AmiDictionaries.CRISPR])
-        ami_search.use_projects([AmiProjects.DIFFPROT,])
+        ami_search.use_sections([AmiSection.METHOD, ])
+        ami_search.use_dictionaries(
+            [AmiDictionaries.PROT_STRUCT, AmiDictionaries.PROT_PRED, AmiDictionaries.CRISPR])
+        ami_search.use_projects([AmiProjects.DIFFPROT, ])
 
         ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
@@ -110,14 +110,14 @@ class AmiDemos:
 
         ami_search.run_search()
 
-
     @staticmethod
     def ethics_demo():
         ami_search = AmiSearch()
         ami_search.min_hits = 2
 
         ami_search.use_sections([AmiSection.ETHICS, ])
-        ami_search.use_dictionaries([AmiDictionaries.ETHICS, AmiDictionaries.COUNTRY, AmiDictionaries.DISEASE, ])
+        ami_search.use_dictionaries(
+            [AmiDictionaries.ETHICS, AmiDictionaries.COUNTRY, AmiDictionaries.DISEASE, ])
         ami_search.use_projects([AmiProjects.DISEASE, ])
         ami_search.use_filters([WordFilter.ORG_STOP])
 
@@ -147,7 +147,8 @@ class AmiDemos:
         ami_search.min_hits = 2
 
         ami_search.use_sections([AmiSection.FIG_CAPTION, AmiSection.METHOD])
-        ami_search.use_dictionaries([AmiDictionaries.ELEMENT, AmiDictionaries.CRYSTAL, AmiDictionaries.MAGNETISM])
+        ami_search.use_dictionaries(
+            [AmiDictionaries.ELEMENT, AmiDictionaries.CRYSTAL, AmiDictionaries.MAGNETISM])
         ami_search.use_projects([AmiProjects.LIION10, ])
 
         ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
@@ -155,7 +156,6 @@ class AmiDemos:
         ami_search.use_pattern("_ALL", "_all")
 
         ami_search.run_search()
-
 
     @staticmethod
     def species_demo():
@@ -171,7 +171,6 @@ class AmiDemos:
 
         ami_search.run_search()
 
-
     @staticmethod
     def invasive_demo():
         ami_search = AmiSearch()
@@ -179,7 +178,8 @@ class AmiDemos:
 
         ami_search.use_sections([AmiSection.SECTIONS])
         ami_search.use_dictionaries([AmiDictionaries.INVASIVE_PLANT])
-        ami_search.use_dictionaries([AmiDictionaries.PLANT_GENUS]) # to check it works
+        ami_search.use_dictionaries(
+            [AmiDictionaries.PLANT_GENUS])  # to check it works
         ami_search.use_projects([AmiProjects.C_INVASIVE])
         ami_search.use_projects([AmiProjects.OIL186])
 
@@ -191,12 +191,13 @@ class AmiDemos:
         ami_search.min_hits = 1
         ami_search.max_bars = 200
 
-        ami_search.use_sections([AmiSection.METHOD, AmiSection.RESULTS, AmiSection.ABSTRACT])
-        ami_search.use_dictionaries([AmiDictionaries.DISEASE, AmiDictionaries.MONOTERPENE])
+        ami_search.use_sections(
+            [AmiSection.METHOD, AmiSection.RESULTS, AmiSection.ABSTRACT])
+        ami_search.use_dictionaries(
+            [AmiDictionaries.DISEASE, AmiDictionaries.MONOTERPENE])
         ami_search.use_projects([AmiProjects.OIL186])
 
         ami_search.run_search()
-
 
     @staticmethod
     def luke_demo():
@@ -205,7 +206,7 @@ class AmiDemos:
 
         ami_search.use_sections([AmiSection.METHOD, ])
         ami_search.use_dictionaries([AmiDictionaries.ELEMENT])
-        ami_search.use_projects([AmiProjects.FFML20,])
+        ami_search.use_projects([AmiProjects.FFML20, ])
 
         ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
@@ -222,7 +223,8 @@ class AmiDemos:
         ami_search.use_dictionaries([AmiDictionaries.ELEMENT])
         ami_search.use_dictionaries([AmiDictionaries.SOLVENT])
         ami_search.use_dictionaries([AmiDictionaries.NMR])
-        ami_search.use_projects([AmiProjects.WORC_EXPLOSION, AmiProjects.WORC_SYNTH])
+        ami_search.use_projects(
+            [AmiProjects.WORC_EXPLOSION, AmiProjects.WORC_SYNTH])
 
         ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
@@ -236,11 +238,11 @@ class AmiDemos:
         ami_search.min_hits = 2
 
         ami_search.use_sections([AmiSection.METHOD])
-        ami_search.use_projects([AmiProjects.WORC_EXPLOSION, AmiProjects.WORC_SYNTH])
+        ami_search.use_projects(
+            [AmiProjects.WORC_EXPLOSION, AmiProjects.WORC_SYNTH])
 
         ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
         ami_search.use_pattern("_ALL", "_all")
 
         ami_search.run_search()
-

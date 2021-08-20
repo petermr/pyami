@@ -1,16 +1,17 @@
+import unicodedata
+import nltk
+from py4ami.file_lib import AmiPath, FileLib
+import json
+import re
+import xml.etree.ElementTree as ET
+from collections import Counter
+from pathlib import Path
+from bs4 import BeautifulSoup
 import os
 import glob
 import logging
 logging.debug("loading text_lib")
-from bs4 import BeautifulSoup
-from pathlib import Path
-from collections import Counter
-import nltk, unicodedata
-import xml.etree.ElementTree as ET
-import re
-import json
 
-from pyami_m.file_lib import AmiPath, FileLib
 
 NFKD = "NFKD"
 
@@ -39,33 +40,38 @@ PUNCT = "!@#$%^&*+{}[]:;'|<>,.?/~`\"\\"
 LIION_PROJ = os.path.abspath(os.path.normpath(os.path.join("../liion")))
 PY_DIAG = "../../python/diagrams"
 
-CCT_PROJ = os.path.abspath(os.path.normpath(os.path.join(PY_DIAG, "satish/cct")))
+CCT_PROJ = os.path.abspath(os.path.normpath(
+    os.path.join(PY_DIAG, "satish/cct")))
 
 STOPWORDS_EN = nltk.corpus.stopwords.words("english")
 STOPWORDS_PUB = {
-'figure','permission','reproduced','copyright', 'authors', 'society',"university",'table',
-"manuscript", "published", "declare", "conflict", "research", "diagram", "images", "version",
-"data", "Fig", "different", "time", "min", "experiments", "group", "analysis",
-"study", "activity", "treated", "Extraction", "using", "mean", "work", "file",
-"samples", "performed", "analyzed", "support", "values", "approved", "significant",
-"thank", "interest", "supported",
+    'figure', 'permission', 'reproduced', 'copyright', 'authors', 'society', "university", 'table',
+    "manuscript", "published", "declare", "conflict", "research", "diagram", "images", "version",
+    "data", "Fig", "different", "time", "min", "experiments", "group", "analysis",
+    "study", "activity", "treated", "Extraction", "using", "mean", "work", "file",
+    "samples", "performed", "analyzed", "support", "values", "approved", "significant",
+    "thank", "interest", "supported",
 
 }
-OIL186 = "/Users/pm286/projects/CEVOpen/searches/oil186" # pmr only
+OIL186 = "/Users/pm286/projects/CEVOpen/searches/oil186"  # pmr only
+
 
 class ProjectCorpus:
     """manages an AMI CProject, not yet fully incorporated"""
+
     def __init__(self, cwd, tree_glob="./*/"):
         self.cwd = cwd
         self.tree_glob = tree_glob
         self.words = []
 
     """NEEDS REFACTORING """
+
     def read_analyze_child_documents(self):
         self.logger.warning("WARNING NYI FULLY")
 #        self.files = self.glob_corpus_files()
         self.files = glob.glob(os.path.join(self.cwd, self.tree_glob))
-        self.logger.warning("glob", self.cwd, self.tree_glob, str(len(self.files)), self.files[:5])
+        self.logger.warning("glob", self.cwd, self.tree_glob,
+                            str(len(self.files)), self.files[:5])
         for file in self.files:
             section = AmiSection()
             section.read_file_get_text_filtered_words(file)
@@ -78,7 +84,7 @@ class ProjectCorpus:
         self.logger.warning("Common", cc.most_common(50))
 
     def glob_corpus_files(self, glob_path, recurse=True):
-        ami_path = AmiPath();
+        ami_path = AmiPath()
         ami_path.recurse = recurse
         files = ami_path.get_globbed_files()
         return files
@@ -91,7 +97,6 @@ class ProjectCorpus:
         project.read_analyze_child_documents()
         cls.logger.warning("end test")
 
-
     @classmethod
     def test_oil(cls):
         cls.logger.warning("start test", OIL186)
@@ -100,9 +105,9 @@ class ProjectCorpus:
         project.read_analyze_child_documents()
         cls.logger.warning("end test")
 
-
     def __str__(self):
         return " ".join(map(str, self.sentences))
+
 
 class Document:
     """ a standalone hierarchical document
@@ -116,21 +121,22 @@ class Document:
 #        if file is not None and os.path.isfile(file):
 #            self.words = self.get_words_from_terminal_file(file)
 
-
     def create_analyze_sections(self):
         sections_file = os.path.abspath(os.path.join(self.file, "sections"))
         if not os.path.exists(sections_file):
             if not os.path.exists("fulltext.xml"):
                 logging.error("No fulltext.xml, so no sections")
             else:
-                logging.error("PLEASE CREATE sections with ami sections, will add pyami later")
+                logging.error(
+                    "PLEASE CREATE sections with ami sections, will add pyami later")
                 jats_parser = JatsParser()
                 jats_parser.create_sections_from_xml("fulltext.xml")
             return
         files = glob.glob(os.path.join(sections_file, "**/*.xml"))
         for terminal_file in files:
             # REFACTOR
-            terminal_page = TextUtil.get_words_from_terminal_file(terminal_file)
+            terminal_page = TextUtil.get_words_from_terminal_file(
+                terminal_file)
             self.words.extend(terminal_page.get_words_from_sentences())
 
     # REFACTOR
@@ -138,7 +144,8 @@ class Document:
     def get_words_from_file(terminal_file):
         ami_section = AmiSection()
         ami_section.read_file_get_text_filtered_words(terminal_file)
-        ami_section.sentences = [Sentence(s) for s in (nltk.sent_tokenize(ami_section.txt))]
+        ami_section.sentences = [Sentence(s) for s in (
+            nltk.sent_tokenize(ami_section.txt))]
         ami_section.sentences = ami_section.sentences
         if os.path.exists(ami_section.txt_file):
             logging.info("skipping existing text")
@@ -151,13 +158,14 @@ class Document:
             ami_section.txt = ami_section.flatten_xml_to_text(ami_section.xml)
             #        self.sentences = Sentence.merge_false_sentence_breaks(self.sentences)
 
-            sentence_file = AmiSection.create_txt_filename_from_xml(ami_section.xml_file)
+            sentence_file = AmiSection.create_txt_filename_from_xml(
+                ami_section.xml_file)
             if not os.path.exists(sentence_file):
-#                logging.info("wrote sentence file", sentence_file)
-                AmiSection.write_numbered_sentence_file(sentence_file, ami_section.sentences)
+                #                logging.info("wrote sentence file", sentence_file)
+                AmiSection.write_numbered_sentence_file(
+                    sentence_file, ami_section.sentences)
             ami_section.get_words_from_sentences()
         return ami_section.words
-
 
 
 class AmiSection:
@@ -172,33 +180,33 @@ class AmiSection:
     TXT_SUFF = ".txt"
 
     # sections in template file
-    ABSTRACT    = "ABSTRACT"
-    ACKNOW      = "ACKNOW"
-    AFFIL       = "AFFIL"
-    AUTHOR      = "AUTHOR"
-    BACKGROUND  = "BACKGROUND"
-    DISCUSS     = "DISCUSS"
-    EMPTY       = "EMPTY"
-    ETHICS      = "ETHICS"
+    ABSTRACT = "ABSTRACT"
+    ACKNOW = "ACKNOW"
+    AFFIL = "AFFIL"
+    AUTHOR = "AUTHOR"
+    BACKGROUND = "BACKGROUND"
+    DISCUSS = "DISCUSS"
+    EMPTY = "EMPTY"
+    ETHICS = "ETHICS"
     FIG_CAPTION = "FIG_CAPTION"
-    FRONT       = "FRONT"
-    INTRO       = "INTRO"
-    JRNL        = "JRNL"
-    KWD         = "KEYWORD"
-    METHOD      = "METHOD"
-    MATERIAL    = "MATERIAL"
-    OCTREE      = "OCTREE"
-    PDFIMAGE    = "PDFIMAGE"
-    PUB_DATE    = "PUB_DATE"
-    PUBLISHER   = "PUBLISHER"
-    REFERENCE   = "REFERENCE"
+    FRONT = "FRONT"
+    INTRO = "INTRO"
+    JRNL = "JRNL"
+    KWD = "KEYWORD"
+    METHOD = "METHOD"
+    MATERIAL = "MATERIAL"
+    OCTREE = "OCTREE"
+    PDFIMAGE = "PDFIMAGE"
+    PUB_DATE = "PUB_DATE"
+    PUBLISHER = "PUBLISHER"
+    REFERENCE = "REFERENCE"
 #    RESULTS     = "results_discuss"
-    RESULTS     = "RESULTS"
-    SECTIONS    = "SECTIONS"
-    SVG         = "SVG"
-    TABLE       = "TABLE"
-    TITLE       = "TITLE"
-    WORD        = "WORD"
+    RESULTS = "RESULTS"
+    SECTIONS = "SECTIONS"
+    SVG = "SVG"
+    TABLE = "TABLE"
+    TITLE = "TITLE"
+    WORD = "WORD"
 
     SECTION_LIST0 = [
         ABSTRACT,
@@ -236,12 +244,13 @@ class AmiSection:
     def read_section_dict(file):
         """reads the dictionary of sections"""
 
-        dictf = os.path.join(FileLib.get_pyami_m(), file)
+        dictf = os.path.join(FileLib.get_py4ami(), file)
         dikt = FileLib.read_pydictionary(dictf)
         logging.info(f"dict_keys: {dikt.keys()}")
         return dikt
 
-    templates_json = Path(FileLib.get_pyami_resources(), SECTION_TEMPLATES_JSON)
+    templates_json = Path(FileLib.get_pyami_resources(),
+                          SECTION_TEMPLATES_JSON)
     SECTION_LIST1 = read_section_dict(templates_json)
     SECTION_LIST = SECTION_LIST1
     logging.debug("text_lib: reading section_templates")
@@ -250,7 +259,6 @@ class AmiSection:
     logging.warning("loading templates.json")
     with open(templates_json, 'r') as json_file:
         TEMPLATES = json.load(json_file)
-
 
     def __init__(self):
         self.words = []
@@ -305,13 +313,15 @@ class AmiSection:
         """
         self.text = None
         if file is None:
-            raise Exception ("file is None")
+            raise Exception("file is None")
         if file.endswith(AmiSection.XML_SUFF):
             self.xml_file = file
-            self.txt_file = AmiSection.create_txt_filename_from_xml(self.xml_file)
+            self.txt_file = AmiSection.create_txt_filename_from_xml(
+                self.xml_file)
             if os.path.exists(self.txt_file):
                 self.add_name(self.txt_file)
-                self.sentences = AmiSection.read_numbered_sentences_file(self.txt_file)
+                self.sentences = AmiSection.read_numbered_sentences_file(
+                    self.txt_file)
             if os.path.exists(self.xml_file):
                 self.add_name(self.xml_file)
                 """read a file as an ami-section of larger document """
@@ -319,14 +329,16 @@ class AmiSection:
                     try:
                         self.xml = f.read()
                     except Exception as ex:
-                        self.logger.error ("error reading: ", file, ex)
+                        self.logger.error("error reading: ", file, ex)
                         raise ex
                 self.text = self.flatten_xml_to_text(self.xml)
-                self.sentences = [Sentence(s) for s in (nltk.sent_tokenize(self.text))]
+                self.sentences = [Sentence(s) for s in (
+                    nltk.sent_tokenize(self.text))]
 #                        self.sentences = Sentence.merge_false_sentence_breaks(self.sentences)
                 if self.write_text and not os.path.exists(self.txt_file):
                     self.logger.warning("wrote sentence file", self.txt_file)
-                    AmiSection.write_numbered_sentence_file(self.txt_file, self.sentences)
+                    AmiSection.write_numbered_sentence_file(
+                        self.txt_file, self.sentences)
             self.words = self.get_words_from_sentences()
 
     def __str__(self):
@@ -350,12 +362,12 @@ class AmiSection:
                 print("\n===========allowed sections=========\n",
                       AmiSection.SECTION_LIST,
                       "\n====================================")
-                raise Exception ("unknown section: ", section)
-
+                raise Exception("unknown section: ", section)
 
     @staticmethod
     def create_txt_filename_from_xml(xml_file):
-        sentence_file = xml_file[:-len(AmiSection.XML_SUFF)] + AmiSection.TXT_SUFF
+        sentence_file = xml_file[:-
+                                 len(AmiSection.XML_SUFF)] + AmiSection.TXT_SUFF
         return sentence_file
 
     @staticmethod
@@ -372,7 +384,8 @@ class AmiSection:
         """writes numbered sentences"""
         with open(file, "w", encoding="utf-8") as f:
             for i, sentence in enumerate(sentences):
-                f.write(str(i) + Sentence.NUMBER_SPLIT + sentence.string + "\n")
+                f.write(str(i) + Sentence.NUMBER_SPLIT +
+                        sentence.string + "\n")
 
     @classmethod
     def read_numbered_sentences_file(cls, file):
@@ -390,7 +403,6 @@ class AmiSection:
                 print(ex, file, "in read numbered sentences")
 
         return sentences
-
 
     def get_words_from_sentences(self) -> list:
         for sentence in self.sentences:
@@ -410,7 +422,6 @@ class Sentence:
         self.words = Sentence.remove_punct(self.words)
 
     @staticmethod
-
     def tokenize_to_words(string):
         """ may be quite slow compared to brute splitting at spaces
 
@@ -443,7 +454,8 @@ class Sentence:
         for i, line in enumerate(lines):
             line_no, text = Sentence.read_numbered_line(line)
             if i != lasti + 1 or i != line_no:
-                raise Exception("failed to read lines in order", i, line_no, line)
+                raise Exception(
+                    "failed to read lines in order", i, line_no, line)
             lasti = i
             sentences.append(Sentence(text))
         return sentences
@@ -451,9 +463,11 @@ class Sentence:
     def __str__(self):
         return " ".join(map(str, self.words))
 
+
 class TextUtil:
 
     logger = logging.getLogger("text_util")
+
     @staticmethod
     def strip_xml_tags(text):
         soup = BeautifulSoup(text, "xml")
@@ -475,8 +489,9 @@ class TextUtil:
         :param xml_string: XML in serialized form
         :returns: flattened string with spaces replacing tags
         """
-        #remove tags
-        untagged_text = str.join(" ", list(ET.fromstring(xml_string).itertext()))
+        # remove tags
+        untagged_text = str.join(
+            " ", list(ET.fromstring(xml_string).itertext()))
         return untagged_text
 
     @staticmethod
@@ -521,7 +536,7 @@ class TextUtil:
             all_words.extend(words)
         return all_words
 
-    @staticmethod #OBSOLETE
+    @staticmethod  # OBSOLETE
     def filter_words(words) -> list:
         words = [w for w in words if len(w) > 2]
         words = [w for w in words if w.lower() not in STOPWORDS_EN]
@@ -532,13 +547,14 @@ class TextUtil:
     @classmethod
     def replace_chars(cls, text, unwanted_chars, replacement) -> str:
         """replaces all chars in unwanted chars with wanted_char
-        
+
         :param text: source text
         :param unwanted_chars: string or list of unwanted characters
         :param replacement: replacement character
         :returns modified string
         """
-        text0 = ''.join([c if c not in unwanted_chars else replacement for c in text])
+        text0 = ''.join(
+            [c if c not in unwanted_chars else replacement for c in text])
         return text0
 
     @classmethod
@@ -609,6 +625,7 @@ boodle
         lines = cls.split_at_empty_newline(text)
         assert(str(lines) == "[['foo', 'bar'], ['baz'], [], ['boodle']]")
 
+
 class WordFilter:
 
     # These should really be read from file
@@ -619,12 +636,10 @@ class WordFilter:
         "orange",
     }
 
-
-
-
     """ filters a list of words
     generally deletes words not satisfying a condition but this may develop
     """
+
     def __init__(self, stopword_sets=[STOPWORDS_EN, STOPWORDS_PUB],
                  min_length=2, delete_numeric=True, delete_non_alphanum=True):
 
@@ -642,14 +657,14 @@ class WordFilter:
 
     def show_params(self):
         self.logger.info("min length", self.min_length,
-            "use lower", self.use_lower_stopwords,
-            "sop wrds set", self.stop_words_set,
-            "delete numeric", self.delete_numeric,
-            "delete nonalpha", self.delete_non_alphanum,
-            "regex", self.regex,
-            "keep regex",self.keep_regex,
-            "split spaces", self.split_spaces
-              )
+                         "use lower", self.use_lower_stopwords,
+                         "sop wrds set", self.stop_words_set,
+                         "delete numeric", self.delete_numeric,
+                         "delete nonalpha", self.delete_non_alphanum,
+                         "regex", self.regex,
+                         "keep regex", self.keep_regex,
+                         "split spaces", self.split_spaces
+                         )
 
     def filter_words(self, words):
         words = self.delete_short_words(words, self.min_length)
@@ -671,7 +686,6 @@ class WordFilter:
         """
         self.regex = re.compile(regex_string)
         self.keep_regex = keep
-
 
     @staticmethod
     def delete_num(self, words):
@@ -699,7 +713,6 @@ class WordFilter:
             words = [w for w in words if w.lower() not in stop_words]
         return words
 
-
     def delete_short_words(self, words, min_length):
         """delete words less than equal to min_length"""
         words = [w for w in words if len(w) > min_length]
@@ -708,6 +721,7 @@ class WordFilter:
     def filter_by_regex(self, words, regex_string, keep=True):
         words1 = [w for w in words if re.match(regex_string)]
         return words1
+
 
 class DSLParser():
     """A DomainSpecificLangauge parser for pyami commands
@@ -722,26 +736,26 @@ class DSLParser():
     NUMB = "NUMB"
     FILE = "FILE"
     # assertions
-    FILE_EXISTS   = "file_exists"
-    GLOB_COUNT    = "glob_count"
-    ITEM          = "item"
-    LEN           = "len"
+    FILE_EXISTS = "file_exists"
+    GLOB_COUNT = "glob_count"
+    ITEM = "item"
+    LEN = "len"
 
     OPERATORS = {
-        "concat" : [STR, STR],
-        "contains" : [STR, STR],
-        "content" : [FILE],
-        "count" : [LIST],
+        "concat": [STR, STR],
+        "contains": [STR, STR],
+        "content": [FILE],
+        "count": [LIST],
         "ends_with": [STR, STR],
-        "equals" : [[STR, NUMB], [STR, NUMB]],
-        "exists" : [FILE],
+        "equals": [[STR, NUMB], [STR, NUMB]],
+        "exists": [FILE],
         "greater_than": [[STR, NUMB], [STR, NUMB]],
-        "item" : [LIST, NUMB],
+        "item": [LIST, NUMB],
         "less_than": [[STR, NUMB], [STR, NUMB]],
-        "length" : [STR],
-        "lower" : [STR],
-        "normalize" : [STR],
-        "reg_matches" : [STR, STR],
+        "length": [STR],
+        "lower": [STR],
+        "normalize": [STR],
+        "reg_matches": [STR, STR],
         "starts_with": [STR, STR],
         "substring": [STR, NUMB, NUMB],
         "upper": [STR],
@@ -749,8 +763,9 @@ class DSLParser():
     }
 
     logger = logging.getLogger("dsl_parser")
+
     def __init__(self):
-        self.tree = {} #
+        self.tree = {}
         self.argstr = None
 
     def parse_and_run(self, expr):
@@ -779,7 +794,7 @@ class DSLParser():
             arg = grabbed[0]
             rest_argstr = grabbed[1]
             self.logger.info(f"               EXTRACTED {arg} "
-                  f"                         ... {rest_argstr}")
+                             f"                         ... {rest_argstr}")
             if arg is not None:
                 arg = self.dequote(arg)
                 self.current_dict = {}
@@ -801,7 +816,8 @@ class DSLParser():
         :returns: dequoted string or original if not possible
         """
         if isinstance(arg, str):
-            if len(arg) > 1 and (arg[0] == arg[-1]): # start/end are same character
+            # start/end are same character
+            if len(arg) > 1 and (arg[0] == arg[-1]):
                 if arg[0] == "'" or arg[0] == '"':
                     arg = arg[1:-1]
         return arg
@@ -814,7 +830,8 @@ class DSLParser():
             arg, rest_args = self.grab_string(argstr)
             self.logger.debug(len(arg))
             arg = self.dequote(arg)
-            self.logger.debug(f"argstr [{argstr}] grabbed quoted string arg: [{arg} ({len(arg)})] + rest_args [{rest_args}]")
+            self.logger.debug(
+                f"argstr [{argstr}] grabbed quoted string arg: [{arg} ({len(arg)})] + rest_args [{rest_args}]")
         elif ch in ".-+0123456789":  # number
             arg, rest_args = self.grab_number(argstr)
             self.logger.debug(f"grabbed number {type(arg)} {arg}")
@@ -827,7 +844,7 @@ class DSLParser():
             funct = funct_arg[0]
             funct_args = funct_arg[1]
             self.logger.debug(f"               FUNCT: [{funct}] \n"
-                  f"                    ... ARGS [{funct_args}]")
+                              f"                    ... ARGS [{funct_args}]")
             self.parse_args(funct_args)
             arg = None
         self.logger.debug(f"grabbed ||{arg}||{rest_args}||")
@@ -925,7 +942,7 @@ class DSLParser():
         itemx = listx[idx]
         print(f"item {type(itemx)}")
         listxx = self.eval_string_as_list(itemx)
-        self.logger.debug ("type: ", type(listxx), len(listxx))
+        self.logger.debug("type: ", type(listxx), len(listxx))
         if itemx != val:
             raise Exception(f"{itemx} != {val}")
 
@@ -986,7 +1003,6 @@ class DSLParser():
         cls.test_parser1()
 
 
-
 def main():
     import lxml
     print("started text_lib")
@@ -998,9 +1014,9 @@ def main():
     DSLParser.test_parser1()
     print("finished text_lib")
 
+
 if __name__ == "__main__":
     main()
 else:
-#    main()
+    #    main()
     pass
-

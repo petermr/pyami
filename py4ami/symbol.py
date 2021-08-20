@@ -4,8 +4,8 @@ import os
 import configparser
 import urllib.request
 import re
-from pyami_m.file_lib import FileLib
-from pyami_m.util import Util
+from py4ami.file_lib import FileLib
+from py4ami.util import Util
 
 
 class SymbolIni:
@@ -40,9 +40,11 @@ class SymbolIni:
         """ """
         # remove later
         # config file is linked as PYAMI
-        self.pyami.args[self.CONFIG] = os.getenv(self.PYAMI)  # "/Users/pm286/pyami/config.ini"
+        self.pyami.args[self.CONFIG] = os.getenv(
+            self.PYAMI)  # "/Users/pm286/pyami/config.ini"
         config_files_str = self.pyami.args.get(self.CONFIG)
-        config_files = [] if config_files_str is None else config_files_str.split(",")
+        config_files = [] if config_files_str is None else config_files_str.split(
+            ",")
         self.symbols = {}
         self.fileset = set()
         for config_file in config_files:
@@ -85,11 +87,12 @@ class SymbolIni:
 
         if file in self.fileset:  # avoid cycles
             self.logger.debug(f"{file} already in {self.fileset}")
-            return;
+            return
         else:
             self.fileset.add(file)
 
-        self.config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+        self.config = configparser.ConfigParser(
+            interpolation=configparser.ExtendedInterpolation())
         self.logger.info(f"reading config file {file}")
         # we have to substitute ami values before the configParser gets there!!!!!
         files_read = self.config.read(file)
@@ -111,7 +114,7 @@ assumes value
         """
         for item in self.symbols.items():
             # we are going through ALL the symbols? possibly needs rethinking
-            val = item[1];
+            val = item[1]
             if val.startswith("http"):
                 if self.pyami.flagged(self.pyami.CHECK_URLS):
                     try:
@@ -122,7 +125,8 @@ assumes value
             elif "/" in val:  # assume slash means file or url
                 # Logic not yet worked out
                 if not os.path.exists(val):  # all files
-                    self.logger.debug(f"{val} called from {file} does not exist as file")
+                    self.logger.debug(
+                        f"{val} called from {file} does not exist as file")
             else:
                 self.logger.debug(f"not a file: {val} in {file}")
 
@@ -138,10 +142,12 @@ assumes value
         :param section:
 
         """
-        self.logger.debug("============" + section + "============ in: " + file)
+        self.logger.debug("============" + section +
+                          "============ in: " + file)
         self.logger.debug(f" self.symbols {self.symbols.keys()}")
         for name in self.config[section].keys():
-            self.logger.debug(f"name in config: {name} {self.config[section]} {list(self.config[section].keys())}")
+            self.logger.debug(
+                f"name in config: {name} {self.config[section]} {list(self.config[section].keys())}")
 
             raw_value = self.config[section][name]
             self.logger.debug(f"raw_value {raw_value}")
@@ -159,7 +165,8 @@ assumes value
             else:
                 new_value = self.replace_symbols_in_arg(raw_value)
                 if new_value != raw_value:
-                    self.logger.debug(f"ami symbols replaced {raw_value} with {new_value}")
+                    self.logger.debug(
+                        f"ami symbols replaced {raw_value} with {new_value}")
                 new_value = raw_value
 
             if name.startswith(self.NS):
@@ -173,14 +180,15 @@ assumes value
                 self.symbols[name] = new_value
                 self.logger.debug(f"added symbol: {name} => {new_value}")
             elif self.symbols[name] != new_value:
-                self.logger.info(f"changed symbol: {name} from {self.symbols[name]} => {new_value}")
+                self.logger.info(
+                    f"changed symbol: {name} from {self.symbols[name]} => {new_value}")
                 self.symbols[name] = new_value
             elif self.symbols[name] == new_value:
-                self.logger.debug(f"retained symbol: {name} with {self.symbols[name]}")
+                self.logger.debug(
+                    f"retained symbol: {name} with {self.symbols[name]}")
                 self.symbols[name] = new_value
 
         self.logger.debug(f"symbols for {file} {section}\n {self.symbols}")
-
 
     def recurse_ini_files(self):
         """follows links to all *_ini files and runs them recursively
@@ -194,7 +202,8 @@ assumes value
         for name in keys:
             if name.endswith("_ini"):
                 if name not in self.symbols:
-                    self.logger.error(f"PROCESSING {self.current_file} ; cannot find symbol: {name} in {self.symbols}")
+                    self.logger.error(
+                        f"PROCESSING {self.current_file} ; cannot find symbol: {name} in {self.symbols}")
                 else:
                     file = self.symbols[name]
                     self.apply_config_file(file)
@@ -261,7 +270,8 @@ assumes value
                 self.logger.debug(symbol, " REPLACE", replace)
             self.logger.debug(f"{idx0} {idx1} {symbol} {replace}")
             end = idx1 + 1
-            result += replace if replace is not None else arg[idx0: idx1 + len(SYM_END)]
+            result += replace if replace is not None else arg[idx0: idx1 + len(
+                SYM_END)]
             start = end
         result += arg[start:]
         if arg != result:

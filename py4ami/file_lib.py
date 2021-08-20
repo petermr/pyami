@@ -1,29 +1,33 @@
 """classes and methods to support file operations
 
 """
+import json
+import copy
+import glob
+import re
+import os
+from pathlib import Path, PurePath
 import logging
 logging.debug("loading file_lib")
-import os, glob, copy, json
-from pathlib import Path, PurePath
 
-PYAMI_M   = "pyami_m"
+py4ami = "py4ami"
 RESOURCES = "resources"
 
 # section keys
 _DESC = "_DESC"
-PROJ =    "PROJ"
-TREE =    "TREE"
-SECTS =   "SECTS"
+PROJ = "PROJ"
+TREE = "TREE"
+SECTS = "SECTS"
 SUBSECT = "SUBSECT"
-SUBSUB =  "SUBSUB"
-FILE =    "FILE"
-SUFFIX =  "SUFFIX"
+SUBSUB = "SUBSUB"
+FILE = "FILE"
+SUFFIX = "SUFFIX"
 
 ALLOWED_SECTS = {_DESC, PROJ, TREE, SECTS, SUBSECT, SUBSUB, FILE, SUFFIX}
 
 # wildcards
-STARS    = "**"
-STAR     = "*"
+STARS = "**"
+STAR = "*"
 
 # suffixes
 S_PDF = "pdf"
@@ -37,26 +41,27 @@ _NULL = "_NULL"
 _REQD = "_REQD"
 
 # known section names
-SVG        = "svg"
-PDFIMAGES  = "pdfimages"
-RESULTS    = "results"
-SECTIONS   = "sections"
+SVG = "svg"
+PDFIMAGES = "pdfimages"
+RESULTS = "results"
+SECTIONS = "sections"
 
 # subsects
-IMAGE_STAR  = "image*"
+IMAGE_STAR = "image*"
 
 # subsects
-OCTREE  = "*octree"
+OCTREE = "*octree"
 
 # results
-SEARCH   = "search"
-WORD     = "word"
-EMPTY    = "empty"
+SEARCH = "search"
+WORD = "word"
+EMPTY = "empty"
 
 # files
 FULLTEXT_PAGE = "fulltext-page*"
 CHANNEL_STAR = "channel*"
 RAW = "raw"
+
 
 class Globber:
     """ustilities for globbing - may be obsolete"""
@@ -75,6 +80,7 @@ class Globber:
                 files += glob.glob(globb, recursive=self.recurse)
         return files
 
+
 class AmiPath:
     """holds a (keyed) scheme for generating lists of file globs
     The scheme has several segments which can be set to create a glob expr.
@@ -89,6 +95,7 @@ class AmiPath:
 
     logger = logging.getLogger("ami_path")
     # dict
+
     def __init__(self, scheme=None):
         self.scheme = scheme
 
@@ -96,9 +103,8 @@ class AmiPath:
         """for debugging and enlightenment"""
         if self.scheme is not None:
             for key in self.scheme:
-                print("key ",key, "=", self.scheme[key])
+                print("key ", key, "=", self.scheme[key])
             print("")
-
 
     @classmethod
     def create_ami_path_from_templates(cls, key, edit_dict=None):
@@ -109,7 +115,8 @@ class AmiPath:
         key = key.lower()
         if key is None or key not in TEMPLATES:
             cls.logger.error(f"cannot find key {key}")
-            cls.logger.error("no scheme for: ", key, "expected", TEMPLATES.keys())
+            cls.logger.error("no scheme for: ", key,
+                             "expected", TEMPLATES.keys())
         ami_path = AmiPath()
         # start with default template values
         ami_path.scheme = copy.deepcopy(TEMPLATES[key])
@@ -148,12 +155,13 @@ class AmiPath:
             for sect, value in scheme.items():
                 if type(value) == list:
                     change = True
-                    self.scheme_list.remove(scheme) # delete scheme with set, replace by copies
+                    # delete scheme with set, replace by copies
+                    self.scheme_list.remove(scheme)
                     for set_value in value:
                         scheme_copy = copy.deepcopy(scheme)
                         self.scheme_list.append(scheme_copy)
-                        scheme_copy[sect] = set_value # poke in set value
-                    break # after each set processed
+                        scheme_copy[sect] = set_value  # poke in set value
+                    break  # after each set processed
 
         return change
 
@@ -209,6 +217,7 @@ class AmiPath:
         self.logger.debug("files", len(files))
         return files
 
+
 class BraceGlobber:
 
     def braced_glob(path, recursive=False):
@@ -218,10 +227,10 @@ class BraceGlobber:
         return l
 
 
-
 class FileLib:
 
     logger = logging.getLogger("file_lib")
+
     @classmethod
     def force_mkdir(cls, dirx):
         """ensure dirx exists
@@ -262,7 +271,7 @@ class FileLib:
 
     @staticmethod
     def create_absolute_name(file):
-        """create absolute/relative name for a file relative to pyami_m
+        """create absolute/relative name for a file relative to py4ami
 
         TODO this is messy
         """
@@ -273,25 +282,25 @@ class FileLib:
         return absolute_file
 
     @classmethod
-    def get_pyami_m(cls):
+    def get_py4ami(cls):
         """ gets paymi_m pathname
 
         """
-        return Path(__file__).parent
+        return Path(__file__).parent.resolve()
 
     @classmethod
     def get_pyami_root(cls):
         """ gets paymi root pathname
 
         """
-        return Path(__file__).parent.parent
+        return Path(__file__).parent.parent.resolve()
 
     @classmethod
     def get_pyami_resources(cls):
         """ gets paymi root pathname
 
         """
-        return Path(cls.get_pyami_root(), RESOURCES)
+        return Path(cls.get_py4ami(), RESOURCES)
 
     @classmethod
     def get_parent_dir(cls, file):
@@ -307,13 +316,12 @@ class FileLib:
 
     @classmethod
     def punct2underscore(cls, text):
-
         """ replace all ASCII punctuation except '.' , '-', '_' by '_'
 
         for filenames
 
         """
-        from pyami_m.text_lib import TextUtil
+        from py4ami.text_lib import TextUtil
         # this is non-trivial https://stackoverflow.com/questions/10017147/removing-a-list-of-characters-in-string
 
         non_file_punct = '\t \n{}!@#$%^&*()[]:;\'",|\\~+=/`'
@@ -321,7 +329,6 @@ class FileLib:
 
         text0 = TextUtil.replace_chars(text, non_file_punct, "_")
         return text0
-
 
     @classmethod
     def get_suffix(cls, file):
@@ -346,16 +353,15 @@ if __name__ == "__main__":
     print("running file_lib main")
     main()
 else:
-#    print("running file_lib main anyway")
-#    main()
+    #    print("running file_lib main anyway")
+    #    main()
     pass
 
-## examples of regex for filenames
-import os
-import re
+# examples of regex for filenames
+
 
 def glob_re(pattern, strings):
     return filter(re.compile(pattern).match, strings)
 
-filenames = glob_re(r'.*(abc|123|a1b).*\.txt', os.listdir())
 
+filenames = glob_re(r'.*(abc|123|a1b).*\.txt', os.listdir())

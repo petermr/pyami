@@ -15,12 +15,13 @@ setup(
     author_email='petermurrayrust@googlemail.com',
     license='Apache2',
     install_requires=[],
+    include_package_data=True,
     zip_safe=False,
     keywords='text and data mining',
     packages=[
-        'pyami_m',
+        'py4ami'
     ],
-    package_data={"pyami_m": ['section_templates.json']},
+    package_dir={'py4ami': 'py4ami'},
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
@@ -31,10 +32,9 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.8',
     ],
-    include_package_data=True,
     entry_points={
         'console_scripts': [
-            'py4ami=pyami_m.pyamix:main',
+            'py4ami=py4ami.pyamix:main',
         ],
     },
 )
