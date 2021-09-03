@@ -12,24 +12,53 @@ class Examples():
     """
 
     def __init__(self, pyamix=None):
-        # self.pyamix = pyamix if pyamix is not None else PyAMI()
+#        self.pyamix = pyamix if pyamix is not None else PyAMI()
         self.logger = logger
         self.pyamix = pyamix
+
+    def example_help(self):
+        """checks whether parser works"""
+        print(f" symbols {self.pyamix.symbol_ini.symbols.keys()}")
+        self.pyamix.commandline("--help")
+
+    def example_symbols(self):
+        """checks whether parser works
+        debugs symbols"""
+        self.pyamix.commandline("--debug symbols")
 
     def example_copy(self):
         self.pyamix.run_commands([
             # "--debug", "symbols",
             # "--delete", "${temp_dir}/misc4",
-            "--copy", "${misc4.p}", "${temp_dir}/misc4", "overwrite",
+            "--copy", "${examples_test.p}", "${temp_dir}/misc4", "overwrite",
+
+
             "--assert", "file_exists(${temp_dir}/misc4/files/xml_files.txt)",
+        ])
+
+    def example_delete(self):
+        self.banner(self.example_delete.__name__)
+
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
+        print("file", proj_dir, os.path.exists(proj_dir))
+        self.pyamix.run_commands([
+            "--proj", proj_dir,
+            "--delete", "**/*_p.xml", "**/*_p.xml.txt", "*/sections/", "**/italic.xml", "**/cell.txt"
         ])
 
     def example_glob0(self):
         """ """
-
         self.pyamix.run_commands([
-            "--proj", "${misc4.p}",
-            "--glob", "${proj}/**/sections/**/*abstract.xml",
+            "--proj", "${examples_test.p}",
+            "--glob", "${examples_test.p}/**/sections/**/*abstract.xml",
+        ])
+
+    def example_captions(self):
+        """ """
+        self.pyamix.run_commands([
+            "--proj", "${examples_test.p}",
+            "--glob", "${examples_test.p}/**/sections/**/*fig.xml",
+            "--outfile", "${examples_test.p}/files/captions/",
         ])
 
     def example_glob(self):
@@ -38,16 +67,16 @@ class Examples():
         self.pyamix.run_commands([
             # "--proj", "${oil26.p}",
             "--debug", "symbols",
-            "--proj", "${misc4.p}",
-            "--glob", "${proj}/**/sections/**/*abstract.xml",
+            "--proj", "${examples_test.p}",
+            "--glob", "${examples_test.p}/**/sections/**/*abstract.xml",
             "--dict", "${eo_plant.d}", "${ov_country.d}",
             "--apply", "xml2txt",
             "--combine", "concat_str",
-            "--outfile", "${proj}/files/misc4.txt",
-            "--assert", "file_exists(${proj}/files/xml_files.txt)",
+            "--outfile", "${examples_test.p}/files/misc4.txt",
+            "--assert", "file_exists(${examples_test.p}/files/xml_files.txt)",
         ])
 
-    # "--config", # defaults to config.ini,~/pyami/config.ini if omitted
+    # "--config", # defaults to config.ini.master,~/pyami/config.ini.master if omitted
 
     # on the commandline:
     # python physchem/python/pyamix.py --proj '${oil26.p}' --glob '${proj}/**/sections/**/*abstract.xml' --dict '${eo_plant.d}' '${ov_country.d}' --apply xml2txt --combine concat_str --outfile '${proj}/files/shweata_1.txt'
@@ -58,80 +87,80 @@ class Examples():
 
         self.banner(self.example_xml2sect.__name__)
 
-        proj_dir = self.pyamix.get_symbol("misc4.p")
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         # split into sections
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.xml",
+            "--glob", "${examples_test.p}/*/fulltext.xml",
             "--split", "xml2sect",
-            "--assert", "file_glob_count(${proj}/*/sections/**/*.xml,291)"
+            "--assert", "file_glob_count(${examples_test.p}/*/sections/**/*.xml,291)"
         ])
 
     def example_split_pdf_txt_paras(self):
         self.logger.loglevel = logging.DEBUG
         self.banner(self.example_split_pdf_txt_paras.__name__)
 
-        proj_dir = self.pyamix.get_symbol("misc4.p")
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.pdf.txt",
+            "--glob", "${examples_test.p}/*/fulltext.pdf.txt",
             "--split", "txt2para",
             "--outfile", "fulltext.pdf.sec.txt",
-            "--assert", "file_glob_count(${proj}/*/fulltext.pdf.sec.txt,291)"
+            "--assert", "file_glob_count(${examples_test.p}/*/fulltext.pdf.sec.txt,291)"
         ])
 
     def example_split_sentences(self):
         self.banner(self.example_split_sentences.__name__)
         self.logger.loglevel = logging.DEBUG
-        proj_dir = self.pyamix.get_symbol("misc4.p")
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.pdf.txt",
+            "--glob", "${examples_test.p}/*/fulltext.pdf.txt",
             "--apply", "txt2sent",
             "--outfile", "fulltext.pdf.sen.txt",
             "--split", "txt2para",
             "--assert",
-            "glob_count(${proj}/*/fulltext.pd.sn.txt,3)",
-            "len(${proj}/PMC4391421/fulltext.pd.sn.txt,181)",
-            "item(${proj}/PMC4391421/fulltext.pd.sn.txt,0,)",
+            "glob_count(${examples_test.p}/*/fulltext.pd.sn.txt,3)",
+            "len(${examples_test.p}/PMC4391421/fulltext.pd.sn.txt,181)",
+            "item(${examples_test.p}/PMC4391421/fulltext.pd.sn.txt,0,)",
 
         ])
 
     def example_split_oil26(self):
-        proj_dir = self.pyamix.get_symbol("misc4.p")
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.banner(self.example_split_oil26.__name__)
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.xml",
+            "--glob", "${examples_test.p}/*/fulltext.xml",
             "--split", "xml2sect",
         ])
 
     def example_filter(self):
         self.banner(self.example_filter.__name__)
 
-        proj_dir = self.pyamix.get_symbol("misc4.p")
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/**/*_p.xml",
+            "--glob", "${examples_test.p}/**/*_p.xml",
             "--apply", "xml2txt",
             "--filter", "contains(cell)",
             "--combine", "concat_str",
-            "--outfile", "${proj}/results/cell.txt"
+            "--outfile", "${examples_test.p}/results/cell.txt"
         ])
 
     def example_filter_species(self):
         self.banner(self.example_filter_species.__name__)
-        proj_dir = self.pyamix.get_symbol("misc4.p")
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,  # "/Users/pm286/projects/openDiagram/physchem/resources/oil26",
-            "--glob", "${proj}/**/*_p.xml",
+            "--glob", "${examples_test.p}/**/*_p.xml",
             "--filter",
             "xpath(${all_italics.x})",  # "xpath(//p//italic/text())",
             # "regex([A-Z][a-z]?(\.|[a-z]{2,})\s+[a-z]{3,})",
@@ -155,23 +184,36 @@ class Examples():
     def example_pdf2txt(self):
         self.banner(self.example_pdf2txt.__name__)
 
-        proj_dir = self.pyamix.get_symbol("misc4.p")
-        print("file", proj_dir, os.path.exists(proj_dir))
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
+        print(f"file {proj_dir} exists= {os.path.exists(proj_dir)}")
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--glob", "${proj}/*/fulltext.pdf",
+            "--glob", "${examples_test.p}/*/fulltext.pdf",
             "--apply", "pdf2txt",
             "--outfile", "fulltext.pdf.txt",
         ])
 
-    def example_delete(self):
-        self.banner(self.example_delete.__name__)
-
-        proj_dir = self.pyamix.get_symbol("misc4.p")
+    def example_search(self):
+        self.banner(self.example_search.__name__)
+        print(f" search not yet working")
+        return
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
+        dict_file = self.pyamix.get_symbol("mini_plant.d")
         print("file", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_commands([
             "--proj", proj_dir,
-            "--delete", "**/*_p.xml", "**/*_p.xml.txt", "*/sections/", "**/italic.xml", "**/cell.txt"
+            "--search", dict_file,
+        ])
+
+    def example_words(self):
+        self.banner(self.example_words.__name__)
+        print(f" words not yet working")
+        return
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
+        print("file", proj_dir, os.path.exists(proj_dir))
+        self.pyamix.run_commands([
+            "--proj", proj_dir,
+            "--words",
         ])
 
     def banner(self, msg):
@@ -183,8 +225,10 @@ class Examples():
         """WARNING:symbol.ini:0 6 proj /Users/pm286/projects/openDiagram/physchem/resources/oil26
         this is being pulled from somewhere?"""
         example_dict = {
-            "de": (self.example_delete, "deleting files"),
+            "ca": (self.example_captions, "captions"),
             "cp": (self.example_copy, "copy files"),
+            "de": (self.example_delete, "deleting files"),
+            "fi": (self.example_filter, "simple filter (not complete)"),
             "g0": (self.example_glob0, "globbing files"),
             "gl": (self.example_glob, "globbing files"),
             "pd": (self.example_pdf2txt, "convert pdf to text"),
@@ -192,8 +236,9 @@ class Examples():
             "sc": (self.example_xml2sect, "split xml into sections"),
             "sl": (self.example_split_oil26, "split oil26 project into sections"),
             "se": (self.example_split_sentences, "split text to sentences"),
-            "fi": (self.example_filter, "simple filter (not complete)"),
             "sp": (self.example_filter_species, "extract species with italics and regex (not finalised)"),
+            "sr": (self.example_search, "search with dictionaries (NYI)"),
+            "wd": (self.example_words, "extract words (NYI"),
         }
         if not example_list:
             print(f"choose example from:")
@@ -219,7 +264,10 @@ class Examples():
                       f"+++++++++++++++++++++++++++++++++++++++\n")
                 func = example_dict[example][0]
                 self.logger.debug(f"EXAMPLE_FUNC .. {func}")
-                func()
+                try:
+                    func()
+                except ValueError as e:
+                    self.logger.critical(f"example {example} failed {e}")
 
             elif example is not None:
                 print(
@@ -238,19 +286,22 @@ class Examples():
             with Image.open(file) as im:
                 print(file, im.format, f"{im.size}x{im.mode}")
         except OSError:
-            try:
-                with open(file, "rb") as buffer:
-                    # buf = io.BytesIO(buffer)
-                    bb = buffer.read()
-                    bbx = binascii.unhexlify(bb)
-                    im = Image.open(bbx)
-            except OSError:
-                print(f"cannot parse {file}")
+            print(f"cannot convert image {file}")
+            if False:
+                try:
+                    with open(file, "rb") as buffer:
+                        # buf = io.BytesIO(buffer)
+                        bb = buffer.read()
+                        bbx = binascii.unhexlify(bb)
+                        im = Image.open(bbx)
+                except OSError:
+                    print(f"cannot parse {file}")
         # with Image.open(file) as image:
         #     print(f" binary {f}")
         #     image.save(outfile)
 
     def transform_images_to_png(self):
+        """These images are from pdfminer3 - they can't be parsed"""
         import glob
         from py4ami.file_lib import Globber
         globstr = "/Users/pm286/misc/images/*.img"
@@ -269,9 +320,14 @@ imagedata = imagefile.getvalue()"""
 
 
 def main():
-
-    Examples().transform_images_to_png()
-    # examples = Examples()
+    from py4ami.pyamix import PyAMI
+    examples = Examples(PyAMI())
+    # examples.example_help()
+    # examples.run_examples(["all"])
+    examples.run_examples(["gl"])
+    # examples.example_symbols()
+    # examples.example_pdf2txt()
+    # examples.transform_images_to_png() # fails
     # examples.logger.warning(f"calling examples directory will be phased out")
     # print(f" examples args: {sys.argv}")
     # # test_me = PyAMITest()

@@ -8,7 +8,6 @@ from py4ami.projects import AmiProjects, AmiProject
 from py4ami.text_lib import WordFilter
 from py4ami.search_lib import AmiSearch
 
-
 class AmiDemos:
 
     FIG_CAPTION_DEMO = "fig_caption"

@@ -7,6 +7,8 @@ from PIL import ImageTk, Image
 import os
 from xml.etree import ElementTree as ET
 from tkinter import TOP, BOTTOM, LEFT
+from pathlib import Path
+
 from py4ami.gutil import AmiTree
 from py4ami.gutil import Gutil
 from py4ami.gutil import Gutil as gu
@@ -69,6 +71,7 @@ class AmiGui(tk.Frame):
         self.label = None
         self.show_html_frame = False
         self.dictionary_content_notebook = None
+        self.assets = Path(Path(__file__).parent.parent, "assets")
 
         self.pack()
         self.current_ami_projects = AmiProjects()
@@ -127,7 +130,7 @@ class AmiGui(tk.Frame):
         :param master: 
 
         """
-        from pyami.file_lib import FileLib
+        from py4ami.file_lib import FileLib
 
         self.main_display_frame = tk.Frame(master)
         self.main_display_frame.pack(side=tk.RIGHT)
@@ -148,9 +151,12 @@ class AmiGui(tk.Frame):
             self.main_display_frame, textvariable=self.label_display_var)
 
         image_path = FileLib.create_absolute_name(
-            os.path.join("assets", "purple_ocimum_basilicum.png"))
-        self.main_image_display = self.create_image_label(image_path)
-        self.main_image_display.pack()
+            os.path.join(self.assets, "purple_ocimum_basilicum.png"))
+        if not os.path.exists(image_path):
+            print(f"Cannot find purple basil: {image_path}")
+        else:
+            self.main_image_display = self.create_image_label(image_path)
+            self.main_image_display.pack()
 
         url = "file://" + \
             FileLib.create_absolute_name(os.path.join("test", "index.html"))

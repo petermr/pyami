@@ -35,11 +35,12 @@ class PyAMI:
     ASSERT = "assert"
     CHECK_URLS = "check_urls"
     COPY = "copy"
-    DELETE = "delete"
-    DEST = "dest"
     COMBINE = "combine"
+    CONFIG = "config"
     CONTAINS = "contains"
     DEBUG = "debug"
+    DELETE = "delete"
+    DEST = "dest"
     DICTIONARY = "dictionary"
     EXAMPLES = "examples"
     FILTER = "filter"
@@ -66,7 +67,7 @@ class PyAMI:
     TXT2PARA = "txt2para"
     XML2SECT = "xml2sect"
     # symbols to update table
-    NEW_SYMBOLS = ["proj"]
+    SPECIAL_SYMBOLS = ["_proj"]
     LOGLEVEL = "loglevel"
 
     logger = logging.getLogger("pyami")
@@ -141,8 +142,9 @@ class PyAMI:
                             help='assertions; failure gives error message (prototype)')
         parser.add_argument('--combine', nargs=1,
                             help='operation to combine files into final object (e.g. concat text or CSV file')
-        parser.add_argument('--config', '-c', nargs="*", default="PYAMI",
-                            help='file (e.g. ~/pyami/config.ini) with list of config file(s) or config vars')
+        parser.add_argument('--config', '-c', nargs="+",
+                            help='file (e.g. ~/pyami/config.ini.master) with list of config file(s) or config vars;'
+                                 ' "symbols": gives symbols')
         parser.add_argument('--copy', nargs="+",
                             help='copy file or directory from=<from> to=<to> overwrite=<yes/no default=no>')
         parser.add_argument('--debug', nargs="+", type=str,
@@ -185,6 +187,15 @@ class PyAMI:
                                      'text_lib'],  # tests,
                             help='run tests for modules; no selection runs all')
         return parser
+
+    def commandline(self, commandline: str) -> None:
+        """runs a commandline as a single string
+        """
+        if not commandline:
+            self.run_commands(["--help"])
+        else:
+            arglist = commandline.split(" ")
+            self.run_commands(arglist)
 
     def run_commands(self, arglist=None):
         """parses cmdline, runs cmds and outputs symbols
@@ -251,7 +262,10 @@ class PyAMI:
          """
         # file workflow
         self.wikipedia_lookup = WikidataLookup()
-        self.logger.debug(f"commandline args {self.args}")
+        self.logger.warning(f"commandline args {self.args}")
+
+        if self.args[self.CONFIG]:
+            self.apply_config()
 
         if self.EXAMPLES in self.args:
             example_args = self.args[self.EXAMPLES]
@@ -273,6 +287,9 @@ class PyAMI:
 
     def replace_single_values_in_self_args_with_list(self, key):
         """always returns list even for single arg
+        e.g. turns "foo" into ["foo"]
+        This is to avoid strings being interpreted as lists of characters
+        I am sure there is a more pythonic way
         """
         argsx = None
         if self.args is None:
@@ -311,7 +328,7 @@ class PyAMI:
             new_val = old_val
         elif isinstance(old_val, str):
             if "${" in old_val:
-                self.logger.debug(f"Unresolved reference : {old_val}")
+                self.logger.warning(f"Unresolved reference : {old_val}")
                 new_val = self.symbol_ini.replace_symbols_in_arg(old_val)
             else:
                 new_val = old_val
@@ -319,7 +336,9 @@ class PyAMI:
         else:
             self.logger.error(f"{old_val} unknown arg type {type(old_val)}")
             new_val = old_val
-        self.add_selected_keys_to_symbols_ini(key, new_val)
+
+        # special symbols such as "_proj"
+        self.add_special_keys_to_symbols_ini(key, new_val)
         return key, new_val
 
     def get_symbol(self, symb):
@@ -345,15 +364,16 @@ class PyAMI:
             new_items[new_item[0]] = new_item[1]
         return new_items
 
-    def add_selected_keys_to_symbols_ini(self, key, value):
+    def add_special_keys_to_symbols_ini(self, key, value):
         """
 
         :param key: 
         :param value: 
 
         """
-        if key in self.NEW_SYMBOLS:
+        if key in self.SPECIAL_SYMBOLS:
             self.symbol_ini.symbols[key] = value
+            self.logger.warning(f"added reserved symbol {key} => {value}")
 
     def set_loglevel_from_args(self):
         """ """
@@ -401,6 +421,8 @@ class PyAMI:
     def run_proj(self):
         """ project-related commands"""
         self.proj = self.args[self.PROJ]
+        # if self.args[self.CONFIG]:
+        #     self.apply_config()
         if self.args[self.DELETE]:
             self.delete_files()
         if self.args[self.GLOB]:
@@ -485,6 +507,17 @@ class PyAMI:
             shutil.copytree(src_path, dest_path)
         else:
             shutil.copy(src_path, dest_path)  # will overwrite
+
+    def apply_config(self):
+        config_args = self.args[self.CONFIG]
+        if type(config_args) == str:
+            config_args = [config_args]
+        print(f" type {type(config_args)}")
+        for config_arg in config_args:
+            if config_arg == self.SYMBOLS:
+                self.symbol_ini.print_symbols()
+            else:
+                print(f"processing INI NYI: {config_arg}")
 
     def delete_files(self):
         """deletes files in glob
@@ -855,10 +888,13 @@ class PyAMI:
             # if not isinstance(data, list):
             #     # data = [data]
             #     pass # this was a  mistake
-            with open(new_outfile, "w", encoding="utf-8") as f:
-                self.ami_logger.warning(f"wrote results {new_outfile}")
-                # for d in data:
-                f.write(f"{str(data)}")
+            try:
+                with open(new_outfile, "w", encoding="utf-8") as f:
+                    self.ami_logger.warning(f"wrote results {new_outfile}")
+                    # for d in data:
+                    f.write(f"{str(data)}")
+            except Exception as e:
+                print(f"cannot write because {e}")
 
     def write_single_result(self):
         FileLib.force_write(self.outfile, self.result, overwrite=True)
@@ -884,23 +920,6 @@ class PyAMI:
 
         """
         return True if self.flag_dict.get(flag) else False
-
-    # def run_examples(self):
-    #     # from examples import Examples
-    #     examples = Examples()
-    #
-    #     examples.example_pdf2txt()
-    #     examples.example_split_pdf_txt_paras()
-    #
-    #     examples.example_xml2sect()
-    #     examples.example_split_oil26()
-    #
-    #     examples.example_split_sentences()
-    #     examples.example_xml2sect()
-    #     examples.example_filter()
-    #     examples.example_filter_species()
-    #
-    #     pass
 
 
 class ContentStore():

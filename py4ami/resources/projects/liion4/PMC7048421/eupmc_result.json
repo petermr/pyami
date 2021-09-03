@@ -1,0 +1,527 @@
+{
+  "id": [
+    "32158944"
+  ],
+  "source": [
+    "MED"
+  ],
+  "pmid": [
+    "32158944"
+  ],
+  "pmcid": [
+    "PMC7048421"
+  ],
+  "doi": [
+    "10.1126/sciadv.aay7633"
+  ],
+  "title": [
+    "A new approach to both high safety and high performance of lithium-ion batteries."
+  ],
+  "authorString": [
+    "Ge S, Leng Y, Liu T, Longchamps RS, Yang XG, Gao Y, Wang D, Wang D, Wang CY."
+  ],
+  "authorList": [
+    {
+      "author": [
+        {
+          "fullName": [
+            "Ge S"
+          ],
+          "firstName": [
+            "Shanhai"
+          ],
+          "lastName": [
+            "Ge"
+          ],
+          "initials": [
+            "S"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0003-2882-1276",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        },
+        {
+          "fullName": [
+            "Leng Y"
+          ],
+          "firstName": [
+            "Yongjun"
+          ],
+          "lastName": [
+            "Leng"
+          ],
+          "initials": [
+            "Y"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0001-9868-0195",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        },
+        {
+          "fullName": [
+            "Liu T"
+          ],
+          "firstName": [
+            "Teng"
+          ],
+          "lastName": [
+            "Liu"
+          ],
+          "initials": [
+            "T"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0001-7714-1627",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        },
+        {
+          "fullName": [
+            "Longchamps RS"
+          ],
+          "firstName": [
+            "Ryan S"
+          ],
+          "lastName": [
+            "Longchamps"
+          ],
+          "initials": [
+            "RS"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0002-8168-8032",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        },
+        {
+          "fullName": [
+            "Yang XG"
+          ],
+          "firstName": [
+            "Xiao-Guang"
+          ],
+          "lastName": [
+            "Yang"
+          ],
+          "initials": [
+            "XG"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0002-9880-3682",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        },
+        {
+          "fullName": [
+            "Gao Y"
+          ],
+          "firstName": [
+            "Yue"
+          ],
+          "lastName": [
+            "Gao"
+          ],
+          "initials": [
+            "Y"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0001-7559-1288",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        },
+        {
+          "fullName": [
+            "Wang D"
+          ],
+          "firstName": [
+            "Daiwei"
+          ],
+          "lastName": [
+            "Wang"
+          ],
+          "initials": [
+            "D"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0003-2811-1071",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        },
+        {
+          "fullName": [
+            "Wang D"
+          ],
+          "firstName": [
+            "Donghai"
+          ],
+          "lastName": [
+            "Wang"
+          ],
+          "initials": [
+            "D"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0001-7261-8510",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        },
+        {
+          "fullName": [
+            "Wang CY"
+          ],
+          "firstName": [
+            "Chao-Yang"
+          ],
+          "lastName": [
+            "Wang"
+          ],
+          "initials": [
+            "CY"
+          ],
+          "authorId": [
+            {
+              "_": "0000-0003-0650-0025",
+              "$": {
+                "type": "ORCID"
+              }
+            }
+          ],
+          "affiliation": [
+            "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+          ]
+        }
+      ]
+    }
+  ],
+  "authorIdList": [
+    {
+      "authorId": [
+        {
+          "_": "0000-0003-2811-1071",
+          "$": {
+            "type": "ORCID"
+          }
+        },
+        {
+          "_": "0000-0001-7261-8510",
+          "$": {
+            "type": "ORCID"
+          }
+        },
+        {
+          "_": "0000-0001-9868-0195",
+          "$": {
+            "type": "ORCID"
+          }
+        },
+        {
+          "_": "0000-0001-7559-1288",
+          "$": {
+            "type": "ORCID"
+          }
+        },
+        {
+          "_": "0000-0003-2882-1276",
+          "$": {
+            "type": "ORCID"
+          }
+        },
+        {
+          "_": "0000-0002-8168-8032",
+          "$": {
+            "type": "ORCID"
+          }
+        },
+        {
+          "_": "0000-0003-0650-0025",
+          "$": {
+            "type": "ORCID"
+          }
+        },
+        {
+          "_": "0000-0001-7714-1627",
+          "$": {
+            "type": "ORCID"
+          }
+        },
+        {
+          "_": "0000-0002-9880-3682",
+          "$": {
+            "type": "ORCID"
+          }
+        }
+      ]
+    }
+  ],
+  "journalInfo": [
+    {
+      "issue": [
+        "9"
+      ],
+      "volume": [
+        "6"
+      ],
+      "journalIssueId": [
+        "2920760"
+      ],
+      "dateOfPublication": [
+        "2020 Feb"
+      ],
+      "monthOfPublication": [
+        "2"
+      ],
+      "yearOfPublication": [
+        "2020"
+      ],
+      "printPublicationDate": [
+        "2020-02-01"
+      ],
+      "journal": [
+        {
+          "title": [
+            "Science Advances"
+          ],
+          "ISOAbbreviation": [
+            "Sci Adv"
+          ],
+          "medlineAbbreviation": [
+            "Sci Adv"
+          ],
+          "NLMid": [
+            "101653440"
+          ],
+          "ISSN": [
+            "2375-2548"
+          ],
+          "ESSN": [
+            "2375-2548"
+          ]
+        }
+      ]
+    }
+  ],
+  "pubYear": [
+    "2020"
+  ],
+  "pageInfo": [
+    "eaay7633"
+  ],
+  "abstractText": [
+    "We present a novel concept to achieve high performance and high safety simultaneously by passivating a Li-ion cell and then self-heating before use. By adding a small amount of triallyl phosphate in conventional electrolytes, we show that resistances of the passivated cells can increase by ~5×, thereby ensuring high safety and thermal stability. High power before battery operation is delivered by self-heating to an elevated temperature such as 60°C within tens of seconds. The present approach of building a resistive cell with highly stable materials and then delivering high power on demand through rapid thermal stimulation leads to a revolutionary route to high safety when batteries are not in use and high battery performance upon operation."
+  ],
+  "affiliation": [
+    "Electrochemical Engine Center and Department of Mechanical Engineering, Pennsylvania State University, University Park, PA 16802, USA."
+  ],
+  "language": [
+    "eng"
+  ],
+  "pubModel": [
+    "Electronic-eCollection"
+  ],
+  "pubTypeList": [
+    {
+      "pubType": [
+        "research-article",
+        "Journal Article"
+      ]
+    }
+  ],
+  "subsetList": [
+    {
+      "subset": [
+        {
+          "code": [
+            "IM"
+          ],
+          "name": [
+            "Index Medicus"
+          ]
+        }
+      ]
+    }
+  ],
+  "fullTextUrlList": [
+    {
+      "fullTextUrl": [
+        {
+          "availability": [
+            "Subscription required"
+          ],
+          "availabilityCode": [
+            "S"
+          ],
+          "documentStyle": [
+            "doi"
+          ],
+          "site": [
+            "DOI"
+          ],
+          "url": [
+            "https://doi.org/10.1126/sciadv.aay7633"
+          ]
+        },
+        {
+          "availability": [
+            "Open access"
+          ],
+          "availabilityCode": [
+            "OA"
+          ],
+          "documentStyle": [
+            "html"
+          ],
+          "site": [
+            "Europe_PMC"
+          ],
+          "url": [
+            "https://europepmc.org/articles/PMC7048421"
+          ]
+        },
+        {
+          "availability": [
+            "Open access"
+          ],
+          "availabilityCode": [
+            "OA"
+          ],
+          "documentStyle": [
+            "pdf"
+          ],
+          "site": [
+            "Europe_PMC"
+          ],
+          "url": [
+            "https://europepmc.org/articles/PMC7048421?pdf=render"
+          ]
+        }
+      ]
+    }
+  ],
+  "isOpenAccess": [
+    "Y"
+  ],
+  "inEPMC": [
+    "Y"
+  ],
+  "inPMC": [
+    "N"
+  ],
+  "hasPDF": [
+    "Y"
+  ],
+  "hasBook": [
+    "N"
+  ],
+  "hasSuppl": [
+    "Y"
+  ],
+  "citedByCount": [
+    "0"
+  ],
+  "hasData": [
+    "N"
+  ],
+  "hasReferences": [
+    "N"
+  ],
+  "hasTextMinedTerms": [
+    "Y"
+  ],
+  "hasDbCrossReferences": [
+    "N"
+  ],
+  "hasLabsLinks": [
+    "Y"
+  ],
+  "license": [
+    "cc by-nc"
+  ],
+  "authMan": [
+    "N"
+  ],
+  "epmcAuthMan": [
+    "N"
+  ],
+  "nihAuthMan": [
+    "N"
+  ],
+  "hasTMAccessionNumbers": [
+    "N"
+  ],
+  "dateOfCreation": [
+    "2020-03-12"
+  ],
+  "firstIndexDate": [
+    "2020-03-12"
+  ],
+  "fullTextReceivedDate": [
+    "2020-03-21"
+  ],
+  "dateOfRevision": [
+    "2020-03-13"
+  ],
+  "electronicPublicationDate": [
+    "2020-02-28"
+  ],
+  "firstPublicationDate": [
+    "2020-02-28"
+  ]
+}

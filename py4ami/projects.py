@@ -38,10 +38,10 @@ class AmiProjects:
             DIAGRAMS_DIR, "luke", "ffml20"), "forcefields + ML")
         self.add_with_check(AmiProjects.OIL26, os.path.join(
             PHYSCHEM_RESOURCES, "oil26"), "26 oil plant papers")
-        self.add_with_check(AmiProjects.CCT, os.path.join(
-            DIAGRAMS_DIR, "satish", "cct"), "steel cooling curves"),
-        self.add_with_check(AmiProjects.DIFFPROT, os.path.join(DIAGRAMS_DIR, "rahul", "diffprotexp"),
-                            "differential protein expr")
+        # self.add_with_check(AmiProjects.CCT, os.path.join(
+        #     DIAGRAMS_DIR, "satish", "cct"), "steel cooling curves"),
+        # self.add_with_check(AmiProjects.DIFFPROT, os.path.join(DIAGRAMS_DIR, "rahul", "diffprotexp"),
+        #                     "differential protein expr")
         # foreign resources
         self.add_with_check(AmiProjects.DISEASE, os.path.join(
             MINIPROJ, "disease", "1-part"), "disease papers")

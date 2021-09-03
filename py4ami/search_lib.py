@@ -11,14 +11,14 @@ import matplotlib.pyplot as plt
 from nltk.tokenize import sent_tokenize
 from lxml import etree as LXET
 import sys
-import RAKE
+import RAKE # python RAKE
 import tkinter as tk
 from rake_nltk import Rake
 import cProfile
 import argparse
 from pathlib import Path
 
-from py4ami.ami_demos import AmiDemos
+# from py4ami.ami_demos import AmiDemos
 from py4ami.gutil import Gutil, ScrollingCheckboxList
 
 from py4ami.dict_lib import AmiDictionaries
@@ -514,7 +514,7 @@ class AmiSearch:
             print(parser.print_help(sys.stderr))
         elif args.demo is not None:
             print("DEMOS SKIPPED")
-            AmiDemos.run_demos(args.demo)
+#            AmiDemos.run_demos(args.demo)
         else:
             #            ami_search = AmiSearch()
             #            copy_args_to_ami_search(args, ami_search)

@@ -1,0 +1,55 @@
+# USER configuration file
+#========================
+
+# The symbols in DIRS and CODE point to communal resources, especially dictionaries, 
+#   projects and parameters
+
+# this file will normally be copied or installed to be referenced by $PYAMI_HOME/config.ini
+; NOTE. All files use forward slash even on Windows
+; use slash (/) to separate filename components, we will convert to file-separator automatically
+; variables can be substituted using {}
+
+[DIRS]
+home              = ~
+config_file       =  __file__
+
+# USER MUST SET THIS TO THEIR CONFIG FILE IF DIFFERENT FROM CHILD OF ${home}
+pyami_dir =         ${home}/pyami
+
+# These come bundled with the distribution
+pyami_resources  = ${pyami_dir}/resources
+mini_project_dir = ${pyami_resources}/miniprojects
+mini_dictionary_dir = ${pyami_resources}/minidictionary
+
+# where MY projects are stored but YOURS may be different
+my_battery_dir    = /Users/pm286/batteries    # unique to each user
+project_dir       = ${home}/projects
+
+
+# communal CEVOpen and open-battery resources
+# will normally be checked out from github
+# my CEVOpen repo but yours may be different
+cev_open =          ${DIRS:project_dir}/CEVOpen
+# my dictionary repo but yours may be different
+dict_dir =          ${DIRS:home}/dictionary
+# my code directory but your may be different
+code_dir =          ${home}/workspace
+# my temp directory but your may be different
+temp_dir =          ${pyami_dir}/temp
+
+# PyAMI directories which are derived so don't alter them
+pyami_package_dir = ${DIRS:code_dir}/pyami
+pyami_src_dir     = ${DIRS:pyami_package_dir}/py4ami
+
+[SYMBOLS]
+# my personal symbols
+misc4.p            = ${DIRS:pyami_package_dir}/test_proj
+
+[CODE]
+# shared config INI file used by many of the tests - do not alter
+code_config_ini =   ${DIRS:pyami_src_dir}/config.ini
+
+
+
+
+

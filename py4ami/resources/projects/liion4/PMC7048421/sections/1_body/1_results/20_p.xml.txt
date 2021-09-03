@@ -1,0 +1,1 @@
+Because of the high-voltage tolerance of SEB cells, when charged to a high voltage of 4.4 V as compared to 4.2 V, the SEB cell discharge capacity increases 12.7%, and its discharge energy increases 14.5% (fig. S1B). Thus, the high-voltage tolerance can be used to increase cell energy density.
