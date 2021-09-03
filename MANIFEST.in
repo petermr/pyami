@@ -1,5 +1,6 @@
 include LICENSE
 include py4ami/resources
+include py4ami/resources/section_templates.json
 recursive-include py4ami/resources
 include config.ini
 include py4ami/pyami.ini

@@ -323,8 +323,8 @@ def main():
     from py4ami.pyamix import PyAMI
     examples = Examples(PyAMI())
     # examples.example_help()
-    # examples.run_examples(["all"])
-    examples.run_examples(["gl"])
+    examples.run_examples(["all"])
+    # examples.run_examples(["gl"])
     # examples.example_symbols()
     # examples.example_pdf2txt()
     # examples.transform_images_to_png() # fails
