@@ -11,6 +11,7 @@ There are two sections here: for those who want to download and use `py4ami` and
 See https://pypi.org/project/py4ami/
 
 # installation for developers (upload)
+
 ````
 cd <pyami> # wherever `pyami` is located
 ````
@@ -32,6 +33,9 @@ drwxr-xr-x   8 pm286  staff    256  5 Sep 09:29 py4ami.egg-info  # created by bu
 drwxr-xr-x  10 pm286  staff    320 20 Aug 17:43 test             # tests (not finished)
 ````
 ## edit the version in `setup.py`
+NOTE: If there are errors in `setup.py` and you change the version and re-upload the old version will cause the upload to fail. This cost me 
+a lot of time. So make sure your setup is correct.
+
 Find the version number in `setup.py` and increase it:
 ````
     name='py4ami',
@@ -120,10 +124,20 @@ removing 'py4ami-0.0.6' (and everything under it)
 pip install twine
 ````
 
+## check your upload
+This is very important. Trivial errors here can make uploads very difficult.
+
+````
+twine check sdist/*
+````
+
 ## upload `dist` to `PyPI`
+**Make sure you have the correct version in `setup.py` . **
+
 ````
 twine upload sdist/*
-gives a login (your `PyPI` login, not github)
+````
+gives a login (your `PyPI` login, NOT github)
 ````
 Uploading distributions to https://upload.pypi.org/legacy/
 Enter your username: petermr
