@@ -6,6 +6,7 @@ import copy
 import glob
 import re
 import os
+import shutil
 from pathlib import Path, PurePath
 import logging
 logging.debug("loading file_lib")
@@ -241,7 +242,7 @@ class FileLib:
             try:
                 os.mkdir(dirx)
             except Exception as e:
-                cls.logger.error(f"cannot make dir {dirx} , {e}")
+                cls.logger.error(f"cannot make dirx {dirx} , {e}")
 
     @classmethod
     def force_mkparent(cls, file):
@@ -268,6 +269,32 @@ class FileLib:
                 cls.force_mkparent(file)
                 with open(file, "w", encoding="utf-8") as f:
                     f.write(data)
+
+    @classmethod
+    def copy_file_or_directory(cls, dest_path, src_path, overwrite):
+        if dest_path.exists():
+            if not overwrite:
+                file_type = "dirx" if dest_path.is_dir() else "file"
+                raise TypeError(
+                    str(dest_path), f"cannot overwrite existing {file_type} (str({dest_path})")
+
+        else:
+            # assume directory
+            cls.logger.warning(f"create directory {dest_path}")
+            dest_path.mkdir(parents=True, exist_ok=True)
+            cls.logger.info(f"created directory {dest_path}")
+        if src_path.is_dir():
+            if os.path.exists(dest_path):
+                shutil.rmtree(dest_path)
+            shutil.copytree(src_path, dest_path)
+            cls.logger.info(f"copied directory {src_path} to {dest_path}")
+        else:
+            try:
+                shutil.copy(src_path, dest_path)  # will overwrite
+                cls.logger.info(f"copied file {src_path} to {dest_path}")
+            except Exception as e:
+                cls.logger.fatal(f"Cannot copy direcctory {src_path} to {dest_path} because {e}")
+
 
     @staticmethod
     def create_absolute_name(file):

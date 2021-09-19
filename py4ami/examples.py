@@ -27,13 +27,9 @@ class Examples():
         self.pyamix.commandline("--debug symbols")
 
     def example_copy(self):
-        self.pyamix.run_commands([
-            # "--debug", "symbols",
-            # "--delete", "${temp_dir}/misc4",
-            "--copy", "${examples_test.p}", "${temp_dir}/misc4", "overwrite",
-
-
-            "--assert", "file_exists(${temp_dir}/misc4/files/xml_files.txt)",
+        self.pyamix.run_command([
+            "--copy", "${examples_test.p}", "${temp_dir}/examples", "overwrite",
+            "--assert", "file_exists(${temp_dir}/examples/files/xml_files.txt)",
         ])
 
     def example_delete(self):
@@ -41,14 +37,24 @@ class Examples():
 
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--delete", "**/*_p.xml", "**/*_p.xml.txt", "*/sections/", "**/italic.xml", "**/cell.txt"
         ])
 
     def example_glob0(self):
-        """ """
-        self.pyamix.run_commands([
+        """ globs fig.xml files
+        creates a globbed list of filenames
+        then iterates through this and identifies and writes list of files to named file
+        """
+        self.pyamix.run_command(
+            "--proj ${examples_test.p} --glob ${examples_test.p}/**/sections/**/*fig.xml --outfile _CTREE/figures/fig0.txt"
+        )
+
+    def example_glob00(self):
+        """ globs abstracts
+        """
+        self.pyamix.run_command([
             "--proj", "${examples_test.p}",
             "--glob", "${examples_test.p}/**/sections/**/*abstract.xml",
         ])
@@ -56,15 +62,21 @@ class Examples():
     def example_captions(self):
         """ """
         self.pyamix.run_commands([
-            "--proj", "${examples_test.p}",
-            "--glob", "${examples_test.p}/**/sections/**/*fig.xml",
-            "--outfile", "${examples_test.p}/files/captions/",
+            # "--proj", "${examples_test.p}",
+            # "--debug symbols",
+            "--test _setup",
+            # [
+            # "--glob", "${examples_test.p}/**/sections/**/*fig.xml",
+            # "--glob", "${exam_temp}/**/sections/**/*fig.xml",
+            # "--outfile", "${exam_temp}/files/captions/",
+            # ],
+            # "--test _teardown",
         ])
 
     def example_glob(self):
         """ """
 
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             # "--proj", "${oil26.p}",
             "--debug", "symbols",
             "--proj", "${examples_test.p}",
@@ -72,7 +84,7 @@ class Examples():
             "--dict", "${eo_plant.d}", "${ov_country.d}",
             "--apply", "xml2txt",
             "--combine", "concat_str",
-            "--outfile", "${examples_test.p}/files/misc4.txt",
+            "--outfile", "${examples_test.p}/files/examples.txt",
             "--assert", "file_exists(${examples_test.p}/files/xml_files.txt)",
         ])
 
@@ -90,7 +102,7 @@ class Examples():
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
         # split into sections
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--glob", "${examples_test.p}/*/fulltext.xml",
             "--split", "xml2sect",
@@ -103,7 +115,7 @@ class Examples():
 
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--glob", "${examples_test.p}/*/fulltext.pdf.txt",
             "--split", "txt2para",
@@ -116,7 +128,7 @@ class Examples():
         self.logger.loglevel = logging.DEBUG
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--glob", "${examples_test.p}/*/fulltext.pdf.txt",
             "--apply", "txt2sent",
@@ -134,7 +146,7 @@ class Examples():
         print("file", proj_dir, os.path.exists(proj_dir))
         self.banner(self.example_split_oil26.__name__)
         print("file", proj_dir, os.path.exists(proj_dir))
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--glob", "${examples_test.p}/*/fulltext.xml",
             "--split", "xml2sect",
@@ -145,7 +157,7 @@ class Examples():
 
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--glob", "${examples_test.p}/**/*_p.xml",
             "--apply", "xml2txt",
@@ -158,7 +170,7 @@ class Examples():
         self.banner(self.example_filter_species.__name__)
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,  # "/Users/pm286/projects/openDiagram/physchem/resources/oil26",
             "--glob", "${examples_test.p}/**/*_p.xml",
             "--filter",
@@ -186,7 +198,7 @@ class Examples():
 
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print(f"file {proj_dir} exists= {os.path.exists(proj_dir)}")
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--glob", "${examples_test.p}/*/fulltext.pdf",
             "--apply", "pdf2txt",
@@ -200,7 +212,7 @@ class Examples():
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         dict_file = self.pyamix.get_symbol("mini_plant.d")
         print("file", proj_dir, os.path.exists(proj_dir))
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--search", dict_file,
         ])
@@ -211,7 +223,7 @@ class Examples():
         return
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("file", proj_dir, os.path.exists(proj_dir))
-        self.pyamix.run_commands([
+        self.pyamix.run_command([
             "--proj", proj_dir,
             "--words",
         ])

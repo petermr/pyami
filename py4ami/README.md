@@ -10,7 +10,7 @@ SEE ALSO <a href="SEARCH.md">SEARCH TUTORIAL</a>
 
 # strategy
 
-The search is hierarchical, maybe with back wards loops.
+The search is hierarchical, maybe with backwards loops.
 
 ## search foreign repository with `(py)getpapers`
 
@@ -65,3 +65,18 @@ https://github.com/petermr/openDiagram/blob/master/physchem/python/search.py
 Will create sections from JATS-XML (replaces `ami section`). Over 50% written.
 
 https://github.com/petermr/openDiagram/blob/master/physchem/python/xml_lib.py
+
+## Notes
+"""
+long_desc = "Pyami converts scientific articles to structured form (discrete files for sections, subsections, etc.)."+
+"XML or HTML files are directly split into *.xml, PDFs or TXT are heuristically split into text and images."+
+"Text can be searched with (lists of) words, regexes, ami-dictionaries or through globbing filenames."+
+"Images can be analysed as collections of primtives and built into"+
+"semantic plots."+
+"pyami uses a commandline based on argparser and a GUI based on tkinter. The input data is usually created "+
+"by `pygetpapers` but can also take in directories of PDF files."+
+"Pyami is extensible through command-based modules and since all output consists of standard files in "+
+"nested directories it is easy to analyse it with other Python tools."
+long_desc="Pyami desc"
+print (f"long:desc {long_desc}")
+"""

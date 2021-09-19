@@ -43,7 +43,7 @@ pyami_src_dir     = ${DIRS:pyami_package_dir}/py4ami
 
 [SYMBOLS]
 # my personal symbols
-misc4.p            = ${DIRS:pyami_package_dir}/test_proj
+foobar.p            = ${DIRS:pyami_package_dir}/test_proj
 
 [CODE]
 # shared config INI file used by many of the tests - do not alter

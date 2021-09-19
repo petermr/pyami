@@ -15,6 +15,7 @@ from py4ami.dict_lib import AmiDictionary
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.xml_lib import XmlLib
+from test.test_file import TestFile
 from py4ami.text_lib import TextUtil, DSLParser
 from py4ami.pdfreader import PdfReader
 from py4ami.symbol import SymbolIni
@@ -89,8 +90,8 @@ class PyAMI:
         self.config = None
         self.current_file = None
         self.fileset = None
-        self.file_dict = {}  # possibly to be replaced by content_store.file_dict
-        # self.content_store =  ContentStore(self) # will expose content_store.file_dict
+        # self.file_dict = {}  # possibly to be replaced by content_store.file_dict
+        self.content_store = ContentStore(self) # will expose content_store.file_dict
         self.func_dict = {}
         self.result = None
         self.set_flags()
@@ -101,7 +102,7 @@ class PyAMI:
         self.set_funcs()
         self.show_symbols = False
         self.ami_dictionary = None
-        self.ami_logger = None
+        # self.ami_logger = None
         if self.show_symbols:
             pprint.pp(f"SYMBOLS\n {self.symbol_ini.symbols}")
 
@@ -171,7 +172,8 @@ class PyAMI:
         parser.add_argument('--nosearch', action="store_true",
                             help='search (NYI)')
         parser.add_argument('--outfile', type=str,
-                            help='output file, normally 1. but (NYI) may track multiple input dirs (NYI)')
+                            help='output file. default is single file (default is overwrite). '
+                                 'expands special variables _CPROJ, _CTREE, _PARENT to create iterators ')
         parser.add_argument('--patt', nargs="+",
                             help='patterns to search with (NYI); regex may need quoting')
         parser.add_argument('--plot', action="store_false",
@@ -183,8 +185,7 @@ class PyAMI:
         parser.add_argument('--split', nargs="+", choices=['txt2para', 'xml2sect'],  # split fulltext.xml,
                             help='split fulltext.* into paras, sections')
         parser.add_argument('--test', nargs="*",
-                            choices=['file_lib', 'pdf_lib',
-                                     'text_lib'],  # tests,
+                            choices=TestFile.OPTIONS,  # tests and/or setup/teardown
                             help='run tests for modules; no selection runs all')
         return parser
 
@@ -192,20 +193,37 @@ class PyAMI:
         """runs a commandline as a single string
         """
         if not commandline:
-            self.run_commands(["--help"])
+            self.run_command(["--help"])
         else:
             arglist = commandline.split(" ")
-            self.run_commands(arglist)
+            self.run_command(arglist)
 
-    def run_commands(self, arglist=None):
-        """parses cmdline, runs cmds and outputs symbols
 
-        :param arglist:  (Default value = None)
+    def run_commands(self, arglistlist):
+        """runs a list of commands
+
+        :param arglistlist:  A list of commands (which are usually lists)
+
+        for each list element uses run_command
+        This allows for setup, assertions, etc.
+
+        typical example:
+        self.run_commands
+        """
+        if arglistlist is not None and isinstance(arglistlist, list):
+            for arglist in arglistlist:
+                self.run_command(arglist)
+
+    def run_command(self, arglist):
+        """parses cmdline, runs command and outputs symbols
+
+        :param arglist: either a string or a list of strings
+
+        if arglist is a string we split it at spaces into a list of strings
 
         """
-        # if len(sys.argv) == 1:
-        #     parser.print_help(sys.stderr)
-        #     sys.exit()
+        if isinstance(arglist, str):
+            arglist = arglist.split(" ")
 
         self.logger.debug(f"********** raw arglist {arglist}")
         self.parse_and_run_args(arglist)
@@ -281,9 +299,9 @@ class PyAMI:
             if self.SECT in self.args or self.GLOB in self.args:
                 self.run_project_workflow()
 
-        elif self.TEST in self.args:
+        elif TestFile.TEST in self.args:
             self.logger.warning(f"TEST in **args {self.args}")
-            self.run_arg_tests()
+            TestFile.run_arg_tests(self.args)
 
     def replace_single_values_in_self_args_with_list(self, key):
         """always returns list even for single arg
@@ -327,11 +345,15 @@ class PyAMI:
         elif isinstance(old_val, (int, bool, float, complex)):
             new_val = old_val
         elif isinstance(old_val, str):
-            if "${" in old_val:
-                self.logger.warning(f"Unresolved reference : {old_val}")
-                new_val = self.symbol_ini.replace_symbols_in_arg(old_val)
-            else:
-                new_val = old_val
+            new_val = self.symbol_ini.replace_symbols_in_arg(old_val)
+            if "${" in new_val:
+                raise ValueError (f"Unresolved reference : {new_val}")
+                # print("=====================")
+                # self.symbol_ini.print_symbols()
+                # print("=====================")
+                # new_val = self.symbol_ini.replace_symbols_in_arg(old_val)
+            # else:
+            #     new_val = old_val
                 # new_items[key] = new_val
         else:
             self.logger.error(f"{old_val} unknown arg type {type(old_val)}")
@@ -397,7 +419,7 @@ class PyAMI:
         """ run when PROJ is set"""
         self.logger.debug(f"ARGS {self.args}")
         if not self.args:
-            self.logger.error("no args given; try --proj or --test")
+            self.logger.error("no args given; try --examples or --help")
             return
         if self.args[self.DEBUG]:
             self.run_debug()
@@ -406,7 +428,7 @@ class PyAMI:
             self.run_proj()
             self.logger.debug(f"hit counter: {self.hit_counter}")
         if self.args[self.TEST]:
-            self.run_arg_tests()
+            TestFile.run_arg_tests(self.args)
         # else:
         #     self.logger.error("{self.args} requires --proj or --test")
         return
@@ -440,30 +462,13 @@ class PyAMI:
         if self.args[self.ASSERT]:
             self.run_assertions()
 
-    def run_arg_tests(self):
-        import test.test_file
-        import test.test_pdf
-        self.logger.warning(f"*****running tests : {self.args[self.TEST]}")
-        _TESTS = ["file_lib", "pdf_lib", "text_lib"]
-        if not self.args[self.TEST]:
-            self.logger.warning(f"No tests given: choose some/all of {_TESTS}")
-            return
-        if "file_lib" in self.args[self.TEST]:
-            self.logger.warning("run test_file")
-            test.test_file.main()
-        if "pdf_lib" in self.args[self.TEST]:
-            self.logger.warning("run test_pdf")
-            test.test_pdf.test_read_pdf()
-        if "text_lib" in self.args[self.TEST]:
-            self.logger.warning("run test_text NYI")
-
     def copy_files(self):
         """copies file or directory 
 
         copies a file or complete directory
 
         Args:
-            src (str): file or dir to copy, must exist
+            src (str): file or dirx to copy, must exist
             dest (str): destination must be a directory. If file becomes a child of <to>; if a directory creates or replaces <to>
             overwrite (bool, optional): whether to overwrite if file exists. Defaults to False.
         Exceptions:
@@ -472,9 +477,7 @@ class PyAMI:
         """
         # self.logger.warning(f"NOT IMPLERMENTED")
         # return
-        print(self.args)
         self.replace_single_values_in_self_args_with_list(self.COPY)
-        print(self.args)
         argsx = self.args[self.COPY]
         if len(argsx) < 2:
             raise TypeError("copy needs >= 2 args")
@@ -489,35 +492,18 @@ class PyAMI:
         dest_path = Path(dest)
 
         overwrite = len(argsx) > 2 and argsx[2] == "overwrite"
-        if dest_path.exists():
-            if not overwrite:
-                file_type = "dir" if dest_path.is_dir() else "file"
-                raise TypeError(
-                    str(dest_path), f"cannot overwrite existing {file_type} (str({dest_path})")
-
-        else:
-            # assume directory
-            self.logger.warning(f"create directory {dest_path}")
-            dest_path.mkdir(parents=True, exist_ok=True)
-            self.logger.info(f"created directory {dest_path}")
-
-        if src_path.is_dir():
-            if os.path.exists(dest_path):
-                shutil.rmtree(dest_path)
-            shutil.copytree(src_path, dest_path)
-        else:
-            shutil.copy(src_path, dest_path)  # will overwrite
+        FileLib.copy_file_or_directory(dest_path, src_path, overwrite)
 
     def apply_config(self):
         config_args = self.args[self.CONFIG]
         if type(config_args) == str:
             config_args = [config_args]
-        print(f" type {type(config_args)}")
+        self.logger.debug(f" type {type(config_args)}")
         for config_arg in config_args:
             if config_arg == self.SYMBOLS:
                 self.symbol_ini.print_symbols()
             else:
-                print(f"processing INI NYI: {config_arg}")
+                self.logger.warning(f"processing INI NYI: {config_arg}")
 
     def delete_files(self):
         """deletes files in glob
@@ -525,7 +511,7 @@ class PyAMI:
         requires proj to be set
         """
         if self.proj is None or self.proj == "":
-            self.ami_logger.error(f"delete requires --proj; ignored")
+            self.logger.error(f"delete requires --proj; ignored")
             return
         globs = self.args[self.DELETE]
         for glob in globs:
@@ -560,18 +546,17 @@ class PyAMI:
         glob_recurse = self.flagged(self.RECURSE)
         glob_ = self.args[self.GLOB]
         self.logger.info(f"glob: {glob_}")
-        files = {file: None for file in glob.glob(
-            glob_, recursive=glob_recurse)}
-        self.file_dict = files
-        # self.content_store.create_file_dict(files)
+        # create dictionary wiuth empty values?
+        files = [file for file in glob.glob(glob_, recursive=glob_recurse)]
+        self.content_store.add_files(files)
 
-        self.logger.info(f"glob file count {len(self.file_dict)}")
+        self.logger.info(f"glob file count {len(self.content_store.keys())}")
 
     def split(self, type):
         """ split fulltext.xml into sections"""
 
         # file_keys = self.content_store.get_file_keys()
-        file_keys = self.file_dict.keys()
+        file_keys = self.content_store.keys()
         for file in file_keys:
             suffix = FileLib.get_suffix(file)
             if ".xml" == suffix or type == self.XML2SECT:
@@ -593,9 +578,6 @@ class PyAMI:
             text = f.read()
             sections = TextUtil.split_at_empty_newline(text)
             self.store_or_write_data(file, sections, )
-        # self.content_store.store(file, sections)
-        #     for sect in sections:
-        #         self.ami_logger.warning(f"{sect})
 
     def apply_func(self, apply_type):
         """ """
@@ -623,15 +605,15 @@ class PyAMI:
 
         files = set()
         # record hits
-        file_keys = self.file_dict.keys()
+        file_keys = self.content_store.keys()
         for file in file_keys:
             filter_true = self.apply_filter(file, filter_expr)
             if filter_true:
                 files.add(file)
         # delete hits from dict
         for file in files:
-            if file in self.file_dict:
-                del self.file_dict[file]
+            if file in self.content_store.keys():
+                del self.content_store.file_dict[file]
 
     def apply_filter(self, file, filter_expr):
         found = False
@@ -687,19 +669,19 @@ class PyAMI:
         elif filter == self.WIKIDATA_SPARQL:
             hits = self.apply_wikidata_sparql(hit_list, value)
             if hits:
-                self.ami_logger.warning(f"wikidata_sparql hits {hits}")
+                self.logger.warning(f"wikidata_sparql hits {hits}")
                 hit_list = hits
 
         elif filter == self.XPATH and file.endswith(".xml"):
             tree = etree.parse(file)
             hits = [h.strip() for h in tree.xpath(value)]
             if len(hits) > 0:
-                self.ami_logger.warning(f"xpath {type(hits)} {hits}")
+                self.logger.warning(f"xpath {type(hits)} {hits}")
                 hit_list.extend(hits)
 
         self.logger.debug(f"hit list {hit_list}")
         if hit_list:
-            self.ami_logger.info(f"non-zero list {hit_list}")
+            self.logger.info(f"non-zero list {hit_list}")
         return hit_list
 
     @classmethod
@@ -750,9 +732,9 @@ class PyAMI:
         :param to_str:  (Default value = True)
 
         """
-        self.ami_logger = AmiLogger(self.logger, initial=10, routine=100)
-        for file in self.file_dict:
-            self.ami_logger.info(f"reading... {file}")
+        self.logger = AmiLogger(self.logger, initial=10, routine=100)
+        for file in self.content_store.keys():
+            self.logger.info(f"reading... {file}")
             if file.endswith(".xml"):
                 self.read_string_content_to_dict(file, to_str)
             elif file.endswith(".pdf"):
@@ -780,7 +762,7 @@ class PyAMI:
 
     def apply_wikidata_sparql(self, hit_list, value):
         if hit_list:
-            self.ami_logger.warning(f"wikidata input {hit_list}")
+            self.logger.warning(f"wikidata input {hit_list}")
         return hit_list
 
     def get_dictionary(self, value):
@@ -828,8 +810,8 @@ class PyAMI:
         :param func: 
 
         """
-        for file in self.file_dict.keys():
-            data = self.file_dict.get(file)
+        for file in self.content_store.keys():
+            data = self.content_store(file)
             self.logger.debug(f"file: {file} => {func_tuple[0]}")
             new_file = self.create_file_name(file, func_tuple[1])
 
@@ -837,7 +819,7 @@ class PyAMI:
                 new_data = func_tuple[0](data)
                 self.store_or_write_data(file, new_data, new_file)
             except Exception as pdferr:
-                print(
+                self.logger.warning(
                     f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
         return
 
@@ -848,28 +830,29 @@ class PyAMI:
 
     def store_or_write_data(self, file, data, new_file=None) -> None:
         """store or write data to disk"""
-        if file in self.file_dict:
-            old_data = self.file_dict[file]
+        if file in self.content_store.file_dict:
+            old_data = self.content_store.file_dict[file]
             if old_data is not None and old_data != data:
-                self.ami_logger.warning(f"===============================\n"
-                                        f"=========OVERWRITING data for {file}\n"
-                                        f"{self.file_dict[file]} \n========WITH======\n"
-                                        f"{data}")
+                self.ami_logger.warning(
+                    f"===============================\n"
+                    f"=========OVERWRITING data for {file}\n"
+                    f"{self.content_store.file_dict[file]} \n========WITH======\n"
+                    f"{data}")
                 if new_file is not None:
-                    self.ami_logger.warning(f"WROTE: {new_file}")
+                    self.logger.warning(f"WROTE: {new_file}")
                     with open(new_file, "w", encoding="utf-8") as f:
                         f.write(data)
-                    self.file_dict[file] = new_file
+                    self.content_store.file_dict[file] = new_file
 
         # save data old-style
-        self.file_dict[file] = data
+        self.content_store.file_dict[file] = data
 
     def combine_files_to_object(self):
         """ """
         methods = self.args.get(self.COMBINE)
         if methods and methods == self.CONCAT_STR:
-            self.result = "\n".join(self.file_dict.values())
-            self.ami_logger.warning(f"combine {self.result}")
+            self.result = "\n".join(self.content_store.file_dict.values())
+            self.logger.warning(f"combine {self.result}")
 
     def write_output(self):
         """ """
@@ -877,24 +860,26 @@ class PyAMI:
         if self.result:  # single output
             self.write_single_result()
 
-        if self.file_dict:
+        if self.content_store.file_dict:
             self.write_multiple_results()
 
     def write_multiple_results(self):
-        for file in self.file_dict:
-            data = self.file_dict[file]
+        for file in self.content_store.file_dict:
+            data = self.content_store.file_dict[file]
+            if data is None:
+                print(f"data is NONE")
+                continue
+            print(f"Valid data")
             parent = FileLib.get_parent_dir(file)
             new_outfile = os.path.join(parent, self.outfile)
-            # if not isinstance(data, list):
-            #     # data = [data]
-            #     pass # this was a  mistake
             try:
+                FileLib.force_mkparent(new_outfile)
+                self.logger.warning(f"writing file {new_outfile}")
                 with open(new_outfile, "w", encoding="utf-8") as f:
-                    self.ami_logger.warning(f"wrote results {new_outfile}")
-                    # for d in data:
+                    self.logger.warning(f"wrote results {new_outfile}")
                     f.write(f"{str(data)}")
             except Exception as e:
-                print(f"cannot write because {e}")
+                self.logger.warning(f"cannot write because {e}")
 
     def write_single_result(self):
         FileLib.force_write(self.outfile, self.result, overwrite=True)
@@ -923,14 +908,30 @@ class PyAMI:
 
 
 class ContentStore():
-    """caches content or writes it to disk
+    """holds file-related content
 
     replaces earlier py4ami.file_dict
+    uses a dict
+    at presemt the key is the file(name) and the value is either the content or None
     """
 
     def __init__(self, pyami):
         self.pyami = pyami
         self.file_dict = {}
+
+    def add_files(self, files, add_contents=False):
+        for file in files:
+            self.add_file(file, add_contents)
+
+    def add_file(self, file, add_contents=False):
+        self.file_dict[file] = self.get_contents(file) if add_contents else None
+
+    def keys(self):
+        return self.file_dict.keys() if self.file_dict is not None else None
+
+    def get_file_contents(self):
+        """return dictionary or None"""
+        return self.file_dict
 
 
 def main():
@@ -947,7 +948,7 @@ def main():
     pyamix = PyAMI()
     # this needs commandline
     if run_commands:
-        pyamix.run_commands(sys.argv[1:])
+        pyamix.run_command(sys.argv[1:])
     if run_tests:
         pyamix.run_tests()
     if run_dsl:

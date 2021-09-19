@@ -187,7 +187,7 @@ assumes value
             raw_value = self.config[section][key]
             self.logger.debug(f"raw_value {raw_value}")
             # make substitutions
-            # we replace __file__ with parent dir of dictionary
+            # we replace __file__ with parent dirx of dictionary
             parent_dir = str(FileLib.get_parent_dir(file))
             if raw_value.startswith("~"):
                 # home directory on all OS (?)

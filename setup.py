@@ -6,11 +6,19 @@ except ImportError:
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
+long_desc = """
+Pyami is a commandline/GUI-based tool for analysing scientific papers
+in XML, TXT or PDF. It splitrs them into semantic sections which are searchable, transformable and can
+be further processed by standard Python and other tools. Sections include text, images, tables, etc. 
+"""
+
 setup(
     name='py4ami',
     url='https://github.com/petermr/pyami',
-    version='0.0.5.3',
+    version='0.0.11',
     description='Semantic Reader of the Scientific Literature.',
+    long_description_content_type='text/markdown',
+    long_description=readme,
     author="Peter Murray-Rust",
     author_email='petermurrayrust@googlemail.com',
     license='Apache2',

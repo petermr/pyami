@@ -11,11 +11,11 @@ import os
 from pathlib import Path
 from lxml import etree
 
-from pyami.util import Util
-from pyami.ami_config import AmiConfig
-from pyami.wikimedia import WikidataSparql as WS
-from pyami.file_lib import BraceGlobber as bg
-from pyami.xml_lib import XmlLib
+from py4ami.util import Util
+from py4ami.ami_config import AmiConfig
+from py4ami.wikimedia import WikidataSparql as WS
+from py4ami.file_lib import BraceGlobber as bg
+from py4ami.xml_lib import XmlLib
 
 
 def tests():

@@ -43,10 +43,9 @@ WROTE_XML = "Wrote xml"
 
 def button1(event):
     """
-
     :param event: 
-
     """
+
     print("button1", event)
     print(dir(event))
     tup = event.widget.curselection

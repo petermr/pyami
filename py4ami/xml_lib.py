@@ -203,7 +203,7 @@ class XmlLib:
                     print(f"cannot write {filename1}")
             else:
                 subdir = os.path.join(outdir, filename)
-                # creates empty dir, may be bad idea
+                # creates empty dirx, may be bad idea
                 FileLib.force_mkdir(subdir)
                 if flag == "":
                     self.ami_logger.debug(f">> {title} {child}")

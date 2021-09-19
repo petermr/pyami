@@ -283,7 +283,7 @@ class AmiSection:
         return section
 
     def add_name(self, file):
-        """creates name (within a sections/) dir from file
+        """creates name (within a sections/) dirx from file
         e.g. /Users/pm286/projects/openDiagram/physchem/resources/oil26/PMC5485486/sections/0_front/1_article-meta/13_abstract.xml
         yields 0_front/1_article-meta/13_abstract.xml """
         if file is None:

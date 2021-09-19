@@ -101,7 +101,7 @@ class AmiSearch:
         plt.show()
 
     def make_title(self, dict_name):
-        ptit = self.cur_proj.dir.split("/")[-1:][0]
+        ptit = self.cur_proj.dirx.split("/")[-1:][0]
         return ptit + ":   " + self.cur_section_type + ":   " + dict_name
 
     def use_dictionaries(self, args):
@@ -369,14 +369,14 @@ class AmiSearch:
 
     def run_search(self):
         for proj in self.projects:
-            print("***** project", proj.dir)
+            print("***** project", proj.dirx)
             self.cur_proj = proj
             if len(self.section_types) > 0:
                 for section_type in self.section_types:
                     self.glob_for_section_files(proj, section_type)
                     sections = self.section_make_data_table_counter_and_plot(
                         section_type)
-                    self.write_data_table(proj.dir, section_type)
+                    self.write_data_table(proj.dirx, section_type)
                     if self.use_rake:
                         self.analyze_all_words_with_Rake(sections)
 
@@ -399,14 +399,14 @@ class AmiSearch:
         print("ERROR", "full_data_tables not linked in")
 
     def glob_fulltext(self, proj):
-        globstr = os.path.join(proj.dir, "*/fulltext*.txt")
+        globstr = os.path.join(proj.dirx, "*/fulltext*.txt")
         files = glob.glob(globstr, recursive=False)
         return files
 
     def glob_for_section_files(self, proj, section_type):
         self.cur_section_type = section_type
         templates = AmiPath.create_ami_path_from_templates(
-            section_type, {PROJ: proj.dir})
+            section_type, {PROJ: proj.dirx})
         self.section_files = templates.get_globbed_files()
         print("***** section_files", section_type, len(self.section_files))
 
@@ -561,7 +561,7 @@ class AmiSearch:
         text = ""
         for line in keywords:
             text += line+"\n"
-        dir = os.path.join(self.cur_proj.dir, "results", "rake")
+        dir = os.path.join(self.cur_proj.dirx, "results", "rake")
         if not os.path.exists(dir):
             os.makedirs(dir)
         file = os.path.join(dir, "keywords.txt")

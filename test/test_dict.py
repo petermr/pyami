@@ -1,4 +1,4 @@
-from pyami.dict_lib import AmiDictionary
+from py4ami.dict_lib import AmiDictionary
 from lxml import etree as ET
 import os
 

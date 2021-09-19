@@ -1,6 +1,6 @@
 # Examples
 
-`pyami` contains `emaples.py` with about 7 examples. Their basic operatiom is correct, but the output is messy and verbose.
+`pyami` contains `examples.py` with about 7 examples. Their basic operatiom is correct, but the output is messy and verbose.
 
 The examples can be run from the `physchem/python` directory
 by
@@ -43,34 +43,34 @@ python -m examples gl
 ````
 runs the file globbing.
 
-The actual commands expand to the commandlines 
+The actual commands expand to the commandlines (NEEDS UPDATING) 
 
 ````
         python -m examples 
              --debug   dummy   symbols 
-             --proj   ${misc4.p} 
+             --proj   ${examples} 
              --glob   ${proj}/**/sections/**/*abstract.xml 
              --dict   ${eo_plant.d}   ${ov_country.d} 
              --apply   xml2txt 
              --combine   concat_str 
-             --outfile   ${proj}/files/misc4.txt 
+             --outfile   ${proj}/files/foobar.txt 
              --assert   file_exists(${proj}/files/xml_files.txt) 
         
         python -m examples 
-             --proj   ${misc4.p}
+             --proj   ${example}
              --glob   ${proj}/*/fulltext.xml 
              --split   xml2sect 
              --assert   file_glob_count(${proj}/*/sections/**/*.xml,291) 
 
         python -m examples 
-             --proj   ${misc4.p}
+             --proj   ${examples}
              --glob   ${proj}/*/fulltext.pd.txt 
              --split   txt2para 
              --outfile   fulltext.pd.sc.txt 
              --assert   file_glob_count(${proj}/*/fulltext.pd.sc.txt,291) 
 			 
         python -m examples 
-             --proj   ${misc4.p}
+             --proj   ${examples}
              --glob   ${proj}/*/fulltext.pd.txt 
              --apply   txt2sent 
              --outfile   fulltext.pd.sn.txt 
@@ -81,12 +81,12 @@ The actual commands expand to the commandlines
              item(${proj}/PMC4391421/fulltext.pd.sn.txt,0,) 
 
         python -m examples 
-             --proj   ${misc4.p}
+             --proj   ${examples}
              --glob   ${proj}/*/fulltext.xml 
              --split   xml2sect 
         
         python -m examples 
-             --proj   ${misc4.p}
+             --proj   ${examples}
              --glob   ${proj}/**/*_p.xml 
              --apply   xml2txt 
              --filter   contains(cell) 
@@ -94,7 +94,7 @@ The actual commands expand to the commandlines
              --outfile   cell.txt 
 
         python -m examples 
-             --proj   ${misc4.p}  
+             --proj   ${examples}  
              --glob   ${proj}/**/*_p.xml 
              --filter 
              xpath(${all_italics.x})   
@@ -105,7 +105,7 @@ The actual commands expand to the commandlines
              --outfile   italic.xml 
 
         python -m examples 
-             --proj   ${misc4.p}
+             --proj   ${examples}
              --glob   ${proj}/*/fulltext.pdf 
              --apply   pdf2txt 
              --outfile   fulltext.pd.txt 

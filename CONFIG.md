@@ -1,5 +1,6 @@
 # Config files and symbols
 
+(** some of this may be out of date)
 Although `pyami` can be used with explict names 
 ````
 pyami -p /user/monty/python/myfiles/plants
@@ -66,7 +67,7 @@ pyami_src_dir     = ${DIRS:pyami_package_dir}/pyami
 
 [SYMBOLS]
 # my personal symbols
-misc4.p            = ${DIRS:pyami_src_dir}/tst/proj
+examples.p            = ${DIRS:pyami_src_dir}/tst/proj
 
 [CODE]
 # shared config INI file used by many of the tests - do not alter

@@ -6,8 +6,8 @@ logging.warning("loading test_search")
 
 
 def test_search():
-    from pyami.search_lib import AmiSearch, AmiRake
-    from pyami.dict_lib import AmiDictionary
+    from py4ami.search_lib import AmiSearch, AmiRake
+    from py4ami.dict_lib import AmiDictionary
 
     option = "search"  # edit this
     #    option = "sparql"
