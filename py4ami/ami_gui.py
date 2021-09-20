@@ -157,7 +157,7 @@ class AmiGui(tk.Frame):
             self.main_image_display = self.create_image_label(image_path)
             self.main_image_display.pack()
 
-        url = "file://" + \
+        url = "path://" + \
             FileLib.create_absolute_name(os.path.join("test", "index.html"))
         if self.show_html_frame:
             self.display_in_html_frame(url)
@@ -213,7 +213,7 @@ class AmiGui(tk.Frame):
         """
         if file.endswith(".xml"):
             # not yet working
-            # self.view_main_xml_file(file)
+            # self.view_main_xml_file(path)
             with open(file, "r", encoding="utf-8") as f:
                 content = f.read()
                 self.view_main_text_content(content)

@@ -1,4 +1,4 @@
-"""tests in a single file
+"""tests in a single path
 This is until I or someone else can figure out relative imports
 """
 import os

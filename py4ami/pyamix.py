@@ -142,12 +142,12 @@ class PyAMI:
         parser.add_argument('--assert', nargs="+",
                             help='assertions; failure gives error message (prototype)')
         parser.add_argument('--combine', nargs=1,
-                            help='operation to combine files into final object (e.g. concat text or CSV file')
+                            help='operation to combine files into final object (e.g. concat text or CSV path')
         parser.add_argument('--config', '-c', nargs="+",
-                            help='file (e.g. ~/pyami/config.ini.master) with list of config file(s) or config vars;'
+                            help='path (e.g. ~/pyami/config.ini.master) with list of config path(s) or config vars;'
                                  ' "symbols": gives symbols')
         parser.add_argument('--copy', nargs="+",
-                            help='copy file or directory from=<from> to=<to> overwrite=<yes/no default=no>')
+                            help='copy path or directory from=<from> to=<to> overwrite=<yes/no default=no>')
         parser.add_argument('--debug', nargs="+", type=str,
                             help='debugging commands , symbols, numbers, (not formalised)')
         parser.add_argument('--delete', nargs="+",
@@ -172,7 +172,7 @@ class PyAMI:
         parser.add_argument('--nosearch', action="store_true",
                             help='search (NYI)')
         parser.add_argument('--outfile', type=str,
-                            help='output file. default is single file (default is overwrite). '
+                            help='output path. default is single path (default is overwrite). '
                                  'expands special variables _CPROJ, _CTREE, _PARENT to create iterators ')
         parser.add_argument('--patt', nargs="+",
                             help='patterns to search with (NYI); regex may need quoting')
@@ -278,7 +278,7 @@ class PyAMI:
         There will be more here
 
          """
-        # file workflow
+        # path workflow
         self.wikipedia_lookup = WikidataLookup()
         self.logger.warning(f"commandline args {self.args}")
 
@@ -463,14 +463,14 @@ class PyAMI:
             self.run_assertions()
 
     def copy_files(self):
-        """copies file or directory 
+        """copies path or directory
 
-        copies a file or complete directory
+        copies a path or complete directory
 
         Args:
-            src (str): file or dirx to copy, must exist
-            dest (str): destination must be a directory. If file becomes a child of <to>; if a directory creates or replaces <to>
-            overwrite (bool, optional): whether to overwrite if file exists. Defaults to False.
+            src (str): path or dirx to copy, must exist
+            dest (str): destination must be a directory. If path becomes a child of <to>; if a directory creates or replaces <to>
+            overwrite (bool, optional): whether to overwrite if path exists. Defaults to False.
         Exceptions:
             FileNotFoundError: if src does not exist, or dest cannot be created
 
@@ -486,7 +486,7 @@ class PyAMI:
         src_path = Path(src)
         if not src_path.exists():
             raise FileNotFoundError(
-                str(src_path), "src must exist as file or directory")
+                str(src_path), "src must exist as path or directory")
 
         dest = argsx[1]
         dest_path = Path(dest)
@@ -550,7 +550,7 @@ class PyAMI:
         files = [file for file in glob.glob(glob_, recursive=glob_recurse)]
         self.content_store.add_files(files)
 
-        self.logger.info(f"glob file count {len(self.content_store.keys())}")
+        self.logger.info(f"glob path count {len(self.content_store.keys())}")
 
     def split(self, type):
         """ split fulltext.xml into sections"""
@@ -725,7 +725,7 @@ class PyAMI:
     #     return filter_expr[len(search_method) + 1:-1]
     #
     def read_file_content(self, to_str=True):
-        """read file content as bytes into file_dict
+        """read path content as bytes into file_dict
 
         :to_str: if true convert content to strings
 
@@ -744,7 +744,7 @@ class PyAMI:
             elif file.endswith(".txt"):
                 self.read_string_content_to_dict(file, to_str=False)
             else:
-                self.logger.warning(f"cannot read file into string {file}")
+                self.logger.warning(f"cannot read path into string {file}")
 
     def apply_lookup(self, hits, value):
         self.logger.debug(f"LOOKUP: {hits} {value}")
@@ -773,7 +773,7 @@ class PyAMI:
         return dictionary
 
     def read_string_content_to_dict(self, file, to_str):
-        """reads file into string
+        """reads path into string
         Can process bytes to string
 
         DO WE NEED TO STORE THIS?
@@ -786,21 +786,21 @@ class PyAMI:
                 if to_str and isinstance(data, bytes):
                     data = data.decode("utf-8")
                 self.store_or_write_data(file, data)
-                # self.file_dict[file] = data
+                # self.file_dict[path] = data
             except UnicodeDecodeError as ude:
                 self.logger.error(f"skipped decoding error {ude}")
         return data
 
     def save_file_name_to_dict(self, file):
         self.store_or_write_data(file, file)
-        # self.file_dict[file] = file
+        # self.file_dict[path] = path
 
     def read_binary_content_to_dict(self, file):
         with open(file, "rb", ) as f:
             try:
                 data = f.read()
                 self.store_or_write_data(file, data)
-                # self.file_dict[file] = data
+                # self.file_dict[path] = data
             except Exception as e:
                 self.logger.error(f"skipped reading error {e}")
 
@@ -812,7 +812,7 @@ class PyAMI:
         """
         for file in self.content_store.keys():
             data = self.content_store(file)
-            self.logger.debug(f"file: {file} => {func_tuple[0]}")
+            self.logger.debug(f"path: {file} => {func_tuple[0]}")
             new_file = self.create_file_name(file, func_tuple[1])
 
             try:
@@ -874,7 +874,7 @@ class PyAMI:
             new_outfile = os.path.join(parent, self.outfile)
             try:
                 FileLib.force_mkparent(new_outfile)
-                self.logger.warning(f"writing file {new_outfile}")
+                self.logger.warning(f"writing path {new_outfile}")
                 with open(new_outfile, "w", encoding="utf-8") as f:
                     self.logger.warning(f"wrote results {new_outfile}")
                     f.write(f"{str(data)}")
@@ -908,11 +908,11 @@ class PyAMI:
 
 
 class ContentStore():
-    """holds file-related content
+    """holds path-related content
 
     replaces earlier py4ami.file_dict
     uses a dict
-    at presemt the key is the file(name) and the value is either the content or None
+    at presemt the key is the path(name) and the value is either the content or None
     """
 
     def __init__(self, pyami):

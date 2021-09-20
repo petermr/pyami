@@ -12,7 +12,7 @@ class Text_XML:
             __file__, "../src", "..", "resources", "liion10", "PMC7040616", "fulltext.xml"))
         print(file)
 #        doc = XmlLib("../resources/liion/PMC7077619/fulltext.xml")
-#        doc = XmlLib(file)
+#        doc = XmlLib(path)
         xml_lib = XmlLib()
         doc = xml_lib.read(file)
         xml_lib.make_sections("sections")

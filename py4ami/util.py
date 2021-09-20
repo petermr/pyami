@@ -30,7 +30,7 @@ class Util:
         print("pyami: setting logger")
         _logger = logging.getLogger(module)
         _logger.setLevel(logger_level)
-        # create file handler
+        # create path handler
 
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -52,16 +52,16 @@ class Util:
     @staticmethod
     def check_exists(file):
         """
-        raise exception on null value or non-existent file
+        raise exception on null value or non-existent path
         """
         if file is None:
-            raise Exception("null file")
+            raise Exception("null path")
 
         if os.path.isdir(file):
-#            print(file, "is directory")
+#            print(path, "is directory")
             pass
         elif os.path.isfile(file):
-#            print(file, "is file")
+#            print(path, "is path")
             pass
         else:
             try:

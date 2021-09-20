@@ -140,9 +140,9 @@ class XmlLib:
 
     @staticmethod
     def parse_xml_file_to_root(file):
-        """read xml file and create root element"""
+        """read xml path and create root element"""
         if not os.path.exists(file):
-            raise IOError("file does not exist", file)
+            raise IOError("path does not exist", file)
         xmlp = LXET.XMLParser(encoding=UTF_8)
         element_tree = LXET.parse(file, xmlp)
         root = element_tree.getroot()

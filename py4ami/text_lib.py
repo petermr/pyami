@@ -48,7 +48,7 @@ STOPWORDS_PUB = {
     'figure', 'permission', 'reproduced', 'copyright', 'authors', 'society', "university", 'table',
     "manuscript", "published", "declare", "conflict", "research", "diagram", "images", "version",
     "data", "Fig", "different", "time", "min", "experiments", "group", "analysis",
-    "study", "activity", "treated", "Extraction", "using", "mean", "work", "file",
+    "study", "activity", "treated", "Extraction", "using", "mean", "work", "path",
     "samples", "performed", "analyzed", "support", "values", "approved", "significant",
     "thank", "interest", "supported",
 
@@ -76,7 +76,7 @@ class ProjectCorpus:
             section = AmiSection()
             section.read_file_get_text_filtered_words(file)
             c = Counter(AmiSection.get_section_with_words(file).words)
-#            self.logger.warning("most common", file.split("/")[-2:-1], c.most_common(20))
+#            self.logger.warning("most common", path.split("/")[-2:-1], c.most_common(20))
         wordz = TextUtil.get_aggregate_words_from_files(self.files)
         self.logger.warning(wordz)
         cc = Counter(wordz)
@@ -118,8 +118,8 @@ class Document:
         self.sections = None
         self.file = file
         self.words = []
-#        if file is not None and os.path.isfile(file):
-#            self.words = self.get_words_from_terminal_file(file)
+#        if path is not None and os.path.isfile(path):
+#            self.words = self.get_words_from_terminal_file(path)
 
     def create_analyze_sections(self):
         sections_file = os.path.abspath(os.path.join(self.file, "sections"))
@@ -150,7 +150,7 @@ class Document:
         if os.path.exists(ami_section.txt_file):
             logging.info("skipping existing text")
         if ami_section.xml_file is not None:
-            """read a file as an ami-section of larger document """
+            """read a path as an ami-section of larger document """
             with open(ami_section.xml_file, "r", encoding="utf-8") as f:
                 ami_section.xml = f.read()
             # assumes this has been chunked to sections
@@ -161,7 +161,7 @@ class Document:
             sentence_file = AmiSection.create_txt_filename_from_xml(
                 ami_section.xml_file)
             if not os.path.exists(sentence_file):
-                #                logging.info("wrote sentence file", sentence_file)
+                #                logging.info("wrote sentence path", sentence_file)
                 AmiSection.write_numbered_sentence_file(
                     sentence_file, ami_section.sentences)
             ami_section.get_words_from_sentences()
@@ -179,7 +179,7 @@ class AmiSection:
     XML_SUFF = ".xml"
     TXT_SUFF = ".txt"
 
-    # sections in template file
+    # sections in template path
     ABSTRACT = "ABSTRACT"
     ACKNOW = "ACKNOW"
     AFFIL = "AFFIL"
@@ -273,7 +273,7 @@ class AmiSection:
 
     @classmethod
     def get_section_with_words(cls, file, filter=True):
-        #        document = Document(file)  # level of tree
+        #        document = Document(path)  # level of tree
         #        words = document.words
         section = AmiSection()
         section.read_file_get_text_filtered_words(file)
@@ -283,11 +283,11 @@ class AmiSection:
         return section
 
     def add_name(self, file):
-        """creates name (within a sections/) dirx from file
+        """creates name (within a sections/) dirx from path
         e.g. /Users/pm286/projects/openDiagram/physchem/resources/oil26/PMC5485486/sections/0_front/1_article-meta/13_abstract.xml
         yields 0_front/1_article-meta/13_abstract.xml """
         if file is None:
-            self.logger.warning("null file")
+            self.logger.warning("null path")
             return None
         file_components = file.split("/")[::-1]
         components = []
@@ -301,8 +301,8 @@ class AmiSection:
         self.name = "/".join(components[::-1])
 
     def read_file_get_text_filtered_words(self, file):
-        """reads xml or txt file
-        reads file, flattens xml to text, removes stopwords and filters texts
+        """reads xml or txt path
+        reads path, flattens xml to text, removes stopwords and filters texts
         creates instance vars:
         self.xml_file
         self.text_file if self_write_text
@@ -313,7 +313,7 @@ class AmiSection:
         """
         self.text = None
         if file is None:
-            raise Exception("file is None")
+            raise Exception("path is None")
         if file.endswith(AmiSection.XML_SUFF):
             self.xml_file = file
             self.txt_file = AmiSection.create_txt_filename_from_xml(
@@ -324,7 +324,7 @@ class AmiSection:
                     self.txt_file)
             if os.path.exists(self.xml_file):
                 self.add_name(self.xml_file)
-                """read a file as an ami-section of larger document """
+                """read a path as an ami-section of larger document """
                 with open(self.xml_file, "r", encoding="utf-8") as f:
                     try:
                         self.xml = f.read()
@@ -336,7 +336,7 @@ class AmiSection:
                     nltk.sent_tokenize(self.text))]
 #                        self.sentences = Sentence.merge_false_sentence_breaks(self.sentences)
                 if self.write_text and not os.path.exists(self.txt_file):
-                    self.logger.warning("wrote sentence file", self.txt_file)
+                    self.logger.warning("wrote sentence path", self.txt_file)
                     AmiSection.write_numbered_sentence_file(
                         self.txt_file, self.sentences)
             self.words = self.get_words_from_sentences()
@@ -389,13 +389,13 @@ class AmiSection:
 
     @classmethod
     def read_numbered_sentences_file(cls, file):
-        """ read file with lines of form line_no<sep>text where line_no starts at 0"""
+        """ read path with lines of form line_no<sep>text where line_no starts at 0"""
         sentences = None
         if file is not None and os.path.exists(file):
             with open(file, "r", encoding="utf-8") as f:
                 lines = f.readlines()
             if len(lines) == 0:
-                cls.logger.warning("warning empty file", file)
+                cls.logger.warning("warning empty path", file)
                 pass
             try:
                 sentences = Sentence.read_number_sentences(lines)
@@ -628,7 +628,7 @@ boodle
 
 class WordFilter:
 
-    # These should really be read from file
+    # These should really be read from path
 
     # false positives in organizatiom dictionary.
     ORG_STOP = {
@@ -920,7 +920,7 @@ class DSLParser():
 
         """
         if not os.path.exists(file):
-            self.assert_error(f"file {file} does not exist")
+            self.assert_error(f"path {file} does not exist")
         else:
             self.logger.info(f"File exists: {file}")
             pass
@@ -937,7 +937,7 @@ class DSLParser():
     def assert_item_in_file(self, file, idx, val):
         listx = self.read_list_from_file(file)
         if listx is None:
-            raise Exception(f"cannot read list from file {file}")
+            raise Exception(f"cannot read list from path {file}")
         idx = int(idx)
         itemx = listx[idx]
         print(f"item {type(itemx)}")

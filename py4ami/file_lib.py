@@ -1,4 +1,4 @@
-"""classes and methods to support file operations
+"""classes and methods to support path operations
 
 """
 import json
@@ -65,28 +65,28 @@ RAW = "raw"
 
 
 class Globber:
-    """ustilities for globbing - may be obsolete"""
+    """utilities for globbing - may be obsolete"""
 
-    def __init__(self, ami_path, recurse=True, cwd=None):
+    def __init__(self, ami_path: AmiPath, recurse=True, cwd=None) -> None:
         self.ami_path = ami_path
         self.recurse = recurse
         self.cwd = os.getcwd() if cwd is None else cwd
 
-    def get_globbed_files(self):
-        """uses the glob_string_list in ami_path to create a file list"""
+    def get_globbed_files(self) -> list[str]:
+        """uses the glob_string_list in ami_path to create a path list"""
         files = []
         if self.ami_path:
             glob_list = self.ami_path.get_glob_string_list()
-            for globb in glob_list:
-                files += glob.glob(globb, recursive=self.recurse)
+            for gl_str in glob_list:
+                files += glob.glob(gl_str, recursive=self.recurse)
         return files
 
 
 class AmiPath:
-    """holds a (keyed) scheme for generating lists of file globs
+    """holds a (keyed) scheme for generating lists of path globs
     The scheme has several segments which can be set to create a glob expr.
     """
-    # keys for file scheme templates
+    # keys for path scheme templates
     T_FIGURES = "fig_captions"
     T_OCTREE = "octree"
     T_PDFIMAGES = "pdfimages"
@@ -248,23 +248,23 @@ class FileLib:
     def force_mkparent(cls, file):
         """ensure parent directory exists
 
-        :file: whose parent directory is to be created if absent
+        :path: whose parent directory is to be created if absent
         """
         if file is not None:
             cls.force_mkdir(cls.get_parent_dir(file))
 
     @classmethod
     def force_write(cls, file, data, overwrite=True):
-        """:write file, creating dirtectory if necessary
-        :file: file to write to
+        """:write path, creating dirtectory if necessary
+        :path: path to write to
         :data: str data to write
-        :overwrite: force write iuf file exists
+        :overwrite: force write iuf path exists
 
         may throw exception from write
         """
         if file is not None:
             if os.path.exists(file) and not overwrite:
-                logging.warning(f"not overwriting existsnt file {file}")
+                logging.warning(f"not overwriting existsnt path {file}")
             else:
                 cls.force_mkparent(file)
                 with open(file, "w", encoding="utf-8") as f:
@@ -274,7 +274,7 @@ class FileLib:
     def copy_file_or_directory(cls, dest_path, src_path, overwrite):
         if dest_path.exists():
             if not overwrite:
-                file_type = "dirx" if dest_path.is_dir() else "file"
+                file_type = "dirx" if dest_path.is_dir() else "path"
                 raise TypeError(
                     str(dest_path), f"cannot overwrite existing {file_type} (str({dest_path})")
 
@@ -291,14 +291,14 @@ class FileLib:
         else:
             try:
                 shutil.copy(src_path, dest_path)  # will overwrite
-                cls.logger.info(f"copied file {src_path} to {dest_path}")
+                cls.logger.info(f"copied path {src_path} to {dest_path}")
             except Exception as e:
                 cls.logger.fatal(f"Cannot copy direcctory {src_path} to {dest_path} because {e}")
 
 
     @staticmethod
     def create_absolute_name(file):
-        """create absolute/relative name for a file relative to py4ami
+        """create absolute/relative name for a path relative to py4ami
 
         TODO this is messy
         """
@@ -335,7 +335,7 @@ class FileLib:
 
     @classmethod
     def read_pydictionary(cls, file):
-        """read a json file into a python dictiomary"""
+        """read a json path into a python dictiomary"""
         import ast
         with open(file, "r") as f:
             pydict = ast.literal_eval(f.read())

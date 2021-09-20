@@ -15,7 +15,7 @@ class SymbolIni:
 
     """processes config/ini files and stores symbols created"""
     NS = "${ns}"
-    PARENT = "__parent__"  # indicates parent directory of an INI or similar file
+    PARENT = "__parent__"  # indicates parent directory of an INI or similar path
     CONFIG = "config"
     CONFIG_INI = "config.ini"
     PYAMI = "PYAMI"
@@ -47,7 +47,7 @@ class SymbolIni:
     def process_config_files(self):
         """ """
         # remove later
-        # config file is linked as PYAMI
+        # config path is linked as PYAMI
         self.pyami_home = os.getenv(self.PYAMI_HOME)  # "/Users/pm286/pyami/"
         if not self.pyami_home:
             self.logger.fatal(f" environment variable $PYAMI_HOME must be set")
@@ -57,11 +57,11 @@ class SymbolIni:
             sys.exit(1)
         config_ini = os.path.join(self.pyami_home, self.CONFIG_INI)
         if not os.path.exists(config_ini) or os.path.isdir(config_ini):
-            self.logger.fatal(f" config.ini.master {config_ini} must be an exiting file")
+            self.logger.fatal(f" config.ini.master {config_ini} must be an exiting path")
             sys.exit(1)
 
         self.pyami.args[self.CONFIG] = config_ini  # "/Users/pm286/pyami/config.ini.master"
-        self.logger.warning(f"config file in args: {config_ini}")
+        self.logger.warning(f"config path in args: {config_ini}")
         config_files_str = self.pyami.args.get(self.CONFIG)
         config_files = [] if config_files_str is None else config_files_str.split(",")
         self.symbols = {}
@@ -78,10 +78,10 @@ class SymbolIni:
         :param config_file:
 
         """
-        # this is the config file pointed to by PYAMI
-        self.logger.warning(f"config file {config_file}")
-        self.logger.warning(f"package {__package__}, file {__file__}, parent.parent {Path(__file__).parent.parent}", )
-        if config_file.startswith("${") and config_file.endswith("}"):  # python config file
+        # this is the config path pointed to by PYAMI
+        self.logger.warning(f"config path {config_file}")
+        self.logger.warning(f"package {__package__}, path {__file__}, parent.parent {Path(__file__).parent.parent}", )
+        if config_file.startswith("${") and config_file.endswith("}"):  # python config path
             file = os.environ[config_file[2:-1]]
         elif "/" not in config_file:
             file = os.path.join(FileLib.get_parent_dir(__file__), config_file)
@@ -99,7 +99,7 @@ class SymbolIni:
                 self.logger.debug("reading. " + file)
                 self.apply_config_file(file)
             else:
-                self.logger.warning(f"*** cannot find config file {file} ***")
+                self.logger.warning(f"*** cannot find config path {file} ***")
 
     def get_home_dir(self, config_file):
         home = os.path.expanduser("~")
@@ -113,8 +113,8 @@ class SymbolIni:
         return file
 
     def apply_config_file(self, file):
-        """reads config file, recursively replaces {} symbols and '~'
-        :file: python config file
+        """reads config path, recursively replaces {} symbols and '~'
+        :path: python config path
 
         :param file:
 
@@ -128,12 +128,12 @@ class SymbolIni:
 
         self.config = configparser.ConfigParser(
             interpolation=configparser.ExtendedInterpolation())
-        self.logger.info(f"reading config file {file}")
+        self.logger.info(f"reading config path {file}")
         # we have to substitute ami values before the configParser gets there!!!!!
         files_read = self.config.read(file)
         sections = self.config.sections()
         for section in sections:
-            self.logger.warning(f"SECTION [{section}] in config file: {file}")
+            self.logger.warning(f"SECTION [{section}] in config path: {file}")
             self.convert_section_into_symbols_dict(file, section)
 
         # self.print_symbols()
@@ -157,13 +157,13 @@ assumes value
                             html = response.read()
                     except urllib.error.HTTPError as ex:
                         print(f"Cannot read {val} as url {ex}")
-            elif "/" in val:  # assume slash means file or url
+            elif "/" in val:  # assume slash means path or url
                 # Logic not yet worked out
                 if not os.path.exists(val):  # all files
                     self.logger.debug(
-                        f"{val} called from {file} does not exist as file")
+                        f"{val} called from {file} does not exist as path")
             else:
-                self.logger.debug(f"not a file: {val} in {file}")
+                self.logger.debug(f"not a path: {val} in {file}")
 
     def setup_environment(self):
         """ lists environment variables but doesn't yet do anything"""

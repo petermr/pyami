@@ -280,7 +280,7 @@ class WikidataSparql:
 
     def create_sparql_result_list(self, sparql_file):
         assert(os.path.exists(sparql_file))
-        print("sparql file", sparql_file)
+        print("sparql path", sparql_file)
         self.current_sparql = ET.parse(sparql_file, parser=ET.XMLParser(encoding="utf-8"))
         self.sparql_result_list = list(self.current_sparql.findall(SPQ_RESULTS + "/" + SPQ_RESULT, NS_MAP))
         assert(len(self.sparql_result_list) > 0)
@@ -305,7 +305,7 @@ class WikidataSparql:
         from  pyami.dict_lib import AmiDictionary
 
         keystring = ""
-        # svae original file
+        # svae original path
         original_name = dictionary_file
         dictionary_root = os.path.splitext(dictionary_file)[0]
         save_file = dictionary_root + ".xml.save"

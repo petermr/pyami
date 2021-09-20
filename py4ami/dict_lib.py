@@ -53,7 +53,7 @@ class AmiDictionary:
 
         if xml_file is not None:
             if not os.path.exists(xml_file):
-                raise IOError("cannot find file " + str(xml_file))
+                raise IOError("cannot find path " + str(xml_file))
             self.read_dictionary_from_xml_file(xml_file)
             self.name = xml_file.split("/")[-1:][0].split(".")[0]
         elif name is None:
@@ -397,7 +397,7 @@ class AmiDictionaries:
             self.add_with_check(item[0], item[1])
 
     def add_with_check(self, key, file):
-        #        print("adding dictionary", file)
+        #        print("adding dictionary", path)
         if key in self.dictionary_dict:
             raise Exception("duplicate dictionary key " +
                             key + " in " + str(self.dictionary_dict))

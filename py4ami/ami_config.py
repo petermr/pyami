@@ -52,11 +52,11 @@ class AmiConfig:
 
     def read_file_dicts(self, dict_key, dict_section):
         ini_file = self.create_ini_filename_from_link(dict_key, dict_section)
-        print("dictionary ini file", dict_key, ini_file)
+        print("dictionary ini path", dict_key, ini_file)
         if ini_file is None:
             print(f"no ini_file path for {dict_key}, please create in {AmiConfig.PYAMI_INI}")
         if not os.path.exists(ini_file):
-            print("INI file does not exist, needs creating", ini_file)
+            print("INI path does not exist, needs creating", ini_file)
         else:
             dict_config = AmiConfig(inifile=ini_file)
             sub_section = dict_config.parser[AmiConfig.DICTS]
@@ -84,7 +84,7 @@ class AmiConfig:
         file = os.path.join(ini_dir, sub_section[dict_name])
         file = AmiConfig.transform_file_separator(file)
         if not os.path.exists(file):
-            print("dict_ref file does not exist", file)
+            print("dict_ref path does not exist", file)
             file = None
         else:
             file_tree_xml = ET.parse(file)
@@ -164,7 +164,7 @@ class AmiConfig:
         """
         parser = ConfigParser(interpolation=ExtendedInterpolation())
         if not os.path.exists(ini_file):
-            print("INI file does not exist", ini_file)
+            print("INI path does not exist", ini_file)
         else:
             print("read", AmiConfig.PYAMI_INI, ini_file)
             parser.read(ini_file)

@@ -23,7 +23,7 @@ class PdfReader:
 
     @classmethod
     def read_and_convert(cls, file):
-        """ converst a PDF file (to text)
+        """ converst a PDF path (to text)
 
         Args:
             file ([str]): filename
@@ -63,8 +63,8 @@ class PdfReader:
              [-F boxes_flow] [-d]
              input.pdf ...
 -P password : PDF password.
--o output : Output file name.
--t text|html|xml|tag : Output type. (default: automatically inferred from the output file name.)
+-o output : Output path name.
+-t text|html|xml|tag : Output type. (default: automatically inferred from the output path name.)
 -O output_dir : Output directory for extracted images.
 -c encoding : Output encoding. (default: utf-8)
 -s scale : Output scale.

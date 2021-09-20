@@ -291,7 +291,7 @@ class AmiSearch:
         for index, target_file in enumerate(section_files[:self.max_files]):
             if index % self.debug_cnt == 0:
                 # eg <project_dir> /oil26/PMC5203915/sections/0_front/1_article-meta/19_abstract.xml
-                print("collect words in file", target_file)
+                print("collect words in path", target_file)
             matches_by_amidict, matches_by_pattern, section = self.search_and_generate_section(
                 target_file)
             sections.append(section)

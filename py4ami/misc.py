@@ -94,7 +94,7 @@ class Ngrams:
 
 
     def count_ngrams(self, lines, min_length=2, max_length=4):
-        """Iterate through given lines iterator (file object or list of
+        """Iterate through given lines iterator (path object or list of
         lines) and return n-gram frequencies. The return value is a dict
         mapping the length of the n-gram to a collections.Counter
         object of n-gram tuple and number of times that n-gram occurred.
