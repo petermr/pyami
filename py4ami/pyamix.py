@@ -102,6 +102,8 @@ class PyAMI:
         self.set_funcs()
         self.show_symbols = False
         self.ami_dictionary = None
+        self.proj = None # current project in searches
+        self.current_ctree = None # current ctree (may change during iteration
         # self.ami_logger = None
         if self.show_symbols:
             pprint.pp(f"SYMBOLS\n {self.symbol_ini.symbols}")
@@ -134,7 +136,7 @@ class PyAMI:
         parser = argparse.ArgumentParser(
             description='Search sections with dictionaries and patterns')
         apply_choices = [self.PDF2TXT, self.TXT2SENT, self.XML2TXT]
-        self.logger.debug("ch", apply_choices)
+        self.logger.debug(f"ch {apply_choices}")
         parser.add_argument('--apply', nargs="+",
                             #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
                             choices=apply_choices,
@@ -173,7 +175,7 @@ class PyAMI:
                             help='search (NYI)')
         parser.add_argument('--outfile', type=str,
                             help='output path. default is single path (default is overwrite). '
-                                 'expands special variables _CPROJ, _CTREE, _PARENT to create iterators ')
+                                 'expands special variables _CPROJ, _CTREE, _PARENT to create iterators NYI')
         parser.add_argument('--patt', nargs="+",
                             help='patterns to search with (NYI); regex may need quoting')
         parser.add_argument('--plot', action="store_false",
@@ -281,6 +283,7 @@ class PyAMI:
         # path workflow
         self.wikipedia_lookup = WikidataLookup()
         self.logger.warning(f"commandline args {self.args}")
+        self.logger.warning(f"args: {self.args}")
 
         if self.args[self.CONFIG]:
             self.apply_config()
@@ -295,8 +298,9 @@ class PyAMI:
             self.logger.warning(f"COPY {self.args[self.COPY]}")
             self.copy_files()
 
+        
         if self.PROJ in self.args:
-            if self.SECT in self.args or self.GLOB in self.args:
+            if self.SECT in self.args or self.GLOB in self.args or self.SPLIT in self.args:
                 self.run_project_workflow()
 
         elif TestFile.TEST in self.args:
@@ -413,7 +417,7 @@ class PyAMI:
                 loglevel = str(loglevel)
             if loglevel is not None and loglevel.lower() in levels:
                 level = levels[loglevel.lower()]
-                self.logger.setLevel(level)
+                self.logger.loglevel = level
 
     def run_project_workflow(self):
         """ run when PROJ is set"""
@@ -559,7 +563,7 @@ class PyAMI:
         file_keys = self.content_store.keys()
         for file in file_keys:
             suffix = FileLib.get_suffix(file)
-            if ".xml" == suffix or type == self.XML2SECT:
+            if ".xml" == suffix and type == self.XML2SECT:
                 self.make_xml_sections(file)
             elif ".txt" == suffix or type == self.TXT2PARA:
                 self.make_text_sections(file)
@@ -779,7 +783,7 @@ class PyAMI:
         DO WE NEED TO STORE THIS?
         """
         data = None
-        self.ami_logger.info(f"reading string content from {file}")
+        self.logger.info(f"reading string content from {file}")
         with open(file, "r", encoding="utf-8") as f:
             try:
                 data = f.read()
@@ -810,17 +814,17 @@ class PyAMI:
         :param func: 
 
         """
-        for file in self.content_store.keys():
-            data = self.content_store(file)
-            self.logger.debug(f"path: {file} => {func_tuple[0]}")
-            new_file = self.create_file_name(file, func_tuple[1])
-
-            try:
-                new_data = func_tuple[0](data)
-                self.store_or_write_data(file, new_data, new_file)
-            except Exception as pdferr:
-                self.logger.warning(
-                    f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
+        # for file in self.content_store.keys():
+        #     data = self.content_store(file)
+        #     self.logger.debug(f"path: {file} => {func_tuple[0]}")
+        #     new_file = self.create_file_name(file, func_tuple[1])
+        #
+        #     try:
+        #         new_data = func_tuple[0](data)
+        #         self.store_or_write_data(file, new_data, new_file)
+        #     except Exception as pdferr:
+        #         self.logger.warning(
+        #             f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
         return
 
     # needs fixing
@@ -833,7 +837,7 @@ class PyAMI:
         if file in self.content_store.file_dict:
             old_data = self.content_store.file_dict[file]
             if old_data is not None and old_data != data:
-                self.ami_logger.warning(
+                self.logger.warning(
                     f"===============================\n"
                     f"=========OVERWRITING data for {file}\n"
                     f"{self.content_store.file_dict[file]} \n========WITH======\n"
@@ -867,7 +871,7 @@ class PyAMI:
         for file in self.content_store.file_dict:
             data = self.content_store.file_dict[file]
             if data is None:
-                print(f"data is NONE")
+                self.logger.debug(f"data is NONE")
                 continue
             print(f"Valid data")
             parent = FileLib.get_parent_dir(file)
@@ -942,6 +946,8 @@ def main():
     run_dsl = False
     run_tests = False
     run_commands = True
+    run_commands = False
+    run_tests = True
 
     PyAMI.logger.warning(
         f"\n============== running pyami main ===============\n{sys.argv[1:]}")

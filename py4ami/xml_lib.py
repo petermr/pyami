@@ -212,6 +212,10 @@ class XmlLib:
 
     @staticmethod
     def get_sec_title(sec):
+        """get title of JATS section
+
+        :sec: section (normally sec element
+        """
         title = None
         for elem in list(sec):
             if elem.tag == TITLE:
@@ -241,6 +245,11 @@ class XmlLib:
             if child is None:
                 child = LXET.SubElement(parent, tag)
         return child
+
+    @classmethod
+    def get_text(cls, node):
+        """get text children as string"""
+        return ''.join(node.itertext())
 
     @staticmethod
     def add_UTF8(html_root):

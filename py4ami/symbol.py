@@ -26,13 +26,7 @@ class SymbolIni:
 
     SYMBOL_NOT_FOUND = "symbol not found"
 
-    # logger = Util.set_logger("symbol_ini.x")
     logger = logging.getLogger("symbol.ini")
-
-    # this creates multiple output to console, needs taming
-    # if logger is None:
-    #     logger = Util.set_logger(
-    #         "symbol_ini.x", logger_level=logging.INFO, log_file=os.path.join(LOGDIR, "symbol_ini.log"))
 
     def __init__(self, pyami):
         # FileLib.force_mkdir(self.LOGDIR)
@@ -265,6 +259,7 @@ assumes value
             replace = self.symbols.get(symbol)
             if replace is None:
                 if not self.is_reserved_symbol(symbol):
+                    self.print_symbols()
                     raise ValueError(f"{self.SYMBOL_NOT_FOUND}: {symbol}")
                 else:
                     self.logger.warning(f"found reserved symbol {symbol}")

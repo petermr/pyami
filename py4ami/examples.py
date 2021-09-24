@@ -1,6 +1,8 @@
 import logging
 import os
 import sys
+import tempfile
+import shutil
 
 logger = logging.getLogger("examples")
 
@@ -26,6 +28,17 @@ class Examples():
         debugs symbols"""
         self.pyamix.commandline("--debug symbols")
 
+    def setup(self):
+        proj_dir = self.pyamix.get_symbol("examples_test.p")
+        assert os.path.exists(proj_dir), "path {proj_dir}"
+        self.test_copy_dir = tempfile.TemporaryDirectory().name
+        shutil.copytree(proj_dir, self.test_copy_dir)
+        print (f"copy_dir {self.test_copy_dir}")
+
+    def teardown(self):
+        if os.path.exists(self.test_copy_dir):
+            shutil.rmtree(self.test_copy_dir)
+
     def example_copy(self):
         self.pyamix.run_command([
             "--copy", "${examples_test.p}", "${temp_dir}/examples", "overwrite",
@@ -47,9 +60,13 @@ class Examples():
         creates a globbed list of filenames
         then iterates through this and identifies and writes list of files to named path
         """
+        # self.setup()
         self.pyamix.run_command(
-            "--proj ${examples_test.p} --glob ${examples_test.p}/**/sections/**/*fig.xml --outfile _CTREE/figures/fig0.txt"
+            "--proj ${examples_test.p} --glob ${examples_test.p}/**/sections/**/*fig.xml" \
+            # f"--proj {self.test_copy_dir} --glob {self.test_copy_dir}/**/sections/**/*fig.xml" \
+            # " --outfile _figures/fig0.txt"
         )
+        # self.teardown()
 
     def example_glob00(self):
         """ globs abstracts
@@ -57,6 +74,7 @@ class Examples():
         self.pyamix.run_command([
             "--proj", "${examples_test.p}",
             "--glob", "${examples_test.p}/**/sections/**/*abstract.xml",
+            "--outfile", "_files/abstracts.csv",
         ])
 
     def example_captions(self):
@@ -110,6 +128,7 @@ class Examples():
         ])
 
     def example_split_pdf_txt_paras(self):
+        self.setup()
         self.logger.loglevel = logging.DEBUG
         self.banner(self.example_split_pdf_txt_paras.__name__)
 
@@ -122,6 +141,7 @@ class Examples():
             "--outfile", "fulltext.pdf.sec.txt",
             "--assert", "file_glob_count(${examples_test.p}/*/fulltext.pdf.sec.txt,291)"
         ])
+        self.teardown()
 
     def example_split_sentences(self):
         self.banner(self.example_split_sentences.__name__)
@@ -328,7 +348,8 @@ from io import BytesIO
 
 imagefile = BytesIO()
 animage.save(imagefile, format='PNG')
-imagedata = imagefile.getvalue()"""
+imagedata = imagefile.getvalue()
+"""
 
 
 def main():
@@ -336,9 +357,11 @@ def main():
     examples = Examples(PyAMI())
     # examples.example_help()
     examples.run_examples(["all"])
+    # examples.run_examples(["g0"])
     # examples.run_examples(["gl"])
     # examples.example_symbols()
     # examples.example_pdf2txt()
+    # examples.run_examples(["sc"])
     # examples.transform_images_to_png() # fails
     # examples.logger.warning(f"calling examples directory will be phased out")
     # print(f" examples args: {sys.argv}")

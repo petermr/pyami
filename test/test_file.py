@@ -9,9 +9,10 @@ TEXT_LIB = "text_lib"
 _SETUP = "_setup"
 _TEARDOWN = "_teardown"
 TEST = "test"
-
 class TestFile:
     logger = logging.getLogger("test_file")
+    TEST = "test"
+
     OPTIONS = [
         FILE_LIB,
         PDF_LIB,

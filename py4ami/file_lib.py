@@ -67,12 +67,12 @@ RAW = "raw"
 class Globber:
     """utilities for globbing - may be obsolete"""
 
-    def __init__(self, ami_path: AmiPath, recurse=True, cwd=None) -> None:
+    def __init__(self, ami_path, recurse=True, cwd=None) -> None:
         self.ami_path = ami_path
         self.recurse = recurse
         self.cwd = os.getcwd() if cwd is None else cwd
 
-    def get_globbed_files(self) -> list[str]:
+    def get_globbed_files(self) -> list:
         """uses the glob_string_list in ami_path to create a path list"""
         files = []
         if self.ami_path:

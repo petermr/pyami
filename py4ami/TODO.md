@@ -1,3 +1,4 @@
+* debug --split xml2sect PRIORITY
 * create sections in  search_lib
 * amidict
   - lookup from terms
@@ -12,6 +13,8 @@
 * run from commandline
 * add debug level
 * strip LaTeX markup
+
+
 
 
 

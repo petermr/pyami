@@ -1,9 +1,12 @@
 from py4ami.constants import PHYSCHEM_RESOURCES, DIAGRAMS_DIR, MINIPROJ, PROJECTS, MINICORPORA
-from py4ami.util import Util
 from pathlib import Path
 import os
 import logging
 from abc import ABC, abstractmethod
+from lxml import etree as LXET
+
+from py4ami.xml_lib import XmlLib
+from py4ami.util import Util
 
 class AmiProjects:
     """project files"""
@@ -117,6 +120,7 @@ class CContainer(ABC):
             files = Path(self.dirx).glob(glob_str)
         return list(files)
 
+
     def get_children(self) -> list:
         """lust children as Paths"""
         child_paths = [] if self.dirx is None else list(Path(self.dirx).iterdir())
@@ -142,7 +146,7 @@ class CContainer(ABC):
         return self.__repr__()
 
 class CProject(CContainer):
-    logger = logging.getLogger("cproject")
+    logger = logging.getLogger("proj")
     def __init__(self, dirx, desc=None):
         self.logger.debug("CProject ctr")
         super().__init__(dirx)
@@ -219,7 +223,7 @@ class CProject(CContainer):
         CProject(AmiProjects.C_LIION4).get_ctrees()[0].print_tree()
 
     def print_project(self):
-        print(f"\ncproject {self.dirx}")
+        print(f"\nproj {self.dirx}")
         print(f"dirs {self.get_child_dirs()}")
         print(f"files {self.get_child_files()}")
         print(f"ctrees {self.get_ctrees()}")
@@ -279,6 +283,21 @@ class CTree(CContainer):
                 self.logger.debug(ff, l)
                 p.write(f"{str(ff)[l:]},\n")
 
+    def get_sections(self, section_glob: str):
+        """retrieves descendant sections by indexed globs
+
+        :section_glob: a SectionGlob by name
+        :returns: a list of section filenames relative to this CTree
+        """
+        sections = []
+        if section_glob not in CTree.SectionGlob.glob_dict:
+            self.logger.warning(f"no section_glob: {section_glob} in {CTree.SectionGlob.glob_dict.keys()}")
+        else:
+            glob_ = CTree.SectionGlob.glob_dict[section_glob]
+            self.logger.debug(f"glob {glob_}")
+            sections = self.get_descendants(glob_)
+        return sections
+
     @classmethod
     def tests(cls):
 
@@ -296,8 +315,6 @@ class CTree(CContainer):
         ctree.write_filenames(ps, "paras.csv")
         proj_sections = project.get_descendants("sections")
 
-        print(f"val test {CTree.Section.SECTION.value}")
-        ctree.get_descendants(CTree.Section.SECTION.value)
 
     @classmethod
     def make_assert(cls, ctree, title, glob, l):
@@ -306,23 +323,141 @@ class CTree(CContainer):
         return ps
 
 
-    from enum import Enum
-    class Section(Enum):
-        FIGURE = ("**/*_fig.xml")
-        SECTION = ("**/sections/p_*.xml")
-        BODY_TITLE = ("**/sections/*body/**/*_title.xml")
+    class SectionGlob:
+        logger = logging.getLogger("section_glob")
+        logger.setLevel(logging.INFO)
+        SECTIONS = f"sections"
+        FRONT = f"{SECTIONS}/*_front"
+        BODY = f"{SECTIONS}/*_body"
+        BACK = f"{SECTIONS}/*_back"
+        FLOATS = f"{SECTIONS}/*_floats_group"
 
-        def __init__(self, glob):
-            self.globx = glob
+        ARTICLE_META = f"{FRONT}/*_article-meta"
+        JOURNAL_META = f"{FRONT}/*_journal-meta"
 
-        @ property
-        def glob(self):
-            return self.globx
+        ABSTRACT = "abstract"
+        BACK_XML = "back_xml"
+        BODY_XML = "body_xml"
+        FIG = "figure"
+        INTRO = "intro"
+        INTRO_D = f"{BODY}/*_introduction"
+        JOURNAL = "journal"
+        NOTE = "note"
+        PARA = "para"
+        PUBLISHER = "publisher"
+        REF = "ref"
+        REF_LIST = "ref-list"
+        REF_LIST_D = f"{BACK}/*_{REF_LIST}"
+        TABLE = "table"
+        TABLE_D = f"{SECTIONS}/**/*_table-wrap"
+        TAB_LABEL = "table_label"
+        TAB_CAPTION = "table_caption"
+        TAB_BODY = "table_body"
+        TITLE = "title"
+        XML = "xml"
 
+        glob_dict = {
+            XML: f"{SECTIONS}/**/*.xml",
+
+            JOURNAL : f"{JOURNAL_META}/*_journal-id.xml",
+            PUBLISHER : f"{JOURNAL_META}/*_publisher.xml",
+            ABSTRACT : f"{ARTICLE_META}/*_abstract.xml",
+
+            BODY_XML: f"{BODY}/**/*.xml",
+            INTRO : f"{INTRO_D}/*_p.xml",
+            FIG : f"{BODY}/**/*_fig.xml",
+            NOTE : f"{BACK}/**/*_notes.xml",
+            PARA: f"{BODY}/**/*_p.xml",
+            TABLE: f"{TABLE_D}",
+            TAB_LABEL: f"{TABLE_D}/*_label.xml",
+            TAB_CAPTION: f"{TABLE_D}/*_caption.xml",
+            TAB_BODY: f"{TABLE_D}/*_table.xml",
+            TITLE: f"{BODY}/**/*_title.xml",
+
+            BACK_XML: f"{BACK}/**/*.xml",
+            REF_LIST: f"{REF_LIST_D}",
+            REF: f"{REF_LIST_D}/*_ref.xml",
+
+        }
+        print("INTRO_D", INTRO_D)
+        for k in glob_dict:
+            print(k, "=>", glob_dict[k])
+
+        def __init__(self, name: str, glob_str: str) -> None:
+            self.name = name
+            self.glob_str = glob_str
+
+        # @classmethod
+        # def get_glob_dict(cls):
+        #     return cls.glob_dict
+
+        @classmethod
+        def tests(cls):
+            project = CProject(AmiProjects.C_OIL4)
+            ctree = project.get_ctree('PMC4391421')
+            abstracts = ctree.get_sections(CTree.SectionGlob.ABSTRACT)
+            cls.logger.debug(f"abstracts {abstracts}")
+
+
+        @classmethod
+        def test_section_count(cls):
+            project = CProject(AmiProjects.C_OIL4)
+            ctree = project.get_ctree('PMC4391421')
+            cls.logger.debug(f"BACK *.xml {len(ctree.get_sections(CTree.SectionGlob.BACK_XML))}")
+            cls.print_section_count(ctree)
+
+        @classmethod
+        def tests_proj(cls):
+            project = CProject(AmiProjects.C_LIION4)
+            for ctree in project.get_ctrees():
+                print(f"------------{ctree.dirx.name}--------------")
+                cls.print_section_count(ctree)
+
+        @classmethod
+        def print_section_count(cls, ctree):
+            for key in CTree.SectionGlob.glob_dict:
+                print(f"{key} => {len(ctree.get_sections(key))}")
+
+        @classmethod
+        def tests_captions(cls):
+            project = CProject(AmiProjects.C_LIION4)
+            cls.print_fig_caption(project)
+
+        @classmethod
+        def print_fig_caption(cls, project):
+            for ctree in project.get_ctrees():
+                print(f"------------{ctree.dirx.name}--------------")
+                fig_xml_paths = ctree.get_sections(cls.FIG)
+                for fig_xml_path in fig_xml_paths:
+                    cls.print_captions_in_ctree(fig_xml_path)
+
+        @classmethod
+        def print_captions_in_ctree(cls, fig_xml_path):
+            """extracts figure info based on JATS"""
+            # print(f"fig {fig_xml_path} {type(fig_xml_path)}")
+            fig_root = XmlLib.parse_xml_file_to_root(str(fig_xml_path))
+            # print(f"fig root: {LXET.tostring(fig_root)}")
+            fig_label = XmlLib.get_or_create_child(fig_root, "label")
+            fig_label_text=XmlLib.get_text(fig_label)
+            fig_caption = XmlLib.get_or_create_child(fig_root, "caption")
+            fig_caption_p = XmlLib.get_or_create_child(fig_caption, "p")
+            fig_p_text=XmlLib.get_text(fig_caption_p)
+            fig_caption_title = XmlLib.get_or_create_child(fig_caption, "title")
+            fig_title_text=XmlLib.get_text(fig_caption_title)
+            print(f"\n ---- {fig_label_text} ----\n  [{fig_title_text}] \n   {fig_p_text} \n\n")
 
 def main():
     CProject.tests()
     CTree.tests()
+    print(f"====section_glob====")
+    CTree.SectionGlob.tests()
+    print(f"====section_count====")
+    CTree.SectionGlob.test_section_count()
+    print(f"====project====")
+    CTree.SectionGlob.tests_proj()
+    print(f"====captions====")
+    CTree.SectionGlob.tests_captions()
 
 if __name__ == "__main__":
     main()
+
