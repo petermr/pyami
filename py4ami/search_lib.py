@@ -255,7 +255,7 @@ class AmiSearch:
 #                print("lang", lang)
                 if lang == self.wikidata_label_lang:
                     label = synonym.text
-#                    print("FOUND", label)
+#                    print("FOUND", label_xml)
                     break
         return label
 

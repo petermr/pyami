@@ -145,7 +145,7 @@ class AmiGui(tk.Frame):
         self.main_text_display.bind(
             "<ButtonRelease>", self.process_selection)  # ACTIVE -> wikidata
 
-        self.label_display_var = tk.StringVar(value="label text")
+        self.label_display_var = tk.StringVar(value="label_xml text")
         self.label_display = tk.Label(
             self.main_display_frame, textvariable=self.label_display_var)
 

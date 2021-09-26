@@ -410,7 +410,6 @@ class AmiSection:
             self.words.extend(words)
         return self.words
 
-
 class Sentence:
 
     NUMBER_SPLIT = ": "

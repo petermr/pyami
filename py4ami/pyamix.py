@@ -21,6 +21,7 @@ from py4ami.pdfreader import PdfReader
 from py4ami.symbol import SymbolIni
 from py4ami.util import AmiLogger
 from py4ami.wikimedia import WikidataLookup
+from py4ami.ami_sections import AMIAbsSection
 
 logging.debug("loading pyamix.py")
 logging.warning(Path(__file__))
@@ -565,15 +566,17 @@ class PyAMI:
             suffix = FileLib.get_suffix(file)
             if ".xml" == suffix and type == self.XML2SECT:
                 self.make_xml_sections(file)
+                AMIAbsSect.make_xml_sections(file)
             elif ".txt" == suffix or type == self.TXT2PARA:
                 self.make_text_sections(file)
             else:
                 self.logger.warning(f"no match for suffix: {suffix}")
 
-    def make_xml_sections(self, file):
+    @classmethod
+    def make_xml_sections(cls, file):
         xml_libx = XmlLib()
         xml_libx.logger.setLevel(logging.DEBUG)
-        _ = xml_libx.read(file)
+        xml_libx.read(file)
         xml_libx.make_sections("sections")
 
     def make_text_sections(self, file):

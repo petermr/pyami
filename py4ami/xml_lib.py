@@ -106,18 +106,21 @@ NS_MAP = {
 }
 
 logger = logging.getLogger("xml_lib")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
+print(f"===========LOGGING {logger.level} .. {logging.DEBUG}")
 
 
 class XmlLib:
 
     def __init__(self, file=None, section_dir=SECTIONS):
         self.max_file_len = 30
-        self.file = None
+        self.file = file
         self.parent_path = None
         self.root = None
-        self.logger = logger
-        self.ami_logger = AmiLogger(self.logger)
+        self.logger = logging.getLogger("xmllib")
+        self.section_dir = section_dir
+        self.section_path = None
+#         self.logger.setLevel(logging.INFO)
 
     def read(self, file):
         if file is not None:
@@ -135,12 +138,13 @@ class XmlLib:
         # FileLib.force_mkdir(subdir)
 
         self.make_descendant_tree(self.root, self.section_dir)
-        self.ami_logger.info(
+        self.logger.info(
             f"wrote XML sections for {self.file} {self.section_dir}")
 
     @staticmethod
     def parse_xml_file_to_root(file):
         """read xml path and create root element"""
+        file = str(file)  # if file is Path
         if not os.path.exists(file):
             raise IOError("path does not exist", file)
         xmlp = LXET.XMLParser(encoding=UTF_8)
@@ -151,7 +155,7 @@ class XmlLib:
     @staticmethod
     def parse_xml_string_to_root(xml):
         """read xml string and parse to root element"""
-        from io import StringIO, BytesIO
+        from io import StringIO
         tree = LXET.parse(StringIO(xml), LXET.XMLParser(ns_clean=True))
         return tree.getroot()
 
@@ -162,13 +166,15 @@ class XmlLib:
         return self.section_path
 
     def make_descendant_tree(self, elem, outdir):
+
+        self.logger.setLevel(logging.INFO)
         if elem.tag in TERMINALS:
-            ami_logger.debug("skipped ", elem.tag)
+            self.logger.debug("skipped ", elem.tag)
             return
         TERMINAL = "T_"
         IGNORE = "I_"
         children = list(elem)
-        self.ami_logger.debug(f"children> {len(children)}")
+        self.logger.debug(f"children> {len(children)} .. {self.logger.level}")
         isect = 0
         for child in children:
             if "ProcessingInstruction" in str(type(child)):
@@ -195,7 +201,8 @@ class XmlLib:
             if flag == TERMINAL:
                 xml_string = LXET.tostring(child)
                 filename1 = os.path.join(outdir, filename + '.xml')
-                self.ami_logger.debug(f"writing {filename1}")
+                self.logger.setLevel(logging.INFO)
+                self.logger.debug(f"writing dbg {filename1}")
                 try:
                     with open(filename1, "wb") as f:
                         f.write(xml_string)
@@ -206,7 +213,7 @@ class XmlLib:
                 # creates empty dirx, may be bad idea
                 FileLib.force_mkdir(subdir)
                 if flag == "":
-                    self.ami_logger.debug(f">> {title} {child}")
+                    self.logger.debug(f">> {title} {child}")
                     self.make_descendant_tree(child, subdir)
             isect += 1
 
@@ -238,7 +245,6 @@ class XmlLib:
 
     @staticmethod
     def get_or_create_child(parent, tag):
-        from lxml import etree as LXET
         child = None
         if parent is not None:
             child = parent.find(tag)
@@ -266,7 +272,6 @@ class XmlLib:
         """replace nodes with specific text
 
         """
-        from lxml import etree as LXET
         print(data, xpath, replacement)
         tree = LXET.fromstring(data)
         for r in tree.xpath(xpath):
@@ -302,7 +307,7 @@ class XmlLib:
         transform = LXET.XSLT(xslt_root)
         print("XSLT log", transform.error_log)
         result_tree = transform(LXET.fromstring(data))
-        assert(not result_tree is None)
+        assert(result_tree is not None)
         root = result_tree.getroot()
         assert(root is not None)
 
@@ -347,6 +352,10 @@ class DataTable:
         self.create_table_thead_tbody()
         self.add_column_heads(colheads)
         self.add_rows(rowdata)
+        self.head = None
+        self.title = None
+        self.title.text = None
+
 
     def create_head(self, title):
         """
@@ -420,7 +429,7 @@ class DataTable:
             for row in rowdata:
                 self.add_row_old(row)
 
-    def add_row_old(self, row: [str]) -> LXET.Element:
+    def add_row_old(self, row: [str]):
         """ creates new <tr> in <tbody>
         creates <td> child elements of row containing string values
 
@@ -495,7 +504,6 @@ class Web:
 
 
 def main():
-    import pprint
 
     XmlLib().test_recurse_sections()  # recursively list sections
 

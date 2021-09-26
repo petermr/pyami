@@ -147,7 +147,7 @@ def raise_test():
             # field options
             options = {'padx': 5, 'pady': 0}
 
-            # temperature label
+            # temperature label_xml
             self.temperature_label = ttk.Label(self, text=self.unit_from)
             self.temperature_label.grid(column=0, row=0, sticky='w', **options)
 
@@ -162,7 +162,7 @@ def raise_test():
             self.convert_button.grid(column=2, row=0, sticky='w', **options)
             self.convert_button.configure(command=self.convert)
 
-            # result label
+            # result label_xml
             self.result_label = ttk.Label(self)
             self.result_label.grid(row=1, columnspan=3, **options)
 

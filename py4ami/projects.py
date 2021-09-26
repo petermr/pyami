@@ -1,12 +1,12 @@
-from py4ami.constants import PHYSCHEM_RESOURCES, DIAGRAMS_DIR, MINIPROJ, PROJECTS, MINICORPORA
 from pathlib import Path
 import os
 import logging
 from abc import ABC, abstractmethod
-from lxml import etree as LXET
 
-from py4ami.xml_lib import XmlLib
 from py4ami.util import Util
+from py4ami.pyamix import PyAMI
+from py4ami.ami_sections import AMIFigure, AMIAbsSection
+
 
 class AmiProjects:
     """project files"""
@@ -38,10 +38,11 @@ class AmiProjects:
     logger = logging.getLogger("projects")
 
     def __init__(self):
+        self.project_dict = {}
         self.create_project_dict()
 
     def create_project_dict(self):
-        self.project_dict = {}
+        pass
         # in this repo
         # self.add_with_check(AmiProjects.LIION4, os.path.join(
         #     RESOURCES, "liion10"), "Li-ion batteries")
@@ -62,8 +63,10 @@ class AmiProjects:
                 str(key) + " already exists in project_dict,  must be unique")
         self.project_dict[key] = CProject(file, desc)
 
+
 class CContainer(ABC):
     logger = logging.getLogger("ccontainer")
+
     def __init__(self, dirx: Path) -> None:
         self.dirx = dirx
         self.pathx = Path(dirx)
@@ -84,19 +87,20 @@ class CContainer(ABC):
 
         path in given list OR path is dirx and starts with underscore
         """
-        return file is not None and (file in self.get_reserved_child_files() \
-                                     or file in self.get_reserved_child_dirs() \
+        return file is not None and (file in self.get_reserved_child_files()
+                                     or file in self.get_reserved_child_dirs()
                                      or self.has_reserved_syntax(file))
 
-    def has_reserved_syntax(self, path):
+    @classmethod
+    def has_reserved_syntax(cls, path):
         """syntax marking a reserved path
 
         Currently must start with "_" and be directory
         """
         return path.name.startswith("_") and os.path.isdir(path) or \
-               path.name.endswith(".count.xml") or \
-               path.name.endswith(".snippets.xml") or \
-               path.name.endswith(".document.xml")
+            path.name.endswith(".count.xml") or \
+            path.name.endswith(".snippets.xml") or \
+            path.name.endswith(".document.xml")
 
     @abstractmethod
     def get_reserved_child_files(self):
@@ -119,7 +123,6 @@ class CContainer(ABC):
         if self.dirx:
             files = Path(self.dirx).glob(glob_str)
         return list(files)
-
 
     def get_children(self) -> list:
         """lust children as Paths"""
@@ -145,17 +148,20 @@ class CContainer(ABC):
     def __str__(self):
         return self.__repr__()
 
+
 class CProject(CContainer):
     logger = logging.getLogger("proj")
+
     def __init__(self, dirx, desc=None):
         self.logger.debug("CProject ctr")
         super().__init__(dirx)
         self.description = desc
         self.ctrees = None
         self.ctree_dict = None
+        self.name = None
 
     def __repr__(self):
-        r = super.__repr__()
+        r = super().__repr__()
         r += f"desc: {self.description}"
         return r
 
@@ -165,14 +171,13 @@ class CProject(CContainer):
     def get_ctrees(self):
         """get of create list of CTrees"""
         if not self.ctrees:
-            self.ctrees = [CTree(f) for f in self.get_child_dirs() if not self.is_reserved_child(f)]
+            self.ctrees = [CTree(f) for f in self.get_child_dirs() if self.has_ctree_child_markers(f)]
         return self.ctrees
 
     def get_ctree_dict(self):
         if not self.ctree_dict:
-            self.ctree_dict = {t.get_name():t for t in self.get_ctrees()}
+            self.ctree_dict = {t.get_name(): t for t in self.get_ctrees()}
         return self.ctree_dict
-
 
     RESERVED_FILES = [
         'hypertree.xml',
@@ -198,8 +203,8 @@ class CProject(CContainer):
     ]
 
     RESERVED_DIRS = [
-        'files', #rename to _files
-        'target', #delete
+        'files',  # rename to _files
+        'target',  # delete
     ]
 
     def get_reserved_child_files(self):
@@ -216,6 +221,12 @@ class CProject(CContainer):
         self.get_ctree_dict()
         return self.get_ctree_dict()[name]
 
+    def make_jats_sections(self, force=False):
+        """recursively creates and writes sections"""
+        for ctree in self.get_ctrees():
+            print(f"------------{ctree.dirx.name}--------------")
+            ctree.make_sections(force)
+
     @classmethod
     def tests(cls):
 
@@ -228,17 +239,44 @@ class CProject(CContainer):
         print(f"files {self.get_child_files()}")
         print(f"ctrees {self.get_ctrees()}")
 
+    @classmethod
+    def has_ctree_child_markers(cls, f):
+        """checks whether is existing directory and contains reserved files
+        
+        e.g. 
+        fulltext.xml
+        fulltext.pdf
+        eupmc_result.json
+
+        :f: file to check
+        """
+        if f is None:
+            return False
+        fpath = Path(f)
+        if not fpath.is_dir():
+            return False
+        for c in [CTree.FULLTEXT_PDF, CTree.FULLTEXT_XML, CTree.EUPMC_RESULT_JSON]:
+            if Path(fpath, c).exists():
+                return True
+        cls.logger.warning(f"failed CTree {f}")
+        return False
+
+
 class CTree(CContainer):
     logger = logging.getLogger("ctree")
+
+    FULLTEXT_PDF = "fulltext.pdf"
+    FULLTEXT_XML = "fulltext.xml"
+    EUPMC_RESULT_JSON = 'eupmc_result.json'
 
     def __init__(self, dirx):
         self.logger.debug("CTree ctr")
         super().__init__(dirx)
 
     RESERVED_FILES = [
-        'eupmc_result.json',
-        'fulltext.pdf',
-        'fulltext.xml',
+        EUPMC_RESULT_JSON,
+        FULLTEXT_PDF,
+        FULLTEXT_XML,
         'scholarly.html',
 
         # probably in wrong place
@@ -257,6 +295,7 @@ class CTree(CContainer):
         'svg',
 
     ]
+
     def get_reserved_child_files(self):
         return self.RESERVED_FILES
 
@@ -279,9 +318,9 @@ class CTree(CContainer):
         with open(pp, "w") as p:
             for ff in files:
                 #  filename relative to CTree
-                l = len(str(self.pathx)+'/')
-                self.logger.debug(ff, l)
-                p.write(f"{str(ff)[l:]},\n")
+                ll = len(str(self.pathx)+'/')
+                self.logger.debug(ff, ll)
+                p.write(f"{str(ff)[ll:]},\n")
 
     def get_sections(self, section_glob: str):
         """retrieves descendant sections by indexed globs
@@ -290,13 +329,32 @@ class CTree(CContainer):
         :returns: a list of section filenames relative to this CTree
         """
         sections = []
-        if section_glob not in CTree.SectionGlob.glob_dict:
-            self.logger.warning(f"no section_glob: {section_glob} in {CTree.SectionGlob.glob_dict.keys()}")
+        if section_glob not in CTree.CProjectTests.glob_dict:
+            self.logger.warning(f"no section_glob: {section_glob} in {CTree.CProjectTests.glob_dict.keys()}")
         else:
-            glob_ = CTree.SectionGlob.glob_dict[section_glob]
+            glob_ = CTree.CProjectTests.glob_dict[section_glob]
+            print(f"glob_ {glob_}")
             self.logger.debug(f"glob {glob_}")
             sections = self.get_descendants(glob_)
         return sections
+
+    def create_and_write_figure_xml_sections(self, fig_type):
+        fig_xml_paths = self.get_sections(fig_type)
+        for fig_xml_path in fig_xml_paths:
+            self.print_captions_in_ctree(fig_xml_path)
+
+    @classmethod
+    def print_captions_in_ctree(cls, fig_xml_path):
+        """extracts figure info based on JATS"""
+        fig = AMIFigure.create_from_jats(fig_xml_path)
+        print(f"{fig} \n\n")
+        print(f"XML {fig.get_xml_str()}")
+
+    def make_sections(self, force=False):
+        """creates sections based on JATS"""
+        self.fulltext_xml = Path(self.dirx, self.FULLTEXT_XML)
+        if self.fulltext_xml.exists():
+            AMIAbsSection.make_xml_sections(self.fulltext_xml, self.dirx, force)
 
     @classmethod
     def tests(cls):
@@ -314,150 +372,153 @@ class CTree(CContainer):
         ps = ctree.get_descendants("**/*_p.xml")
         ctree.write_filenames(ps, "paras.csv")
         proj_sections = project.get_descendants("sections")
-
+        print(proj_sections)
 
     @classmethod
-    def make_assert(cls, ctree, title, glob, l):
+    def make_assert(cls, ctree, title, glob, ll):
         ps = ctree.get_descendants(glob)
-        assert len(ps) == l, f"{title} ({len(ps)}) != {l}"
+        assert len(ps) == ll, f"{title} ({len(ps)}) != {ll}"
         return ps
 
+    def get_fulltext_xml(self):
+        self.fulltext_xml = Path(self.dirx, self.FULLTEXT_XML)
+        return self.fulltext_xml
 
-    class SectionGlob:
-        logger = logging.getLogger("section_glob")
-        logger.setLevel(logging.INFO)
-        SECTIONS = f"sections"
-        FRONT = f"{SECTIONS}/*_front"
-        BODY = f"{SECTIONS}/*_body"
-        BACK = f"{SECTIONS}/*_back"
-        FLOATS = f"{SECTIONS}/*_floats_group"
+class CProjectTests:
+    logger = logging.getLogger("section_glob")
+    logger.setLevel(logging.INFO)
+    SECTIONS = f"sections"
+    FRONT = f"{SECTIONS}/*_front"
+    BODY = f"{SECTIONS}/*_body"
+    BACK = f"{SECTIONS}/*_back"
+    FLOATS_GROUP = f"{SECTIONS}/*_floats-group"
+    FIGURES_D = f"{SECTIONS}/figures"
 
-        ARTICLE_META = f"{FRONT}/*_article-meta"
-        JOURNAL_META = f"{FRONT}/*_journal-meta"
+    ARTICLE_META = f"{FRONT}/*_article-meta"
+    JOURNAL_META = f"{FRONT}/*_journal-meta"
 
-        ABSTRACT = "abstract"
-        BACK_XML = "back_xml"
-        BODY_XML = "body_xml"
-        FIG = "figure"
-        INTRO = "intro"
-        INTRO_D = f"{BODY}/*_introduction"
-        JOURNAL = "journal"
-        NOTE = "note"
-        PARA = "para"
-        PUBLISHER = "publisher"
-        REF = "ref"
-        REF_LIST = "ref-list"
-        REF_LIST_D = f"{BACK}/*_{REF_LIST}"
-        TABLE = "table"
-        TABLE_D = f"{SECTIONS}/**/*_table-wrap"
-        TAB_LABEL = "table_label"
-        TAB_CAPTION = "table_caption"
-        TAB_BODY = "table_body"
-        TITLE = "title"
-        XML = "xml"
+    ABSTRACT = "abstract"
+    BACK_XML = "back_xml"
+    BODY_XML = "body_xml"
+    FIG = "figure"
+    FIGURE_OLD = "figure_old"  # old-style extraction from floats
+    INTRO = "intro"
+    INTRO_D = f"{BODY}/*_introduction"
+    JOURNAL = "journal"
+    NOTE = "note"
+    PARA = "para"
+    PUBLISHER = "publisher"
+    REF = "ref"
+    REF_LIST = "ref-list"
+    REF_LIST_D = f"{BACK}/*_{REF_LIST}"
+    TABLE = "table"
+    TABLE_D = f"{SECTIONS}/**/*_table-wrap"
+    TAB_LABEL = "table_label"
+    TAB_CAPTION = "table_caption"
+    TAB_BODY = "table_body"
+    TITLE = "title"
+    XML = "xml"
 
-        glob_dict = {
-            XML: f"{SECTIONS}/**/*.xml",
+    glob_dict = {
+        XML: f"{SECTIONS}/**/*.xml",
 
-            JOURNAL : f"{JOURNAL_META}/*_journal-id.xml",
-            PUBLISHER : f"{JOURNAL_META}/*_publisher.xml",
-            ABSTRACT : f"{ARTICLE_META}/*_abstract.xml",
+        JOURNAL: f"{JOURNAL_META}/*_journal-id.xml",
+        PUBLISHER: f"{JOURNAL_META}/*_publisher.xml",
+        ABSTRACT: f"{ARTICLE_META}/*_abstract.xml",
 
-            BODY_XML: f"{BODY}/**/*.xml",
-            INTRO : f"{INTRO_D}/*_p.xml",
-            FIG : f"{BODY}/**/*_fig.xml",
-            NOTE : f"{BACK}/**/*_notes.xml",
-            PARA: f"{BODY}/**/*_p.xml",
-            TABLE: f"{TABLE_D}",
-            TAB_LABEL: f"{TABLE_D}/*_label.xml",
-            TAB_CAPTION: f"{TABLE_D}/*_caption.xml",
-            TAB_BODY: f"{TABLE_D}/*_table.xml",
-            TITLE: f"{BODY}/**/*_title.xml",
+        BODY_XML: f"{BODY}/**/*.xml",
+        INTRO: f"{INTRO_D}/*_p.xml",
+        FIG: f"{BODY}/**/*_fig.xml",
+        FIGURE_OLD: f"{FIGURES_D}/figure_*.xml",
+        NOTE: f"{BACK}/**/*_notes.xml",
+        PARA: f"{BODY}/**/*_p.xml",
+        TABLE: f"{TABLE_D}",
+        TAB_LABEL: f"{TABLE_D}/*_label.xml",
+        TAB_CAPTION: f"{TABLE_D}/*_caption.xml",
+        TAB_BODY: f"{TABLE_D}/*_table.xml",
+        TITLE: f"{BODY}/**/*_title.xml",
 
-            BACK_XML: f"{BACK}/**/*.xml",
-            REF_LIST: f"{REF_LIST_D}",
-            REF: f"{REF_LIST_D}/*_ref.xml",
+        BACK_XML: f"{BACK}/**/*.xml",
+        REF_LIST: f"{REF_LIST_D}",
+        REF: f"{REF_LIST_D}/*_ref.xml",
 
-        }
-        print("INTRO_D", INTRO_D)
-        for k in glob_dict:
-            print(k, "=>", glob_dict[k])
+    }
+    print("INTRO_D", INTRO_D)
+    for k in glob_dict:
+        print(k, "=>", glob_dict[k])
 
-        def __init__(self, name: str, glob_str: str) -> None:
-            self.name = name
-            self.glob_str = glob_str
+    def __init__(self, name: str, glob_str: str) -> None:
+        self.name = name
+        self.glob_str = glob_str
 
-        # @classmethod
-        # def get_glob_dict(cls):
-        #     return cls.glob_dict
+    # @classmethod
+    # def get_glob_dict(cls):
+    #     return cls.glob_dict
 
-        @classmethod
-        def tests(cls):
-            project = CProject(AmiProjects.C_OIL4)
-            ctree = project.get_ctree('PMC4391421')
-            abstracts = ctree.get_sections(CTree.SectionGlob.ABSTRACT)
-            cls.logger.debug(f"abstracts {abstracts}")
+    @classmethod
+    def tests(cls):
+        project = CProject(AmiProjects.C_OIL4)
+        ctree = project.get_ctree('PMC4391421')
+        abstracts = ctree.get_sections(CTree.CProjectTests.ABSTRACT)
+        cls.logger.debug(f"abstracts {abstracts}")
 
+    @classmethod
+    def test_section_count(cls):
+        project = CProject(AmiProjects.C_OIL4)
+        ctree = project.get_ctree('PMC4391421')
+        cls.logger.debug(f"BACK *.xml {len(ctree.get_sections(CTree.CProjectTests.BACK_XML))}")
+        cls.print_section_count(ctree)
 
-        @classmethod
-        def test_section_count(cls):
-            project = CProject(AmiProjects.C_OIL4)
-            ctree = project.get_ctree('PMC4391421')
-            cls.logger.debug(f"BACK *.xml {len(ctree.get_sections(CTree.SectionGlob.BACK_XML))}")
+    @classmethod
+    def tests_proj(cls):
+        project = CProject(AmiProjects.C_LIION4)
+        for ctree in project.get_ctrees():
+            print(f"------------{ctree.dirx.name}--------------")
             cls.print_section_count(ctree)
 
-        @classmethod
-        def tests_proj(cls):
-            project = CProject(AmiProjects.C_LIION4)
-            for ctree in project.get_ctrees():
-                print(f"------------{ctree.dirx.name}--------------")
-                cls.print_section_count(ctree)
+    @classmethod
+    def print_section_count(cls, ctree):
+        for key in CTree.CProjectTests.glob_dict:
+            print(f"{key} => {len(ctree.get_sections(key))}")
 
-        @classmethod
-        def print_section_count(cls, ctree):
-            for key in CTree.SectionGlob.glob_dict:
-                print(f"{key} => {len(ctree.get_sections(key))}")
+    @classmethod
+    def tests_captions_liion4(cls):
+        cls.print_fig_caption(CProject(AmiProjects.C_LIION4), cls.FIG)
 
-        @classmethod
-        def tests_captions(cls):
-            project = CProject(AmiProjects.C_LIION4)
-            cls.print_fig_caption(project)
+    @classmethod
+    def tests_sections_liion4(cls):
+        project = CProject(AmiProjects.C_LIION4)
+        project.make_jats_sections(force=True)
 
-        @classmethod
-        def print_fig_caption(cls, project):
-            for ctree in project.get_ctrees():
-                print(f"------------{ctree.dirx.name}--------------")
-                fig_xml_paths = ctree.get_sections(cls.FIG)
-                for fig_xml_path in fig_xml_paths:
-                    cls.print_captions_in_ctree(fig_xml_path)
+    @classmethod
+    def test_captions_oil186(cls):
+        c_project = CProject(Path("/Users/pm286/projects/CEVOpen/searches/oil186"))
+        dirx = c_project.dirx
+        print(f"dirx {dirx}")
+        PyAMI().run_command(f"--proj {dirx} --split xml2sect")
+        cls.print_fig_caption(c_project, cls.FIGURE_OLD)
 
-        @classmethod
-        def print_captions_in_ctree(cls, fig_xml_path):
-            """extracts figure info based on JATS"""
-            # print(f"fig {fig_xml_path} {type(fig_xml_path)}")
-            fig_root = XmlLib.parse_xml_file_to_root(str(fig_xml_path))
-            # print(f"fig root: {LXET.tostring(fig_root)}")
-            fig_label = XmlLib.get_or_create_child(fig_root, "label")
-            fig_label_text=XmlLib.get_text(fig_label)
-            fig_caption = XmlLib.get_or_create_child(fig_root, "caption")
-            fig_caption_p = XmlLib.get_or_create_child(fig_caption, "p")
-            fig_p_text=XmlLib.get_text(fig_caption_p)
-            fig_caption_title = XmlLib.get_or_create_child(fig_caption, "title")
-            fig_title_text=XmlLib.get_text(fig_caption_title)
-            print(f"\n ---- {fig_label_text} ----\n  [{fig_title_text}] \n   {fig_p_text} \n\n")
+    def print_fig_caption(cls, project, fig_type):
+        for ctree in project.get_ctrees():
+            print(f"------------{ctree.dirx.name}--------------")
+            ctree.create_and_write_figure_xml_sections(fig_type)
+
+
 
 def main():
-    CProject.tests()
-    CTree.tests()
-    print(f"====section_glob====")
-    CTree.SectionGlob.tests()
-    print(f"====section_count====")
-    CTree.SectionGlob.test_section_count()
-    print(f"====project====")
-    CTree.SectionGlob.tests_proj()
-    print(f"====captions====")
-    CTree.SectionGlob.tests_captions()
+    # CProject.tests()
+    # CTree.tests()
+    # print(f"====section_glob====")
+    # CTree.SectionGlob.tests()
+    # print(f"====section_count====")
+    # CTree.SectionGlob.test_section_count()
+    # print(f"====project====")
+    # CTree.SectionGlob.tests_proj()
+    # print(f"====captions====")
+    # CTree.CProjectTests.tests_captions_liion4()
+    print(f"====sections====")
+    CProjectTests.tests_sections_liion4()
+
 
 if __name__ == "__main__":
     main()
-

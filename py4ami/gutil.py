@@ -115,7 +115,7 @@ class Gutil:
         progress_bar = ttk.Progressbar(master, orient="horizontal",
                                        mode="determinate", maximum=100, value=0)
 
-        # And a label for it
+        # And a label_xml for it
         label_1 = tk.Label(master, text="Progress Bar")
 
         # Use the grid manager

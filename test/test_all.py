@@ -73,7 +73,7 @@ class WikimediaTests:
         WHERE 
         {
           ?researchcouncil wdt:P31 wd:Q10498148.
-          SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+          SERVICE wikibase:label_xml { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
         }"""
 
         results = WS.get_results_xml(query)

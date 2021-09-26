@@ -129,7 +129,7 @@ class Examples():
 
     def example_split_pdf_txt_paras(self):
         self.setup()
-        self.logger.loglevel = logging.DEBUG
+#        self.logger.loglevel = logging.DEBUG
         self.banner(self.example_split_pdf_txt_paras.__name__)
 
         proj_dir = self.pyamix.get_symbol("examples_test.p")
@@ -145,7 +145,7 @@ class Examples():
 
     def example_split_sentences(self):
         self.banner(self.example_split_sentences.__name__)
-        self.logger.loglevel = logging.DEBUG
+#        self.logger.loglevel = logging.DEBUG
         proj_dir = self.pyamix.get_symbol("examples_test.p")
         print("path", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_command([
@@ -204,7 +204,7 @@ class Examples():
             # plants
             # SELECT ?item ?itemLabel
             # WHERE {?item wdt: P225 "Ocimum sanctum".
-            # SERVICE wikibase: label {bd: serviceParam wikibase: language "[AUTO_LANGUAGE],en".}
+            # SERVICE wikibase: label_xml {bd: serviceParam wikibase: language "[AUTO_LANGUAGE],en".}
             # }
             # "wiki_sparql(read sparql_query"Qxxx for plant_species")"
             # "--update(eo_plant.d),"
