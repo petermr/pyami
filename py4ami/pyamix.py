@@ -565,8 +565,11 @@ class PyAMI:
         for file in file_keys:
             suffix = FileLib.get_suffix(file)
             if ".xml" == suffix and type == self.XML2SECT:
-                self.make_xml_sections(file)
-                AMIAbsSect.make_xml_sections(file)
+#                self.make_xml_sections(file)
+                force = False
+                force = True
+                outdir = Path(Path(file).parent, "sections")
+                AMIAbsSection.make_xml_sections(file, outdir, force)
             elif ".txt" == suffix or type == self.TXT2PARA:
                 self.make_text_sections(file)
             else:
@@ -577,7 +580,7 @@ class PyAMI:
         xml_libx = XmlLib()
         xml_libx.logger.setLevel(logging.DEBUG)
         xml_libx.read(file)
-        xml_libx.make_sections("sections")
+        xml_libx.make_sections("sections", )
 
     def make_text_sections(self, file):
         sections = []
@@ -947,10 +950,10 @@ def main():
     """
 
     run_dsl = False
-    run_tests = False
+    run_tests = False # needs re-implementing
     run_commands = True
-    run_commands = False
-    run_tests = True
+#    run_commands = False
+#    run_tests = True
 
     PyAMI.logger.warning(
         f"\n============== running pyami main ===============\n{sys.argv[1:]}")

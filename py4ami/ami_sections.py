@@ -28,6 +28,7 @@ class AMIAbsSection(ABC):
             return
         #        sections = Path(self.dirx)
         if force or not Path(outdir).exists():
+            cls.logger.warning(f"Making sections in {str(path)}")
             xml_libx = XmlLib()
             xml_libx.logger.setLevel(logging.DEBUG)
             xml_libx.read(file)

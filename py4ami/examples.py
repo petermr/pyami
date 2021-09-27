@@ -356,9 +356,10 @@ def main():
     from py4ami.pyamix import PyAMI
     examples = Examples(PyAMI())
     # examples.example_help()
-    examples.run_examples(["all"])
+    # examples.run_examples(["all"])
     # examples.run_examples(["g0"])
     # examples.run_examples(["gl"])
+    examples.run_examples(["sl"])
     # examples.example_symbols()
     # examples.example_pdf2txt()
     # examples.run_examples(["sc"])
