@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import shutil
+from pathlib import Path
 
 logger = logging.getLogger("examples")
 
@@ -29,11 +30,13 @@ class Examples():
         self.pyamix.commandline("--debug symbols")
 
     def setup(self):
-        proj_dir = self.pyamix.get_symbol("examples_test.p")
+        proj_dir = Path(Path(__file__).parent, "resources/projects/oil4")
+
         assert os.path.exists(proj_dir), "path {proj_dir}"
         self.test_copy_dir = tempfile.TemporaryDirectory().name
         shutil.copytree(proj_dir, self.test_copy_dir)
         print (f"copy_dir {self.test_copy_dir}")
+        return proj_dir
 
     def teardown(self):
         if os.path.exists(self.test_copy_dir):
@@ -126,6 +129,15 @@ class Examples():
             "--split", "xml2sect",
             "--assert", "file_glob_count(${examples_test.p}/*/sections/**/*.xml,291)"
         ])
+
+    def example_xml2sect_cmd(self): # not yet running
+
+        proj_dir = self.setup()
+        print("path", proj_dir, os.path.exists(proj_dir))
+        # split into sections
+        cmd = f"python -m py4ami.pyami --proj {proj_dir} --split xml2sect"
+        os.system(cmd)
+        self.teardown()
 
     def example_split_pdf_txt_paras(self):
         self.setup()
@@ -266,7 +278,8 @@ class Examples():
             "pd": (self.example_pdf2txt, "convert pdf to text"),
             "pa": (self.example_split_pdf_txt_paras, "split pdf text into paragraphs"),
             "sc": (self.example_xml2sect, "split xml into sections"),
-            "sl": (self.example_split_oil26, "split oil26 project into sections"),
+            "scd": (self.example_xml2sect_cmd(), "split xml into sections using cmd"),
+            #             "sl": (self.example_split_oil26, "split oil4 project into sections"),
             "se": (self.example_split_sentences, "split text to sentences"),
             "sp": (self.example_filter_species, "extract species with italics and regex (not finalised)"),
             "sr": (self.example_search, "search with dictionaries (NYI)"),
@@ -356,10 +369,12 @@ def main():
     from py4ami.pyamix import PyAMI
     examples = Examples(PyAMI())
     # examples.example_help()
+    # examples.run_examples(None)
     # examples.run_examples(["all"])
     # examples.run_examples(["g0"])
     # examples.run_examples(["gl"])
-    examples.run_examples(["sl"])
+#    examples.run_examples(["sc"]) # works
+    examples.run_examples(["scd"])
     # examples.example_symbols()
     # examples.example_pdf2txt()
     # examples.run_examples(["sc"])

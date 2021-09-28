@@ -123,6 +123,7 @@ class XmlLib:
 #         self.logger.setLevel(logging.INFO)
 
     def read(self, file):
+        """reads XML file , saves file, and parses to self.root"""
         if file is not None:
             self.file = file
             self.parent_path = Path(file).parent.absolute()
