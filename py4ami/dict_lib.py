@@ -410,10 +410,14 @@ class AmiDictionaries:
 #        print(dictionary.get_or_create_term_set())
         return
 
+class TDDDict:
+    """Supports dctionary creatiom from lists and validation based on TDD"""
+
+    def __init__(self):
+        pass
 
 def main():
     """ debugging """
-
 
 if __name__ == "__main__":
     print("running search main")

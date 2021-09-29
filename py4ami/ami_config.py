@@ -1,3 +1,5 @@
+import os
+
 class AmiConfig:
     """configuration files for the AMI system
     """
