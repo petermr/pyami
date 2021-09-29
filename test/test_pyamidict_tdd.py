@@ -2,6 +2,7 @@ import pytest
 
 from pathlib import Path
 from lxml import etree
+from lxml.etree import Element
 from os.path import basename, normpath
 # from py4ami.dict_lib import TDDDict
 # I can't get this imported
@@ -59,7 +60,7 @@ def test_dict_contains_xml_element():
     root = etree.parse(str(setup_dict["dictfile1"]))
     assert root is not None
 
-# entries
+# TDDDict
 
 def test_can_create_empty_TDDDict():
     tdddict = TDDDict()
@@ -90,25 +91,31 @@ def test_get_first_entry():
     assert ll > 0, "len > 0"
     assert tdddict.get_first_entry() is not None
 
+def test_get_attribute_names():
+    first_entry = setup()["one_entry_dict"].get_first_entry()
+    attrib_names = {name for name in first_entry.element.attrib}
+    print(f"attribs {attrib_names}")
+
 def test_get_term_of_first_entry():
     tdddict = setup()["one_entry_dict"]
-    assert tdddict.get_first_entry().attrib["term"] == "Douglas Adams"
+    assert tdddict.get_first_entry().element.attrib["term"] == "Douglas Adams"
 
 def test_get_name_of_first_entry():
     tdddict = setup()["one_entry_dict"]
-    assert tdddict.get_first_entry().attrib["name"] == "Douglas Adams"
+    assert tdddict.get_first_entry().element.attrib["name"] == "Douglas Adams"
 
 def test_get_wikidata_of_first_entry():
     tdddict = setup()["one_entry_dict"]
-    assert tdddict.get_first_entry().attrib["wikipedia"] == "Q42"
+    assert tdddict.get_first_entry().element.attrib["wikidata"] == "Q42"
 
 def test_get_synonym_count():
     tdddict = setup()["one_entry_dict"]
-    assert len(tdddict.get_synonyms()) == 2
+    assert len(tdddict.get_first_entry().get_synonyms()) == 2
 
 def test_get_synonym_by_language():
     tdddict = setup()["one_entry_dict"]
-    assert tdddict.get_synonym("ur") ==
+    elem = tdddict.get_first_entry().get_synonym_by_language("ur").element
+    assert "ڈگلس ایڈمس" == ''.join(elem.itertext())
 
 def test_add_entry():
     setup_dict = setup()
@@ -124,7 +131,10 @@ def test_add_entry():
 def teardown():
     dict1_root = None
 
+# ========================
 # this should not be here but I can't load it from an outside file
+
+XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
 class TDDDict:
     pass
 
@@ -143,8 +153,9 @@ class TDDDict:
 
     def get_entries(self):
         print (self.root)
-        self.entries = self.root.xpath('entry')
-        assert self.entries is not None
+        entry_elements = self.root.xpath('entry')
+        assert entry_elements is not None
+        self.entries = [Entry(element) for element in entry_elements]
         return self.entries
 
     def get_entry_count(self):
@@ -158,6 +169,35 @@ class TDDDict:
         if len(self.entries) > 0:
             first_entry = self.entries[0]
         return first_entry
+
+class DictElement():
+    def __init__(self, element=None):
+        self.element = element
+
+class Entry(DictElement):
+    def __init__(self, element=None):
+        super().__init__(element)
+
+    def get_synonyms(self):
+        synonyms = [] if self.element is None else self.element.xpath("./synonym")
+        return [Synonym(s) for s in synonyms]
+
+    def get_synonym_by_language(self, lang):
+        synonyms = self.get_synonyms()
+        for synonym in synonyms:
+            for key in synonym.element.attrib:
+                print (f"key {key}")
+            if lang == synonym.element.attrib[XML_LANG]:
+                return synonym
+        return None
+
+
+class Synonym(DictElement):
+
+    def __init__(self, element=None):
+        super().__init__(element)
+
+
 
     @classmethod
     def debug_tdd(cls):
