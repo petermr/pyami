@@ -144,7 +144,10 @@ def test_get_synonym_by_language():
     elem = tdddict.get_first_entry().get_synonym_by_language(TDDDict.LANG_UR).element
     assert "ڈگلس ایڈمس" == ''.join(elem.itertext())
 
-
+def test_dictionary_creation():
+    newdict = TDDDict.create_new_dictionary()
+    assert newdict is not None
+    assert newdict.get_version() == "0.0.1"
 
 
 def test_add_entry():
@@ -219,7 +222,7 @@ class TDDDict:
 
     def get_version(self):
         """get the version attribute"""
-        return "1.2.3"
+        return None if self.root is None else Dictionary(self.root).get_version()
 
     @classmethod
     def is_valid_version(self, version):
@@ -233,10 +236,48 @@ class TDDDict:
             i = int(part)
         return True
 
+    @classmethod
+    def create_new_dictionary(cls):
+        tddict = TDDDict()
+        tddict.add_new_root()
+        return tddict
+
+    def add_new_root(self):
+        self.root = Dictionary().element
+
+    @classmethod
+    def debug_tdd(cls):
+        """This is just for debugging"""
+        file = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts/dict1.xml")
+        one_entry_file = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts/dict_one_entry.xml")
+        root = etree.parse(str(one_entry_file)).getroot()
+        tddd = TDDDict.create_dict_from_path(one_entry_file)
+        entries = tddd.get_entries()
+        print(f"len {len(entries)} {type(entries)} entr {entries[0]} ")
+
 
 class DictElement():
     def __init__(self, element=None):
         self.element = element
+
+class Dictionary(DictElement):
+    def __init__(self, element=None):
+        super().__init__(element)
+        if element is None:
+            self.create_root_element()
+
+    def create_root_element(self):
+        self.element = etree.Element("dictionary")
+        self.add_base_version()
+
+    def add_base_version(self):
+        self.element.attrib["version"] = "0.0.1"
+
+    def get_version(self):
+        if self.element is None:
+            return None
+        assert type(self.element) is etree._Element
+        return self.element.attrib["version"]
 
 class Entry(DictElement):
     def __init__(self, element=None):
@@ -259,17 +300,6 @@ class Synonym(DictElement):
     def __init__(self, element=None):
         super().__init__(element)
 
-
-
-    @classmethod
-    def debug_tdd(cls):
-        """This is just for debugging"""
-        file = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts/dict1.xml")
-        one_entry_file = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts/dict_one_entry.xml")
-        root = etree.parse(str(one_entry_file)).getroot()
-        tddd = TDDDict.create_dict_from_path(one_entry_file)
-        entries = tddd.get_entries()
-        print(f"len {len(entries)} {type(entries)} entr {entries[0]} ")
 
 def main():
     TDDDict.debug_tdd()
