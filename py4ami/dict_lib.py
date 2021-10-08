@@ -5,6 +5,9 @@ from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3, PHYSCHEM_RE
 from lxml import etree as ET
 from lxml import etree
 from lxml.etree import Element
+# import requests
+# import xmltodict
+import urllib.request
 
 import logging
 import os
@@ -454,6 +457,7 @@ class AMIDict(AbsDictElem):
         """AMIDict always has an XML root element"""
         super().__init__(element)
         self.file = None
+        self.url = None
         assert element is not None
         assert self.element is not None
         self.entries = [] # child entries
@@ -479,9 +483,34 @@ class AMIDict(AbsDictElem):
         amidict.set_file(xml_file)
         return amidict
 
+    @classmethod
+    def create_dict_from_url(cls, xml_url):
+        assert xml_url is not None
+        try:
+            with urllib.request.urlopen(xml_url) as f:
+                # content = f.read().decode('utf-8')
+                content = f.read()
+        except urllib.error.URLError as e:
+            raise AMIDictError(f"Failed to read URL {e.reason}")
+        assert content is not None
+
+        assert type(content) is bytes
+        # msg = f"content {content}"
+        # assert content == "foo", msg
+        element = etree.fromstring(content)
+
+        assert element.tag == AMIDict.TAG
+        amidict = AMIDict(element)
+        amidict.set_url(xml_url)
+        return amidict
+
     def set_file(self, file):
         """file may be required to validate against title"""
         self.file = file
+
+    def set_url(self, url):
+        """file may be required to validate against title"""
+        self.url = url
 
     def get_entries(self):
         entry_elements = self.element.xpath(Entry.TAG)
@@ -566,7 +595,7 @@ class AMIDict(AbsDictElem):
         self.element.remove(entry.element)
 
 # data validity
-    def is_valid(self):
+    def check_validity(self):
         # assert f"{etree.tostring(self.element)}" == "xxx"
         if not self.has_valid_element():
             raise AMIDictError(msg="must contain valid element (NYI)")
@@ -574,7 +603,6 @@ class AMIDict(AbsDictElem):
             raise AMIDictError(msg="must have valid tag")
         if not self.has_valid_attributes():
             raise AMIDictError(msg="must have valid attributes")
-        return True
         # assert self.has_valid_children()
 
     def has_valid_element(self):
@@ -659,17 +687,29 @@ class AMIDictError(Exception):
             msg = "An unspecifed error occured"
         super(AMIDictError, self).__init__(msg)
 
+class Synonym(AbsDictElem):
+    TAG = "synonym"
+
+    def __init__(self, element=None):
+        super().__init__(element)
+        assert element is not None, "synonym constructor "
+        self.element = element
+
 class Entry(AbsDictElem):
     TAG = "entry"
 
     DESCRIPTION_A = "description"
     NAME_A = "name"
     TERM_A = "term"
-    WIKIDATA_A = "wikidata"
-    WIKIPEDIA_A = "wikipedia"
+    WIKIDATA_A = "wikidataID"
+    WIKIPEDIA_A = "wikipediaPage"
 
     REQUIRED_ATTS = {TERM_A}
     OPTIONAL_ATTS = {DESCRIPTION_A, NAME_A, WIKIDATA_A, WIKIPEDIA_A}
+    ALLOWED_ATTS = REQUIRED_ATTS.union(OPTIONAL_ATTS)
+    assert len(ALLOWED_ATTS) == 5
+
+    ELEMENT_CHILD_TAGS = {Synonym.TAG}
 
     def __init__(self, element=None):
         super().__init__(element)
@@ -703,15 +743,23 @@ class Entry(AbsDictElem):
     def get_name(self):
         return self.element.attrib[self.NAME_A]
 
+    def check_validity(self):
+        self.check_valid_attributes()
+        self.check_valid_children()
 
-class Synonym(AbsDictElem):
-    TAG = "synonym"
+    def check_valid_attributes(self):
+        attributes = list(self.element.attrib)
+        assert attributes is not None
+        # assert str(attributes) == "['name']", f"attributes {attributes}"
+        # assert len(attributes) == 2, f" ATTS {attributes}"
+        for attribut in attributes:
+            msg = f"ATT {attribut}"
+            assert type(attribut) is str
+            assert attribut in self.ALLOWED_ATTS, f"attribute {attribut} is not allowed in <entry>"
 
-    def __init__(self, element=None):
-        super().__init__(element)
-        assert element is not None, "synonym constructor "
-        self.element = element
-
+    def check_valid_children(self):
+        for child in self.element:
+            assert child.tag in self.ELEMENT_CHILD_TAGS
 
 def main():
     AMIDict.debug_tdd()

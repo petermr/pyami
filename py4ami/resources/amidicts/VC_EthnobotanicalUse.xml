@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dictionary title="VC_EthnobotanicalUse" version="0.0.1" encoding="UTF-8">
+	<desc>Dictionary of terms consisting of 10 terms plus 187 related synonyms. Some entries may also include the term's: source, description, wikidataID, chebiID, chebiName, FDAcode</desc>
+	<author>Emanuel Faria, President -- ®Verriclear Natural Skin Essentials Ltd. https://www.verriclear.com</author>
+	<contributor>Peter Murray-Rust:  Reader Emeritus in Molecular Informatics, Unilever Centre, Dept. Of Chemistry University of Cambridge</contributor>
+	<disclaimer>This dictionary was manually collected, compiled and curated by the author.  While every effort has been made to ensure the accuracy and completeness of the content of this dictionary, we do not guarantee its currency nor correctness. No warranty or fitness is provided or implied, and the author(s), contributor(s), partners, supporters, employees or associated organisations shall have neither liability nor responsibility to any person or entity with respect to any loss or damage arising from its use.</disclaimer>
+	<license> This Work is licensed under Attribution-NonCommercial 4.0 International License © 2021 by Canilla Holdings Ltd. You are free to share (copy and redistribute the material in any medium or format) and/or adapt (remix, transform, and build upon the material) under the following terms:  Attribution — You must give appropriate credit, provide a link to the license (https://creativecommons.org/licenses/by-nc/4.0/legalcode), and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use. NonCommercial — You may not use the material for commercial purposes. No additional restrictions — You may not apply legal terms or technological measures that legally restrict others from doing anything this license permits. </license>
+	<entry name="anti-fumitory">
+		<synonym>antifumitory</synonym>
+	</entry>
+	<entry name="adaptogen" description="A substance or compounds that results in stabilization of physiological processes and promotion of homeostasis, an example being by decreased cellular sensitivity to stress." wikidataID="Q352551">
+		<synonym>adaptive action</synonym>
+		<synonym>adaptive activities</synonym>
+		<synonym>adaptive activity</synonym>
+		<synonym>adaptive agent</synonym>
+		<synonym>adaptive effect</synonym>
+		<synonym>adaptive effects</synonym>
+		<synonym>adaptive properties</synonym>
+		<synonym>adaptogen action</synonym>
+		<synonym>adaptogen activities</synonym>
+		<synonym>adaptogen activity</synonym>
+		<synonym>adaptogen agent</synonym>
+		<synonym>adaptogen effect</synonym>
+		<synonym>adaptogen effects</synonym>
+		<synonym>adaptogen properties</synonym>
+		<synonym>adaptogenic</synonym>
+		<synonym>adaptogenic action</synonym>
+		<synonym>adaptogenic activities</synonym>
+		<synonym>adaptogenic activity</synonym>
+		<synonym>adaptogenic agent</synonym>
+		<synonym>adaptogenic effect</synonym>
+		<synonym>adaptogenic effects</synonym>
+		<synonym>adaptogenic properties</synonym>
+		<synonym>alterative</synonym>
+		<synonym>homeost action</synonym>
+		<synonym>homeost activities</synonym>
+		<synonym>homeost activity</synonym>
+		<synonym>homeost agent</synonym>
+		<synonym>homeost effect</synonym>
+		<synonym>homeost effects</synonym>
+		<synonym>homeost properties</synonym>
+		<synonym>homeostatic action</synonym>
+		<synonym>homeostatic activities</synonym>
+		<synonym>homeostatic activity</synonym>
+		<synonym>homeostatic agent</synonym>
+		<synonym>homeostatic effect</synonym>
+		<synonym>homeostatic effects</synonym>
+		<synonym>homeostatic properties</synonym>
+	</entry>
+	<entry name="homeopathy variable agent">
+		<synonym>homeopathy variable action</synonym>
+		<synonym>homeopathy variable activities</synonym>
+		<synonym>homeopathy variable activity</synonym>
+		<synonym>homeopathy variable effect</synonym>
+		<synonym>homeopathy variable effects</synonym>
+		<synonym>homeopathy variable properties</synonym>
+	</entry>
+	<entry name="ethnomedicinal agent">
+		<synonym>ethnoaction</synonym>
+		<synonym>ethnoactivities</synonym>
+		<synonym>ethnoactivity</synonym>
+		<synonym>ethnoagent</synonym>
+		<synonym>ethnoeffect</synonym>
+		<synonym>ethnoeffects</synonym>
+		<synonym>ethnomedicinal action</synonym>
+		<synonym>ethnomedicinal activities</synonym>
+		<synonym>ethnomedicinal activity</synonym>
+		<synonym>ethnomedicinal effect</synonym>
+		<synonym>ethnomedicinal effects</synonym>
+		<synonym>ethnomedicinal properties</synonym>
+		<synonym>ethnoproperties</synonym>
+		<synonym>folk medicine action</synonym>
+		<synonym>folk medicine activities</synonym>
+		<synonym>folk medicine activity</synonym>
+		<synonym>folk medicine agent</synonym>
+		<synonym>folk medicine effect</synonym>
+		<synonym>folk medicine effects</synonym>
+		<synonym>folk medicine properties</synonym>
+		<synonym>indigenous action</synonym>
+		<synonym>indigenous activities</synonym>
+		<synonym>indigenous activity</synonym>
+		<synonym>indigenous agent</synonym>
+		<synonym>indigenous biological action</synonym>
+		<synonym>indigenous biological activities</synonym>
+		<synonym>indigenous biological activity</synonym>
+		<synonym>indigenous biological agent</synonym>
+		<synonym>indigenous biological effect</synonym>
+		<synonym>indigenous biological effects</synonym>
+		<synonym>indigenous biological properties</synonym>
+		<synonym>indigenous effect</synonym>
+		<synonym>indigenous effects</synonym>
+		<synonym>indigenous properties</synonym>
+		<synonym>Traditional Chinese Medicine action</synonym>
+		<synonym>Traditional Chinese Medicine activities</synonym>
+		<synonym>Traditional Chinese Medicine activity</synonym>
+		<synonym>Traditional Chinese Medicine agent</synonym>
+		<synonym>Traditional Chinese Medicine effect</synonym>
+		<synonym>Traditional Chinese Medicine effects</synonym>
+		<synonym>Traditional Chinese Medicine properties</synonym>
+		<synonym>traditional curing action</synonym>
+		<synonym>traditional curing activities</synonym>
+		<synonym>traditional curing activity</synonym>
+		<synonym>traditional curing agent</synonym>
+		<synonym>traditional curing effect</synonym>
+		<synonym>traditional curing effects</synonym>
+		<synonym>traditional curing properties</synonym>
+		<synonym>traditional health action</synonym>
+		<synonym>traditional health activities</synonym>
+		<synonym>traditional health activity</synonym>
+		<synonym>traditional health agent</synonym>
+		<synonym>traditional health effect</synonym>
+		<synonym>traditional health effects</synonym>
+		<synonym>traditional health properties</synonym>
+		<synonym>traditional medicinal action</synonym>
+		<synonym>traditional medicinal activities</synonym>
+		<synonym>traditional medicinal activity</synonym>
+		<synonym>traditional medicinal agent</synonym>
+		<synonym>traditional medicinal effect</synonym>
+		<synonym>traditional medicinal effects</synonym>
+		<synonym>traditional medicinal properties</synonym>
+	</entry>
+	<entry name="phytochemical agent"></entry>
+	<entry name="phytomedical agent"></entry>
+	<entry name="plant-extracted agent">
+		<synonym>herbal action</synonym>
+		<synonym>herbal activities</synonym>
+		<synonym>herbal activity</synonym>
+		<synonym>herbal agent</synonym>
+		<synonym>herbal effect</synonym>
+		<synonym>herbal effects</synonym>
+		<synonym>herbal properties</synonym>
+		<synonym>medicinal herb</synonym>
+		<synonym>medicinal herbal action</synonym>
+		<synonym>medicinal herbal activities</synonym>
+		<synonym>medicinal herbal activity</synonym>
+		<synonym>medicinal herbal agent</synonym>
+		<synonym>medicinal herbal effect</synonym>
+		<synonym>medicinal herbal effects</synonym>
+		<synonym>medicinal herbal properties</synonym>
+		<synonym>phytoaction</synonym>
+		<synonym>phytoactivities</synonym>
+		<synonym>phytoactivity</synonym>
+		<synonym>phytoagent</synonym>
+		<synonym>phytochemical action</synonym>
+		<synonym>phytochemical activities</synonym>
+		<synonym>phytochemical activity</synonym>
+		<synonym>phytochemical effect</synonym>
+		<synonym>phytochemical effects</synonym>
+		<synonym>phytochemical properties</synonym>
+		<synonym>phytoeffect</synonym>
+		<synonym>phytoeffects</synonym>
+		<synonym>phytomedical action</synonym>
+		<synonym>phytomedical activities</synonym>
+		<synonym>phytomedical activity</synonym>
+		<synonym>phytomedical effect</synonym>
+		<synonym>phytomedical effects</synonym>
+		<synonym>phytomedical properties</synonym>
+		<synonym>phytomedicinal action</synonym>
+		<synonym>phytomedicinal activities</synonym>
+		<synonym>phytomedicinal activity</synonym>
+		<synonym>phytomedicinal agent</synonym>
+		<synonym>phytomedicinal effect</synonym>
+		<synonym>phytomedicinal effects</synonym>
+		<synonym>phytomedicinal properties</synonym>
+		<synonym>phytoproperties</synonym>
+		<synonym>phytotherapic activities</synonym>
+		<synonym>phytotherapic activity</synonym>
+		<synonym>phytotherapic agent</synonym>
+		<synonym>phytotherapy activities</synonym>
+		<synonym>phytotherapy activity</synonym>
+		<synonym>phytotherapy agent</synonym>
+		<synonym>plant-extracted action</synonym>
+		<synonym>plant-extracted activities</synonym>
+		<synonym>plant-extracted activity</synonym>
+		<synonym>plant-extracted effect</synonym>
+		<synonym>plant-extracted effects</synonym>
+		<synonym>plant-extracted properties</synonym>
+		<synonym>therapeutic herbal activities</synonym>
+		<synonym>therapeutic herbal activity</synonym>
+		<synonym>therapeutic herbal agent</synonym>
+	</entry>
+	<entry name="lung-tonifying agent" description="(of acupuncture or herbal medicine) increase the available energy of (an organ, part, or system of the body)." ></entry>
+</dictionary>
