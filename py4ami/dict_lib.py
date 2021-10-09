@@ -16,7 +16,6 @@ from pathlib import Path
 
 logging.debug("loading dict_lib")
 
-
 # elements in amidict
 DICTIONARY = "dictionary"
 ENTRY = "entry"
@@ -432,8 +431,9 @@ class AbsDictElem(ABC):
     which should not be used directly. Adding/deleting child elements and attributes
     should be done with Object methods
     """
-    def __init__(self, element):
+    def __init__(self, element, xml_tree=None):
         self.element = element
+        self.xml_tree = xml_tree
         assert element is not None, "AbsDictElem constructor should not receive None "
 
 class AMIDict(AbsDictElem):
@@ -453,14 +453,15 @@ class AMIDict(AbsDictElem):
 # tag
     TAG = "dictionary"
 
-    def __init__(self, element):
+    def __init__(self, element, tree=None):
         """AMIDict always has an XML root element"""
-        super().__init__(element)
+        super().__init__(element, tree)
         self.file = None
         self.url = None
         assert element is not None
         assert self.element is not None
         self.entries = [] # child entries
+        self.logger = logging.getLogger("amidict")
 
     @classmethod
     def create_minimal_dictionary(cls):
@@ -476,9 +477,10 @@ class AMIDict(AbsDictElem):
         assert xml_file is not None
         xml_path = Path(xml_file)
         assert xml_path.exists()
-        element = etree.parse(str(xml_path)).getroot()
+        xml_tree = etree.parse(str(xml_path))
+        element = xml_tree.getroot()
         assert element.tag == AMIDict.TAG
-        amidict = AMIDict(element)
+        amidict = AMIDict(element, xml_tree)
         amidict.get_entries()
         amidict.set_file(xml_file)
         return amidict
@@ -491,7 +493,7 @@ class AMIDict(AbsDictElem):
                 # content = f.read().decode('utf-8')
                 content = f.read()
         except urllib.error.URLError as e:
-            raise AMIDictError(f"Failed to read URL {e.reason}")
+            raise AMIDictError(f"Failed to read URL: {xml_url}; reason = {e.reason}")
         assert content is not None
 
         assert type(content) is bytes
@@ -511,6 +513,9 @@ class AMIDict(AbsDictElem):
     def set_url(self, url):
         """file may be required to validate against title"""
         self.url = url
+
+    def get_file_or_url(self):
+        return self.file if self.file is not None else self.url
 
     def get_entries(self):
         entry_elements = self.element.xpath(Entry.TAG)
@@ -575,9 +580,29 @@ class AMIDict(AbsDictElem):
         entry_elem = Entry.create_and_add_to(self.element)
         return Entry(entry_elem)
 
-    def create_and_add_entry_with_term(self, term):
+    def create_and_add_entry_with_term(self, term, replace=False):
+        """adds an Entry with term set to term
+
+        if an entry is already present with term() = term:
+        a) if replace = False, raises exceptiom
+        b) else overwrites it
+
+        Note that other attributes and children must be added later
+        We may create convenience methods to do that
+
+        :return: new entry
+        """
+        if term is None or term.strip() == "":
+            raise AMIDict(f"cannot add entry with term = None or ''")
+        old_entry = self.find_entry_with_term(term)
+        if old_entry is not None:
+            if replace is False:
+                raise AMIDictError("cannot replace old entry with term {term")
+            self.delete_entry(old_entry)
         entry = self.create_and_add_entry()
+        assert entry.get_term() is None
         entry.add_term(term)
+        assert entry.get_term() == term
         return entry
 
     def find_entry_with_term(self, term):
@@ -624,26 +649,31 @@ class AMIDict(AbsDictElem):
         return True
 
     def has_valid_required_attributes(self):
-        version = self.get_version()
-        version_ok = AMIDict.is_valid_version_string(version)
-        if not version_ok:
-            raise AMIDictError(f"{self.TAG} does not have valid version")
-        title_ok = self.has_valid_title()
-        if not title_ok:
-            raise AMIDictError(f"{self.TAG} does not have valid title")
-        encoding_ok = self.has_valid_encoding()
-        if not encoding_ok:
-            raise AMIDictError(f"{self.TAG} does not have valid encoding")
+        self.check_version()
+
+        if not self.has_valid_title():
+            raise AMIDictError(f"{self.TAG} does not have valid title (must match filename)")
+
+        if self.ENCODING_A in self.element.attrib:
+            self.logger.warning("encoding attribute on <dictionary> element is obsolete; remove it")
+
         return True
 
+
+    def check_version(self):
+        version = self.get_version()
+        try:
+            AMIDict.is_valid_version_string(version)
+        except AMIDictError as e:
+            raise AMIDictError(f"{self.get_file_or_url()} <dictionary> has invalid version: {e.__cause__}")
+
     def remove_attribute(self, attname):
-        if attname is not None and attname in self.element.attrib:
-            self.element.attrib.pop(attname)
+            if attname is not None and attname in self.element.attrib:
+                self.element.attrib.pop(attname)
 
     def has_valid_title(self):
         """AMIDict must have title attribute with value == stem of dict file"""
         title = self.get_title()
-        assert title is not None
         return title is not None and \
                (self.file is None or Path(self.file).stem == title)
 
@@ -664,6 +694,18 @@ class AMIDict(AbsDictElem):
         except:
             raise AMIDictError(f"{cls} version attribute {versionx} parts must be integers")
         return True
+
+    def has_xml_declaration_with_UTF8(self):
+        """requires XML declaration with encoding = 'UTF-8'
+
+        :except: If absent or not UTF-8, raises AMIDict err
+        """
+        if self.xml_tree is not None: # need tree for declaration
+            if self.xml_tree.docinfo is None:
+                raise AMIDictError("dictionary has no docinfo/XML declaratiom")
+            # assert tree.docinfo.xml_version == "1.0" # XML version is ignored
+            if self.xml_tree.docinfo.encoding is None or self.xml_tree.docinfo.encoding.upper() != AMIDict.UTF_8:
+                raise AMIDictError("dictionary must have encoding='UTF-8' in XML declaratiom")
 
     def has_valid_encoding(self):
         encoding = None if not AMIDict.ENCODING_A in self.element.attrib \
@@ -735,13 +777,16 @@ class Entry(AbsDictElem):
         self.element.attrib[self.TERM_A] = term
 
     def get_term(self):
-        return self.element.attrib[self.TERM_A]
+        return self.get_attribute_value(self.TERM_A)
 
     def add_name(self, name):
         self.element.attrib[self.NAME_A] = name
 
     def get_name(self):
-        return self.element.attrib[self.NAME_A]
+        return self.get_attribute_value(self.NAME_A)
+
+    def get_attribute_value(self, attname):
+        return None if attname not in self.element.attrib else self.element.attrib[attname]
 
     def check_validity(self):
         self.check_valid_attributes()

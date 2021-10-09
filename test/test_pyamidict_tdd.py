@@ -1,3 +1,8 @@
+"""These are tests for developing CODE for dictionary creation and validation
+
+Code for VALIDATION of dictionaries should probably be bundled with the dictionaries themselves
+
+"""
 from abc import ABC
 import pytest
 
@@ -5,11 +10,6 @@ from pathlib import Path
 from lxml import etree
 from lxml.etree import Element
 from os.path import basename, normpath
-
-
-# from py4ami.dict_lib import TDDDict
-# I can't get this imported
-# from test.classes import TDDDict
 
 from py4ami.xml_lib import XmlLib
 from py4ami.dict_lib import AMIDict, AMIDictError, Synonym, Entry
@@ -129,9 +129,21 @@ def test_dict_has_root_dictionary():
     assert root.tag == AMIDict.TAG
 
 def test_dict_contains_xml_element():
-    setup_dict = setup()
-    root = etree.parse(str(setup_dict[DICTFILE1]))
+    root = etree.parse(str(setup()[DICTFILE1]))
     assert root is not None
+
+
+def test_dictionary_has_xml_declaration_with_encoding():
+    tree = etree.parse(str(setup()[DICTFILE1]))
+    assert tree.docinfo is not None
+    assert tree.docinfo.xml_version == "1.0"
+    assert tree.docinfo.encoding is not None
+    assert tree.docinfo.encoding.upper() == 'UTF-8', f"dict must have encoding = 'UTF-8'"
+
+def test_dictionary_has_xml_declaration_with_encoding_method():
+    amidict = AMIDict.create_dict_from_path(setup()[DICTFILE1])
+    amidict.has_xml_declaration_with_UTF8()
+
 
 # AMIDict
 
@@ -242,6 +254,53 @@ def test_delete_entry_by_term_foo_and_re_add():
     entry = amidict.delete_entry_with_term("foo")
     amidict.create_and_add_entry_with_term("foo")
     assert amidict.get_entry_count() == 2
+
+def test_create_and_add_entry_with_term():
+    term = "foo"
+    amidict = AMIDict.create_minimal_dictionary()
+    assert amidict.get_entry_count() == 0
+    amidict.create_and_add_entry_with_term(term)
+    assert amidict.get_entry_count() == 1
+    entry = amidict.find_entry_with_term(term)
+    assert type(entry) is Entry
+    assert term == entry.get_term()
+
+def test_create_and_overwrite_entry_with_duplicate_term():
+    term = "foo"
+    amidict = AMIDict.create_minimal_dictionary()
+    assert amidict.get_entry_count() == 0
+    entry = amidict.create_and_add_entry_with_term(term)
+    entry.add_name("foofoo")
+    # assert entry.get_name() is "foofoo"
+    amidict.create_and_add_entry_with_term(term, replace=True)
+    assert amidict.get_entry_count() == 1
+    entry = amidict.find_entry_with_term(term)
+    assert type(entry) is Entry
+    assert term == entry.get_term()
+    assert entry.get_name() is None
+
+def test_create_and_fail_on_add_entry_with_duplicate_term():
+    term = "foo"
+    amidict = AMIDict.create_minimal_dictionary()
+    entry = amidict.create_and_add_entry_with_term(term)
+    try:
+        amidict.create_and_add_entry_with_term(term, replace=False)
+        assert False, f"should fail with duplicate entry"
+    except AMIDictError as e:
+        assert True, "should raise duplicate error"
+
+def test_create_and_overwrite_duplicate_term():
+    term = "foo"
+    amidict = AMIDict.create_minimal_dictionary()
+    entry = amidict.create_and_add_entry_with_term(term)
+    assert entry.get_name() is None
+    entry.add_name("bar")
+    assert entry.get_name() == "bar"
+    try:
+        amidict.create_and_add_entry_with_term(term, replace=True)
+        assert True, f"should overwrit duplicate entry"
+    except AMIDictError as e:
+        assert True, "should not raise duplicate error"
 
 # dictionary tests
 def test_dictionary_should_have_version():
