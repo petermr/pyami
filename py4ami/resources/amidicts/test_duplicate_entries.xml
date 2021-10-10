@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<dictionary title="mini_plant_part" version="0.0.1">
-  <desc>Created from SPARQL query</desc>
+<dictionary title="test_duplicate_entries" version="0.0.1">
+  <desc>Contains duplicate terms and synonyms</desc>
   <entry description="anatomical coordinate" name="apical" term="apical"  wikidataURL="http://www.wikidata.org/entity/Q66571835" wikidataID="Q66571835" >
     <synonym>apex</synonym>
   </entry>
   <entry description="top of a plant when in flower, including the stems, leaves and blooms" name="flowering top" term="flowering top"  wikidataURL="http://www.wikidata.org/entity/Q70062083" wikidataID="Q70062083" >
     <synonym>Flowering Tops</synonym>
   </entry>
+  <entry description="anatomical coordinate" name="apical" term="apical"  wikidataURL="http://www.wikidata.org/entity/Q66571835" wikidataID="Q66571835" >
+    <synonym>apex</synonym>
+  </entry>
   <entry description="Seed-bearing organ on gymnosperm plants. A type of fruit, usually woody, ovoid to globular, including scales, bracts, or bracteoles arranged around a central axis, especially in conifers and cycads." name="cone" term="cone"  wikidataURL="http://www.wikidata.org/entity/Q22710" wikidataID="Q22710"  wikipediaPage="https://en.wikipedia.org/wiki/Conifer_cone">
     <synonym>Cone, Conifer cones, Strobilus, pine cone, pine-cone, pinecone, pine cones</synonym>
+    <synonym xml:lang="es">cono</synonym>
     <synonym xml:lang="zh">松球</synonym>
     <synonym xml:lang="de">Koniferenzapfen</synonym>
     <synonym xml:lang="hi">कोणधारी कोण</synonym>
@@ -23,7 +27,9 @@
     <synonym xml:lang="de">Stempel</synonym>
     <synonym xml:lang="hi">गर्भकेशर चक्र</synonym>
     <synonym xml:lang="es">pistilo</synonym>
+    <synonym xml:lang="de">Stempel</synonym>
     <synonym xml:lang="fr">pistil</synonym>
+    <synonym xml:lang="de">Stempel</synonym>
     <description xml:lang="de">in der Botanik die miteinander zu einem coenokarpem Gynoeceum verwachsenen Fruchtblätter der Blüte mancher Bedecktsamer</description>
     <description xml:lang="fr">organe femelle des plantes à fleur</description>
     <description xml:lang="es">la parte reproductiva femenina de una flor, consistente en uno o más carpelos, separados o fusionados.</description>

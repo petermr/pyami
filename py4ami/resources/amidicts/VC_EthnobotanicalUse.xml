@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<dictionary title="VC_EthnobotanicalUse" version="0.0.1" encoding="UTF-8">
+<dictionary title="VC_EthnobotanicalUse" version="0.0.1">
 	<desc>Dictionary of terms consisting of 10 terms plus 187 related synonyms. Some entries may also include the term's: source, description, wikidataID, chebiID, chebiName, FDAcode</desc>
 	<author>Emanuel Faria, President -- ®Verriclear Natural Skin Essentials Ltd. https://www.verriclear.com</author>
 	<contributor>Peter Murray-Rust:  Reader Emeritus in Molecular Informatics, Unilever Centre, Dept. Of Chemistry University of Cambridge</contributor>
 	<disclaimer>This dictionary was manually collected, compiled and curated by the author.  While every effort has been made to ensure the accuracy and completeness of the content of this dictionary, we do not guarantee its currency nor correctness. No warranty or fitness is provided or implied, and the author(s), contributor(s), partners, supporters, employees or associated organisations shall have neither liability nor responsibility to any person or entity with respect to any loss or damage arising from its use.</disclaimer>
 	<license> This Work is licensed under Attribution-NonCommercial 4.0 International License © 2021 by Canilla Holdings Ltd. You are free to share (copy and redistribute the material in any medium or format) and/or adapt (remix, transform, and build upon the material) under the following terms:  Attribution — You must give appropriate credit, provide a link to the license (https://creativecommons.org/licenses/by-nc/4.0/legalcode), and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use. NonCommercial — You may not use the material for commercial purposes. No additional restrictions — You may not apply legal terms or technological measures that legally restrict others from doing anything this license permits. </license>
-	<entry name="anti-fumitory">
+	<entry name="anti-fumitory" term="anti-fumitory">
 		<synonym>antifumitory</synonym>
 	</entry>
-	<entry name="adaptogen" description="A substance or compounds that results in stabilization of physiological processes and promotion of homeostasis, an example being by decreased cellular sensitivity to stress." wikidataID="Q352551">
+	<entry name="adaptogen" term="adaptogen" description="A substance or compounds that results in stabilization of physiological processes and promotion of homeostasis, an example being by decreased cellular sensitivity to stress." wikidataID="Q352551">
 		<synonym>adaptive action</synonym>
 		<synonym>adaptive activities</synonym>
 		<synonym>adaptive activity</synonym>
@@ -47,7 +47,7 @@
 		<synonym>homeostatic effects</synonym>
 		<synonym>homeostatic properties</synonym>
 	</entry>
-	<entry name="homeopathy variable agent">
+	<entry name="homeopathy variable agent" term="homeopathy variable agent">
 		<synonym>homeopathy variable action</synonym>
 		<synonym>homeopathy variable activities</synonym>
 		<synonym>homeopathy variable activity</synonym>
@@ -55,7 +55,7 @@
 		<synonym>homeopathy variable effects</synonym>
 		<synonym>homeopathy variable properties</synonym>
 	</entry>
-	<entry name="ethnomedicinal agent">
+	<entry name="ethnomedicinal agent" term="ethnomedicinal agent">
 		<synonym>ethnoaction</synonym>
 		<synonym>ethnoactivities</synonym>
 		<synonym>ethnoactivity</synonym>
@@ -119,9 +119,9 @@
 		<synonym>traditional medicinal effects</synonym>
 		<synonym>traditional medicinal properties</synonym>
 	</entry>
-	<entry name="phytochemical agent"></entry>
-	<entry name="phytomedical agent"></entry>
-	<entry name="plant-extracted agent">
+	<entry name="phytochemical agent" term="phytochemical agent"></entry>
+	<entry name="phytomedical agent" term="phytomedical agent"></entry>
+	<entry name="plant-extracted agent" term="plant-extracted agent">
 		<synonym>herbal action</synonym>
 		<synonym>herbal activities</synonym>
 		<synonym>herbal activity</synonym>
@@ -179,5 +179,5 @@
 		<synonym>therapeutic herbal activity</synonym>
 		<synonym>therapeutic herbal agent</synonym>
 	</entry>
-	<entry name="lung-tonifying agent" description="(of acupuncture or herbal medicine) increase the available energy of (an organ, part, or system of the body)." ></entry>
+	<entry name="lung-tonifying agent" term="lung-tonifying agent" description="(of acupuncture or herbal medicine) increase the available energy of (an organ, part, or system of the body)." ></entry>
 </dictionary>

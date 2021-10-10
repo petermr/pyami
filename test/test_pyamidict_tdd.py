@@ -24,6 +24,7 @@ ONE_ENTRY_DICT = "one_entry_dict"
 MINI_PLANT_PART = "mini_plant_part"
 MINI_MENTHA = "mini_mentha"
 ETHNOBOT_DICT = "VC_EthnobotanicalUse"
+DUPLICATE_ENTRIES = "test_duplicate_entries"
 
 AMIDICTS = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts") # relative to dictribution base
 
@@ -53,6 +54,7 @@ def setup():
         MINI_PLANT_PART: mini_plant_part_path,
         MINI_MENTHA: Path(AMIDICTS, "mentha_tps.xml"),
         ETHNOBOT_DICT: Path(AMIDICTS, ETHNOBOT_DICT+".xml"),
+        DUPLICATE_ENTRIES: Path(AMIDICTS, DUPLICATE_ENTRIES + ".xml"),
     }
     return setup_dict
 
@@ -280,7 +282,7 @@ def test_add_then_remove_entry_and_replace():
     amidict = AMIDict.create_minimal_dictionary()
     amidict.create_and_add_entries_from_str_list(["foo", "bar", "plugh", "xyzzy"])
     assert amidict.get_entry_count() == 4
-    amidict.delete_entry_with_term("bar")
+    amidict.delete_entries_with_term("bar")
     assert amidict.get_entry_count() == 3, f"entry 'bar' should have been removed"
     amidict.create_and_add_entry_with_term("bar")
     assert amidict.get_entry_count() == 4, f"entry 'bar' should have been re-added"
@@ -305,12 +307,12 @@ def test_find_entry_by_term_zilch():
 
 def test_delete_entry_by_term_foo():
     amidict = _create_amidict_with_foo_bar_entries()
-    entry = amidict.delete_entry_with_term("foo")
+    entry = amidict.delete_entries_with_term("foo")
     assert amidict.get_entry_count() == 1
 
 def test_delete_entry_by_term_foo_and_re_add():
     amidict = _create_amidict_with_foo_bar_entries()
-    entry = amidict.delete_entry_with_term("foo")
+    entry = amidict.delete_entries_with_term("foo")
     amidict.create_and_add_entry_with_term("foo")
     assert amidict.get_entry_count() == 2
 
@@ -378,6 +380,36 @@ def test_dictionary_should_have_version():
 
 def test_dictionary_forbidden_attributes():
     pass
+
+def test_get_duplicate_entries():
+    """Dictionary has two entries for 'apical' but only one for 'cone'"""
+    dup_dict = AMIDict.create_dict_from_path(setup()[DUPLICATE_ENTRIES])
+    entries = dup_dict.find_entries_with_term("cone")
+    assert entries is not None and len(entries) == 1
+    entries = dup_dict.find_entries_with_term("apical")
+    assert entries is not None and len(entries) == 2
+    entries = dup_dict.find_entries_with_term("zilch")
+    assert entries is not None and len(entries) == 0
+
+def test_get_terms_from_valid_dictionary():
+    """ETHNOBOT has no multiple entries'"""
+    ethno_dict = AMIDict.create_dict_from_path(setup()[ETHNOBOT_DICT])
+    terms, no_terms, mult_terms = ethno_dict.get_terms()
+    assert terms is not None
+    assert len(terms) == 8
+    assert terms == ['anti-fumitory', 'adaptogen', 'homeopathy variable agent', 'ethnomedicinal agent',
+ 'phytochemical agent', 'phytomedical agent', 'plant-extracted agent', 'lung-tonifying agent']
+    assert no_terms == []
+    assert mult_terms == []
+
+def test_get_terms_from_invalid_dictionary():
+    """DUPLICATE_ENTRIES has two entries for 'apical' and some missing terms"""
+    dup_dict = AMIDict.create_dict_from_path(setup()[DUPLICATE_ENTRIES])
+    terms, no_terms, mult_terms = dup_dict.get_terms()
+    assert terms == ['apical', 'flowering top', 'cone', 'pistil']
+    assert no_terms == []
+    assert mult_terms == ['(apical) in entry 2']
+
 
 # review dictionaries
 def test_mini_plant_part_is_valid():

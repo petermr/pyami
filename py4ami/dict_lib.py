@@ -569,7 +569,6 @@ class AMIDict(AbsDictElem):
         self.element.attrib["version"] = "0.0.1"
 
     def get_version(self):
-
         assert self.element is not None
         return None if not AMIDict.VERSION_A in self.element.attrib else self.element.attrib[AMIDict.VERSION_A]
 
@@ -590,14 +589,18 @@ class AMIDict(AbsDictElem):
         Note that other attributes and children must be added later
         We may create convenience methods to do that
 
+        All addition of terms should go through this method
+
+        :term: term to add after stripping whitespace
         :return: new entry
         """
+        term = term.strip()
         if term is None or term.strip() == "":
             raise AMIDict(f"cannot add entry with term = None or ''")
         old_entry = self.find_entry_with_term(term)
         if old_entry is not None:
             if replace is False:
-                raise AMIDictError("cannot replace old entry with term {term")
+                raise AMIDictError(f"cannot replace old entry with term {term}")
             self.delete_entry(old_entry)
         entry = self.create_and_add_entry()
         assert entry.get_term() is None
@@ -610,23 +613,74 @@ class AMIDict(AbsDictElem):
             self.create_and_add_entry_with_term(term, replace)
 
 # find entries
-    def find_entry_with_term(self, term):
+    def find_entry_with_term(self, term, abort_multiple=True):
+        """iterate through entries and return entry with term
+
+        if more than one entry is found, raise exception
+
+        :term: to find
+        :raise: AMDictError for multiple entries with same term
+        :return: None, or single Entry or list of Entry's
+        """
+        entries = self.find_entries_with_term(term, abort_multiple)
+        if len(entries) == 0:
+            return None
+        elif len(entries) == 1:
+            return entries[0]
+        else:
+            return entries
+
+    def find_entries_with_term(self, term, abort_multiple=False):
+        entries = []
         for entry in self.get_entries():
             if entry.get_term() == term:
-                return entry
-        return None
+                if abort_multiple and len(entries) > 0:
+                    raise AMIDictError(f"multiple entries with term = {term}")
+                entries.append(entry)
+        return entries
 
-    def delete_entry_with_term(self, term):
-        entry = self.find_entry_with_term(term)
-        if entry is not None:
+    def delete_entries_with_term(self, term):
+        """Deletes ALL entries with term
+
+        There is no way of distinguishing between multiple entries so all are to be deleted
+
+        :term: entries with term=<term> will be deleted
+         """
+        entries = self.find_entries_with_term(term, abort_multiple=False)
+        for entry in entries:
             self.delete_entry(entry)
 
     def delete_entry(self, entry):
+        """delete entry from XML tree"""
         self.element.remove(entry.element)
+
+    def get_terms(self):
+        """Get an ordered list of terms in dictionary
+
+        :return: tuple of list of terms, list of entries without terms, list of duplicates
+        """
+        terms = []
+        entries_without_terms = []
+        duplicate_entries = []
+        entries = self.get_entries()
+        term_set = set()
+        for i, entry in enumerate(entries):
+            term = entry.get_term()
+            if term == None:
+                entries_without_terms.append(f"entry {i}:\n{etree.tostring(entry.element)}")
+            else:
+                if term in term_set:
+                    self.logger.warning(f"Duplicate term ({term}) in entry {i}")
+                    duplicate_entries.append(f"({term}) in entry {i}")
+                else:
+                    term_set.add(term)
+                    terms.append(term)
+        return terms, entries_without_terms, duplicate_entries
+
 
 # data validity
     def check_validity(self):
-        # assert f"{etree.tostring(self.element)}" == "xxx"
+        """checks dictionary has  valid <dictionary> child, valid attributes and valid child elements (NYI)"""
         if not self.has_valid_element():
             raise AMIDictError(msg="must contain valid element (NYI)")
         if not self.has_valid_tag():
@@ -663,7 +717,6 @@ class AMIDict(AbsDictElem):
             self.logger.warning("encoding attribute on <dictionary> element is obsolete; remove it")
 
         return True
-
 
     def check_version(self):
         version = self.get_version()
@@ -782,7 +835,9 @@ class Entry(AbsDictElem):
         self.element.attrib[self.TERM_A] = term
 
     def get_term(self):
-        return self.get_attribute_value(self.TERM_A)
+
+        term = self.get_attribute_value(self.TERM_A)
+        return term
 
     def add_name(self, name):
         self.element.attrib[self.NAME_A] = name
@@ -791,7 +846,11 @@ class Entry(AbsDictElem):
         return self.get_attribute_value(self.NAME_A)
 
     def get_attribute_value(self, attname):
-        return None if attname not in self.element.attrib else self.element.attrib[attname]
+        if attname not in self.element.attrib:
+            return None
+        else:
+            return self.element.attrib[attname]
+
 
     def check_validity(self):
         self.check_valid_attributes()
