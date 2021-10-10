@@ -605,6 +605,11 @@ class AMIDict(AbsDictElem):
         assert entry.get_term() == term
         return entry
 
+    def create_and_add_entries_from_str_list(self, strings, replace=False):
+        for term in strings:
+            self.create_and_add_entry_with_term(term, replace)
+
+# find entries
     def find_entry_with_term(self, term):
         for entry in self.get_entries():
             if entry.get_term() == term:

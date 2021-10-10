@@ -27,6 +27,8 @@ ETHNOBOT_DICT = "VC_EthnobotanicalUse"
 
 AMIDICTS = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts") # relative to dictribution base
 
+STARTING_VERSION = "0.0.1"
+
 
 def setup():
     """Variables created afresh for every test"""
@@ -67,19 +69,19 @@ def test_one_entry_dict_is_AMIDict():
     assert type(one_dict) is AMIDict, f"fila is not AMIDict {one_dict}"
 
 def test_dict1_has_version_attribute():
-    """require the attribiute to be present but does not check value"""
+    """require the version attribute to be present but does not check value"""
     setup_dict = setup()
     one_dict = setup_dict[DICTFILE1]
     amidict = AMIDict.create_dict_from_path(Path(one_dict))
     version = amidict.get_version()
-    assert version == "0.0.1"
+    assert version == STARTING_VERSION
 
 def test_dict1_with_missing_version_attribute_is_not_valid():
-    """require the attribiute to be present but does not check value"""
+    """require the version attribute to have starting value"""
     setup_dict = setup()
     amidict = AMIDict.create_dict_from_path(Path(setup_dict[DICTFILE1]))
     version = amidict.get_version()
-    assert version == "0.0.1"
+    assert version == STARTING_VERSION
 
 def test_one_entry_dict_has_version_attribute():
     """require the attribiute to be present but does not check value"""
@@ -204,9 +206,9 @@ def test_get_synonym_by_language():
 def test_dictionary_creation():
     amidict = AMIDict.create_minimal_dictionary()
     assert amidict is not None
-    assert amidict.get_version() == "0.0.1"
+    assert amidict.get_version() == STARTING_VERSION
 
-
+# add entry to existing dict
 def test_add_entry_to_zero_entry_dict():
     amidict = AMIDict.create_minimal_dictionary()
     entry = amidict.create_and_add_entry()
@@ -229,10 +231,67 @@ def test_add_two_entry_with_term_to_zero_entry_dict():
     assert b'<dictionary version="0.0.1" title="minimal" encoding="UTF-8"><entry term="foo"/><entry term="bar"/></dictionary>' == etree.tostring(amidict.element)
     assert amidict.get_entry_count() == 2
 
+def test_add_list_of_entries_from_list_of_string():
+    terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
+    term_count = len(terms)
+    amidict = AMIDict.create_minimal_dictionary()
+    amidict.create_and_add_entries_from_str_list(terms)
+    assert amidict.get_entry_count() == term_count
+
+def test_find_entry_after_add_list_of_entries_from_list_of_string():
+    terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
+    amidict = AMIDict.create_minimal_dictionary()
+    amidict.create_and_add_entries_from_str_list(terms)
+    entry_bar = amidict.find_entry_with_term("bar")
+    assert entry_bar is not None
+
+def test_fail_on_missing_entry_after_add_list_of_entries_from_list_of_string():
+    terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
+    amidict = AMIDict.create_minimal_dictionary()
+    amidict.create_and_add_entries_from_str_list(terms)
+    entry_zilch = amidict.find_entry_with_term("zilch")
+    assert entry_zilch is None, f"missing entry returns None"
+
+def test_add_second_list_of_entries_from_list_of_string():
+    terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
+    amidict = AMIDict.create_minimal_dictionary()
+    amidict.create_and_add_entries_from_str_list(terms)
+    terms1 = ["wibble", "wobble"]
+    amidict.create_and_add_entries_from_str_list(terms1)
+    assert amidict.get_entry_count() == len(terms) + len(terms1)
+
+def test_add_list_of_entries_from_list_of_string_with_duplicates_and_replace():
+    terms = ["foo", "bar", "plugh", "xyzzy", "bar"]
+    amidict = AMIDict.create_minimal_dictionary()
+    amidict.create_and_add_entries_from_str_list(terms, replace=True)
+    assert amidict.get_entry_count() == 4, f"'bar' should be present"
+
+def test_add_list_of_entries_from_list_of_string_with_duplicates_and_no_replace():
+    terms = ["foo", "bar", "plugh", "xyzzy", "bar"]
+    amidict = AMIDict.create_minimal_dictionary()
+    try:
+        amidict.create_and_add_entries_from_str_list(terms, replace=False)
+        assert False, f"AMIDict duplicate error should have been thrown"
+    except AMIDictError:
+        assert True, "error should have been throwm"
+    assert amidict.get_entry_count() == 4, f"'bar' should be present"
+
+def test_add_then_remove_entry_and_replace():
+    amidict = AMIDict.create_minimal_dictionary()
+    amidict.create_and_add_entries_from_str_list(["foo", "bar", "plugh", "xyzzy"])
+    assert amidict.get_entry_count() == 4
+    amidict.delete_entry_with_term("bar")
+    assert amidict.get_entry_count() == 3, f"entry 'bar' should have been removed"
+    amidict.create_and_add_entry_with_term("bar")
+    assert amidict.get_entry_count() == 4, f"entry 'bar' should have been re-added"
+
+# find entries
 def test_find_entry_by_term():
+    """searches for entry by value of term"""
     amidict = _create_amidict_with_foo_bar_entries()
     entry = amidict.find_entry_with_term("foo")
     assert entry is not None
+    assert entry.get_term() == "foo", f"should retrieve entry with term 'foo'"
 
 def test_find_entry_by_term_bar():
     amidict = _create_amidict_with_foo_bar_entries()
