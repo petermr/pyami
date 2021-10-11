@@ -30,7 +30,6 @@ AMIDICTS = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts") # rel
 
 STARTING_VERSION = "0.0.1"
 
-
 def setup():
     """Variables created afresh for every test"""
     setup_dict = {}
@@ -450,6 +449,21 @@ def test_all_ethnobot_dict_entries_are_valid():
     ethnobot_dict = AMIDict.create_dict_from_path(setup()[ETHNOBOT_DICT])
     for entry in ethnobot_dict.get_entries():
         entry.check_validity()
+
+# integrations
+def test_create_dictionary_from_list_of_string():
+    terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
+    title = "foobar"
+    directory = None
+    amidict = AMIDict.create_from_list_of_strings(terms, title, directory)
+    assert amidict is not None
+    title = amidict.get_title()
+    assert title == "foobar"
+    assert amidict.has_valid_title()
+
+def test_create_dictionary_from_list_of_string_and_save():
+    pass
+
 
 # helpers
 def _create_amidict_with_foo_bar_entries():

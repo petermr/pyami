@@ -552,6 +552,11 @@ class AMIDict(AbsDictElem):
         return self.element.attrib[self.TITLE_A]
 
     def set_title(self, title):
+        """Sets title of dictionary
+
+        does not validate title
+        :title: title of dictionary, should match stem of filename
+        """
         self.element.attrib[self.TITLE_A] = title
 
     @classmethod
@@ -609,8 +614,29 @@ class AMIDict(AbsDictElem):
         return entry
 
     def create_and_add_entries_from_str_list(self, strings, replace=False):
+        """creates minimal entries from list of strings and adds to dictionary
+
+        :strings: list of terms
+        :replace: if True will replace entry, if False will raise error if entry exists
+        """
         for term in strings:
             self.create_and_add_entry_with_term(term, replace)
+
+    @classmethod
+    def create_from_list_of_strings(cls, terms, title, directory):
+        """create a minimal dictionary from list of strings
+
+        :terms: to add
+        :title: mandatory title, will also form stem of filename
+        :return: dictionary
+        """
+        if title is None or title.strip() == "":
+            raise AMIDictError(f"must give non-empty title {title}")
+        amidict = AMIDict.create_minimal_dictionary()
+        amidict.create_and_add_entries_from_str_list(terms)
+        amidict.set_title(title)
+        return amidict
+
 
 # find entries
     def find_entry_with_term(self, term, abort_multiple=True):
