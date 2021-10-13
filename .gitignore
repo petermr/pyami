@@ -132,3 +132,9 @@ dmypy.json
 
 # ide
 .idea/
+
+# pyami
+temp/solvents.xml
+
+
+

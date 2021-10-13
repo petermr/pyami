@@ -8,6 +8,8 @@ from lxml.etree import Element
 # import requests
 # import xmltodict
 import urllib.request
+import datetime
+import psutil
 
 import logging
 import os
@@ -436,6 +438,47 @@ class AbsDictElem(ABC):
         self.xml_tree = xml_tree
         assert element is not None, "AbsDictElem constructor should not receive None "
 
+    def set_attribute(self, attname, attval):
+        """set XML attribute
+        raises error if attname or attval are missing
+        will not set empty attribute value
+        :attname:
+        :attval: must not be empty
+        :except: AMIDictError
+
+        """
+        if self.element is None:
+            raise AMIDict("AbsDictElem element is None")
+        if attname == None or len(attname.strip()) == 0:
+            raise AMIDictError("missing/empty attname")
+        if attval == None or len(str(attval).strip()) == 0:
+            raise AMIDictError("missing/empty attval")
+        attval = str(attval)
+        self.element.attrib[attname] = attval
+
+    def get_username(self):
+        """This is NOT robust - see https://stackoverflow.com/questions/842059/is-there-a-portable-way-to-get-the-current-username-in-python
+        """
+        return psutil.Process().username()
+
+
+    def get_attribute_value(self, attname):
+        """get XML attribute value
+
+        if attname is not present returns none
+        :attname: attribute name
+        :returns: attribute value or None if not found
+        :except: raises AMIDictError for bad attname
+        """
+        if self.element is None:
+            raise AMIDictError("AbsDictElem element is None")
+        if attname == None or len(attname.strip()) == 0:
+            raise AMIDictError("missing/empty attname")
+        if attname not in self.element.attrib:
+            return None
+        return self.element.attrib[attname]
+
+
 class AMIDict(AbsDictElem):
 
 # attributes
@@ -510,6 +553,9 @@ class AMIDict(AbsDictElem):
         """file may be required to validate against title"""
         self.file = file
 
+    def get_file(self):
+        return self.file
+
     def set_url(self, url):
         """file may be required to validate against title"""
         self.url = url
@@ -539,17 +585,16 @@ class AMIDict(AbsDictElem):
         """get the version attribute"""
         if self.element is None:
             raise AMIDictError(f"{self.TAG} must have element")
-        version = self.element.attrib["version"]
+        version = self.get_attribute(self.VERSION_A)
         assert version == "XXX"
         return version
 
     def set_version(self, version):
         assert AMIDict.is_valid_version_string(version)
-        self.element.attrib[self.VERSION_A] = version
+        self.set_attribute(self.VERSION_A, version)
 
     def get_title(self):
-        assert self.TITLE_A in self.element.attrib
-        return self.element.attrib[self.TITLE_A]
+        return self.get_attribute_value(self.TITLE_A)
 
     def set_title(self, title):
         """Sets title of dictionary
@@ -557,7 +602,7 @@ class AMIDict(AbsDictElem):
         does not validate title
         :title: title of dictionary, should match stem of filename
         """
-        self.element.attrib[self.TITLE_A] = title
+        self.set_attribute(self.TITLE_A, title)
 
     @classmethod
     def debug_tdd(cls):
@@ -571,14 +616,14 @@ class AMIDict(AbsDictElem):
 
     def add_base_version(self):
         assert self.element is not None
-        self.element.attrib["version"] = "0.0.1"
+        self.set_version("0.0.1")
 
     def get_version(self):
         assert self.element is not None
-        return None if not AMIDict.VERSION_A in self.element.attrib else self.element.attrib[AMIDict.VERSION_A]
+        return self.get_attribute_value(AMIDict.VERSION_A)
 
     def set_encoding(self, encoding):
-        self.element.attrib[AMIDict.ENCODING_A] = encoding
+        self.set_attribute(AMIDict.ENCODING_A, encoding)
 
     def create_and_add_entry(self):
         entry_elem = Entry.create_and_add_to(self.element)
@@ -623,11 +668,12 @@ class AMIDict(AbsDictElem):
             self.create_and_add_entry_with_term(term, replace)
 
     @classmethod
-    def create_from_list_of_strings(cls, terms, title, directory):
+    def create_from_list_of_strings(cls, terms, title, metadata=None):
         """create a minimal dictionary from list of strings
 
         :terms: to add
         :title: mandatory title, will also form stem of filename
+        :metadata: Free from text of origin if terms
         :return: dictionary
         """
         if title is None or title.strip() == "":
@@ -635,7 +681,40 @@ class AMIDict(AbsDictElem):
         amidict = AMIDict.create_minimal_dictionary()
         amidict.create_and_add_entries_from_str_list(terms)
         amidict.set_title(title)
+        amidict.create_and_add_base_metadata();
         return amidict
+
+    @classmethod
+    def create_from_list_of_strings_and_write_to_file(cls, terms, title, directory, metadata=None):
+        """create a minimal dictionary from list of strings
+
+        :terms: to add
+        :title: mandatory title, will also form stem of filename
+        :metadata: Free from text of origin if terms
+        :return: output file and amidict
+        """
+        if directory is None:
+            raise AMIDictError("no output directory for amidict")
+        amidict = cls.create_from_list_of_strings(terms, title, metadata)
+        file = Path(directory, title+".xml")
+        with open(file, "w", encoding="UTF-8") as f:
+            f.write(etree.tostring(amidict.element, pretty_print=True).decode("UTF-8"))
+        return file, amidict
+
+    def create_base_metadata(self):
+        """create Metadata object with user and date"""
+        metadata = Metadata(etree.Element(Metadata.TAG))
+        metadata.set_user(self.get_username())
+        metadata.set_date(datetime.datetime.now())
+        return metadata
+
+    def add_metadata(self, metadata):
+        self.element.insert(0, metadata.element)
+
+    def create_and_add_base_metadata(self):
+        self.add_metadata(self.create_base_metadata())
+
+
 
 
 # find entries
@@ -739,7 +818,7 @@ class AMIDict(AbsDictElem):
         if not self.has_valid_title():
             raise AMIDictError(f"{self.TAG} does not have valid title (must match filename)")
 
-        if self.ENCODING_A in self.element.attrib:
+        if self.get_attribute_value(self.ENCODING_A) is not None:
             self.logger.warning("encoding attribute on <dictionary> element is obsolete; remove it")
 
         return True
@@ -752,7 +831,7 @@ class AMIDict(AbsDictElem):
             raise AMIDictError(f"{self.get_file_or_url()} <dictionary> has invalid version: {e.__cause__}")
 
     def remove_attribute(self, attname):
-            if attname is not None and attname in self.element.attrib:
+            if self.get_attribute_value(attname) is not None:
                 self.element.attrib.pop(attname)
 
     def has_valid_title(self):
@@ -792,8 +871,7 @@ class AMIDict(AbsDictElem):
                 raise AMIDictError("dictionary must have encoding='UTF-8' in XML declaratiom")
 
     def has_valid_encoding(self):
-        encoding = None if not AMIDict.ENCODING_A in self.element.attrib \
-            else self.element.attrib[AMIDict.ENCODING_A]
+        encoding = self.get_attribute_value(AMIDict.ENCODING_A)
         return encoding is not None and encoding.upper() == AMIDict.UTF_8
 
     def has_valid_optional_attributes(self):
@@ -820,6 +898,27 @@ class Synonym(AbsDictElem):
         super().__init__(element)
         assert element is not None, "synonym constructor "
         self.element = element
+
+class Metadata(AbsDictElem):
+    TAG = "metadata"
+    USER_A = "user"
+    DATE_A = "date"
+
+    def __init__(self, element=None):
+        super().__init__(element)
+
+    def set_user(self, user):
+        self.set_attribute(Metadata.USER_A, user)
+
+    def get_user(self):
+        return self.get_attribute_value(Metadata.USER_A)
+
+    def set_date(self, date):
+        self.set_attribute(Metadata.DATE_A, date)
+
+    def get_date(self):
+        return self.get_attribute_value(Metadata.DATE_A)
+
 
 class Entry(AbsDictElem):
     TAG = "entry"

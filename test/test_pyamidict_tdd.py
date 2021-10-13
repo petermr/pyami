@@ -10,6 +10,9 @@ from pathlib import Path
 from lxml import etree
 from lxml.etree import Element
 from os.path import basename, normpath
+from tempfile import TemporaryDirectory
+import os
+import re
 
 from py4ami.xml_lib import XmlLib
 from py4ami.dict_lib import AMIDict, AMIDictError, Synonym, Entry
@@ -462,8 +465,34 @@ def test_create_dictionary_from_list_of_string():
     assert amidict.has_valid_title()
 
 def test_create_dictionary_from_list_of_string_and_save():
-    pass
+    terms = ["acetone", "benzene", "chloroform", "DMSO", "ethanol"]
+    temp_dir = Path(Path(__file__).parent.parent, "temp")
+    assert os.path.exists(temp_dir), f"{temp_dir} exists"
+    title = "solvents"
+    tempfile = Path(temp_dir, title+".xml")
+    dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title=title, directory=temp_dir)
+    assert dictfile is not None and os.path.exists(dictfile)
 
+def test_create_dictionary_from_list_of_string_save_and_compare():
+    terms = ["acetone", "benzene", "chloroform", "DMSO", "ethanol"]
+    temp_dir = Path(Path(__file__).parent.parent, "temp")
+    dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="solvents", directory=temp_dir)
+    with open(dictfile, "r") as f:
+        dict_text = f.read()
+    dict_text = re.sub("date=\"[^\"]*\"", "date=\"TODAY\"", dict_text)
+    assert len(dict_text) > 200, "lines of dict_text"
+    assert type(dict_text) is str, f"{type(dict_text)}"
+    # note, the date is nstripped as it changes with each run
+    text1 = """<dictionary version="0.0.1" title="solvents" encoding="UTF-8">
+  <metadata user="pm286" date="TODAY"/>
+  <entry term="acetone"/>
+  <entry term="benzene"/>
+  <entry term="chloroform"/>
+  <entry term="DMSO"/>
+  <entry term="ethanol"/>
+</dictionary>
+"""
+    assert text1 == dict_text, f"{text1} != {dict_text}"
 
 # helpers
 def _create_amidict_with_foo_bar_entries():
