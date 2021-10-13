@@ -16,6 +16,7 @@ import re
 
 from py4ami.xml_lib import XmlLib
 from py4ami.dict_lib import AMIDict, AMIDictError, Synonym, Entry
+from py4ami.wikimedia import WikidataLookup
 
 # dict1 = None
 # root = None
@@ -490,6 +491,33 @@ def test_create_dictionary_from_list_of_string_save_and_compare():
   <entry term="chloroform"/>
   <entry term="DMSO"/>
   <entry term="ethanol"/>
+</dictionary>
+"""
+    assert text1 == dict_text, f"{text1} != {dict_text}"
+
+def test_create_dictionary_from_list_of_string_and_add_Wikidata():
+    terms = ["acetone", "chloroform", "DMSO", "ethanol"]
+    temp_dir = Path(Path(__file__).parent.parent, "temp")
+    dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="solvents", directory=temp_dir)
+    wikidata_lookup = WikidataLookup()
+    for term in terms:
+        qitem, desc, _= wikidata_lookup.lookup_wikidata(term)
+        entry = amidict.find_entry_with_term(term)
+        entry.set_wikidata_id(qitem)
+        entry.set_description(desc)
+    amidict.write_to_file(temp_dir)
+
+    with open(dictfile, "r") as f:
+        dict_text = f.read()
+    dict_text = re.sub("date=\"[^\"]*\"", "date=\"TODAY\"", dict_text)
+
+    # note, the date is nstripped as it changes with each run
+    text1 = """<dictionary version="0.0.1" title="solvents" encoding="UTF-8">
+  <metadata user="pm286" date="TODAY"/>
+  <entry term="acetone" wikidataID="Q49546" description="chemical compound"/>
+  <entry term="chloroform" wikidataID="Q172275" description="chemical compound"/>
+  <entry term="DMSO" wikidataID="Q407927" description="organosulfur chemical compound used as a solvent"/>
+  <entry term="ethanol" wikidataID="Q153" description="chemical compound"/>
 </dictionary>
 """
     assert text1 == dict_text, f"{text1} != {dict_text}"

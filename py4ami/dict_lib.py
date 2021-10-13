@@ -13,6 +13,7 @@ import psutil
 
 import logging
 import os
+import re
 from abc import ABC
 from pathlib import Path
 
@@ -452,7 +453,7 @@ class AbsDictElem(ABC):
         if attname == None or len(attname.strip()) == 0:
             raise AMIDictError("missing/empty attname")
         if attval == None or len(str(attval).strip()) == 0:
-            raise AMIDictError("missing/empty attval")
+            raise AMIDictError(f"missing/empty attval for {attname}")
         attval = str(attval)
         self.element.attrib[attname] = attval
 
@@ -625,6 +626,7 @@ class AMIDict(AbsDictElem):
     def set_encoding(self, encoding):
         self.set_attribute(AMIDict.ENCODING_A, encoding)
 
+
     def create_and_add_entry(self):
         entry_elem = Entry.create_and_add_to(self.element)
         return Entry(entry_elem)
@@ -646,7 +648,7 @@ class AMIDict(AbsDictElem):
         """
         term = term.strip()
         if term is None or term.strip() == "":
-            raise AMIDict(f"cannot add entry with term = None or ''")
+            raise AMIDictError(f"cannot add entry with term = None or ''")
         old_entry = self.find_entry_with_term(term)
         if old_entry is not None:
             if replace is False:
@@ -696,10 +698,16 @@ class AMIDict(AbsDictElem):
         if directory is None:
             raise AMIDictError("no output directory for amidict")
         amidict = cls.create_from_list_of_strings(terms, title, metadata)
-        file = Path(directory, title+".xml")
-        with open(file, "w", encoding="UTF-8") as f:
-            f.write(etree.tostring(amidict.element, pretty_print=True).decode("UTF-8"))
+        file = amidict.write_to_file(directory)
         return file, amidict
+
+    def write_to_file(self, directory):
+        """writes to <title>.xml in given directory"""
+        title = self.get_title()
+        file = Path(directory, title + ".xml")
+        with open(file, "w", encoding="UTF-8") as f:
+            f.write(etree.tostring(self.element, pretty_print=True).decode("UTF-8"))
+        return file
 
     def create_base_metadata(self):
         """create Metadata object with user and date"""
@@ -975,6 +983,23 @@ class Entry(AbsDictElem):
             return None
         else:
             return self.element.attrib[attname]
+
+    def set_wikidata_id(self, id):
+        """set wikidataID, id must be Pddd... or Q... """
+        if id is None or not re.match("[PQ]\d+", id):
+            raise AMIDictError(f"wikidata id {id} must be Qddd... or Pddd...")
+        self.set_attribute(Entry.WIKIDATA_A, id)
+
+    def get_wikidata_id(self):
+        return self.get_attribute_value(Entry.WIKIDATA_A)
+
+    def set_description(self, desc):
+        """set description attribute, can be anything"""
+        self.set_attribute(Entry.DESCRIPTION_A, desc)
+
+    def get_description(self):
+        return self.get_attribute_value(Entry.DESCRIPTION_A)
+
 
 
     def check_validity(self):
