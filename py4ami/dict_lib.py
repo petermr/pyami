@@ -892,6 +892,25 @@ class AMIDict(AbsDictElem):
         assert False , "not yet written"
         return True
 
+    @classmethod
+    def create_amidict_and_lookup_wikidata(cls, terms, title):
+        """creates amidict from list of terms and mandatory title"""
+        amidict = AMIDict.create_from_list_of_strings(terms, title)
+        amidict.lookup_terms_in_wikidata(terms)
+        return amidict
+
+
+    def lookup_terms_in_wikidata(self, terms):
+        """looks up terms in Wikidata
+        uses self.lookup_wikidata"""
+        wikidata_lookup = WikidataLookup()
+        for term in terms:
+            qitem, desc, _ = wikidata_lookup.lookup_wikidata(term)
+            entry = self.find_entry_with_term(term)
+            entry.set_wikidata_id(qitem)
+            entry.set_description(desc)
+
+
 class AMIDictError(Exception):
     """Basic exception for errors raised in AMIDict"""
     def __init__(self, msg=None):

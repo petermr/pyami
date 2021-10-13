@@ -459,7 +459,7 @@ def test_create_dictionary_from_list_of_string():
     terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
     title = "foobar"
     directory = None
-    amidict = AMIDict.create_from_list_of_strings(terms, title, directory)
+    amidict = AMIDict.create_from_list_of_strings(terms, title)
     assert amidict is not None
     title = amidict.get_title()
     assert title == "foobar"
@@ -497,21 +497,15 @@ def test_create_dictionary_from_list_of_string_save_and_compare():
 
 def test_create_dictionary_from_list_of_string_and_add_Wikidata():
     terms = ["acetone", "chloroform", "DMSO", "ethanol"]
+    amidict = AMIDict.create_amidict_and_lookup_wikidata(terms, "solvents")
     temp_dir = Path(Path(__file__).parent.parent, "temp")
-    dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="solvents", directory=temp_dir)
-    wikidata_lookup = WikidataLookup()
-    for term in terms:
-        qitem, desc, _= wikidata_lookup.lookup_wikidata(term)
-        entry = amidict.find_entry_with_term(term)
-        entry.set_wikidata_id(qitem)
-        entry.set_description(desc)
-    amidict.write_to_file(temp_dir)
+    dictfile = amidict.write_to_file(temp_dir)
 
     with open(dictfile, "r") as f:
         dict_text = f.read()
     dict_text = re.sub("date=\"[^\"]*\"", "date=\"TODAY\"", dict_text)
 
-    # note, the date is nstripped as it changes with each run
+    # note, the date is stripped as it changes with each run
     text1 = """<dictionary version="0.0.1" title="solvents" encoding="UTF-8">
   <metadata user="pm286" date="TODAY"/>
   <entry term="acetone" wikidataID="Q49546" description="chemical compound"/>
@@ -521,6 +515,7 @@ def test_create_dictionary_from_list_of_string_and_add_Wikidata():
 </dictionary>
 """
     assert text1 == dict_text, f"{text1} != {dict_text}"
+
 
 # helpers
 def _create_amidict_with_foo_bar_entries():
