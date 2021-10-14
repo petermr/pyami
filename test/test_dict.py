@@ -12,7 +12,7 @@ class SearchDictionaryTest:
     @classmethod
     def test_create_from_words(cls):
         from lxml import etree
-        from pyami.wikimedia import WikidataPage
+        from py4ami.wikimedia import WikidataPage
         import pprint
 
         words = ["limonene", "alpha-pinene", "lantana camara"]

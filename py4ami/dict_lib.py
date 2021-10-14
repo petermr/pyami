@@ -434,6 +434,7 @@ class AbsDictElem(ABC):
     which should not be used directly. Adding/deleting child elements and attributes
     should be done with Object methods
     """
+    UNKNOWN = "UNKNOWN"
     def __init__(self, element, xml_tree=None):
         self.element = element
         self.xml_tree = xml_tree
@@ -604,6 +605,9 @@ class AMIDict(AbsDictElem):
         :title: title of dictionary, should match stem of filename
         """
         self.set_attribute(self.TITLE_A, title)
+        if self.get_stem() is None:
+            self.set_file(self.UNKNOWN)
+
 
     @classmethod
     def debug_tdd(cls):
@@ -842,11 +846,41 @@ class AMIDict(AbsDictElem):
             if self.get_attribute_value(attname) is not None:
                 self.element.attrib.pop(attname)
 
+    def has_file(self):
+        if self.file is None:
+            raise AMIDictError(f"no file name stored")
+
     def has_valid_title(self):
         """AMIDict must have title attribute with value == stem of dict file"""
         title = self.get_title()
-        return title is not None and \
-               (self.file is None or Path(self.file).stem == title)
+        if title is None:
+            raise AMIDictError(f"dictionary {self.file} has no title")
+        stem = self.get_stem()
+        if stem != self.UNKNOWN and stem != title:
+            raise AMIDictError(f"dictionary {self.file} does not match title {title}")
+        return True
+
+    def get_stem(self):
+        """Get stem of input (file or URL)
+        File might be baz/foo/bar.xml   # stem is bar
+        URL might be https://some.where/foo/bar.xml # stem is bar
+        """
+        # TODO TEST and check if better function
+        stem = None
+        if self.file is not None:
+            stem = Path(self.file).stem
+        elif self.url is not None:
+            # assume ends in .../foo.xml where foo is stem
+            parts = self.url.split("/")
+            try:
+                stem_xml = parts[-1]
+                stem = stem_xml.split(".")[0]
+            except Exception as e:
+                raise AMIDictError(f"cannot parse url {self.url}")
+        if stem is None:
+            stem = self.UNKNOWN
+        return stem
+
 
     @classmethod
     def is_valid_version_string(cls, versionx):

@@ -812,12 +812,10 @@ def test_profile1():
     print("profile1")
     cProfile.run("AmiSearch.test_sect_dicts()")
 
-
 def main():
     """ debugging """
     pass
     # test_search()
-
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(

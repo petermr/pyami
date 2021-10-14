@@ -130,6 +130,16 @@ def test_dict_title_matches_filename():
     print(last_path)
     assert root.attrib["title"] == last_path
 
+def test_title_from_url_stem():
+    amidict = AMIDict.create_minimal_dictionary();
+    amidict.set_url("https://some.where/foo/bar.xml")
+    assert amidict.get_stem() == "bar"
+
+def test_title_from_file_stem():
+    amidict = AMIDict.create_minimal_dictionary();
+    amidict.set_file("/user/me/foo.xml")
+    assert amidict.get_stem() == "foo"
+
 def test_dict_has_root_dictionary():
     setup_dict = setup()
     root = setup_dict[ROOT]
@@ -370,7 +380,7 @@ def test_create_and_overwrite_duplicate_term():
 def test_dictionary_should_have_version():
     amidict = AMIDict.create_minimal_dictionary()
     assert amidict.get_version() is not None
-    amidict.check_validity()
+    # amidict.check_validity()
     amidict.remove_attribute(AMIDict.VERSION_A)
     if amidict.get_version() is not None:
         raise AMIDictError("should have removed version")

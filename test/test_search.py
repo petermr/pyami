@@ -9,9 +9,9 @@ def test_search():
     from py4ami.search_lib import AmiSearch, AmiRake
     from py4ami.dict_lib import AmiDictionary
 
-    option = "search"  # edit this
+    # option = "search"  # edit this
     #    option = "sparql"
-    #    option = "rake"
+    option = "rake"
     if option == "rake":
         AmiRake().test()
 
