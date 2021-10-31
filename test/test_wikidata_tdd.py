@@ -1,6 +1,8 @@
 # Tests wikipedia and wikidata methods under pytest
-
+import os
+from pathlib import Path
 from py4ami.wikimedia import WikidataLookup
+from py4ami.dict_lib import AMIDict
 
 # NOTE some of these are lengthy (seconds) as they lookup on the Net
 
@@ -29,3 +31,17 @@ def test_lookup_solvents():
     assert qitems == ['Q49546', 'Q172275', 'Q153']
     assert descs == ['chemical compound', 'chemical compound', 'chemical compound']
 
+def test_lookup_parkinsons():
+    terms = [
+        "SCRNASeq",
+        "SNPS",
+        "A53T",
+        "linkage disequilibrium",
+        "Parkinsons",
+        "transcriptomics"
+    ]
+    wikidata_lookup = WikidataLookup()
+    # qitems, descs = wikidata_lookup.lookup_items(terms)
+    temp_dir = Path(Path(__file__).parent.parent, "temp")
+    dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="parkinsons", wikidata=True, directory=temp_dir)
+    assert os.path.exists(dictfile)

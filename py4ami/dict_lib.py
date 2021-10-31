@@ -691,22 +691,31 @@ class AMIDict(AbsDictElem):
         return amidict
 
     @classmethod
-    def create_from_list_of_strings_and_write_to_file(cls, terms, title, directory, metadata=None):
+    def create_from_list_of_strings_and_write_to_file(cls, terms, title, directory, wikidata=False, metadata=None):
         """create a minimal dictionary from list of strings
 
         :terms: to add
         :title: mandatory title, will also form stem of filename
+        :directory: to write to
         :metadata: Free from text of origin if terms
         :return: output file and amidict
         """
         if directory is None:
             raise AMIDictError("no output directory for amidict")
         amidict = cls.create_from_list_of_strings(terms, title, metadata)
+        if wikidata:
+            amidict.lookup_terms_in_wikidata(terms)
         file = amidict.write_to_file(directory)
         return file, amidict
 
     def write_to_file(self, directory):
-        """writes to <title>.xml in given directory"""
+        """writes to <title>.xml in given directory
+        includes pretty-print
+
+        :directory: If None, no action
+        """
+        if directory is None:
+            self.logger.warning(f"no directory given for writing xml dictionary")
         title = self.get_title()
         file = Path(directory, title + ".xml")
         with open(file, "w", encoding="UTF-8") as f:
@@ -927,12 +936,18 @@ class AMIDict(AbsDictElem):
         return True
 
     @classmethod
-    def create_amidict_and_lookup_wikidata(cls, terms, title):
-        """creates amidict from list of terms and mandatory title"""
+    def create_amidict_and_lookup_wikidata(cls, terms, title, directory=None):
+        """creates amidict from list of terms and mandatory title
+
+        :terms: list of strings
+        :title: of dictionary and stem of filename
+        :directpry: if not none writes title.xml to directory
+        """
         amidict = AMIDict.create_from_list_of_strings(terms, title)
         amidict.lookup_terms_in_wikidata(terms)
+        if directory is not None:
+            amidict.write_to_file(directory)
         return amidict
-
 
     def lookup_terms_in_wikidata(self, terms):
         """looks up terms in Wikidata
