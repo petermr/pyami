@@ -36,6 +36,7 @@ class AmiConfig:
 
     def traverse_dictionary_dirs(self):
 
+        assert self.parser is not None
         dict_section = self.parser[AmiConfig.DICTS]
         for dict_key in dict_section.keys():
             print("dict key", dict_key)

@@ -15,7 +15,7 @@ from py4ami.dict_lib import AmiDictionary
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.xml_lib import XmlLib
-from py4ami.test.test_file import TestFile
+from test.test_file import TestFile
 from py4ami.text_lib import TextUtil, DSLParser
 from py4ami.pdfreader import PdfReader
 from py4ami.symbol import SymbolIni

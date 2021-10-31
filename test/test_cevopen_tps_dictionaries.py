@@ -48,7 +48,7 @@ CROPS =  "https://raw.githubusercontent.com/petermr/crops/main"
 # https://github.com/sasujadhav1/Files/blob/main/enzyme_names.xml
 
 MENTHA = "Mentha",
-MENTHA_DICT = f"{CROPS}/Mentha/eo_Gene.xml"
+MENTHA_DICT = f"{CROPS}/Mentha/eo_menthaTPS.xml"
 SOLANUM = "Solanum",
 SOLANUM_DICT = f"{CROPS}/Solanum%20lycopersicum/eo_Gene.xml"
 VITIS = "Vitis vinifera"

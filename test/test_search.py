@@ -13,7 +13,9 @@ def test_search():
     #    option = "sparql"
     option = "rake"
     if option == "rake":
-        AmiRake().test()
+        print("no test for AmiRake")
+        # AmiRake().test()
+        pass
 
     elif option == "search":
         ami_search = AmiSearch()
