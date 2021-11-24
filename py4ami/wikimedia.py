@@ -52,7 +52,7 @@ class WikidataLookup:
         self.root = ParserWrapper.parse_utf8_html_to_root(url)
         body = self.root.find(BODY)
         ul = body.find(".//ul[@class='" + MW_SEARCH_RESULTS + "']")
-        qitem = None
+        qitem = None  # to avoid UnboundLocalError
         if ul is not None:
             self.wikidata_dict = self.create_dict_for_all_possible_wd_matches(ul)
             sort_orders = sorted(self.wikidata_dict.items(), key=lambda item : int(item[1][STATEMENTS]), reverse=True)
