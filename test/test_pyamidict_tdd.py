@@ -15,7 +15,7 @@ import os
 import re
 
 # from py4ami.xml_lib import XmlLib
-from ..py4ami.dict_lib import AmiDictionary, AMIDict, AMIDictError, Synonym, Entry
+from py4ami.dict_lib import AmiDictionary, AMIDict, AMIDictError, Synonym, Entry
 # from py4ami.wikimedia import WikidataLooku
 # dict1 = None
 # root = None

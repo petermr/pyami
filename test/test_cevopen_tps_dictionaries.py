@@ -30,7 +30,15 @@ EO_PLANT_GENUS = "plant_genus"
 EO_PLANT_GENUS_ROOT = f"{CEVOPEN_DICT_ROOT}/{EO_PLANT_GENUS}"
 EO_PLANT_GENUS_DICT = f"{EO_PLANT_GENUS_ROOT}/plant_genus.xml"
 
+"""verificationTest/MicrobeMod_FungalPro.xml"""
+VERIFICATION_TEST= "verificationTest"
+VERIFICATION_ROOT = f"{CEVOPEN_DICT_ROOT}/{VERIFICATION_TEST}"
+MICRO_FUNGAL_PRO_DICT = f"{VERIFICATION_ROOT}/MicrobeMod_FungalPro.xml"
+MICRO_FUNGAL_PRO = "MicroFungal_Pro"
+
+
 SAGAR_REPO = "https://raw.githubusercontent.com/sasujadhav1/Files/main/"
+
 # species
 BIONAB = "bionomial_abbreviation",
 BIONAB_XML = f"{SAGAR_REPO}/bionomial_abbreviation.xml"
@@ -73,6 +81,8 @@ CEVOPEN_DICTS = {
     VITIS : VITIS_DICT,
     ZEA : ZEA_DICT,
 
+# Manny dictionaries
+    MICRO_FUNGAL_PRO : MICRO_FUNGAL_PRO_DICT,
 }
 
 # core plant dictionaries
@@ -121,7 +131,14 @@ def test_check_binomial_abbreviations():
     bionab = CEVOPEN_DICTS[BIONAB]
     _validate_dict(bionab)
 
-# helper
+# Manny dictionaries
+
+def test_check_micro_fungal():
+    micro_fungal = CEVOPEN_DICTS[MICRO_FUNGAL_PRO]
+    _validate_dict(micro_fungal)
+
+# helper --------          --------
+
 def _validate_dict(dict_url):
     amidict = AMIDict.create_dict_from_url(dict_url)
     amidict.check_validity()

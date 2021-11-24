@@ -2,8 +2,8 @@
 import os
 from pathlib import Path
 
-from ..py4ami.wikimedia import WikidataLookup
-from ..py4ami.dict_lib import AMIDict
+from py4ami.wikimedia import WikidataLookup
+from py4ami.dict_lib import AMIDict
 
 # NOTE some of these are lengthy (seconds) as they lookup on the Net
 

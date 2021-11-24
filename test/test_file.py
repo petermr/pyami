@@ -1,7 +1,7 @@
 """tests for file_lib"""
 import os
 import logging
-from  ..py4ami.file_lib import AmiPath, PROJ, FILE
+from  py4ami.file_lib import AmiPath, PROJ, FILE
 
 FILE_LIB = "file_lib"
 PDF_LIB = "pdf_lib"
