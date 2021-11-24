@@ -1,7 +1,7 @@
 """AMI dictionary classes"""
-from py4ami.wikimedia import WikidataLookup, WikidataPage
-from py4ami.util import Util
-from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
+from ..py4ami.wikimedia import WikidataLookup, WikidataPage
+from ..py4ami.util import Util
+from ..py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
 
 from lxml import etree as ET
 from lxml import etree
