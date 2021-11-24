@@ -18,9 +18,9 @@ from py4ami.wikimedia import WikidataSparql as WS
 from py4ami.file_lib import BraceGlobber as bg
 from py4ami.xml_lib import XmlLib
 
-config_text = False
+skip_config_test = True
 
-@unittest.skipUnless(config_text, "needs local config")
+@unittest.skipTrue(skip_config_test, "needs local config")
 def tests():
     AmiConfig.test_dicts()
 
