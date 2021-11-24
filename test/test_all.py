@@ -1,13 +1,8 @@
 """tests in a single path
 This is until I or someone else can figure out relative imports
 """
-import os
 import unittest
-from pathlib import Path
 from glob import glob
-from braceexpand import braceexpand
-import sys
-from SPARQLWrapper import SPARQLWrapper
 import os
 from pathlib import Path
 from lxml import etree
