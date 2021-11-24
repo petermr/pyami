@@ -3,21 +3,20 @@
 Code for VALIDATION of dictionaries should probably be bundled with the dictionaries themselves
 
 """
-from abc import ABC
-import pytest
+# from abc import ABC
+# import pytest
 
 from pathlib import Path
 from lxml import etree
-from lxml.etree import Element
-from os.path import basename, normpath
-from tempfile import TemporaryDirectory
+# from lxml.etree import Element
+# from os.path import basename, normpath
+# from tempfile import TemporaryDirectory
 import os
 import re
 
-from py4ami.xml_lib import XmlLib
-from py4ami.dict_lib import AMIDict, AMIDictError, Synonym, Entry
-from py4ami.wikimedia import WikidataLookup
-
+# from py4ami.xml_lib import XmlLib
+from py4ami.dict_lib import AmiDictionary, AMIDict, AMIDictError, Synonym, Entry
+# from py4ami.wikimedia import WikidataLooku
 # dict1 = None
 # root = None
 
@@ -67,11 +66,11 @@ def test_dictionary_file1_exists():
     assert setup_dict[DICTFILE1].exists(), f"file should exist {setup_dict['dict1']}"
     teardown()
 
-def test_one_entry_dict_is_AMIDict():
+def test_one_entry_dict_is_AmiDictionary():
     """require the attribute to be present but does not check value"""
     setup_dict = setup()
     one_dict = setup_dict[ONE_ENTRY_DICT]
-    assert type(one_dict) is AMIDict, f"fila is not AMIDict {one_dict}"
+    assert type(one_dict) is AMIDict, f"fila is not AmiDictionary {one_dict}"
 
 def test_dict1_has_version_attribute():
     """require the version attribute to be present but does not check value"""
@@ -159,10 +158,10 @@ def test_dictionary_has_xml_declaration_with_encoding():
 
 def test_dictionary_has_xml_declaration_with_encoding_method():
     amidict = AMIDict.create_dict_from_path(setup()[DICTFILE1])
-    amidict.has_xml_declaration_with_UTF8()
+    amidict.has_xml_declaration_with_utf8()
 
 
-# AMIDict
+# AmiDictionary
 
 def test_can_create_minimal_dictionary():
     amidict = AMIDict.create_minimal_dictionary()
@@ -173,7 +172,7 @@ def test_can_create_AmiDict_from_file():
     amidict = AMIDict.create_dict_from_path(one_entry_path)
     assert amidict is not None
 
-def test_dictionary_is_a_AMIDict():
+def test_dictionary_is_a_AmiDictionary():
     setup_dict = setup()
     amidict = setup_dict[ONE_ENTRY_DICT]
     assert type(amidict) is AMIDict
@@ -426,7 +425,7 @@ def test_get_terms_from_invalid_dictionary():
 
 # review dictionaries
 def test_mini_plant_part_is_valid():
-    # pp_dict = AMIDict(setup_amidict[MINI_PLANT_PART])
+    # pp_dict = AmiDictionary(setup_amidict[MINI_PLANT_PART])
     pp_dict = AMIDict.create_dict_from_path(setup()[MINI_PLANT_PART])
     if pp_dict is None:
         raise AMIDictError(f"test_dictionary_should_have_desc cannot read dictionary {pp_dict}")

@@ -20,7 +20,7 @@ from py4ami.xml_lib import XmlLib
 
 skip_config_test = True
 
-@unittest.skipTrue(skip_config_test, "needs local config")
+@unittest.skipIf(skip_config_test, "needs local config")
 def tests():
     AmiConfig.test_dicts()
 

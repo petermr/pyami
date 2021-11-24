@@ -1,12 +1,10 @@
 """AMI dictionary classes"""
 from py4ami.wikimedia import WikidataLookup, WikidataPage
 from py4ami.util import Util
-from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3, PHYSCHEM_RESOURCES
+from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
+
 from lxml import etree as ET
 from lxml import etree
-from lxml.etree import Element
-# import requests
-# import xmltodict
 import urllib.request
 import datetime
 import psutil
@@ -72,7 +70,7 @@ class AmiDictionary:
         else:
             self.name = name
 
-        self.options = {} if not "options" in kwargs else kwargs["options"]
+        self.options = {} if "options" not in kwargs else kwargs["options"]
         if "synonyms" in self.options:
             print("use synonyms")
         if "noignorecase" in self.options:
@@ -99,7 +97,7 @@ class AmiDictionary:
         return dictionary
 
     @classmethod
-    def read_dictionary(cls, file, ignorecase=True):
+    def read_dictionary(cls, file):
         return AmiDictionary(xml_file=file) if file is not None else None
 
     def read_dictionary_from_xml_file(self, file, ignorecase=True):
@@ -122,7 +120,7 @@ class AmiDictionary:
                     term = self.term_from_entry(entry)
 #                    print("tterm", term)
                     # single word terms
-                    if not " " in term:
+                    if " " not in term:
                         self.add_processed_term(term)
                     elif self.split_terms:
                         # multiword terms
@@ -145,7 +143,7 @@ class AmiDictionary:
                 if AmiDictionary.TERM in entry.attrib:
                     term = self.term_from_entry(entry)
                     # single word terms
-                    if not " " in term:
+                    if " " not in term:
                         self.add_processed_term(term)
                     elif self.split_terms:
                         # multiword terms
@@ -261,7 +259,7 @@ class AmiDictionary:
                 wikipedia.text = wp[1]
 
     def create_wikidata_page(self, entry_element):
-        from pyami.wikimedia import WikidataPage
+        from py4ami.wikimedia import WikidataPage
 
         # refactor this - make entry a class
         wikidata_page = None
@@ -318,19 +316,19 @@ class AmiDictionaries:
     PROT_PRED = "protpredict"
     REFUGEE = "refugeeUNHCR"
     SESQUITERPENE = "sesquiterpene"
-    SOLVENT = "solvents"
     STATISTICS = "statistics"
     TROPICAL_VIRUS = "tropicalVirus"
     WETLANDS = "wetlands"
     WILDLIFE = "wildlife"
 
     def __init__(self):
+        self.dictionary_dict = {}
         self.create_search_dictionary_dict()
+        self.ami3_dict_index = None
 
     def create_search_dictionary_dict(self):
-        self.dictionary_dict = {}
 
-#        / Users / pm286 / projects / CEVOpen / dictionary / eoActivity / eo_activity / Activity.xml
+        # / Users / pm286 / projects / CEVOpen / dictionary / eoActivity / eo_activity / Activity.xml
         self.add_with_check(AmiDictionaries.ACTIVITY,
                             os.path.join(CEV_OPEN_DICT_DIR, "eoActivity", "eo_activity", "activity.xml"))
         self.add_with_check(AmiDictionaries.COUNTRY,
@@ -421,6 +419,7 @@ class AmiDictionaries:
 #        print(dictionary.get_or_create_term_set())
         return
 
+
 # ==========please split into TDDDict==============
 # this should not be here but I can't load it from an outside file
 XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
@@ -435,6 +434,7 @@ class AbsDictElem(ABC):
     should be done with Object methods
     """
     UNKNOWN = "UNKNOWN"
+
     def __init__(self, element, xml_tree=None):
         self.element = element
         self.xml_tree = xml_tree
@@ -450,19 +450,19 @@ class AbsDictElem(ABC):
 
         """
         if self.element is None:
-            raise AMIDict("AbsDictElem element is None")
-        if attname == None or len(attname.strip()) == 0:
+            raise AMIDictError("AbsDictElem element is None")
+        if attname is None or len(attname.strip()) == 0:
             raise AMIDictError("missing/empty attname")
-        if attval == None or len(str(attval).strip()) == 0:
+        if attval is None or len(str(attval).strip()) == 0:
             raise AMIDictError(f"missing/empty attval for {attname}")
         attval = str(attval)
         self.element.attrib[attname] = attval
 
     def get_username(self):
-        """This is NOT robust - see https://stackoverflow.com/questions/842059/is-there-a-portable-way-to-get-the-current-username-in-python
+        """This is NOT robust - see
+        https://stackoverflow.com/questions/842059/is-there-a-portable-way-to-get-the-current-username-in-python
         """
         return psutil.Process().username()
-
 
     def get_attribute_value(self, attname):
         """get XML attribute value
@@ -474,7 +474,7 @@ class AbsDictElem(ABC):
         """
         if self.element is None:
             raise AMIDictError("AbsDictElem element is None")
-        if attname == None or len(attname.strip()) == 0:
+        if attname is None or len(attname.strip()) == 0:
             raise AMIDictError("missing/empty attname")
         if attname not in self.element.attrib:
             return None
@@ -483,19 +483,18 @@ class AbsDictElem(ABC):
 
 class AMIDict(AbsDictElem):
 
-# attributes
+    # attributes
     ENCODING_A = "encoding"
     TITLE_A = "title"
     VERSION_A = "version"
 
-
-# lang
+    # lang
     LANG_EN = "en"
     LANG_HI = "hi"
     LANG_UR = "ur"
-# encoding
+    # encoding
     UTF_8 = "UTF-8"
-# tag
+    # tag
     TAG = "dictionary"
 
     def __init__(self, element, tree=None):
@@ -505,7 +504,7 @@ class AMIDict(AbsDictElem):
         self.url = None
         assert element is not None
         assert self.element is not None
-        self.entries = [] # child entries
+        self.entries = []  # child entries
         self.logger = logging.getLogger("amidict")
 
     @classmethod
@@ -587,8 +586,8 @@ class AMIDict(AbsDictElem):
         """get the version attribute"""
         if self.element is None:
             raise AMIDictError(f"{self.TAG} must have element")
-        version = self.get_attribute(self.VERSION_A)
-        assert version == "XXX"
+        version = self.get_attribute_value(self.VERSION_A)
+        # assert version == "XXX"
         return version
 
     def set_version(self, version):
@@ -608,13 +607,12 @@ class AMIDict(AbsDictElem):
         if self.get_stem() is None:
             self.set_file(self.UNKNOWN)
 
-
     @classmethod
     def debug_tdd(cls):
         """This is just for debugging"""
-        file = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts/dict1.xml")
+        # file = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts/dict1.xml")
         one_entry_file = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts/dict_one_entry.xml")
-        root = etree.parse(str(one_entry_file)).getroot()
+        # root = etree.parse(str(one_entry_file)).getroot()
         tddd = AMIDict.create_dict_from_path(one_entry_file)
         entries = tddd.get_entries()
         print(f"len {len(entries)} {type(entries)} entr {entries[0]} ")
@@ -623,13 +621,8 @@ class AMIDict(AbsDictElem):
         assert self.element is not None
         self.set_version("0.0.1")
 
-    def get_version(self):
-        assert self.element is not None
-        return self.get_attribute_value(AMIDict.VERSION_A)
-
     def set_encoding(self, encoding):
         self.set_attribute(AMIDict.ENCODING_A, encoding)
-
 
     def create_and_add_entry(self):
         entry_elem = Entry.create_and_add_to(self.element)
@@ -687,7 +680,7 @@ class AMIDict(AbsDictElem):
         amidict = AMIDict.create_minimal_dictionary()
         amidict.create_and_add_entries_from_str_list(terms)
         amidict.set_title(title)
-        amidict.create_and_add_base_metadata();
+        amidict.create_and_add_base_metadata()
         return amidict
 
     @classmethod
@@ -734,9 +727,6 @@ class AMIDict(AbsDictElem):
 
     def create_and_add_base_metadata(self):
         self.add_metadata(self.create_base_metadata())
-
-
-
 
 # find entries
     def find_entry_with_term(self, term, abort_multiple=True):
@@ -792,7 +782,7 @@ class AMIDict(AbsDictElem):
         term_set = set()
         for i, entry in enumerate(entries):
             term = entry.get_term()
-            if term == None:
+            if term is None:
                 entries_without_terms.append(f"entry {i}:\n{etree.tostring(entry.element)}")
             else:
                 if term in term_set:
@@ -803,8 +793,8 @@ class AMIDict(AbsDictElem):
                     terms.append(term)
         return terms, entries_without_terms, duplicate_entries
 
-
 # data validity
+
     def check_validity(self):
         """checks dictionary has  valid <dictionary> child, valid attributes and valid child elements (NYI)"""
         if not self.has_valid_element():
@@ -852,8 +842,8 @@ class AMIDict(AbsDictElem):
             raise AMIDictError(f"{self.get_file_or_url()} <dictionary> has invalid version: {e.__cause__}")
 
     def remove_attribute(self, attname):
-            if self.get_attribute_value(attname) is not None:
-                self.element.attrib.pop(attname)
+        if self.get_attribute_value(attname) is not None:
+            self.element.attrib.pop(attname)
 
     def has_file(self):
         if self.file is None:
@@ -885,11 +875,10 @@ class AMIDict(AbsDictElem):
                 stem_xml = parts[-1]
                 stem = stem_xml.split(".")[0]
             except Exception as e:
-                raise AMIDictError(f"cannot parse url {self.url}")
+                raise AMIDictError(f"cannot parse url {self.url} {e}")
         if stem is None:
             stem = self.UNKNOWN
         return stem
-
 
     @classmethod
     def is_valid_version_string(cls, versionx):
@@ -904,17 +893,17 @@ class AMIDict(AbsDictElem):
             raise AMIDictError(f"{cls} version attribute {versionx} does not have 3 parts")
         try:
             for part in parts:
-                i = int(part)
-        except:
+                _ = int(part)
+        except Exception:
             raise AMIDictError(f"{cls} version attribute {versionx} parts must be integers")
         return True
 
-    def has_xml_declaration_with_UTF8(self):
+    def has_xml_declaration_with_utf8(self):
         """requires XML declaration with encoding = 'UTF-8'
 
         :except: If absent or not UTF-8, raises AMIDict err
         """
-        if self.xml_tree is not None: # need tree for declaration
+        if self.xml_tree is not None:  # need tree for declaration
             if self.xml_tree.docinfo is None:
                 raise AMIDictError("dictionary has no docinfo/XML declaratiom")
             # assert tree.docinfo.xml_version == "1.0" # XML version is ignored
@@ -932,8 +921,7 @@ class AMIDict(AbsDictElem):
         return False
 
     def has_valid_children(self):
-        assert False , "not yet written"
-        return True
+        assert False, "not yet written"
 
     @classmethod
     def create_amidict_and_lookup_wikidata(cls, terms, title, directory=None):
@@ -967,6 +955,7 @@ class AMIDictError(Exception):
             msg = "An unspecifed error occured"
         super(AMIDictError, self).__init__(msg)
 
+
 class Synonym(AbsDictElem):
     TAG = "synonym"
 
@@ -974,6 +963,7 @@ class Synonym(AbsDictElem):
         super().__init__(element)
         assert element is not None, "synonym constructor "
         self.element = element
+
 
 class Metadata(AbsDictElem):
     TAG = "metadata"
@@ -1052,11 +1042,11 @@ class Entry(AbsDictElem):
         else:
             return self.element.attrib[attname]
 
-    def set_wikidata_id(self, id):
+    def set_wikidata_id(self, idx):
         """set wikidataID, id must be Pddd... or Q... """
-        if id is None or not re.match("[PQ]\d+", id):
-            raise AMIDictError(f"wikidata id {id} must be Qddd... or Pddd...")
-        self.set_attribute(Entry.WIKIDATA_A, id)
+        if idx is None or not re.match("[PQ]\\d+", idx):
+            raise AMIDictError(f"wikidata id {idx} must be Qddd... or Pddd...")
+        self.set_attribute(Entry.WIKIDATA_A, idx)
 
     def get_wikidata_id(self):
         return self.get_attribute_value(Entry.WIKIDATA_A)
@@ -1068,8 +1058,6 @@ class Entry(AbsDictElem):
     def get_description(self):
         return self.get_attribute_value(Entry.DESCRIPTION_A)
 
-
-
     def check_validity(self):
         self.check_valid_attributes()
         self.check_valid_children()
@@ -1080,13 +1068,14 @@ class Entry(AbsDictElem):
         # assert str(attributes) == "['name']", f"attributes {attributes}"
         # assert len(attributes) == 2, f" ATTS {attributes}"
         for attribut in attributes:
-            msg = f"ATT {attribut}"
+            # msg = f"ATT {attribut}"
             assert type(attribut) is str
             assert attribut in self.ALLOWED_ATTS, f"attribute {attribut} is not allowed in <entry>"
 
     def check_valid_children(self):
         for child in self.element:
             assert child.tag in self.ELEMENT_CHILD_TAGS
+
 
 def main():
     AMIDict.debug_tdd()
