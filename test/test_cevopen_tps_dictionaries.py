@@ -50,9 +50,9 @@ CROPS =  "https://raw.githubusercontent.com/petermr/crops/main"
 MENTHA = "Mentha",
 MENTHA_DICT = f"{CROPS}/Mentha/eo_menthaTPS.xml"
 SOLANUM = "Solanum",
-SOLANUM_DICT = f"{CROPS}/Solanum%20lycopersicum/eo_Gene.xml"
+SOLANUM_DICT = f"{CROPS}/Solanum%20lycopersicum/eo_tomato.xml"
 VITIS = "Vitis vinifera"
-VITIS_DICT = f"{CROPS}/Vitis%20vinifera/eo_VVinifera.xml"
+VITIS_DICT = f"{CROPS}/Vitis/eo_VVinifera.xml"
 ZEA = "Zea mays"
 ZEA_DICT = f"{CROPS}/Zea%20mays/eo_ZeaTPS.xml"
 
@@ -103,7 +103,7 @@ def test_check_solanum():
 
 def test_check_vitis():
     vitis_ = CEVOPEN_DICTS[VITIS]
-    assert vitis_ == "https://raw.githubusercontent.com/petermr/crops/main/Vitis%20vinifera/eo_VVinifera.xml"
+    assert vitis_ == "https://raw.githubusercontent.com/petermr/crops/main/Vitis/eo_VVinifera.xml"
     _validate_dict(vitis_)
 
 def test_check_zea():

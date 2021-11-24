@@ -2,6 +2,7 @@
 This is until I or someone else can figure out relative imports
 """
 import os
+import unittest
 from pathlib import Path
 from glob import glob
 from braceexpand import braceexpand
@@ -17,7 +18,9 @@ from py4ami.wikimedia import WikidataSparql as WS
 from py4ami.file_lib import BraceGlobber as bg
 from py4ami.xml_lib import XmlLib
 
+config_text = False
 
+@unittest.skipUnless(config_text, "needs local config")
 def tests():
     AmiConfig.test_dicts()
 
