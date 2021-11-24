@@ -943,9 +943,12 @@ class AMIDict(AbsDictElem):
         wikidata_lookup = WikidataLookup()
         for term in terms:
             qitem, desc, _ = wikidata_lookup.lookup_wikidata(term)
-            entry = self.find_entry_with_term(term)
-            entry.set_wikidata_id(qitem)
-            entry.set_description(desc)
+            if qitem is None:
+                print(f"could not lookup Wikidata: {term}")
+            else:
+                entry = self.find_entry_with_term(term)
+                entry.set_wikidata_id(qitem)
+                entry.set_description(desc)
 
 
 class AMIDictError(Exception):

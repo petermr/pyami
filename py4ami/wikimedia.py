@@ -52,6 +52,7 @@ class WikidataLookup:
         self.root = ParserWrapper.parse_utf8_html_to_root(url)
         body = self.root.find(BODY)
         ul = body.find(".//ul[@class='" + MW_SEARCH_RESULTS + "']")
+        qitem = None
         if ul is not None:
             self.wikidata_dict = self.create_dict_for_all_possible_wd_matches(ul)
             sort_orders = sorted(self.wikidata_dict.items(), key=lambda item : int(item[1][STATEMENTS]), reverse=True)
@@ -60,7 +61,7 @@ class WikidataLookup:
         #  take the first
             qitem = sort_orders[0]
             # TODO fix non-tuples
-        return qitem[0], qitem[1]["desc"], wikidata_hits
+        return qitem is None (None, None, None) else qitem[0], qitem[1]["desc"], wikidata_hits
 
     def lookup_items(self, terms):
         """looks up a series of terms and returns a tuple of list(qitem), list(desc)
