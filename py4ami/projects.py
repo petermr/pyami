@@ -384,6 +384,7 @@ class CTree(CContainer):
         self.fulltext_xml = Path(self.dirx, self.FULLTEXT_XML)
         return self.fulltext_xml
 
+
 class CProjectTests:
     logger = logging.getLogger("section_glob")
     logger.setLevel(logging.INFO)
@@ -498,11 +499,11 @@ class CProjectTests:
         PyAMI().run_command(f"--proj {dirx} --split xml2sect")
         cls.print_fig_caption(c_project, cls.FIGURE_OLD)
 
+    @classmethod
     def print_fig_caption(cls, project, fig_type):
         for ctree in project.get_ctrees():
             print(f"------------{ctree.dirx.name}--------------")
             ctree.create_and_write_figure_xml_sections(fig_type)
-
 
 
 def main():

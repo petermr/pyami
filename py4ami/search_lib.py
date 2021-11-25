@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from nltk.tokenize import sent_tokenize
 from lxml import etree as LXET
 import sys
-import RAKE # python RAKE
+import RAKE  # python RAKE
 import tkinter as tk
 from rake_nltk import Rake
 import cProfile
@@ -24,7 +24,7 @@ from py4ami.gutil import Gutil, ScrollingCheckboxList
 from py4ami.dict_lib import AmiDictionaries
 from py4ami.projects import AmiProjects
 from py4ami.file_lib import AmiPath, PROJ, FileLib
-from py4ami.text_lib import TextUtil, AmiSection
+from py4ami.text_lib import AmiSection
 from py4ami.xml_lib import XmlLib, H_TD, RESULTS, DataTable
 
 logging.warning("loading search_lib.py")
@@ -156,7 +156,7 @@ class AmiSearch:
 
     @staticmethod
     def _append_facet(label, name, dikt, dict_list):
-        if not name in dikt:
+        if name not in dikt:
             raise Exception("unknown name: " + name +
                             " in " + str(dikt.keys()))
         dict_list.append(dikt[name])
@@ -192,7 +192,7 @@ class AmiSearch:
         if len(hits) > 0:
             if section_name not in self.results_by_section:
                 self.results_by_section[section_name] = {}
-            if not dict_name in self.results_by_section[section_name]:
+            if dict_name not in self.results_by_section[section_name]:
                 self.results_by_section[section_name][dict_name] = []
             self.results_by_section[section_name][dict_name] += hits
 
@@ -204,6 +204,7 @@ class AmiSearch:
         for dictionary in self.dictionaries:
             hits = dictionary.match(words)
             #            print("hits", len(hits))
+            wid_hits = None
             if dictionary.entry_by_term is not None:
                 wid_hits = self.annotate_hits_with_wikidata(dictionary, hits)
             matches_by_amidict[dictionary.name] = wid_hits
@@ -612,7 +613,7 @@ class AmiRun:
                       self.ami_sections.SECTION_LIST)
 
         for dictionary in self.dictionaries:
-            if not dictionary in self.ami_dictionaries.dictionary_dict:
+            if dictionary not in self.ami_dictionaries.dictionary_dict:
                 print("Cannot find dictionary:", dictionary,
                       "\n", self.ami_dictionaries.dictionary_dict)
 
@@ -781,8 +782,8 @@ class AmiRake:
         keywords = []
         for weighted_keyword in weighted_keywords:
             keyword = weighted_keyword[0]
-            l = len(keyword.split(" "))
-            if self.min_len <= l <= self.max_len:
+            ll = len(keyword.split(" "))
+            if self.min_len <= ll <= self.max_len:
                 self.counter[keyword] = int(weighted_keyword[1])
                 keywords.append(keyword)
         return keywords
@@ -812,10 +813,12 @@ def test_profile1():
     print("profile1")
     cProfile.run("AmiSearch.test_sect_dicts()")
 
+
 def main():
     """ debugging """
     pass
     # test_search()
+
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(

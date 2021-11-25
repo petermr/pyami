@@ -1,5 +1,4 @@
 # from xml.etree import ElementTree as ET
-from py4ami.util import AmiLogger
 from py4ami.file_lib import FileLib
 from pathlib import Path
 import os

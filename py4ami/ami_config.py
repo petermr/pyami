@@ -1,5 +1,6 @@
 import os
 
+
 class AmiConfig:
     """configuration files for the AMI system
     """
@@ -7,8 +8,8 @@ class AmiConfig:
     DIRS = "DIRS"
     DICTS = "DICTIONARIES"
     LINK_SUFFIX = "_link"
-    INI_SUFFIX= "_ini"
-    URLINI_SUFFIX= "_urlini"
+    INI_SUFFIX = "_ini"
+    URLINI_SUFFIX = "_urlini"
     URL_SUFFIX = "_url"
     SLASH = "/"
 
@@ -78,7 +79,7 @@ class AmiConfig:
                     self.dict_id_dict[dict_id]
 
     def create_ini_filename_from_link(self, ini_key, dict_section):
-#        ini_key = dict_ref[:-(len(AmiConfig.LINK_SUFFIX))] + AmiConfig.INI_SUFFIX
+        # ini_key = dict_ref[:-(len(AmiConfig.LINK_SUFFIX))] + AmiConfig.INI_SUFFIX
         ini_file = dict_section[ini_key] if ini_key in dict_section else None
         return ini_file
 
@@ -110,7 +111,6 @@ class AmiConfig:
                 print("d: ", desc.text)
         else:
             print("no descs")
-
 
     def read_url_dicts(self, dict_key, dict_section):
         ini_url = self.create_ini_url_from_link(dict_key, dict_section)
@@ -193,4 +193,3 @@ class AmiConfig:
         cls.test()
         cls.test_dicts()
         cls.test2_debug()
-

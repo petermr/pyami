@@ -1,9 +1,5 @@
 import logging
-from typing import Tuple
-from configparser import ConfigParser, ExtendedInterpolation
 import os
-import urllib.request
-from xml.etree import ElementTree as ET
 import ast
 
 
@@ -58,17 +54,17 @@ class Util:
             raise Exception("null path")
 
         if os.path.isdir(file):
-#            print(path, "is directory")
+            # print(path, "is directory")
             pass
         elif os.path.isfile(file):
-#            print(path, "is path")
+            # print(path, "is path")
             pass
         else:
             try:
                 f = open(file, "r")
                 print("tried to open", file)
                 f.close()
-            except:
+            except Exception:
                 raise FileNotFoundError(str(file) + " should exist")
 
     @staticmethod
@@ -95,7 +91,8 @@ class Util:
             dictionary = ast.literal_eval(contents)
             return dictionary
 
-class AmiLogger():
+
+class AmiLogger:
     """wrapper for logger to limit or condense voluminous output
 
     adds a dictionary of counts for each log level
@@ -123,10 +120,13 @@ class AmiLogger():
     # these will be called instead of logger
     def debug(self, msg):
         self._print_count(msg, "debug")
+
     def info(self, msg):
         self._print_count(msg, "info")
+
     def warning(self, msg):
         self._print_count(msg, "warning")
+
     def error(self, msg):
         self._print_count(msg, "error")
     # =======
@@ -134,11 +134,10 @@ class AmiLogger():
     def _print_count(self, msg, level):
         """called by the wrapper"""
         logger_func = self.func_dict[level]
-        if not level in self.count:
-            self.count[level] = 0;
+        if level not in self.count:
+            self.count[level] = 0
         if self.count[level] <= self.initial or self.count[level] % self.routine == 1:
             logger_func(f"{self.count[level]}: {msg}")
         else:
             print(".", end="")
         self.count[level] += 1
-

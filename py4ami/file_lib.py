@@ -9,6 +9,9 @@ import os
 import shutil
 from pathlib import Path, PurePath
 import logging
+from glob import glob
+from braceexpand import braceexpand
+
 logging.debug("loading file_lib")
 
 py4ami = "py4ami"
@@ -179,7 +182,7 @@ class AmiPath:
 
     @classmethod
     def create_glob_string(cls, scheme):
-        glob = ""
+        globx = ""
         for sect, value in scheme.items():
             cls.logger.debug(sect, type(value), value)
             if sect not in ALLOWED_SECTS:
@@ -188,19 +191,19 @@ class AmiPath:
                 pass
             elif _REQD == value:
                 cls.logger.error("must set ", sect)
-                glob += _REQD + "/"
+                globx += _REQD + "/"
             elif _NULL == value:
                 pass
             elif FILE == sect:
-                glob += AmiPath.convert_to_glob(value)
+                globx += AmiPath.convert_to_glob(value)
             elif STAR in value:
-                glob += AmiPath.convert_to_glob(value) + "/"
+                globx += AmiPath.convert_to_glob(value) + "/"
             elif SUFFIX == sect:
-                glob += "." + AmiPath.convert_to_glob(value)
+                globx += "." + AmiPath.convert_to_glob(value)
             else:
-                glob += AmiPath.convert_to_glob(value) + "/"
-        cls.logger.debug("glob", scheme, "=>", glob)
-        return glob
+                globx += AmiPath.convert_to_glob(value) + "/"
+        cls.logger.debug("glob", scheme, "=>", globx)
+        return globx
 
     @classmethod
     def convert_to_glob(cls, value):
@@ -221,11 +224,9 @@ class AmiPath:
 
 class BraceGlobber:
 
-    def braced_glob(path, recursive=False):
-        from glob import glob
-        from braceexpand import braceexpand
-        l = [glob(x, recursive=recursive) for x in braceexpand(path)]
-        return l
+    def braced_glob(self, path, recursive=False):
+        ll = [glob(x, recursive=recursive) for x in braceexpand(path)]
+        return ll
 
 
 class FileLib:
@@ -294,7 +295,6 @@ class FileLib:
                 cls.logger.info(f"copied path {src_path} to {dest_path}")
             except Exception as e:
                 cls.logger.fatal(f"Cannot copy direcctory {src_path} to {dest_path} because {e}")
-
 
     @staticmethod
     def create_absolute_name(file):

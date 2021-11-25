@@ -1,21 +1,22 @@
 import logging
 import os
-import sys
 import tempfile
 import shutil
+from PIL import Image
 from pathlib import Path
+import glob
 
 logger = logging.getLogger("examples")
 
 
-class Examples():
+class Examples:
     """runs pyami with various examples of commands
 
     experimental
     """
 
     def __init__(self, pyamix=None):
-#        self.pyamix = pyamix if pyamix is not None else PyAMI()
+        # self.pyamix = pyamix if pyamix is not None else PyAMI()
         self.logger = logger
         self.pyamix = pyamix
 
@@ -35,7 +36,7 @@ class Examples():
         assert os.path.exists(proj_dir), "path {proj_dir}"
         self.test_copy_dir = tempfile.TemporaryDirectory().name
         shutil.copytree(proj_dir, self.test_copy_dir)
-        print (f"copy_dir {self.test_copy_dir}")
+        print(f"copy_dir {self.test_copy_dir}")
         return proj_dir
 
     def teardown(self):
@@ -112,9 +113,16 @@ class Examples():
     # "--config", # defaults to config.ini.master,~/pyami/config.ini.master if omitted
 
     # on the commandline:
-    # python physchem/python/pyamix.py --proj '${oil26.p}' --glob '${proj}/**/sections/**/*abstract.xml' --dict '${eo_plant.d}' '${ov_country.d}' --apply xml2txt --combine concat_str --outfile '${proj}/files/shweata_1.txt'
+    # python physchem/python/pyamix.py --proj '${oil26.p}' --glob '${proj}/**/sections/**/*abstract.xml'
+    # --dict '${eo_plant.d}' '${ov_country.d}' --apply xml2txt --combine concat_str
+    # --outfile '${proj}/files/shweata_1.txt'
     # whihc expands to
-    # python physchem/python/pyamix.py --apply xml2txt --combine concat_str --dict '/Users/pm286/projects/CEVOpen/dictionary/eoPlant/eo_plant.xml' '/Users/pm286/dictionary/openvirus20210120/country/country.xml' --glob '/Users/pm286/projects/openDiagram/physchem/resources/oil26/**/sections/**/*abstract.xml' --outfile '/Users/pm286/projects/openDiagram/physchem/resources/oil26/files/shweata_1.txt' --proj '/Users/pm286/projects/openDiagram/physchem/resources/oil26'
+    # python physchem/python/pyamix.py --apply xml2txt --combine concat_str
+    # --dict '/Users/pm286/projects/CEVOpen/dictionary/eoPlant/eo_plant.xml'
+    # '/Users/pm286/dictionary/openvirus20210120/country/country.xml' -
+    # -glob '/Users/pm286/projects/openDiagram/physchem/resources/oil26/**/sections/**/*abstract.xml'
+    # --outfile '/Users/pm286/projects/openDiagram/physchem/resources/oil26/files/shweata_1.txt'
+    # --proj '/Users/pm286/projects/openDiagram/physchem/resources/oil26'
 
     def example_xml2sect(self):
 
@@ -130,7 +138,7 @@ class Examples():
             "--assert", "file_glob_count(${examples_test.p}/*/sections/**/*.xml,291)"
         ])
 
-    def example_xml2sect_cmd(self): # not yet running
+    def example_xml2sect_cmd(self):  # not yet running
 
         proj_dir = self.setup()
         print("path", proj_dir, os.path.exists(proj_dir))
@@ -319,11 +327,6 @@ class Examples():
                     f"unknown example: {example}\nchoose from: {example_dict.keys()}")
 
     def transform_img_to_png(self, file):
-        from io import BytesIO
-        from PIL import Image
-        from pathlib import Path
-        import io
-        import binascii
 
         outfile = Path(file + ".png")  # change this
         print(f"path: {outfile}")
@@ -347,8 +350,6 @@ class Examples():
 
     def transform_images_to_png(self):
         """These images are from pdfminer3 - they can't be parsed"""
-        import glob
-        from py4ami.file_lib import Globber
         globstr = "/Users/pm286/misc/images/*.img"
         files = glob.glob(globstr)
         # files = Globber(globstr).get_globbed_files()

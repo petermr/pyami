@@ -2,6 +2,7 @@ from py4ami.dict_lib import AmiDictionary
 from lxml import etree as ET
 import os
 
+
 class SearchDictionaryTest:
     @classmethod
     def test_parse_wikidata_page(cls):
@@ -23,9 +24,6 @@ class SearchDictionaryTest:
             wikidata_page = dictionary.create_wikidata_page(entry)
             ids = wikidata_page.get_properties()
             print(ids)
-
-
-
 
     @classmethod
     def test(cls):
@@ -59,7 +57,7 @@ class SearchDictionaryTest:
         """
         """
 
-        from  pyami.constants import CEV_OPEN_DICT_DIR
+        from pyami.constants import CEV_OPEN_DICT_DIR
         import glob
         # from shutil import copyfile
 
@@ -268,17 +266,18 @@ class SearchDictionaryTest:
 
         sparql_files.sort()
         sparql2amidict_dict = {
-            "image" : {
+            "image": {
                 "id_name": "item",
                 "sparql_name": "image_link",
                 "dict_name": "image",
             },
-            "taxon" : {
+            "taxon": {
                 "id_name": "item",
                 "sparql_name": "taxon",
                 "dict_name": "synonym",
             }
         }
+
 
 if __name__ == '__main__':
     SearchDictionaryTest.test_plant()

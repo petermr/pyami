@@ -1,5 +1,6 @@
 """miscellaneous routines that might be useful sometime"""
 
+
 class TrieNode(object):
     """
     Our trie node implementation. Very basic. but does the job
@@ -86,12 +87,11 @@ class TrieNode(object):
 class Ngrams:
     """Various codes from StackOverflow and similar"""
 
-    def tokenize(string):
+    def tokenize(self, string):
         """Convert string to lowercase and split into words (ignoring
         punctuation), returning list of words.
         """
         return re.findall(r'\w+', string.lower())
-
 
     def count_ngrams(self, lines, min_length=2, max_length=4):
         """Iterate through given lines iterator (path object or list of
@@ -125,8 +125,7 @@ class Ngrams:
 
         return self.ngrams
 
-
-    def print_most_frequent(ngrams, num=10):
+    def print_most_frequent(self, ngrams, num=10):
         """Print num most common n-grams of each length in n-grams dict."""
         for n in sorted(ngrams):
             print('----- {} most common {}-grams -----'.format(num, n))
@@ -134,18 +133,15 @@ class Ngrams:
                 print('{0}: {1}'.format(' '.join(gram), count))
             print('')
 
-
-    def test(file):
+    def test(self, file):
         with open(file) as f:
             ngrams = count_ngrams(f)
         print_most_frequent(ngrams)
-
 
 # http://www.locallyoptimal.com/blog/2013/01/20/elegant-n-gram-generation-in-python/
 
     def test1():
         input_list = "to be or not to be that is the question whether tis nob"
-
 
     @staticmethod
     def find_bigrams(input_list):
@@ -163,4 +159,3 @@ class Ngrams:
     @staticmethod
     def find_ngrams(input_list, n):
         return zip(*[input_list[i:] for i in range(n)])
-

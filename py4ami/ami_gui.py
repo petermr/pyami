@@ -50,7 +50,7 @@ def button1(event):
     print(dir(event))
     tup = event.widget.curselection
     print("tup", tup, type(tup),)
-    if (len(tup) > 0):
+    if len(tup) > 0:
         print(tup[0], event.widget.get(tup[0]))
 
 
@@ -101,7 +101,7 @@ class AmiGui(tk.Frame):
         :param event: 
 
         """
-        #print("Main selected", event, event.widget.selection_get())
+        # print("Main selected", event, event.widget.selection_get())
         pass
 
     def process_selection(self, event):
@@ -135,7 +135,7 @@ class AmiGui(tk.Frame):
         self.main_display_frame.pack(side=tk.RIGHT)
 
         self.main_text_display = scrolledtext.ScrolledText(
-            self.main_display_frame, font=("Arial, 18"), width=60, height=10)
+            self.main_display_frame, font="Arial, 18", width=60, height=10)
         self.main_text_display.insert(tk.END, "text_display")
         self.main_text_display.pack(side=tk.BOTTOM, expand=True)
         self.main_text_display.bind(
@@ -458,7 +458,8 @@ class AmiGui(tk.Frame):
 
         pygetpapers_frame, title_var = Gutil.make_frame_with_hide(master,
                                                                   title="Pygetpapers",
-                                                                  tooltip="build query from dictionaries, flags and text; and RUN",
+                                                                  tooltip="build query from dictionaries, "
+                                                                          "flags and text; and RUN",
                                                                   )
 
         self.download_save, _ = Gutil.make_frame(pygetpapers_frame,
@@ -849,7 +850,7 @@ class AmiGui(tk.Frame):
         """
         try:
             _, stderr_lines = Gutil.run_subprocess_get_lines(args)
-        except:
+        except Exception:
             messagebox.showinfo(title="query failed",
                                 message="failed, maybe no output")
             return ["failure, probably no hits"]
@@ -991,10 +992,10 @@ class AmiGui(tk.Frame):
         """
         selected = Gutil.get_selections_from_listbox(listbox)
         s = ""
-        l = len(selected)
+        ll = len(selected)
         s = '('
-        s += Gutil.quoteme(selected[0]) if l > 0 else ""
-        for i in range(1, l):
+        s += Gutil.quoteme(selected[0]) if ll > 0 else ""
+        for i in range(1, ll):
             s += " OR " + Gutil.quoteme(selected[i])
         s += ')'
         return s
@@ -1054,7 +1055,7 @@ class AmiGui(tk.Frame):
         elementTree = ET.parse(dictionary_file)
         entries = elementTree.findall("entry")
         names = [entry.attrib["name"] for entry in entries]
- #       print("entries", len(names))
+        # print("entries", len(names))
         names = sorted(names)
         return names
 
@@ -1083,7 +1084,7 @@ class AmiGui(tk.Frame):
 
         """
         self.dcb_frame, title_var = Gutil.make_frame(master,
-                                                     #                                                     title="select entries in dictionaries",
+                                                     # title="select entries in dictionaries",
                                                      tooltip="dictionary content boxes will be added here",
                                                      )
         self.dcb_frame.pack()
@@ -1125,7 +1126,7 @@ def print_console():
 # main
 use_console = False  # debugging not yet finished
 root = tk.Tk()
-#screen = Frame(root)
+# screen = Frame(root)
 # screen.pack()
 app = AmiGui(master=root)
 console = tk.Text(app)

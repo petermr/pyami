@@ -1,7 +1,7 @@
 """tests for file_lib"""
 import os
 import logging
-from  py4ami.file_lib import AmiPath, PROJ, FILE
+from py4ami.file_lib import AmiPath, PROJ, FILE
 
 FILE_LIB = "file_lib"
 PDF_LIB = "pdf_lib"
@@ -9,6 +9,8 @@ TEXT_LIB = "text_lib"
 _SETUP = "_setup"
 _TEARDOWN = "_teardown"
 TEST = "test"
+
+
 class TestFile:
     logger = logging.getLogger("test_file")
     TEST = "test"
@@ -35,7 +37,6 @@ class TestFile:
         PYDIAG = "../../python/diagrams"
         globbed_files = AmiPath.create_ami_path_from_templates("abstract", {PROJ: PYDIAG + "/" + "../liion"}),
         cls.logger.debug(f"globbed files {len(globbed_files)}, {globbed_files[:5]}")
-
 
     @classmethod
     def _analyze_sections(cls, proj_dir):
@@ -85,8 +86,6 @@ class TestFile:
             "--delete", "${exam_temp}",
         ])
 
-
-
     @classmethod
     def run_arg_tests(cls, args):
         """This needs revision , maybe using Examples()"""
@@ -104,8 +103,6 @@ class TestFile:
             cls.logger.warning("run test_text NYI")
 
 
-
 def main():
     TestFile.test_file_simple()
     TestFile.test_templates()
-

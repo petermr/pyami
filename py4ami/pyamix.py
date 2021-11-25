@@ -92,7 +92,7 @@ class PyAMI:
         self.current_file = None
         self.fileset = None
         # self.file_dict = {}  # possibly to be replaced by content_store.file_dict
-        self.content_store = ContentStore(self) # will expose content_store.file_dict
+        self.content_store = ContentStore(self)  # will expose content_store.file_dict
         self.func_dict = {}
         self.result = None
         self.set_flags()
@@ -103,8 +103,8 @@ class PyAMI:
         self.set_funcs()
         self.show_symbols = False
         self.ami_dictionary = None
-        self.proj = None # current project in searches
-        self.current_ctree = None # current ctree (may change during iteration
+        self.proj = None  # current project in searches
+        self.current_ctree = None  # current ctree (may change during iteration
         # self.ami_logger = None
         if self.show_symbols:
             pprint.pp(f"SYMBOLS\n {self.symbol_ini.symbols}")
@@ -141,7 +141,8 @@ class PyAMI:
         parser.add_argument('--apply', nargs="+",
                             #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
                             choices=apply_choices,
-                            help='list of sequential transformations (1:1 map) to apply to pipeline ({self.TXT2SENT} NYI)')
+                            help='list of sequential transformations (1:1 map) to apply to pipeline '
+                                 '({self.TXT2SENT} NYI)')
         parser.add_argument('--assert', nargs="+",
                             help='assertions; failure gives error message (prototype)')
         parser.add_argument('--combine', nargs=1,
@@ -200,7 +201,6 @@ class PyAMI:
         else:
             arglist = commandline.split(" ")
             self.run_command(arglist)
-
 
     def run_commands(self, arglistlist):
         """runs a list of commands
@@ -299,7 +299,6 @@ class PyAMI:
             self.logger.warning(f"COPY {self.args[self.COPY]}")
             self.copy_files()
 
-        
         if self.PROJ in self.args:
             if self.SECT in self.args or self.GLOB in self.args or self.SPLIT in self.args:
                 self.run_project_workflow()
@@ -352,7 +351,7 @@ class PyAMI:
         elif isinstance(old_val, str):
             new_val = self.symbol_ini.replace_symbols_in_arg(old_val)
             if "${" in new_val:
-                raise ValueError (f"Unresolved reference : {new_val}")
+                raise ValueError(f"Unresolved reference : {new_val}")
                 # print("=====================")
                 # self.symbol_ini.print_symbols()
                 # print("=====================")
@@ -474,7 +473,8 @@ class PyAMI:
 
         Args:
             src (str): path or dirx to copy, must exist
-            dest (str): destination must be a directory. If path becomes a child of <to>; if a directory creates or replaces <to>
+            dest (str): destination must be a directory. If path becomes a child of <to>; if a
+            directory creates or replaces <to>
             overwrite (bool, optional): whether to overwrite if path exists. Defaults to False.
         Exceptions:
             FileNotFoundError: if src does not exist, or dest cannot be created
@@ -565,7 +565,7 @@ class PyAMI:
         for file in file_keys:
             suffix = FileLib.get_suffix(file)
             if ".xml" == suffix and type == self.XML2SECT:
-#                self.make_xml_sections(file)
+                # self.make_xml_sections(file)
                 force = False
                 force = True
                 outdir = Path(Path(file).parent, "sections")
@@ -917,7 +917,7 @@ class PyAMI:
         return True if self.flag_dict.get(flag) else False
 
 
-class ContentStore():
+class ContentStore:
     """holds path-related content
 
     replaces earlier py4ami.file_dict
@@ -950,7 +950,7 @@ def main():
     """
 
     run_dsl = False
-    run_tests = False # needs re-implementing
+    run_tests = False  # needs re-implementing
     run_commands = True
 #    run_commands = False
 #    run_tests = True

@@ -284,7 +284,8 @@ class AmiSection:
 
     def add_name(self, file):
         """creates name (within a sections/) dirx from path
-        e.g. /Users/pm286/projects/openDiagram/physchem/resources/oil26/PMC5485486/sections/0_front/1_article-meta/13_abstract.xml
+        e.g. /Users/pm286/projects/openDiagram/physchem/resources/oil26/PMC5485486/sections/0_front/1
+        _article-meta/13_abstract.xml
         yields 0_front/1_article-meta/13_abstract.xml """
         if file is None:
             self.logger.warning("null path")
@@ -410,6 +411,7 @@ class AmiSection:
             self.words.extend(words)
         return self.words
 
+
 class Sentence:
 
     NUMBER_SPLIT = ": "
@@ -435,7 +437,7 @@ class Sentence:
         returns: words diminished by deleted punctuation
 
         """
-        tokens = [token for token in tokens if not token in PUNCT]
+        tokens = [token for token in tokens if token not in PUNCT]
         return tokens
 
     @staticmethod
@@ -722,7 +724,7 @@ class WordFilter:
         return words1
 
 
-class DSLParser():
+class DSLParser:
     """A DomainSpecificLangauge parser for pyami commands
 
     currently accepts a simple nested lambda-like language similar to xpath

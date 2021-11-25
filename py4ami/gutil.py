@@ -1,11 +1,12 @@
 import logging
-logging.warning("load gutil.py")
 import tkinter as tk
 import tkinter.ttk as ttk
-from tkinter.ttk import Style
 
 import subprocess
 import os
+import time
+
+logging.warning("load gutil.py")
 
 HLBG = "highlightbackground"
 HLTHICK = "highlightthickness"
@@ -40,8 +41,8 @@ class ToolTip(object):
         tw.wm_overrideredirect(1)
         tw.wm_geometry("+%d+%d" % (x, y))
         label = tk.Label(tw, text=self.text, justify=tk.LEFT,
-                      background="#ffffe0", relief=SOLID, borderwidth=1,
-                      font=("tahoma", "15", "normal"))
+                         background="#ffffe0", relief=SOLID, borderwidth=1,
+                         font=("tahoma", "15", "normal"))
         label.pack(ipadx=1)
 
     def hidetip(self):
@@ -49,6 +50,7 @@ class ToolTip(object):
         self.tipwindow = None
         if tw:
             tw.destroy()
+
 
 def CreateToolTip(widget, text):
     toolTip = ToolTip(widget)
@@ -61,7 +63,6 @@ def CreateToolTip(widget, text):
 
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
-
 
 
 class Gutil:
@@ -104,9 +105,6 @@ class Gutil:
     @staticmethod
     def test_prog_bar():
         """unused demo"""
-        import tkinter as tk
-        import tkinter.ttk as ttk
-        import time
 
         # Create the master object
         master = tk.Tk()
@@ -143,7 +141,8 @@ class Gutil:
         onval = dikt[Gutil.CBOX_ON]
         side = kwargs["side"] if "side" in kwargs else None
         dikt[Gutil.CBOX_BOX], dikt[Gutil.CBOX_VAR] = \
-            cbox, cvar = Gutil.create_check_box(master, text=dikt[Gutil.CBOX_TEXT], side=side, default=dikt[Gutil.TEXT_DEFAULT])
+            cbox, cvar = Gutil.create_check_box(master, text=dikt[Gutil.CBOX_TEXT], side=side,
+                                                default=dikt[Gutil.TEXT_DEFAULT])
         tooltip = dikt[Gutil.CBOX_TOOLTIP] if Gutil.CBOX_BOX in dikt.keys() else None
         if tooltip is not None:
             CreateToolTip(cbox, text=tooltip)
@@ -186,7 +185,6 @@ class Gutil:
 
     @staticmethod
     def make_frame_with_hide(master, title=None, tooltip=None, **kwargs):
-        import tkinter as tk
         hide_frame = Gutil.create_hide_frame(master)
         hide_frame.pack(side=tk.TOP)
         frame, title_var = Gutil.make_frame(hide_frame, **kwargs)
@@ -221,10 +219,10 @@ class Gutil:
         """
         defaults = {
             HLBG: "brown",
-            HLTHICK : 2,
-            SIDE : tk.TOP,
-            TITLE : "?",
-            TOOLTIP : None,
+            HLTHICK: 2,
+            SIDE: tk.TOP,
+            TITLE: "?",
+            TOOLTIP: None,
         }
         bg_col = kwargs[HLBG] if HLBG in kwargs else defaults[HLBG]
         bg_thick = kwargs[HLTHICK] if HLTHICK in kwargs else defaults[HLTHICK]
@@ -282,13 +280,13 @@ class Gutil:
          :return: tuple (stdout as lines, stderr as lines)
          """
         completed_process = subprocess.run(args, capture_output=True)
-        completed_process.check_returncode() # may throw error which caller muct catch
+        completed_process.check_returncode()  # may throw error which caller muct catch
         # throws error
         # completed_process.stdout returns <bytes>, convert to <str>
         stdout_str = str(completed_process.stdout)
         stderr_str = str(completed_process.stderr)
         argsx = completed_process.args
-        stderr_lines = stderr_str.split(Gutil.SUBPROC_LINE_END) # the <str> conversion adds a backslash?
+        stderr_lines = stderr_str.split(Gutil.SUBPROC_LINE_END)  # the <str> conversion adds a backslash?
         stdout_lines = stdout_str.split(Gutil.SUBPROC_LINE_END)
         return stdout_lines, stderr_lines
 
@@ -297,12 +295,12 @@ class Gutil:
         return [box.get(i) for i in box.curselection()]
 
     @staticmethod
-    def make_spinbox(master, title, min=3, max=100):
-        spin_frame = tk.Frame(master=master, bg = "#444444", bd = 1,)
+    def make_spinbox(master, title, minn=3, maxx=100):
+        spin_frame = tk.Frame(master=master, bg="#444444", bd=1,)
         spin_frame.pack(expand=True)
         label = tk.Label(master=spin_frame, text=title)
         label.pack(side="left")
-        spin = tk.Spinbox(spin_frame, from_=min, to=max, state="readonly", width=3)
+        spin = tk.Spinbox(spin_frame, from_=minn, to=maxx, state="readonly", width=3)
         spin.pack(side="right")
         return spin
 
@@ -322,7 +320,6 @@ class AmiTree:
         self.tree.pack(expand=True, fill="x")
         return self.tree
 
-
     def color_tags(self):
         self.tree.tag_configure('xml', background='pink')
         self.tree.tag_configure('pdf', background='lightgreen')
@@ -334,16 +331,16 @@ class AmiTree:
 
         tags_to_display = ["png", "xml", "txt"]  # refine this
         path_list = []
-        for id in id_list:
-            self.display_item_selected(id, path_list, tags_to_display)
+        for idx in id_list:
+            self.display_item_selected(idx, path_list, tags_to_display)
 
         return id_list, path_list
 
-    def display_item_selected(self, id, path_list, tags_to_display):
-        item_dict = self.tree.item(id)
+    def display_item_selected(self, idx, path_list, tags_to_display):
+        item_dict = self.tree.item(idx)
         for tag in tags_to_display:
             if tag in item_dict["tags"]:
-                path = self.make_file_path(id)
+                path = self.make_file_path(idx)
                 path_list.append(path)
                 file = os.path.join(self.directory, path)
                 if self.is_image_tag(tag):
@@ -357,20 +354,20 @@ class AmiTree:
     def is_text_tag(self, tag):
         return tag in ["txt", "xml"]
 
-    def make_file_path(self, id):
-        path_component_list = [self.tree.item(id)["text"] for id in self.make_path_component_id_list(id)]
+    def make_file_path(self, idx):
+        path_component_list = [self.tree.item(idx)["text"] for idx in self.make_path_component_id_list(idx)]
         path = os.path.join(*path_component_list)
         return path
 
-    def make_path_component_id_list(self, id):
-        path_list = [id]
+    def make_path_component_id_list(self, idx):
+        path_list = [idx]
         parent_id = "dummy"
         while parent_id != "":
-            parent_id = self.tree.parent(id)
+            parent_id = self.tree.parent(idx)
             if parent_id == "":
                 break
             path_list.append(parent_id)
-            id = parent_id
+            idx = parent_id
         path_list.reverse()
         return path_list
 
@@ -382,7 +379,7 @@ class AmiTree:
             child_id = None
             if self.display_filename(f):
                 tag = self.tag_from_file_suffix(f)
-                child_id = tree.insert(parent_id, 'end', text=filename, tags=(tag))
+                child_id = tree.insert(parent_id, 'end', text=filename, tags=tag)
 #                tree.tag_bind(tag, '<1>', self.itemClicked)
 
             if os.path.isdir(f) and child_id is not None:
@@ -395,14 +392,14 @@ class AmiTree:
                 tag = suff
         return tag
 
-    def sorted_alphanumeric(data):
+    def sorted_alphanumeric(self, data):
         import re
 # https://stackoverflow.com/questions/800197/how-to-get-all-of-the-immediate-subdirectories-in-python
         convert = lambda text: int(text) if text.isdigit() else text.lower()
-        alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+        alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
         return sorted(data, key=alphanum_key)
 
-    def path_leaf(path):
+    def path_leaf(self, path):
         import ntpath
         head, tail = ntpath.split(path)
         return tail or ntpath.basename(head)
@@ -532,8 +529,6 @@ class ScrollingCheckboxList(tk.Frame):
         self.receiver.receive_checked_values(checked_values)
 
 
-
-
 def scrollable_checkbox_test():
     global root
     root = tk.Tk()
@@ -566,9 +561,9 @@ class ExtraWidgets(tk.Frame):
         ss.configure('Yellow.TFrame', background='yellow', foreground="pink", border=10, padx=5,
                      highlightcolor="purple", highlightthickness=1)
         s1 = ttk.Style()
-        s1.configure('Red.TButton', background='red', foreground="green", font=('Arial', 20,'bold'))
+        s1.configure('Red.TButton', background='red', foreground="green", font=('Arial', 20, 'bold'))
         s2 = ttk.Style()
-        s2.configure('Blue.TButton', background='blue', foreground="red", font=('Courier', 20,'italic'))
+        s2.configure('Blue.TButton', background='blue', foreground="red", font=('Courier', 20, 'italic'))
 
         frame = ttk.Frame(self.master, style="Yellow.TFrame", padding='10 10 15 15', height=400, width=250)
         frame['borderwidth'] = 5
@@ -583,7 +578,7 @@ class ExtraWidgets(tk.Frame):
         #        self.listbox_test()
 
         self.label_frame_test()
-        s = ttk.Separator(self.master, orient=tk.HORIZONTAL) # doesn't work
+        s = ttk.Separator(self.master, orient=tk.HORIZONTAL)  # doesn't work
         s.pack(fill="x")
         self.notebook_test()
 
@@ -625,11 +620,9 @@ class ExtraWidgets(tk.Frame):
         button22.pack()
         n.pack()
 
-import tkinter as tk
 
 if False:
     print("***********Testing gutil")
     root = tk.Tk()
     app = ExtraWidgets(master=root)
     app.mainloop()
-

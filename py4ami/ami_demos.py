@@ -8,6 +8,7 @@ from py4ami.projects import AmiProjects, CProject
 from py4ami.text_lib import WordFilter
 from py4ami.search_lib import AmiSearch
 
+
 class AmiDemos:
 
     FIG_CAPTION_DEMO = "fig_caption"
@@ -103,7 +104,7 @@ class AmiDemos:
             [AmiDictionaries.PROT_STRUCT, AmiDictionaries.PROT_PRED, AmiDictionaries.CRISPR])
         ami_search.use_projects([AmiProjects.DIFFPROT, ])
 
-        ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
+        ami_search.use_pattern("^[A-Z]{1,}[^\\s]*\\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
         ami_search.use_pattern("_ALL", "_all")
 
@@ -120,7 +121,7 @@ class AmiDemos:
         ami_search.use_projects([AmiProjects.DISEASE, ])
         ami_search.use_filters([WordFilter.ORG_STOP])
 
-        ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
+        ami_search.use_pattern("^[A-Z]{1,}[^\\s]*\\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
         ami_search.use_pattern("_ALL", "_all")
 
@@ -150,7 +151,7 @@ class AmiDemos:
             [AmiDictionaries.ELEMENT, AmiDictionaries.CRYSTAL, AmiDictionaries.MAGNETISM])
         ami_search.use_projects([AmiProjects.LIION10, ])
 
-        ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
+        ami_search.use_pattern("^[A-Z]{1,}[^\\s]*\\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
         ami_search.use_pattern("_ALL", "_all")
 
@@ -165,7 +166,7 @@ class AmiDemos:
         ami_search.use_dictionaries([])
         ami_search.use_projects([AmiProjects.OIL26, ])
 
-        ami_search.use_pattern("^[A-Z][en]?\.", "SPECIES_ABB")
+        ami_search.use_pattern("^[A-Z][en]?\\.", "SPECIES_ABB")
         ami_search.use_pattern("_ITALICS", "_italics")
 
         ami_search.run_search()
@@ -207,7 +208,7 @@ class AmiDemos:
         ami_search.use_dictionaries([AmiDictionaries.ELEMENT])
         ami_search.use_projects([AmiProjects.FFML20, ])
 
-        ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
+        ami_search.use_pattern("^[A-Z]{1,}[^\\s]*\\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
         ami_search.use_pattern("_ALL", "_all")
 
@@ -225,7 +226,7 @@ class AmiDemos:
         ami_search.use_projects(
             [AmiProjects.WORC_EXPLOSION, AmiProjects.WORC_SYNTH])
 
-        ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
+        ami_search.use_pattern("^[A-Z]{1,}[^\\s]*\\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
         ami_search.use_pattern("_ALL", "_all")
 
@@ -240,7 +241,7 @@ class AmiDemos:
         ami_search.use_projects(
             [AmiProjects.WORC_EXPLOSION, AmiProjects.WORC_SYNTH])
 
-        ami_search.use_pattern("^[A-Z]{1,}[^\s]*\d{1,}$", "AB12")
+        ami_search.use_pattern("^[A-Z]{1,}[^\\s]*\\d{1,}$", "AB12")
         ami_search.use_pattern("_ALLCAPS", "all_capz")
         ami_search.use_pattern("_ALL", "_all")
 

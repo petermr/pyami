@@ -10,7 +10,6 @@ from py4ami.util import Util
 from pathlib import Path
 
 
-
 class SymbolIni:
 
     """processes config/ini files and stores symbols created"""
@@ -103,7 +102,7 @@ class SymbolIni:
     def get_code_dir(self, config_file):
         home = os.path.expanduser("~")
         file = __file__
-        print ("FILE ", file)
+        print("FILE ", file)
         return file
 
     def apply_config_file(self, file):
@@ -205,7 +204,7 @@ assumes value
                 self.logger.debug(f"Replaced local symbols")
                 new_value = self.replace_symbols_in_arg(new_value)
 
-            if not key in self.symbols:
+            if key not in self.symbols:
                 self.symbols[key] = new_value
                 self.logger.debug(f"added symbol: {key} => {new_value}")
             elif self.symbols[key] != new_value:

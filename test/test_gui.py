@@ -1,6 +1,7 @@
+from tkinter.messagebox import showinfo
 import tkinter as tk
 from tkinter import ttk
-from tkinter.messagebox import showinfo
+from tkinter.messagebox import showerror
 
 
 def create_input_frame(container):
@@ -72,7 +73,7 @@ def create_main_window():
     # windows only (remove the minimize/maximize button)
     try:
         root.attributes('-toolwindow', True)
-    except:
+    except Exception:
         pass
 
     # layout on the root window
@@ -86,6 +87,7 @@ def create_main_window():
     button_frame.grid(column=1, row=0)
 
     root.mainloop()
+
 
 def combo():
 
@@ -117,23 +119,21 @@ def combo():
 
     root.mainloop()
 
+
 def raise_test():
-    import tkinter as tk
-    from tkinter import ttk
-    from tkinter.messagebox import showerror
 
     class TemperatureConverter:
         @staticmethod
-        def fahrenheit_to_celsius(f, format=True):
+        def fahrenheit_to_celsius(f, formatx=True):
             result = (f - 32) * 5 / 9
-            if format:
+            if formatx:
                 return f'{f} Fahrenheit = {result:.2f} Celsius'
             return result
 
         @staticmethod
-        def celsius_to_fahrenheit(c, format=True):
+        def celsius_to_fahrenheit(c, formatx=True):
             result = c * 9 / 5 + 32
-            if format:
+            if formatx:
                 return f'{c} Celsius = {result:.2f} Fahrenheit'
             return result
 
@@ -238,9 +238,8 @@ def raise_test():
         ControlFrame(app)
         app.mainloop()
 
+
 def separator_test():
-    import tkinter as tk
-    from tkinter import ttk
 
     root = tk.Tk()
     root.geometry('300x200')
@@ -255,11 +254,13 @@ def separator_test():
 
     root.mainloop()
 
-def menu_test(): # not yet working
+
+def menu_test():  # not yet working
     # menu - not used
     def menu_stuff(self):
         from tkinter import Menu
 
+        root = tk.Tk()
         menubar = Menu(self.master)
         filemenu = Menu(menubar, tearoff=0)
         filemenu.add_command(label="New", command=self.menu("newxx"))
@@ -283,18 +284,17 @@ def menu_test(): # not yet working
 
     # https://stackoverflow.com/questions/30004505/how-do-you-find-a-unique-and-constant-id-of-a-widget
 
+
 if __name__ == "__main__":
     opt = 99
-    all = False
-    if opt == 1 or all:
+    allx = False
+    if opt == 1 or allx:
         create_main_window()
-    if opt == 2 or all:
+    if opt == 2 or allx:
         combo()
-    if opt == 3 or all:
+    if opt == 3 or allx:
         raise_test()
-    if opt == 4 or all:
+    if opt == 4 or allx:
         separator_test()
-    if opt == 5 or all:
+    if opt == 5 or allx:
         menu_test()
-
-

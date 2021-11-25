@@ -31,7 +31,7 @@ EO_PLANT_GENUS_ROOT = f"{CEVOPEN_DICT_ROOT}/{EO_PLANT_GENUS}"
 EO_PLANT_GENUS_DICT = f"{EO_PLANT_GENUS_ROOT}/plant_genus.xml"
 
 """verificationTest/MicrobeMod_FungalPro.xml"""
-VERIFICATION_TEST= "verificationTest"
+VERIFICATION_TEST = "verificationTest"
 VERIFICATION_ROOT = f"{CEVOPEN_DICT_ROOT}/{VERIFICATION_TEST}"
 MICRO_FUNGAL_PRO_DICT = f"{VERIFICATION_ROOT}/MicrobeMod_FungalPro.xml"
 MICRO_FUNGAL_PRO = "MicroFungal_Pro"
@@ -50,7 +50,7 @@ ENZYMES_XML = f"{SAGAR_REPO}/enzyme_names.xml"
 
 
 # 2021-09 interns
-CROPS =  "https://raw.githubusercontent.com/petermr/crops/main"
+CROPS = "https://raw.githubusercontent.com/petermr/crops/main"
 
 # https://github.com/sasujadhav1/Files/blob/main/bionab.xml
 # https://github.com/sasujadhav1/Files/blob/main/enzyme_names.xml
@@ -67,39 +67,44 @@ ZEA_DICT = f"{CROPS}/Zea%20mays/eo_ZeaTPS.xml"
 CEVOPEN_DICTS = {
     EO_ACTIVITY:  EO_ACTIVITY_DICT,
     EO_COMPOUND:  EO_COMPOUND_DICT,
-    EO_PLANT : EO_PLANT_DICT,
+    EO_PLANT: EO_PLANT_DICT,
     EO_PLANT_GENUS: EO_PLANT_GENUS_DICT,
     EO_PLANT_PART: EO_PLANT_PART_DICT,
 
-# suffix, species
-    ENZYMES : ENZYMES_XML,
-    BIONAB : BIONAB_XML,
+    # suffix, species
+    ENZYMES: ENZYMES_XML,
+    BIONAB: BIONAB_XML,
 
-# 2021 interns
-    MENTHA : MENTHA_DICT,
-    SOLANUM : SOLANUM_DICT,
-    VITIS : VITIS_DICT,
-    ZEA : ZEA_DICT,
+    # 2021 interns
+    MENTHA: MENTHA_DICT,
+    SOLANUM: SOLANUM_DICT,
+    VITIS: VITIS_DICT,
+    ZEA: ZEA_DICT,
 
-# Manny dictionaries
-    MICRO_FUNGAL_PRO : MICRO_FUNGAL_PRO_DICT,
+    # Manny dictionaries
+    MICRO_FUNGAL_PRO: MICRO_FUNGAL_PRO_DICT,
 }
 
 # core plant dictionaries
 
-def test_check_eoActivity():
+
+def test_check_eo_activity():
     _validate_dict(CEVOPEN_DICTS[EO_ACTIVITY])
 
-def test_check_eoCompound():
+
+def test_check_eo_compound():
     _validate_dict(CEVOPEN_DICTS[EO_COMPOUND])
 
-def test_check_eoPlant():
+
+def test_check_eo_plant():
     _validate_dict(CEVOPEN_DICTS[EO_PLANT])
 
-def test_check_eoPlantGenus():
+
+def test_check_eo_plant_genus():
     _validate_dict(CEVOPEN_DICTS[EO_PLANT_GENUS])
 
-def test_check_eoPlantPart():
+
+def test_check_eo_plant_part():
     _validate_dict(CEVOPEN_DICTS[EO_PLANT_PART])
 
 
@@ -108,39 +113,42 @@ def test_check_eoPlantPart():
 def test_check_mentha():
     _validate_dict(CEVOPEN_DICTS[MENTHA])
 
+
 def test_check_solanum():
     _validate_dict(CEVOPEN_DICTS[SOLANUM])
+
 
 def test_check_vitis():
     vitis_ = CEVOPEN_DICTS[VITIS]
     assert vitis_ == "https://raw.githubusercontent.com/petermr/crops/main/Vitis/eo_VVinifera.xml"
     _validate_dict(vitis_)
 
+
 def test_check_zea():
     zea_ = CEVOPEN_DICTS[ZEA]
     assert zea_ == "https://raw.githubusercontent.com/petermr/crops/main/Zea%20mays/eo_ZeaTPS.xml"
     _validate_dict(zea_)
+
 
 # enzymes
 def test_check_enzymes():
     enzymes = CEVOPEN_DICTS[ENZYMES]
     _validate_dict(enzymes)
 
+
 # bionomial abbreviations
 def test_check_binomial_abbreviations():
     bionab = CEVOPEN_DICTS[BIONAB]
     _validate_dict(bionab)
 
-# Manny dictionaries
 
+# Manny dictionaries
 def test_check_micro_fungal():
     micro_fungal = CEVOPEN_DICTS[MICRO_FUNGAL_PRO]
     _validate_dict(micro_fungal)
 
-# helper --------          --------
 
+# helper ----------------
 def _validate_dict(dict_url):
     amidict = AMIDict.create_dict_from_url(dict_url)
     amidict.check_validity()
-
-
