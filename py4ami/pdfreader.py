@@ -2,7 +2,7 @@ import logging
 logging.debug("loading pdfreader.py")
 # https://stackoverflow.com/questions/56494070/how-to-use-pdfminer-six-with-python-3
 
-from pdfminer3.layout import LAParams,
+from pdfminer3.layout import LAParams
 from pdfminer3.pdfpage import PDFPage
 from pdfminer3.pdfinterp import PDFResourceManager
 from pdfminer3.pdfinterp import PDFPageInterpreter

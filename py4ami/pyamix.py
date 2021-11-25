@@ -15,7 +15,6 @@ from py4ami.dict_lib import AmiDictionary
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.xml_lib import XmlLib
-from test.test_file import TestFile
 from py4ami.text_lib import TextUtil, DSLParser
 from py4ami.pdfreader import PdfReader
 from py4ami.symbol import SymbolIni
@@ -188,9 +187,10 @@ class PyAMI:
                             help='sections to search; _help gives all(?)')
         parser.add_argument('--split', nargs="+", choices=['txt2para', 'xml2sect'],  # split fulltext.xml,
                             help='split fulltext.* into paras, sections')
-        parser.add_argument('--test', nargs="*",
-                            choices=TestFile.OPTIONS,  # tests and/or setup/teardown
-                            help='run tests for modules; no selection runs all')
+        # parser.add_argument('--test', nargs="*",
+        #                     choices=TestFile.OPTIONS,  # tests and/or setup/teardown
+        #                     help='run tests for modules; no selection runs all')
+        # TODO should tests be run from this menu
         return parser
 
     def commandline(self, commandline: str) -> None:
@@ -303,9 +303,10 @@ class PyAMI:
             if self.SECT in self.args or self.GLOB in self.args or self.SPLIT in self.args:
                 self.run_project_workflow()
 
-        elif TestFile.TEST in self.args:
-            self.logger.warning(f"TEST in **args {self.args}")
-            TestFile.run_arg_tests(self.args)
+        # elif TestFile.TEST in self.args:
+        #     self.logger.warning(f"TEST in **args {self.args}")
+        #     TestFile.run_arg_tests(self.args)
+        # TODO linkup with test arguments
 
     def replace_single_values_in_self_args_with_list(self, key):
         """always returns list even for single arg
@@ -431,8 +432,9 @@ class PyAMI:
             self.hit_counter = Counter()
             self.run_proj()
             self.logger.debug(f"hit counter: {self.hit_counter}")
-        if self.args[self.TEST]:
-            TestFile.run_arg_tests(self.args)
+        # if self.args[self.TEST]:
+        #     TestFile.run_arg_tests(self.args)
+        # TODO fix tests
         # else:
         #     self.logger.error("{self.args} requires --proj or --test")
         return
