@@ -1,6 +1,6 @@
-
 import os
-from py4ami.xml_lib import XmlLib
+
+from .xml_lib import XmlLib
 
 
 class Text_XML:

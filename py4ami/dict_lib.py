@@ -1,8 +1,3 @@
-"""AMI dictionary classes"""
-from py4ami.wikimedia import WikidataLookup, WikidataPage
-from py4ami.util import Util
-from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
-
 from lxml import etree as ET
 from lxml import etree
 import urllib.request
@@ -14,6 +9,11 @@ import os
 import re
 from abc import ABC
 from pathlib import Path
+
+"""AMI dictionary classes"""
+from .wikimedia import WikidataLookup, WikidataPage
+from .util import Util
+from .constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
 
 logging.debug("loading dict_lib")
 
@@ -1004,6 +1004,7 @@ class Entry(AbsDictElem):
     assert len(ALLOWED_ATTS) == 5
 
     ELEMENT_CHILD_TAGS = {Synonym.TAG}
+    ELEMENT_PARENT_TAGS = {AMIDict.TAG}
 
     def __init__(self, element=None):
         super().__init__(element)

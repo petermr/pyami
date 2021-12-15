@@ -1,5 +1,7 @@
 import logging
+
 logging.debug("loading wikimedia.py")
+
 WIKIDATA_QUERY_URI = "https://www.wikidata.org/w/index.php?search="
 WIKIDATA_SITE = "https://www.wikidata.org/wiki/"
 

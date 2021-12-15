@@ -3,9 +3,9 @@ import os
 import logging
 from abc import ABC, abstractmethod
 
-from py4ami.util import Util
-from py4ami.pyamix import PyAMI
-from py4ami.ami_sections import AMIFigure, AMIAbsSection
+from .util import Util
+from .pyamix import PyAMI
+from .ami_sections import AMIFigure, AMIAbsSection
 
 
 class AmiProjects:

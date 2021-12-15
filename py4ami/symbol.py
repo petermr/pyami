@@ -1,13 +1,11 @@
 import logging
-# from logging import Level
 import os
 import sys
 import configparser
 import urllib.request
-import re
-from py4ami.file_lib import FileLib
-from py4ami.util import Util
 from pathlib import Path
+
+from .file_lib import FileLib
 
 
 class SymbolIni:

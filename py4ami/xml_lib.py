@@ -1,9 +1,10 @@
-# from xml.etree import ElementTree as ET
-from py4ami.file_lib import FileLib
 from pathlib import Path
 import os
 from lxml import etree as LXET
 import logging
+
+from .file_lib import FileLib
+
 logging.debug("loading xml_lib")
 
 

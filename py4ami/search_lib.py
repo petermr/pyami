@@ -19,13 +19,13 @@ import argparse
 from pathlib import Path
 
 # from py4ami.ami_demos import AmiDemos
-from py4ami.gutil import Gutil, ScrollingCheckboxList
+from .gutil import Gutil, ScrollingCheckboxList
 
-from py4ami.dict_lib import AmiDictionaries
-from py4ami.projects import AmiProjects
-from py4ami.file_lib import AmiPath, PROJ, FileLib
-from py4ami.text_lib import AmiSection
-from py4ami.xml_lib import XmlLib, H_TD, RESULTS, DataTable
+from .dict_lib import AmiDictionaries
+from .projects import AmiProjects
+from .file_lib import AmiPath, PROJ, FileLib
+from .text_lib import AmiSection
+from .xml_lib import XmlLib, H_TD, RESULTS, DataTable
 
 logging.warning("loading search_lib.py")
 

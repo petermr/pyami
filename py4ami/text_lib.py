@@ -1,6 +1,5 @@
 import unicodedata
 import nltk
-from py4ami.file_lib import AmiPath, FileLib
 import json
 import re
 import xml.etree.ElementTree as ET
@@ -12,6 +11,7 @@ import glob
 import logging
 logging.debug("loading text_lib")
 
+from .file_lib import AmiPath, FileLib
 
 NFKD = "NFKD"
 
