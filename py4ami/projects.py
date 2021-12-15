@@ -272,6 +272,7 @@ class CTree(CContainer):
     def __init__(self, dirx):
         self.logger.debug("CTree ctr")
         super().__init__(dirx)
+        self.fulltext_xml = None
 
     RESERVED_FILES = [
         EUPMC_RESULT_JSON,
@@ -329,10 +330,10 @@ class CTree(CContainer):
         :returns: a list of section filenames relative to this CTree
         """
         sections = []
-        if section_glob not in CTree.CProjectTests.glob_dict:
-            self.logger.warning(f"no section_glob: {section_glob} in {CTree.CProjectTests.glob_dict.keys()}")
+        if section_glob not in CProjectTests.glob_dict:
+            self.logger.warning(f"no section_glob: {section_glob} in {CProjectTests.glob_dict.keys()}")
         else:
-            glob_ = CTree.CProjectTests.glob_dict[section_glob]
+            glob_ = CProjectTests.glob_dict[section_glob]
             print(f"glob_ {glob_}")
             self.logger.debug(f"glob {glob_}")
             sections = self.get_descendants(glob_)
@@ -460,14 +461,14 @@ class CProjectTests:
     def tests(cls):
         project = CProject(AmiProjects.C_OIL4)
         ctree = project.get_ctree('PMC4391421')
-        abstracts = ctree.get_sections(CTree.CProjectTests.ABSTRACT)
+        abstracts = ctree.get_sections(CProjectTests.ABSTRACT)
         cls.logger.debug(f"abstracts {abstracts}")
 
     @classmethod
     def test_section_count(cls):
         project = CProject(AmiProjects.C_OIL4)
         ctree = project.get_ctree('PMC4391421')
-        cls.logger.debug(f"BACK *.xml {len(ctree.get_sections(CTree.CProjectTests.BACK_XML))}")
+        cls.logger.debug(f"BACK *.xml {len(ctree.get_sections(CProjectTests.BACK_XML))}")
         cls.print_section_count(ctree)
 
     @classmethod
@@ -479,7 +480,7 @@ class CProjectTests:
 
     @classmethod
     def print_section_count(cls, ctree):
-        for key in CTree.CProjectTests.glob_dict:
+        for key in CProjectTests.glob_dict:
             print(f"{key} => {len(ctree.get_sections(key))}")
 
     @classmethod

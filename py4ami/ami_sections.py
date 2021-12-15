@@ -18,7 +18,7 @@ class AMIAbsSection(ABC):
     # def get_reserved_child_files(self):
     #     pass
     @classmethod
-    def make_xml_sections(cls, file: Path, outdir: str, force: bool) -> None:
+    def make_xml_sections(cls, file, outdir: str, force: bool) -> None:
         """make sections """
         if file is None or outdir is None:
             return None
