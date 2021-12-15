@@ -1,3 +1,5 @@
+import unittest
+
 from ..py4ami.dict_lib import AMIDict
 """Code for VALIDATING specific DICTIONARIES , not the code
 
@@ -143,6 +145,7 @@ def test_check_binomial_abbreviations():
 
 
 # Manny dictionaries
+@unittest.skip("URL not valid")
 def test_check_micro_fungal():
     micro_fungal = CEVOPEN_DICTS[MICRO_FUNGAL_PRO]
     _validate_dict(micro_fungal)
