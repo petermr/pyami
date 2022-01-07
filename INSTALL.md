@@ -128,6 +128,11 @@ https://pypi.org/project/py4ami/0.0.6/
 
 ## release new version
 
+remove old dist
+```
+rm -rf dist/
+
+```
 ```
 pip install pipreqs --force
 pipreqs pyami
