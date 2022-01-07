@@ -128,8 +128,14 @@ https://pypi.org/project/py4ami/0.0.6/
 
 ## release new version
 
+```
+pip install pipreqs --force
+pipreqs pyami
+
+```
 * cd pyami top directory
 * edit version in setup.py
 ```
  python setup.py bdist_wheel
+ twine upload/dist*
 ```

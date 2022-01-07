@@ -15,7 +15,7 @@ be further processed by standard Python and other tools. Sections include text, 
 setup(
     name='py4ami',
     url='https://github.com/petermr/pyami',
-    version='0.0.13',
+    version='0.0.14',
     description='Semantic Reader of the Scientific Literature.',
     long_description_content_type='text/markdown',
     long_description=readme,
