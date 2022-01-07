@@ -126,3 +126,10 @@ https://pypi.org/project/py4ami/0.0.6/
 ````
 
 
+## release new version
+
+* cd pyami top directory
+* edit version in setup.py
+```
+ python setup.py bdist_wheel
+```
