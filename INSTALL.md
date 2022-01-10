@@ -12,6 +12,18 @@ See https://pypi.org/project/py4ami/
 
 # installation for developers (upload)
 
+## =========== repeat instructions (ONLY if you've done this before)
+```
+cd pyami
+rm -rf dist
+# <edit version in setup.py>
+python setup.py sdist
+twine upload dist/*
+# <login is pypi, not github>
+```
+
+## for new developers =============
+
 **Follow this carefully. Make sure you are uploading the latest version**
 
 ````
