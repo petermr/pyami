@@ -12,7 +12,7 @@ See https://pypi.org/project/py4ami/
 
 # installation for developers (upload)
 
-## =========== repeat instructions (ONLY if you've done this before)
+## repeat instructions (ONLY if you've done this before)  ============
 ```
 cd pyami
 rm -rf dist
