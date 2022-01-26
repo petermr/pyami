@@ -36,7 +36,7 @@ ID_NAME = "id_name"
 SPQ_NAME = "sparql_name"
 DICT_NAME = "dict_name"
 
-
+# TODO add docstrings and check return values
 class WikidataLookup:
 
     def __init__(self, exact_lookup=False):
@@ -46,6 +46,15 @@ class WikidataLookup:
         self.exact_lookup = exact_lookup
 
     def lookup_wikidata(self, term):
+        """
+        Looks up term in Wikidata and gets Q number and descriptiom
+
+        NOTE requires Internet
+
+        :param term: word or phrase to lookup
+        :return: triple (e.g. qitem[0], qitem[1]["desc"], wikidata_hits)
+        """
+
         import pprint
         from urllib.request import urlopen
         from urllib.request import quote  # is this right??

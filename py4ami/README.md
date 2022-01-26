@@ -2,6 +2,12 @@
 
 SEE ALSO <a href="SEARCH.md">SEARCH TUTORIAL</a>
 
+This is installed on `pypi` as `py4ami` (https://pypi.org/project/py4ami/) note the `4`
+to avoid collision on `pypi`. But locally this is `pyami` (maybe we'll change this).
+It should be possible to 
+* `pip install py4ami`
+* `from py4ami import pyami` (sic)
+
 ## prerequisites
 
 - create getpapers output

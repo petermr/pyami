@@ -15,6 +15,7 @@ from py4ami.xml_lib import XmlLib
 
 skip_config_test = True
 
+# TODO needs local config file
 @unittest.skipIf(skip_config_test, "needs local config")
 def tests():
     AmiConfig.test_dicts()

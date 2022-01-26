@@ -129,7 +129,7 @@ class Examples:
         self.banner(self.example_xml2sect.__name__)
 
         proj_dir = self.pyamix.get_symbol("examples_test.p")
-        print("path", proj_dir, os.path.exists(proj_dir))
+        print("path", proj_dir, Path(proj_dir).exists())
         # split into sections
         self.pyamix.run_command([
             "--proj", proj_dir,

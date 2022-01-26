@@ -10,7 +10,18 @@ There are two sections here: for those who want to download and use `py4ami` and
 ## location
 See https://pypi.org/project/py4ami/
 
+# ====================================
 # installation for developers (upload)
+# ====================================
+
+## quick instructions for experienced users
+```cd pyami
+rm -rf dist
+# edit version number in setup.py
+
+
+
+
 
 ## repeat instructions (ONLY if you've done this before)  ============
 ```
