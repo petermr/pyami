@@ -9,6 +9,7 @@ CLIMATE = Path(RESOURCES, "climate")
 PAGE_9 = Path(CLIMATE, "fulltext-page.9.svg")
 PAGE_6 = Path(CLIMATE, "fulltext-page.6.svg")
 FACT = 2.8
+SVG_NS = "http://www.w3.org/2000/svg"
 
 
 def test_pdfbox_output_exists():
@@ -58,7 +59,7 @@ def test_get_text_attrib_vals():
     ]
     assert len(widths) == 52
 
-    style_dict = find_text_breaks(text0, widths, x_coords)
+    style_dict, breaks = find_breaks_in_text(text0)
     # assert style_dict == {'fill': 'rgb(0,0,0)',\n 'font-family': 'TimesNewRomanPSMT',\n 'font-size': '9.96px',\n 'stroke': 'none'}
     assert style_dict["fill"] == 'rgb(0,0,0)'
     assert style_dict["font-family"] == 'TimesNewRomanPSMT'
@@ -67,46 +68,65 @@ def test_get_text_attrib_vals():
     assert get_font_size(text0) == 9.96
 
 def test_find_breaks_page6():
-    find_breaks_in_page(PAGE_6)
+    find_text_breaks_in_page(PAGE_6)
 
 def test_find_breaks_in_pages():
+    """
+    Test 10 pages
+    """
     for page in range(9):
         print(f"page{page}===================")
         page_i = Path(CLIMATE, f"fulltext-page.{page}.svg")
-        breaks_by_line = find_breaks_in_page(page_i)
-        if breaks_by_line:
-            print(f"breaks by line {breaks_by_line}")
+        breaks_by_line = find_text_breaks_in_page(page_i)
+
 
 # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg
 def test_find_breaks_in_many_pages():
-    for page in range(100):
-        print(f"page{page}===================")
-        page_i = Path("/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg", f"fulltext-page.{page}.svg")
-        breaks_by_line = find_breaks_in_page(page_i)
+    """test hundreds if pages"""
+    numpages = 500
+    for page in range(numpages):
+        print(f"=========== page{page}  ===================")
+        page_path = Path("/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg", f"fulltext-page.{page}.svg")
+        breaks_by_line = find_text_breaks_in_page(page_path)
         if breaks_by_line:
-            print(f"breaks by line {breaks_by_line}")
+            # print(f"breaks by line {breaks_by_line}")
+            pass
 
 
 ## ==============================
 
-def find_breaks_in_page(page__):
-    page = lxml.etree.parse(str(page__))
-    texts = page.findall("//{http://www.w3.org/2000/svg}text")
-    breaks_by_line = dict()
-    for line_no, text in enumerate(texts):
-        style_dict, breaks = find_text_breaks(text, line_no)
-        if breaks:
-            # print(f"breaks {breaks}")
-            breaks_by_line[line_no] = breaks
-    return breaks_by_line
+def find_text_breaks_in_page(page_path):
+    page_element = lxml.etree.parse(str(page_path))
+    text_elements = page_element.findall(f"//{{{SVG_NS}}}text")
+    print(f"texts {len(text_elements)}")
+    text_breaks_by_line = dict()
+    for text_index, text_element in enumerate(text_elements):
+        style_dict, text_break_list = find_breaks_in_text(text_element)
+        print(f"style {style_dict}")
 
-def find_text_breaks(text, line_no):
+        if text_break_list:
+            text_breaks_by_line[text_index] = text_break_list
+            current = 0
+            text_content = get_text_content(text_element)
+            offset = 0
+            print(f"{text_index}: ", end='')
+            for text_break in text_break_list:
+                # print(f"text_break: {text_break}")
+                print(f"{text_content[current:text_break - offset]}___", end='')
+                current = text_break
+                offset += 1
+            print(f"{text_content[current - offset:]}")
+    return text_breaks_by_line
+
+def find_breaks_in_text(text):
     widths = get_widths(text)
     x_coords = get_x_coords(text)
+    y_coord = get_y_coord(text)
     text_content = get_text_content(text)
     font_size = get_font_size(text)
     pointer = 0
     breaks =  []
+    # this algorithm for breaks in line probably needs tuning
     for col in range(len(x_coords) - 1):
         deltax = float(int(100 * (x_coords[col + 1] - x_coords[col]))) / 100
         if deltax > FACT * widths[col] * font_size:
@@ -130,8 +150,15 @@ def get_float_vals(elem, attname):
         return vals
     return []
 
+def get_float_val(elem, attname):
+    attval = elem.attrib.get(attname)
+    return float(attval) if attval else None
+
 def get_x_coords(elem):
     return get_float_vals(elem, "x")
+
+def get_y_coord(elem):
+    return get_float_val(elem, "y")
 
 def get_widths(elem):
     return get_float_vals(elem, "{http://www.xml-cml.org/schema/svgx}width")
@@ -144,6 +171,9 @@ def get_style_dict(elem):
         if len(s) > 0:
             ss = s.split(":")
             style_dict[ss[0]] = ss[1]
+    y = get_y_coord(elem)
+    if y:
+        style_dict["y"] = y
     return style_dict
 
 def get_font_size(text):
