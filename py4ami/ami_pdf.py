@@ -1,5 +1,7 @@
 import lxml
 from lxml import etree
+# local
+from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 
 # text attributes
 FACT = 2.8
@@ -12,6 +14,7 @@ Y = "y"
 SORT_Y = "y"  # for sorting
 SORT_YX = "yx"  # for sorting
 SORT_XY = "xy"  # for sorting
+WIDTH = "width"
 
 # style bundle
 FONT_SIZE = "font-size"
@@ -39,14 +42,16 @@ class TextStyle:
 
 class TextSpan:
     """holds text content and attributes
-    can be transformed into HTML
+    can be transformed into HTML. Later in the conversion than AmiText
     """
-    y = None
-    start_x = None
-    end_x = None
-    text_style = None
-    text_content = ""
-    bbox = None
+
+    def __init__(self):
+        self.y = None
+        self.start_x = None
+        self.end_x = None
+        self.text_style = None
+        self.text_content = ""
+        self.bbox = None
 
     def __str__(self):
         s = self.xy + ": " + (self.text_content[:10] + "... " if self.text_content is not None else "")
@@ -59,9 +64,6 @@ class TextSpan:
     def xy(self):
         return "(" + str(self.start_x) + "," + str(self.y) + ")" if (self.start_x and self.y) else ""
 
-    def __init__(self):
-        pass
-
 
 class AmiPage:
 
@@ -73,10 +75,10 @@ class AmiPage:
 
     @classmethod
     def create_page_from_SVG(cls, svg_path):
-        page = AmiPage()
-        page.page_path = svg_path
-        page.create_text_lines()
-        return page
+        ami_page = AmiPage()
+        ami_page.page_path = svg_path
+        ami_page.create_text_lines()
+        return ami_page
 
     def create_text_lines(self):
         self.create_raw_text_spans(sort_axes=SORT_XY)
@@ -91,7 +93,7 @@ class AmiPage:
         print(f"======== {self.page_path} =========")
         self.page_element = lxml.etree.parse(str(self.page_path))
         self.text_elements = self.page_element.findall(f"//{{{SVG_NS}}}text")
-        print(f"texts {len(self.text_elements)}")
+        # print(f"texts {len(self.text_elements)}")
         self.text_spans = []
         for text_index, text_element in enumerate(self.text_elements):
             ami_text = AmiText(text_element)
@@ -106,7 +108,7 @@ class AmiPage:
                 continue
 
             self.text_spans.append(text_span)
-        print(f"text_spans {len(self.text_spans)}")
+        print(f"no. text_spans {len(self.text_spans)}")
         for axis in sort_axes:
             if axis == X:
                 self.text_spans = sorted(self.text_spans, key=lambda span: span.start_x)
@@ -114,9 +116,6 @@ class AmiPage:
                 self.text_spans = sorted(self.text_spans, key=lambda span: span.y)
 
             print(f"text_spans {axis}: {self.text_spans}")
-            for text_span in self.text_spans:
-                # print(f"> {text_span}")
-                pass
 
         return self.text_spans
 
@@ -128,6 +127,12 @@ class AmiPage:
     def create_spans_from_long_whitespace(self):
         pass
 
+    def create_bounding_boxes(self):
+        for svg_text in self.text_elements:
+            ami_text = AmiText(svg_text)
+            bbox = ami_text.get_bbox()
+            print(f" bbox {bbox}")
+
     # needs integrating
     def find_text_breaks_in_pagex(self, sortedq=None):
         """create text spans, including
@@ -136,12 +141,11 @@ class AmiPage:
         print(f"======== {self.page_path} =========")
         page_element = lxml.etree.parse(str(self.page_path))
         text_elements = page_element.findall(f"//{{{SVG_NS}}}text")
-        print(f"texts {len(text_elements)}")
+        print(f"no. texts {len(text_elements)}")
         text_breaks_by_line_dict = dict()
         for text_index, text_element in enumerate(text_elements):
             ami_text = AmiText(text_element)
             style_dict, text_break_list = ami_text.find_breaks_in_text()
-            print(f"style {style_dict.get(Y)}")
 
             text_content = ami_text.get_text_content()
             if text_break_list:
@@ -156,7 +160,7 @@ class AmiPage:
                     offset += 1
                     # TODO
                     text_elements.append()
-                print(f"{text_content[current - offset:]}")
+                print(f"___ {text_content[current - offset:]}")
             else:
                 # TODO
                 new_text = TextSpan()
@@ -164,7 +168,7 @@ class AmiPage:
         return text_breaks_by_line_dict
 
     # needs integrating
-    def find_breaks_in_text(text_element):
+    def find_breaks_in_text(self, text_element):
         ami_text = AmiText(text_element)
         widths = ami_text.get_widths()
         x_coords = ami_text.get_x_coords()
@@ -192,14 +196,21 @@ class AmiText:
     def __init__(self, svg_text_elem):
         """create from svg_text"""
         self.svg_text_elem = svg_text_elem
+        self.text_span = None
+        self.create_text_span()
 
     def create_text_span(self):
-        text_span = TextSpan()
-        text_span.text_style = self.create_text_style()
-        text_span.text_content = self.get_text_content()
-        text_span.start_x = self.get_x_coord()
-        text_span.y = self.get_y_coord()
-        return text_span
+        if self.text_span is None:
+            self.text_span = TextSpan()
+            self.text_span.text_style = self.create_text_style()
+            self.text_span.text_content = self.get_text_content()
+            self.text_span.start_x = self.get_x_coord()
+            self.text_span.end_x = self.get_x_coords()[-1]
+            self.text_span.y = self.get_y_coord()
+            self.text_span.widths = self.get_widths()
+        return self.text_span
+
+    # AmiText
 
     def create_text_style(self):
         style = TextStyle()
@@ -223,8 +234,19 @@ class AmiText:
     def get_y_coord(self):
         return self.get_float_val(Y)
 
+    # AmiText
+
     def get_widths(self):
-        return self.get_float_vals(f"{{{SVGX_NS}}}width")
+        vals = self.get_float_vals(f"{{{SVGX_NS}}}{WIDTH}")
+        return vals
+
+    def get_last_width(self):
+        """width of last character
+        needed for bbox calculation
+        :return: last width or 0.0 if none
+        """
+        widths = self.get_widths()
+        return 0.0 if widths is None or len(widths) == 0 else widths[-1]
 
     def extract_style_dict_from_svg(self):
         style_dict = dict()
@@ -238,6 +260,8 @@ class AmiText:
         if y:
             style_dict[Y] = y
         return style_dict
+
+    # AmiText
 
     def get_font_size(self):
         sd = self.extract_style_dict_from_svg()
@@ -256,6 +280,8 @@ class AmiText:
     def get_text_content(self):
         return ''.join(self.svg_text_elem.itertext())
 
+    # AmiText
+
     def get_float_vals(self, attname):
         """gets list of floats if possible, else Exception
         :param attname:
@@ -267,7 +293,7 @@ class AmiText:
             try:
                 vals = [float(s) for s in ss]
             except Exception as e:
-                raise ValueError("cannot convert to floats, e")
+                raise ValueError("cannot convert to floats", e)
             return vals
         return []
 
@@ -280,3 +306,21 @@ class AmiText:
             return float(attval)
         except Exception as e:
             return None
+
+    # AmiText
+
+    def get_bbox(self):
+        """bbox based on font-size and character position/width
+
+        text goes in negative directiom as y is down the page
+        """
+        self.create_text_span()
+        last_width = self.get_last_width()
+        if last_width is None:
+            print(f"No widths???")
+            last_width = 0.0
+        font_size = self.text_span.text_style.font_size
+        height = font_size
+        width = self.text_span.end_x + last_width * font_size - self.text_span.start_x
+        self.text_span.bbox = BBox.create_from_xy_w_h((self.text_span.start_x, self.text_span.y - height), width, height)
+        return self.text_span.bbox

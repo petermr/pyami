@@ -85,8 +85,9 @@ def test_create_text_lines_in_pages():
     """
     for page_index in range(9):
         page_path = Path(CLIMATE, f"fulltext-page.{page_index}.svg")
-        page = AmiPage.create_page_from_SVG(page_path)
-        page.create_raw_text_spans(sort_axes=SORT_XY)
+        ami_page = AmiPage.create_page_from_SVG(page_path)
+        ami_page.create_raw_text_spans(sort_axes=SORT_XY)
+        ami_page.create_bounding_boxes()
 
 
 # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg
