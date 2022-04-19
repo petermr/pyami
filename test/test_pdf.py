@@ -2,8 +2,9 @@ from pathlib import Path
 import unittest
 import lxml
 import lxml.etree
-
+# local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, SORT_XY
+from py4ami.util import Util
 
 # class PDFTest:
 
@@ -83,11 +84,26 @@ def test_create_text_lines_in_pages():
     """
     Test 10 pages
     """
-    for page_index in range(9):
+    current_style = None
+    for page_index in range(1, 9):
         page_path = Path(CLIMATE, f"fulltext-page.{page_index}.svg")
         ami_page = AmiPage.create_page_from_SVG(page_path)
-        ami_page.create_raw_text_spans(sort_axes=SORT_XY)
-        ami_page.create_bounding_boxes()
+        ami_page.get_bounding_boxes()
+        composite_lines = ami_page.find_text_span_overlaps()
+        for j, c_line in enumerate(composite_lines):
+            if len(c_line.text_spans) > 1:
+                print(f"l: {j}")
+            for text_span in c_line.text_spans:
+                if Util.is_whitespace(text_span.text_content):
+                    print(f"whitespace")
+                text_span.normalize_family_weight()
+                style = text_span.text_style
+                style_diff = None if not current_style else current_style.difference(style)
+                if style_diff:
+                    # print(f"style diff {style_diff}")
+                    pass
+                current_style = style
+
 
 
 # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg

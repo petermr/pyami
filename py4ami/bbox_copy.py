@@ -26,6 +26,15 @@ class BBox:
         if xy_ranges is not None:
             self.set_ranges(xy_ranges)
 
+    def copy(self):
+        """creqtes new BBox as copy of self
+        :return: copy of bbox xy_ranges
+        """
+        bbox = BBox(self.xy_ranges)
+        bbox.swap_minmax = self.swap_minmax
+
+        return bbox
+
     @classmethod
     def create_from_numpy_array(cls, nparray):
         coords = nparray.tolist()
@@ -156,7 +165,7 @@ class BBox:
         if bbox is not None:
             xrange = self.intersect_range(self.get_xrange(), bbox.get_xrange())
             yrange = self.intersect_range(self.get_yrange(), bbox.get_yrange())
-            bbox1 = BBox([xrange, yrange])
+            bbox1 = BBox([xrange, yrange]) if xrange and yrange else None
         return bbox1
 
     def union(self, bbox):
@@ -183,6 +192,13 @@ class BBox:
             maxmin = max(range0[0], range1[0])
             minmax = min(range0[1], range1[1])
             rrange = [maxmin, minmax] if minmax >= maxmin else None
+            # print(f" maxmin {maxmin} minmax {minmax} -> {rrange}")
+
+        # if len(range0) == 2 and len(range1) == 2:
+        #     maxmin = max(range0[0], range1[0])
+        #     minmax = min(range0[1], range1[1])
+        #     rrange = [maxmin, minmax] if minmax >= maxmin else None
+
         return rrange
 
     @classmethod
