@@ -1,11 +1,12 @@
-from pathlib import Path
 import unittest
-import lxml, lxml.html
+from pathlib import Path
+
+import lxml
 import lxml.etree
+import lxml.html
 
 # local
-from py4ami.ami_pdf import SVG_NS, SVGX_NS, STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, SORT_XY
-from py4ami.util import Util
+from py4ami.ami_pdf import SVG_NS, SVGX_NS, STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE
 
 # class PDFTest:
 
@@ -13,6 +14,7 @@ RESOURCES = Path(Path(__file__).parent, "resources")  # only works for PMR
 CLIMATE = Path(RESOURCES, "climate")
 PAGE_9 = Path(CLIMATE, "fulltext-page.9.svg")
 PAGE_6 = Path(CLIMATE, "fulltext-page.6.svg")
+HTML_TEMP_DIR = Path(Path(__file__).parent.parent, "temp", "html")
 
 
 def test_pdfbox_output_exists():
@@ -78,10 +80,10 @@ def test_get_text_attrib_vals():
 
 def test_create_text_lines_page6():
     page = AmiPage.create_page_from_SVG(PAGE_6)
-    page.create_text_lines()
+    page.create_and_process_text_spans()
 
 
-def test_create_text_lines_in_pages():
+def test_create_html():
     """
     Test 10 pages
     """
@@ -89,12 +91,17 @@ def test_create_text_lines_in_pages():
     for page_index in range(1, 9):
         page_path = Path(CLIMATE, f"fulltext-page.{page_index}.svg")
         ami_page = AmiPage.create_page_from_SVG(page_path)
-        ami_page.create_html(current_style)
-
+        html = ami_page.create_html(current_style)
+        if not HTML_TEMP_DIR.exists():
+            HTML_TEMP_DIR.mkdir()
+        html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
+        with open(html_path, "wb") as f:
+            et = lxml.etree.ElementTree(html)
+            et.write(f, pretty_print=True)
 
 
 # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg
-@unittest.skip("depends on line analysis")
+@unittest.skip("Not yet ready; depends on line analysis")
 def test_find_breaks_in_many_pages():
     """test hundreds if pages"""
     numpages = 20  # increase later
@@ -102,7 +109,6 @@ def test_find_breaks_in_many_pages():
         page_path = Path("/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg",
                          f"fulltext-page.{page_index}.svg")
         page = AmiPage.create_page_from_SVG(page_path)
-        page.create_text_lines()
-
+        page.create_and_process_text_spans()
 
 # ==============================

@@ -23,6 +23,9 @@ WIDTH = "width"
 # to link up text spans
 X_MARGIN = 20
 
+# SCRIPTS
+SCRIPT_FACT = 0.9
+
 # style bundle
 STYLE = "style"
 ITALIC = "italic"
@@ -48,127 +51,40 @@ STYLES = [
 ]
 
 
-class TextStyle:
-    # try to map onto HTML italic/normal
-    def __init__(self):
-        # maybe should be dict
-        self.font_style = None
-        # height in pixels
-        self.font_size = None
-        self.font_family = None
-        # try to map onto HTML bold/norma
-        self.font_weight = None
-        # fill colour of text
-        self.fill = None
-        # stroke colour of text
-        self.stroke = None
-
-    def __str__(self):
-        s = f"size {self.font_size} family {self.font_family}, style {self.font_style} weight {self.font_weight} fill {self.fill} stroke {self.stroke}"
-        return s
-
-    def difference(self, other):
-        if other is None:
-            return "none"
-        s = ""
-        s += self._difference("font-size", self.font_size, other.font_size)
-        s += self._difference("; font-style", self.font_style, other.font_style)
-        s += self._difference("; font-family", self.font_family, other.font_family)
-        s += self._difference("; font-weight", self.font_weight, other.font_weight)
-        s += self._difference("; fill", self.fill, other.fill)
-        s += self._difference("; stroke", self.stroke, other.stroke)
-        return s
-
-    @classmethod
-    def _difference(cls, name, val1, val2):
-        s = ""
-        if not val1 and not val2:
-            pass
-        elif not val1 or not val2 or val1 != val2:
-            s = f"{name}: {val1} => {val2}"
-        return s
-
-
-class TextSpan:
-    """holds text content and attributes
-    can be transformed into HTML. Later in the conversion than AmiText
+class AmiPage:
+    """Transformation of an SVG Page from PDFBox/Ami3
+    consists of paragraphs, divs, textlines, etc.
+    Used as a working container, utimately being merged with
+    neighbouring documents into complete HTML document
     """
 
     def __init__(self):
-        self.y = None
-        self.start_x = None
-        self.end_x = None
-        self.text_style = None
-        self.text_content = ""
-        self.bbox = None
-        self.ami_text = None
-
-    def __str__(self):
-        s = self.xy + ": " + (self.text_content[:10] + "... " if self.text_content is not None else "")
-        return s
-
-    def __repr__(self):
-        return self.__str__()
-
-    @property
-    def xy(self):
-        return "(" + str(self.start_x) + "," + str(self.y) + ")" if (self.start_x and self.y) else ""
-
-    # TextSpan
-
-    def create_bbox(self):
-        """bbox based on font-size and character position/width
-
-        text goes in negative directiom as y is down the page
-        """
-        last_width = self.ami_text.get_last_width()
-        if last_width is None:
-            print(f"No widths???")
-            last_width = 0.0
-        font_size = self.text_style.font_size
-        height = font_size
-        width = self.end_x + last_width * font_size - self.start_x
-        self.bbox = BBox.create_from_xy_w_h((self.start_x, self.y - height), width, height)
-        return self.bbox
-
-    def normalize_family_weight(self):
-        family = self.text_style.font_family
-        if not family:
-            print(f"no family: {self}")
-            return
-        family = family.lower()
-        if family.find(ITALIC) != -1:
-            self.text_style.font_style = ITALIC
-        if family.find(BOLD) != -1:
-            self.text_style.font_weight = BOLD
-        if family.find(TIMES) != -1:
-            self.text_style.font_family = TIMES
-        if family.find(CALIBRI) != -1:
-            self.text_style.font_family = CALIBRI
-        if self.text_style.font_family not in FONT_FAMILIES:
-            print(f"new font_family {self.text_style.font_family}")
-
-
-class AmiPage:
-
-    def __init__(self):
+        # path of SVG page
         self.page_path = None
+        # raw parsed SVG
         self.page_element = None
+        # child elements of type <svg:text>
         self.text_elements = None
+        # spans created from tex_elements
         self.text_spans = []
+        # bboxes of the spans
         self.bboxes = []
+        # composite lines (i.e. with sub/superscripts, bold, italic
         self.composite_lines = []
 
     @classmethod
     def create_page_from_SVG(cls, svg_path):
+        """Initial parse of SVG and creation of AmiPage
+        :param svg_path: path of SVG file
+        """
         ami_page = AmiPage()
         ami_page.page_path = svg_path
-        ami_page.create_text_lines()
+        ami_page.create_and_process_text_spans()
         return ami_page
 
     # AmiPage
 
-    def create_text_lines(self):
+    def create_and_process_text_spans(self):
         self.create_text_spans(sort_axes=SORT_XY)
         self.create_spans_from_long_whitespace()
 
@@ -191,7 +107,7 @@ class AmiPage:
                     print(f"cannot create TextSpan")
                     continue
 
-                if len("".join(text_span.text_content.split())) == 0:
+                if text_span.has_empty_text_content():
                     # test for whitespace content
                     # print(f"whitespace element skipped")
                     continue
@@ -308,10 +224,14 @@ class AmiPage:
             print(f"cc {composite_line}")
 
     def create_html(self, current_style=None):
+        """simple html with <p> children (will change later)"""
         self.get_bounding_boxes()
         composite_lines = self.find_text_span_overlaps()
+        html = E.html()
         for j, c_line in enumerate(composite_lines):
-            c_line.create_html_spans(current_style, j)
+            h_p = c_line.create_p_with_spans(current_style, j)
+            html.append(h_p)
+        return html
 
     # AmiPage
 
@@ -371,6 +291,168 @@ class AmiPage:
                 pointer += 1
         style_dict = ami_text.extract_style_dict_from_svg()
         return style_dict, breaks
+
+
+class CompositeLine:
+    """holds text spans which touch or intersect"""
+
+    def __init__(self, bbox=None):
+        self.bbox = None if bbox is None else bbox.copy()
+        self.text_spans = []
+
+    def __str__(self):
+        s = f" spans: {len(self.text_spans)}:"
+        for span in self.text_spans:
+            s += f"__{span}"
+        return s
+
+    def sort_spans(self, axis=X):
+        """sort spans by coordinate
+        :param axis: X or Y
+        :return: text_spans
+        """
+        self.text_spans = sorted(self.text_spans, key=lambda span: span.start_x)
+        return self.text_spans
+
+    def create_p_with_spans(self, current_style, line_no):
+        """creates a <p> with <span> or other inline children"""
+        if len(self.text_spans) > 1:
+            self.sort_spans(X)
+            print(f"l: {line_no} s: {len(self.text_spans)} {self.text_spans}")
+        for text_span in self.text_spans:
+            if Util.is_whitespace(text_span.text_content):
+                print(f"whitespace")
+            text_span.normalize_family_weight()
+            style = text_span.text_style
+            style_diff = None if not current_style else current_style.difference(style)
+            if style_diff:
+                # print(f"style diff {style_diff}")
+                pass
+            current_style = style
+        h_p = E.p()
+        last_span = None
+        for text_span in self.text_spans:
+            text_style = text_span.text_style
+            print(f"text span {text_style}")
+            content = text_span.text_content
+            if text_style.font_weight == BOLD:
+                h_span = E.b(content)
+            elif text_style.font_style == ITALIC:
+                h_span = E.i(content)
+            elif HtmlUtil.is_superscript(last_span, text_span):
+                h_span = E.sup(content)
+            elif HtmlUtil.is_subscript(last_span, text_span):
+                h_span = E.sub(content)
+            else:
+                h_span = E.span(content)
+            last_span = text_span
+            h_p.append(h_span)
+        # print(f"P: {lxml.html.tostring(h_p).decode('UTF-8')}")
+        return h_p
+
+
+class TextSpan:
+    """holds text content and attributes
+    can be transformed into HTML. Later in the conversion than AmiText
+    """
+
+    def __init__(self):
+        self.y = None
+        self.start_x = None
+        self.end_x = None
+        self.text_style = None
+        self.text_content = ""
+        self.bbox = None
+        self.ami_text = None
+
+    def __str__(self):
+        s = self.xy + ": " + (self.text_content[:10] + "... " if self.text_content is not None else "")
+        return s
+
+    def __repr__(self):
+        return self.__str__()
+
+    @property
+    def xy(self):
+        return "(" + str(self.start_x) + "," + str(self.y) + ")" if (self.start_x and self.y) else ""
+
+    # TextSpan
+
+    def create_bbox(self):
+        """bbox based on font-size and character position/width
+
+        text goes in negative directiom as y is down the page
+        """
+        last_width = self.ami_text.get_last_width()
+        if last_width is None:
+            print(f"No widths???")
+            last_width = 0.0
+        font_size = self.text_style.font_size
+        height = font_size
+        width = self.end_x + last_width * font_size - self.start_x
+        self.bbox = BBox.create_from_xy_w_h((self.start_x, self.y - height), width, height)
+        return self.bbox
+
+    def normalize_family_weight(self):
+        family = self.text_style.font_family
+        if not family:
+            print(f"no family: {self}")
+            return
+        family = family.lower()
+        if family.find(ITALIC) != -1:
+            self.text_style.font_style = ITALIC
+        if family.find(BOLD) != -1:
+            self.text_style.font_weight = BOLD
+        if family.find(TIMES) != -1:
+            self.text_style.font_family = TIMES
+        if family.find(CALIBRI) != -1:
+            self.text_style.font_family = CALIBRI
+        if self.text_style.font_family not in FONT_FAMILIES:
+            print(f"new font_family {self.text_style.font_family}")
+
+    def has_empty_text_content(self):
+        return len("".join(self.text_content.split())) == 0
+
+
+class TextStyle:
+    # try to map onto HTML italic/normal
+    def __init__(self):
+        # maybe should be dict
+        self.font_style = None
+        # height in pixels
+        self.font_size = None
+        self.font_family = None
+        # try to map onto HTML bold/norma
+        self.font_weight = None
+        # fill colour of text
+        self.fill = None
+        # stroke colour of text
+        self.stroke = None
+
+    def __str__(self):
+        s = f"size {self.font_size} family {self.font_family}, style {self.font_style} weight {self.font_weight} fill {self.fill} stroke {self.stroke}"
+        return s
+
+    def difference(self, other):
+        if other is None:
+            return "none"
+        s = ""
+        s += self._difference("font-size", self.font_size, other.font_size)
+        s += self._difference("; font-style", self.font_style, other.font_style)
+        s += self._difference("; font-family", self.font_family, other.font_family)
+        s += self._difference("; font-weight", self.font_weight, other.font_weight)
+        s += self._difference("; fill", self.fill, other.fill)
+        s += self._difference("; stroke", self.stroke, other.stroke)
+        return s
+
+    @classmethod
+    def _difference(cls, name, val1, val2):
+        s = ""
+        if not val1 and not val2:
+            pass
+        elif not val1 or not val2 or val1 != val2:
+            s = f"{name}: {val1} => {val2}"
+        return s
 
 
 class SvgText:
@@ -511,44 +593,35 @@ class SvgText:
         except Exception as e:
             return None
 
+class HtmlUtil:
+    """utilities for Html (lxml)
+    """
+    @classmethod
+    def is_subscript(cls, last_span, this_span):
+        return cls.is_script_type(last_span, this_span, type="SUB")
 
-class CompositeLine:
-    """holds text spans which touch or intersect"""
+    @classmethod
+    def is_superscript(cls, last_span, this_span):
+        return cls.is_script_type(last_span, this_span, type="SUP")
 
-    def __init__(self, bbox=None):
-        self.bbox = None if bbox is None else bbox.copy()
-        self.text_spans = []
+    @classmethod
+    def is_script_type(cls, last_span, this_span, type):
+        if last_span is None:
+            return False
+        last_font_size = last_span.text_style.font_size
+        this_font_size = this_span.text_style.font_size
+        # is it smaller?
+        if this_font_size < SCRIPT_FACT * last_font_size:
+            last_y = last_span.y
+            this_y = this_span.y
+            if type == "SUB":
+                # is it lowered? Y DOWN
+                return last_y < this_y
+            elif type == "SUP":
+                # is it raised? Y DOWN
+                return last_y > this_y
+            else:
+                raise ValueError("bad script type ", type)
+        else:
+            return False
 
-    def __str__(self):
-        s = f" spans: {len(self.text_spans)}:"
-        for span in self.text_spans:
-            s += f"__{span}"
-        return s
-
-    def sort_spans(self, axis=X):
-        """sort spans by coordinate
-        :param axis: X or Y
-        :return: text_spans
-        """
-        self.text_spans = sorted(self.text_spans, key=lambda span: span.start_x)
-        return self.text_spans
-
-    def create_html_spans(self, current_style, j):
-        if len(self.text_spans) > 1:
-            self.sort_spans(X)
-            print(f"l: {j} s: {len(self.text_spans)} {self.text_spans}")
-        for text_span in self.text_spans:
-            if Util.is_whitespace(text_span.text_content):
-                print(f"whitespace")
-            text_span.normalize_family_weight()
-            style = text_span.text_style
-            style_diff = None if not current_style else current_style.difference(style)
-            if style_diff:
-                # print(f"style diff {style_diff}")
-                pass
-            current_style = style
-        h_p = E.p()
-        for text_span in self.text_spans:
-            h_span = E.span(text_span.text_content)
-            h_p.append(h_span)
-        print(f"P: {lxml.html.tostring(h_p).decode('UTF-8')}")
