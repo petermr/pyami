@@ -1,7 +1,11 @@
 import lxml
+import lxml.html
 from lxml import etree
+from lxml.builder import E
+
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
+from py4ami.util import Util
 
 # text attributes
 FACT = 2.8
@@ -43,6 +47,7 @@ STYLES = [
     STROKE,
 ]
 
+
 class TextStyle:
     # try to map onto HTML italic/normal
     def __init__(self):
@@ -82,6 +87,7 @@ class TextStyle:
         elif not val1 or not val2 or val1 != val2:
             s = f"{name}: {val1} => {val2}"
         return s
+
 
 class TextSpan:
     """holds text content and attributes
@@ -139,8 +145,9 @@ class TextSpan:
             self.text_style.font_family = TIMES
         if family.find(CALIBRI) != -1:
             self.text_style.font_family = CALIBRI
-        if not self.text_style.font_family in FONT_FAMILIES:
+        if self.text_style.font_family not in FONT_FAMILIES:
             print(f"new font_family {self.text_style.font_family}")
+
 
 class AmiPage:
 
@@ -150,6 +157,7 @@ class AmiPage:
         self.text_elements = None
         self.text_spans = []
         self.bboxes = []
+        self.composite_lines = []
 
     @classmethod
     def create_page_from_SVG(cls, svg_path):
@@ -158,7 +166,7 @@ class AmiPage:
         ami_page.create_text_lines()
         return ami_page
 
-# AmiPage
+    # AmiPage
 
     def create_text_lines(self):
         self.create_text_spans(sort_axes=SORT_XY)
@@ -177,7 +185,7 @@ class AmiPage:
             # print(f"texts {len(self.text_elements)}")
             self.text_spans = []
             for text_index, text_element in enumerate(self.text_elements):
-                ami_text = AmiText(text_element)
+                ami_text = SvgText(text_element)
                 text_span = ami_text.create_text_span()
                 if not text_span:
                     print(f"cannot create TextSpan")
@@ -205,7 +213,7 @@ class AmiPage:
     def get_ami_text(self, index):
         if not self.text_elements or index < 0 or index >= len(self.text_elements):
             return None
-        return AmiText(self.text_elements[index])
+        return SvgText(self.text_elements[index])
 
     def create_spans_from_long_whitespace(self):
         pass
@@ -234,7 +242,7 @@ class AmiPage:
         for i in range(1, len(self.text_spans)):
             text_span = self.text_spans[i]
             bbox = text_span.create_bbox().copy()
-            bbox.expand_by_margin([X_MARGIN,0])
+            bbox.expand_by_margin([X_MARGIN, 0])
             # print(f" current {current_composite_line.bbox} box {bbox}")
             intersect_box = composite_line.bbox.intersect(bbox)
             if intersect_box:
@@ -278,7 +286,7 @@ class AmiPage:
 
         for i in range(1, len(self.bboxes)):
             bbox = self.bboxes[i]
-            bbox.expand_by_margin([X_MARGIN,0])
+            bbox.expand_by_margin([X_MARGIN, 0])
             # print(f" current {current_composite_line.bbox} box {bbox}")
             intersect_box = current_composite_line.bbox.intersect(bbox)
             if intersect_box:
@@ -297,9 +305,13 @@ class AmiPage:
                 # print(f" new box {current_line_box}")
 
         for composite_line in self.composite_lines:
-            print(f"cc {self.composite_line}")
+            print(f"cc {composite_line}")
 
-
+    def create_html(self, current_style=None):
+        self.get_bounding_boxes()
+        composite_lines = self.find_text_span_overlaps()
+        for j, c_line in enumerate(composite_lines):
+            c_line.create_html_spans(current_style, j)
 
     # AmiPage
 
@@ -314,7 +326,7 @@ class AmiPage:
         print(f"no. texts {len(text_elements)}")
         text_breaks_by_line_dict = dict()
         for text_index, text_element in enumerate(text_elements):
-            ami_text = AmiText(text_element)
+            ami_text = SvgText(text_element)
             style_dict, text_break_list = ami_text.find_breaks_in_text()
 
             text_content = ami_text.get_text_content()
@@ -341,7 +353,7 @@ class AmiPage:
 
     # needs integrating
     def find_breaks_in_text(self, text_element):
-        ami_text = AmiText(text_element)
+        ami_text = SvgText(text_element)
         widths = ami_text.get_widths()
         x_coords = ami_text.get_x_coords()
         y_coord = ami_text.get_y_coord()
@@ -361,7 +373,7 @@ class AmiPage:
         return style_dict, breaks
 
 
-class AmiText:
+class SvgText:
     """wrapper for svg_text elemeent
     """
 
@@ -399,7 +411,7 @@ class AmiText:
         return style
 
     def get_fill(self):
-        return self.get_(FILL)
+        return self.svg_text_elem.attrib.get(FILL)
 
     def get_x_coords(self):
         return self.get_float_vals(X)
@@ -499,6 +511,7 @@ class AmiText:
         except Exception as e:
             return None
 
+
 class CompositeLine:
     """holds text spans which touch or intersect"""
 
@@ -512,3 +525,30 @@ class CompositeLine:
             s += f"__{span}"
         return s
 
+    def sort_spans(self, axis=X):
+        """sort spans by coordinate
+        :param axis: X or Y
+        :return: text_spans
+        """
+        self.text_spans = sorted(self.text_spans, key=lambda span: span.start_x)
+        return self.text_spans
+
+    def create_html_spans(self, current_style, j):
+        if len(self.text_spans) > 1:
+            self.sort_spans(X)
+            print(f"l: {j} s: {len(self.text_spans)} {self.text_spans}")
+        for text_span in self.text_spans:
+            if Util.is_whitespace(text_span.text_content):
+                print(f"whitespace")
+            text_span.normalize_family_weight()
+            style = text_span.text_style
+            style_diff = None if not current_style else current_style.difference(style)
+            if style_diff:
+                # print(f"style diff {style_diff}")
+                pass
+            current_style = style
+        h_p = E.p()
+        for text_span in self.text_spans:
+            h_span = E.span(text_span.text_content)
+            h_p.append(h_span)
+        print(f"P: {lxml.html.tostring(h_p).decode('UTF-8')}")
