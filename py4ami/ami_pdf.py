@@ -2,7 +2,7 @@ import lxml
 import lxml.html
 from lxml import etree
 from lxml.builder import E
-
+import statistics
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util
@@ -20,8 +20,13 @@ SORT_YX = "yx"  # for sorting
 SORT_XY = "xy"  # for sorting
 WIDTH = "width"
 
+BBOX = "bbox"
+
 # to link up text spans
 X_MARGIN = 20
+
+# paragraph spacing
+INTERPARA_FACT = 1.5
 
 # SCRIPTS
 SCRIPT_FACT = 0.9
@@ -34,6 +39,7 @@ TIMES = "times"
 CALIBRI = "calibri"
 FONT_FAMILIES = [TIMES, CALIBRI]
 
+# style attributes
 FONT_SIZE = "font-size"
 FONT_STYLE = "font-style"
 FONT_WEIGHT = "font-weight"
@@ -75,6 +81,8 @@ class AmiPage:
         self.bboxes = []
         # composite lines (i.e. with sub/superscripts, bold, italic
         self.composite_lines = []
+        # paragraphs from inter-composite spacing
+        self.paragraphs = []
 
     @classmethod
     def create_page_from_SVG(cls, svg_path):
@@ -178,16 +186,46 @@ class AmiPage:
 
             composite_line.text_spans.append(text_span)
 
+        change = True
+        while change:
+            change = self.merge_composite_lines()
+        # print(f"merged")
+
         return self.composite_lines
+
+    def merge_composite_lines(self):
+        """tidy remaining overlapping composite_lines
+        """
+        last_composite_line = self.composite_lines[0]
+        lines_for_deletion = []
+        change = False
+        for composite_line in self.composite_lines[1:]:
+            overlap_box = last_composite_line.bbox.intersect(composite_line.bbox)
+            if overlap_box:
+                # print(f"overlap {overlap_box}")
+                lines_for_deletion.append(last_composite_line)
+                # print(f"composite_line {composite_line} last_composite {last_composite_line} before merge")
+                composite_line.merge(last_composite_line)
+                # print(f"composite_line {composite_line} after merge")
+                composite_line.sort_spans(axis=X)
+                change = True
+            last_composite_line = composite_line
+        # delete merged lien
+        for composite_line in lines_for_deletion:
+            self.composite_lines.remove(composite_line)
+        return change
+
 
     def create_html(self, use_lines=False) -> E.html:
         """simple html with <p> children (will change later)"""
         self.get_bounding_boxes()
-        composite_lines = self.create_composite_lines()
+        self.create_composite_lines()
+        if not use_lines or True:
+            self.create_paragraphs()
         html = E.html()
         body = E.body()
         html.append(body)
-        for composite_line in composite_lines:
+        for composite_line in self.composite_lines:
             text_spans = composite_line.create_sub_super_i_b_spans()
             if use_lines:
                 h_p = E.p()
@@ -198,6 +236,34 @@ class AmiPage:
                 for text_span in text_spans:
                     body.append(text_span)
         return html
+
+    def create_paragraphs(self):
+        delta_ylist = self.get_inter_composite_spacings()
+        mode = statistics.mode(delta_ylist)
+        # print(f"mode {mode}")
+        paragraph = AmiParagraph()
+        self.paragraphs.append(paragraph)
+        for deltay, composite_line in zip(delta_ylist, self.composite_lines[1:]):
+            # print(f"{deltay} {composite_line}")
+            if deltay > mode * INTERPARA_FACT:
+                paragraph = AmiParagraph()
+                self.paragraphs.append(paragraph)
+            paragraph.composite_lines.append(composite_line)
+
+
+        # for paragraph in self.paragraphs:
+        #     if len(paragraph.composite_lines) > 0:
+        #         print(f"lines: {len(paragraph.composite_lines)} {paragraph.composite_lines[0]}")
+
+
+    def get_inter_composite_spacings(self):
+        last_line = self.composite_lines[0]
+        delta_y_list = []
+        for composite_line in self.composite_lines[1:]:
+            delta_y = composite_line.bbox.get_yrange()[0] - last_line.bbox.get_yrange()[0]
+            delta_y_list.append(delta_y)
+            last_line = composite_line
+        return delta_y_list
 
     # AmiPage
 
@@ -261,14 +327,20 @@ class AmiPage:
     def write_html(self, html_path, pretty_print=False, use_lines=False) -> None:
         """convenience method to create and write HTML
         :param html_path: path to write to
-        :param pretty_print: pretty print HTML (may introduce spurious whitespace) default: False
-        :use_lines: retain PDF lines (mainly for debugging) default: False
+        :param pretty_print: pretty print HTML (may introduce spurious whitespace) default= False
+        :param use_lines: retain PDF lines (mainly for debugging) default= False
         """
 
         html = self.create_html(use_lines=use_lines)
         with open(html_path, "wb") as f:
             et = lxml.etree.ElementTree(html)
             et.write(f, pretty_print=pretty_print)
+
+class AmiParagraph:
+    """holds a list of CompositeLines
+    """
+    def __init__(self):
+        self.composite_lines = []
 
 
 
@@ -306,6 +378,8 @@ class CompositeLine:
         for text_span in self.text_spans:
             text_style = text_span.text_style
             content = text_span.text_content
+            if not content:
+                continue
             # bold/italic can be nested
             if text_style.font_weight == BOLD:
                 content = E.b(content)
@@ -318,10 +392,17 @@ class CompositeLine:
                 content = E.sub(content)
             else:
                 content = E.span(content)
+                HtmlUtil.set_attrib(content, FONT_FAMILY, text_style.font_family)
+                HtmlUtil.set_attrib(content, FONT_SIZE, str(text_style.font_size))
+                HtmlUtil.set_attrib(content, FILL, text_style.fill)
+                HtmlUtil.set_attrib(content, Y, text_span.y)
+                HtmlUtil.set_attrib(content, BBOX, text_span.bbox)
             new_text_spans.append(content)
             last_span = text_span
         self.text_spans = new_text_spans
         return self.text_spans
+
+
 
     def normalize_text_spans(self) -> None:
         """iterate over text_spans applying normalize_family_weight"""
@@ -330,6 +411,9 @@ class CompositeLine:
                 print(f"whitespace")
             text_span.normalize_family_weight()
 
+    def merge(self,  other_line):
+        self.bbox = other_line.bbox.union(self.bbox)
+        self.text_spans.extend(other_line.text_spans)
 
 class TextSpan:
     """holds text content and attributes
@@ -629,7 +713,7 @@ class HtmlUtil:
         :param last_span: preceding span (if None returns False)
         :param this_span: span to test
         :return: True if this span is smaller and "lower" than last"""
-        return cls.is_script_type(last_span, this_span, type=SUB)
+        return cls.is_script_type(last_span, this_span, script_type=SUB)
 
     @classmethod
     def is_superscript(cls, last_span, this_span) -> bool:
@@ -638,10 +722,10 @@ class HtmlUtil:
         :param last_span: preceding span (if None returns False)
         :param this_span: span to test
         :return: True if this span is smaller and "higher" than last"""
-        return cls.is_script_type(last_span, this_span, type=SUP)
+        return cls.is_script_type(last_span, this_span, script_type=SUP)
 
     @classmethod
-    def is_script_type(cls, last_span, this_span, type) -> bool:
+    def is_script_type(cls, last_span, this_span, script_type) -> bool:
         """heuristc to determine whether this_span is a sub/superscript of last_span
         NOTE: as Y is DOWN the page, a superscript has SMALLER y-value, etc.
         :param last_span: if None, returns false
@@ -656,13 +740,23 @@ class HtmlUtil:
         if this_font_size < SCRIPT_FACT * last_font_size:
             last_y = last_span.y
             this_y = this_span.y
-            if type == SUB:
+            if script_type == SUB:
                 # is it lowered? Y DOWN
                 return last_y < this_y
-            elif type == SUP:
+            elif script_type == SUP:
                 # is it raised? Y DOWN
                 return last_y > this_y
             else:
-                raise ValueError("bad script type ", type)
+                raise ValueError("bad script type ", script_type)
         else:
             return False
+
+    @classmethod
+    def set_attrib(cls, element, attname, attvalue):
+        """convenience method to set attribute value
+        """
+        if element is None:
+            raise ValueError("element is None")
+        if attname and attvalue:
+            element.set(attname, str(attvalue))
+

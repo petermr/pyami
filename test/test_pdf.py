@@ -87,9 +87,9 @@ def test_create_html():
     """
     Test 10 pages
     """
-    pretty_print = False
+    pretty_print = True
     use_lines = True
-    for page_index in range(1, 9):
+    for page_index in range(4,5):
         page_path = Path(CLIMATE, f"fulltext-page.{page_index}.svg")
         html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
         if not HTML_TEMP_DIR.exists():
