@@ -31,7 +31,7 @@ def test_findall_svg():
 
 def test_get_text_attribs():
     ami_page = AmiPage.create_page_from_SVG(PAGE_9)
-    text0 = ami_page.get_ami_text(0)
+    text0 = ami_page.get_svg_text(0)
     assert text0.svg_text_elem.tag == f"{{{SVG_NS}}}text"
     assert text0.svg_text_elem.attrib.get(Y) == '44.76'
     assert text0.svg_text_elem.attrib.get(
@@ -47,7 +47,7 @@ def test_get_text_attribs():
 
 def test_get_text_attrib_vals():
     ami_page = AmiPage.create_page_from_SVG(PAGE_9)
-    ami_text0 = ami_page.get_ami_text(0)
+    ami_text0 = ami_page.get_svg_text(0)
     x_coords = ami_text0.get_x_coords()
     assert x_coords == [
         72.0, 79.201, 84.721, 90.241,
@@ -87,17 +87,16 @@ def test_create_html():
     """
     Test 10 pages
     """
-    current_style = None
+    pretty_print = False
+    use_lines = True
     for page_index in range(1, 9):
         page_path = Path(CLIMATE, f"fulltext-page.{page_index}.svg")
-        ami_page = AmiPage.create_page_from_SVG(page_path)
-        html = ami_page.create_html(current_style)
+        html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
         if not HTML_TEMP_DIR.exists():
             HTML_TEMP_DIR.mkdir()
-        html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
-        with open(html_path, "wb") as f:
-            et = lxml.etree.ElementTree(html)
-            et.write(f, pretty_print=True)
+        ami_page = AmiPage.create_page_from_SVG(page_path)
+        ami_page.write_html(html_path, pretty_print, use_lines)
+
 
 
 # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg

@@ -50,6 +50,10 @@ STYLES = [
     STROKE,
 ]
 
+# sub/Super
+SUB = "SUB"
+SUP = "SUP"
+
 
 class AmiPage:
     """Transformation of an SVG Page from PDFBox/Ami3
@@ -84,11 +88,11 @@ class AmiPage:
 
     # AmiPage
 
-    def create_and_process_text_spans(self):
+    def create_and_process_text_spans(self) -> None:
         self.create_text_spans(sort_axes=SORT_XY)
         self.create_spans_from_long_whitespace()
 
-    def create_text_spans(self, sort_axes=None):
+    def create_text_spans(self, sort_axes=None) -> list:
         """create text spans, including
 
         """
@@ -126,7 +130,8 @@ class AmiPage:
 
     # AmiPage
 
-    def get_ami_text(self, index):
+    def get_svg_text(self, index):
+        """gets raw SvgText element (e.g. <svg:text>)"""
         if not self.text_elements or index < 0 or index >= len(self.text_elements):
             return None
         return SvgText(self.text_elements[index])
@@ -134,7 +139,10 @@ class AmiPage:
     def create_spans_from_long_whitespace(self):
         pass
 
-    def get_bounding_boxes(self):
+    def get_bounding_boxes(self) -> list:
+        """get/create bounding boxes
+        sort by XY
+        """
         if not self.bboxes:
             self.bboxes = []
             self.create_text_spans(sort_axes=SORT_XY)
@@ -143,100 +151,58 @@ class AmiPage:
                 self.bboxes.append(bbox)
         return self.bboxes
 
-    def find_text_span_overlaps(self):
+    def create_composite_lines(self) -> list:
         """overlaps textspans such as subscripts
         uses the bboxes
-        will later creates larger spans as union of any intersecting boxes
+        will later create larger spans as union of any intersecting boxes
         not rigorous"""
-        self.create_text_spans(sort_axes=SORT_XY)
         self.composite_lines = []
+        self.create_text_spans(sort_axes=SORT_XY)
+        if not self.text_spans:
+            return []
         span0 = self.text_spans[0]
         composite_line = CompositeLine(bbox=span0.bbox)
         composite_line.text_spans.append(span0)
         self.composite_lines.append(composite_line)
 
-        for i in range(1, len(self.text_spans)):
-            text_span = self.text_spans[i]
+        for text_span in self.text_spans[1:]:
             bbox = text_span.create_bbox().copy()
             bbox.expand_by_margin([X_MARGIN, 0])
-            # print(f" current {current_composite_line.bbox} box {bbox}")
             intersect_box = composite_line.bbox.intersect(bbox)
             if intersect_box:
-                # print(f"intersect")
-                mode = ""
-                if composite_line.bbox.xy_ranges[1] == bbox.xy_ranges[1]:
-                    # print(f"X-intersect {current_composite_line.bbox} + {bbox}")
-                    mode = X
-                    pass
-                else:
-                    # print(f"Y-intersect {current_composite_line.bbox} + {bbox} {text_span} ... {self.text_spans[i-1]}")
-                    mode = Y
-                    pass
-
-                union_box = composite_line.bbox.union(bbox)
-                # print(f" {mode} bbox {composite_line.bbox} => union {union_box}")
-                composite_line.bbox = union_box
-                composite_line.text_spans.append(text_span)
-                if mode == Y:
-                    print(f"{bbox.xy_ranges[1]} SCRIPT")
+                composite_line.bbox = composite_line.bbox.union(bbox)
             else:
                 composite_line = CompositeLine(bbox=bbox)
                 self.composite_lines.append(composite_line)
                 composite_line.bbox = bbox.copy()
-                composite_line.text_spans.append(text_span)
-                # print(f" new box {composite_line.bbox}")
+
+            composite_line.text_spans.append(text_span)
 
         return self.composite_lines
 
-    def find_bbox_overlaps_old(self):
-        """overlaps textspans such as subscripts
-        uses the bboxes
-        will later creates larger spans as union of any intersecting boxes
-        not rigorous"""
-        self.get_bounding_boxes()
-        if not self.bboxes or len(self.bboxes) == 0:
-            return
-        self.composite_lines = []
-        current_composite_line = CompositeLine()
-        current_composite_line.bbox = BBox(self.bboxes[0].xy_ranges)
-
-        for i in range(1, len(self.bboxes)):
-            bbox = self.bboxes[i]
-            bbox.expand_by_margin([X_MARGIN, 0])
-            # print(f" current {current_composite_line.bbox} box {bbox}")
-            intersect_box = current_composite_line.bbox.intersect(bbox)
-            if intersect_box:
-                # print(f"intersect")
-                if current_composite_line.bbox.xy_ranges[1] == bbox.xy_ranges[1]:
-                    # print(f"X-intersect {current_composite_line.bbox} + {bbox}")
-                    pass
-                else:
-                    print(f"Y-intersect {current_composite_line.bbox} + {bbox}")
-                    pass
-
-                current_composite_line.box = current_composite_line.bbox.union(bbox)
-            else:
-                self.composite_lines.append(current_composite_line.bbox)
-                current_composite_line.bbox = BBox(bbox.xy_ranges)
-                # print(f" new box {current_line_box}")
-
-        for composite_line in self.composite_lines:
-            print(f"cc {composite_line}")
-
-    def create_html(self, current_style=None):
+    def create_html(self, use_lines=False) -> E.html:
         """simple html with <p> children (will change later)"""
         self.get_bounding_boxes()
-        composite_lines = self.find_text_span_overlaps()
+        composite_lines = self.create_composite_lines()
         html = E.html()
-        for j, c_line in enumerate(composite_lines):
-            h_p = c_line.create_p_with_spans(current_style, j)
-            html.append(h_p)
+        body = E.body()
+        html.append(body)
+        for composite_line in composite_lines:
+            text_spans = composite_line.create_sub_super_i_b_spans()
+            if use_lines:
+                h_p = E.p()
+                for text_span in text_spans:
+                    h_p.append(text_span)
+                    body.append(h_p)
+            else:
+                for text_span in text_spans:
+                    body.append(text_span)
         return html
 
     # AmiPage
 
     # needs integrating
-    def find_text_breaks_in_pagex(self, sortedq=None):
+    def find_text_breaks_in_pagex(self, sortedq=None) -> dict:
         """create text spans, including
 
         """
@@ -292,21 +258,37 @@ class AmiPage:
         style_dict = ami_text.extract_style_dict_from_svg()
         return style_dict, breaks
 
+    def write_html(self, html_path, pretty_print=False, use_lines=False) -> None:
+        """convenience method to create and write HTML
+        :param html_path: path to write to
+        :param pretty_print: pretty print HTML (may introduce spurious whitespace) default: False
+        :use_lines: retain PDF lines (mainly for debugging) default: False
+        """
+
+        html = self.create_html(use_lines=use_lines)
+        with open(html_path, "wb") as f:
+            et = lxml.etree.ElementTree(html)
+            et.write(f, pretty_print=pretty_print)
+
+
 
 class CompositeLine:
-    """holds text spans which touch or intersect"""
+    """holds text spans which touch or intersect and overall bbox"""
 
     def __init__(self, bbox=None):
-        self.bbox = None if bbox is None else bbox.copy()
+        """constructs empty CompositeLine
+        :param bbox: copies bbox if not None
+        """
+        self.bbox = bbox.copy() if bbox else None
         self.text_spans = []
 
-    def __str__(self):
+    def __str__(self) -> str:
         s = f" spans: {len(self.text_spans)}:"
         for span in self.text_spans:
             s += f"__{span}"
         return s
 
-    def sort_spans(self, axis=X):
+    def sort_spans(self, axis=X) -> list:
         """sort spans by coordinate
         :param axis: X or Y
         :return: text_spans
@@ -314,41 +296,39 @@ class CompositeLine:
         self.text_spans = sorted(self.text_spans, key=lambda span: span.start_x)
         return self.text_spans
 
-    def create_p_with_spans(self, current_style, line_no):
+    def create_sub_super_i_b_spans(self) -> list:
         """creates a <p> with <span> or other inline children"""
-        if len(self.text_spans) > 1:
-            self.sort_spans(X)
-            print(f"l: {line_no} s: {len(self.text_spans)} {self.text_spans}")
+        self.sort_spans(X)
+        self.normalize_text_spans()
+
+        last_span = None
+        new_text_spans = []
+        for text_span in self.text_spans:
+            text_style = text_span.text_style
+            content = text_span.text_content
+            # bold/italic can be nested
+            if text_style.font_weight == BOLD:
+                content = E.b(content)
+            if text_style.font_style == ITALIC:
+                content = E.i(content)
+            # super/subscripts wrap what has been created
+            if HtmlUtil.is_superscript(last_span, text_span):
+                content = E.sup(content)
+            elif HtmlUtil.is_subscript(last_span, text_span):
+                content = E.sub(content)
+            else:
+                content = E.span(content)
+            new_text_spans.append(content)
+            last_span = text_span
+        self.text_spans = new_text_spans
+        return self.text_spans
+
+    def normalize_text_spans(self) -> None:
+        """iterate over text_spans applying normalize_family_weight"""
         for text_span in self.text_spans:
             if Util.is_whitespace(text_span.text_content):
                 print(f"whitespace")
             text_span.normalize_family_weight()
-            style = text_span.text_style
-            style_diff = None if not current_style else current_style.difference(style)
-            if style_diff:
-                # print(f"style diff {style_diff}")
-                pass
-            current_style = style
-        h_p = E.p()
-        last_span = None
-        for text_span in self.text_spans:
-            text_style = text_span.text_style
-            print(f"text span {text_style}")
-            content = text_span.text_content
-            if text_style.font_weight == BOLD:
-                h_span = E.b(content)
-            elif text_style.font_style == ITALIC:
-                h_span = E.i(content)
-            elif HtmlUtil.is_superscript(last_span, text_span):
-                h_span = E.sup(content)
-            elif HtmlUtil.is_subscript(last_span, text_span):
-                h_span = E.sub(content)
-            else:
-                h_span = E.span(content)
-            last_span = text_span
-            h_p.append(h_span)
-        # print(f"P: {lxml.html.tostring(h_p).decode('UTF-8')}")
-        return h_p
 
 
 class TextSpan:
@@ -365,20 +345,21 @@ class TextSpan:
         self.bbox = None
         self.ami_text = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         s = self.xy + ": " + (self.text_content[:10] + "... " if self.text_content is not None else "")
         return s
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
     @property
-    def xy(self):
+    def xy(self) -> str:
+        """convenience to return (x, y) as str"""
         return "(" + str(self.start_x) + "," + str(self.y) + ")" if (self.start_x and self.y) else ""
 
     # TextSpan
 
-    def create_bbox(self):
+    def create_bbox(self) -> BBox:
         """bbox based on font-size and character position/width
 
         text goes in negative directiom as y is down the page
@@ -393,7 +374,13 @@ class TextSpan:
         self.bbox = BBox.create_from_xy_w_h((self.start_x, self.y - height), width, height)
         return self.bbox
 
-    def normalize_family_weight(self):
+    def normalize_family_weight(self) -> None:
+        """transforms font-family names into weights and styles
+        Example: TimesRomanBoldItalic will set style=italic and weight=bold
+        and reset family to TimesRoman
+
+            """
+
         family = self.text_style.font_family
         if not family:
             print(f"no family: {self}")
@@ -410,7 +397,7 @@ class TextSpan:
         if self.text_style.font_family not in FONT_FAMILIES:
             print(f"new font_family {self.text_style.font_family}")
 
-    def has_empty_text_content(self):
+    def has_empty_text_content(self) -> bool:
         return len("".join(self.text_content.split())) == 0
 
 
@@ -429,11 +416,16 @@ class TextStyle:
         # stroke colour of text
         self.stroke = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         s = f"size {self.font_size} family {self.font_family}, style {self.font_style} weight {self.font_weight} fill {self.fill} stroke {self.stroke}"
         return s
 
-    def difference(self, other):
+    def difference(self, other) -> str:
+        """difference between two TextStyles (self and other)
+        :param other: style to compare to self
+        :return: string representation of differences (or "")
+        """
+
         if other is None:
             return "none"
         s = ""
@@ -446,7 +438,7 @@ class TextStyle:
         return s
 
     @classmethod
-    def _difference(cls, name, val1, val2):
+    def _difference(cls, name, val1, val2) -> str:
         s = ""
         if not val1 and not val2:
             pass
@@ -456,7 +448,10 @@ class TextStyle:
 
 
 class SvgText:
-    """wrapper for svg_text elemeent
+    """wrapper for svg_text elemeent.
+    creates TextStyle, TextSpan, coordinates, etc.
+    Only used in transformations
+    heuristic
     """
 
     def __init__(self, svg_text_elem):
@@ -465,7 +460,9 @@ class SvgText:
         self.text_span = None
         self.create_text_span()
 
-    def create_text_span(self):
+    def create_text_span(self) -> TextSpan:
+        """create TextSpan from style, coords and text_content
+        :return: TextSpan or None"""
         if self.text_span is None:
             self.text_span = TextSpan()
             self.text_span.ami_text = self
@@ -480,7 +477,8 @@ class SvgText:
 
     # AmiText
 
-    def create_text_style(self):
+    def create_text_style(self) -> TextStyle:
+        """create TextStyle from style attributes"""
         style = TextStyle()
         # style.y = self.get_y_coord()
         # style.x = self.get_x_coord()
@@ -492,36 +490,51 @@ class SvgText:
         style.stroke = self.get_stroke()
         return style
 
-    def get_fill(self):
+    def get_fill(self) -> str:
+        """get fill colour
+        :return: colour (unnormalized)"""
         return self.svg_text_elem.attrib.get(FILL)
 
-    def get_x_coords(self):
+    def get_x_coords(self) -> list:
+        """get list of x-coords from SVG"""
         return self.get_float_vals(X)
 
-    def get_x_coord(self):
+    def get_x_coord(self) -> float:
         """get first X-coord
         :return: first x_coord in list or None"""
         x_coords = self.get_x_coords()
         return x_coords[0] if x_coords else None
 
-    def get_y_coord(self):
+    def get_y_coord(self) -> float:
+        """get single Y-coord"""
         return self.get_float_val(Y)
 
     # AmiText
 
-    def get_widths(self):
-        vals = self.get_float_vals(f"{{{SVGX_NS}}}{WIDTH}")
-        return vals
+    def get_widths(self) -> list:
+        """list of character widths
+        These are provided by the PDF or other document. They are
+        fractions of pixel size (i.e. font-size = 12 and width=0.8
+        gives screen width of 9.6px
+        """
+
+        return self.get_float_vals(f"{{{SVGX_NS}}}{WIDTH}")
 
     def get_last_width(self):
         """width of last character
-        needed for bbox calculation
+        needed for bbox calculation.
+        The x-extent of array of coordinates is last_coord + last_width*font-size
         :return: last width or 0.0 if none
         """
         widths = self.get_widths()
         return 0.0 if widths is None or len(widths) == 0 else widths[-1]
 
-    def extract_style_dict_from_svg(self):
+    def extract_style_dict_from_svg(self) -> dict:
+        """translates svg style attribute into dictionary
+        names are whatever are contained in the SVG and not checked
+        SVG format is name1:val1;name2:val2 ... and these are translated
+        literally into a dict()
+        """
         style_dict = dict()
         style = self.svg_text_elem.attrib.get(STYLE)
         styles = style.split(';')
@@ -529,50 +542,61 @@ class SvgText:
             if len(s) > 0:
                 ss = s.split(":")
                 style_dict[ss[0]] = ss[1]
-        # y = self.get_y_coord()
-        # if y:
-        #     style_dict[Y] = y
         return style_dict
 
     # AmiText
 
-    def get_font_family(self):
+    def get_font_family(self) -> str:
+        """get font-family from SVG style
+        No checking on values
+        """
+
         sd = self.extract_style_dict_from_svg()
         fs = sd.get(FONT_FAMILY)
         return fs
 
-    def get_font_size(self):
+    def get_font_size(self) -> float:
+        """font-size from SVG style attribute
+        :return: size without "px" units"""
         sd = self.extract_style_dict_from_svg()
         fs = sd.get(FONT_SIZE)
         fs = fs[:-2]
         return float(fs)
 
-    def get_font_weight(self):
+    def get_font_weight(self) -> str:
+        """font weight as string
+        No checking on values (normally "bold" or None)
+        :return: weight"""
         sd = self.extract_style_dict_from_svg()
         return sd.get(FONT_WEIGHT)
 
-    def get_font_style(self):
+    def get_font_style(self) -> str:
+        """font style as string
+        :return: normallu "italic" or None
+        """
         sd = self.extract_style_dict_from_svg()
         return sd.get(FONT_STYLE)
 
-    def get_fill(self):
-        sd = self.extract_style_dict_from_svg()
-        return sd.get(FILL)
+    def get_stroke(self) -> str:
+        """stroke for character
+        rarely used?
+        :return: stroke normallyn as rgb?"""
 
-    def get_stroke(self):
-        sd = self.extract_style_dict_from_svg()
-        return sd.get(STROKE)
+        return self.extract_style_dict_from_svg().get(STROKE)
 
-    def get_text_content(self):
+    def get_text_content(self) -> str:
+        """convenience to get text content
+        (saves me remembering the code with join())
+        :return: "" is empty else content"""
         return ''.join(self.svg_text_elem.itertext())
 
     # AmiText
 
-    def get_float_vals(self, attname):
+    def get_float_vals(self, attname) -> list:
         """gets list of floats if possible, else Exception
         :param attname:
         :return: list of floats
-        :except: VakueError if any conversion fails"""
+        :except: ValueError if any conversion fails"""
         attval = self.svg_text_elem.attrib.get(attname)
         if attval:
             ss = attval.split(',')
@@ -583,7 +607,7 @@ class SvgText:
             return vals
         return []
 
-    def get_float_val(self, attname):
+    def get_float_val(self, attname) -> float:
         """gets float value of attribute
         :param attname: attribute name
         :return: f;oat value or None if not possible"""
@@ -593,19 +617,37 @@ class SvgText:
         except Exception as e:
             return None
 
+
 class HtmlUtil:
     """utilities for Html (lxml)
     """
-    @classmethod
-    def is_subscript(cls, last_span, this_span):
-        return cls.is_script_type(last_span, this_span, type="SUB")
 
     @classmethod
-    def is_superscript(cls, last_span, this_span):
-        return cls.is_script_type(last_span, this_span, type="SUP")
+    def is_subscript(cls, last_span, this_span) -> bool:
+        """is this_span a subscript?
+        uses heuristics in is_script_type
+        :param last_span: preceding span (if None returns False)
+        :param this_span: span to test
+        :return: True if this span is smaller and "lower" than last"""
+        return cls.is_script_type(last_span, this_span, type=SUB)
 
     @classmethod
-    def is_script_type(cls, last_span, this_span, type):
+    def is_superscript(cls, last_span, this_span) -> bool:
+        """is this_span a superscript?
+        uses heuristics in is_script_type
+        :param last_span: preceding span (if None returns False)
+        :param this_span: span to test
+        :return: True if this span is smaller and "higher" than last"""
+        return cls.is_script_type(last_span, this_span, type=SUP)
+
+    @classmethod
+    def is_script_type(cls, last_span, this_span, type) -> bool:
+        """heuristc to determine whether this_span is a sub/superscript of last_span
+        NOTE: as Y is DOWN the page, a superscript has SMALLER y-value, etc.
+        :param last_span: if None, returns false
+        :param this_span: if not smaller by SCRIPT_FACT return False
+        :return: True if smaller and moved in right y-direction
+        """
         if last_span is None:
             return False
         last_font_size = last_span.text_style.font_size
@@ -614,14 +656,13 @@ class HtmlUtil:
         if this_font_size < SCRIPT_FACT * last_font_size:
             last_y = last_span.y
             this_y = this_span.y
-            if type == "SUB":
+            if type == SUB:
                 # is it lowered? Y DOWN
                 return last_y < this_y
-            elif type == "SUP":
+            elif type == SUP:
                 # is it raised? Y DOWN
                 return last_y > this_y
             else:
                 raise ValueError("bad script type ", type)
         else:
             return False
-
