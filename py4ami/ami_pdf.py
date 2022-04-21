@@ -220,11 +220,14 @@ class AmiPage:
         """simple html with <p> children (will change later)"""
         self.get_bounding_boxes()
         self.create_composite_lines()
-        if not use_lines or True:
-            self.create_paragraphs()
         html = E.html()
         body = E.body()
         html.append(body)
+        if not use_lines or True:
+            self.create_paragraphs()
+            for paragraph in self.paragraphs:
+                body.append(paragraph.create_html_p())
+            return html
         for composite_line in self.composite_lines:
             text_spans = composite_line.create_sub_super_i_b_spans()
             if use_lines:
@@ -249,12 +252,6 @@ class AmiPage:
                 paragraph = AmiParagraph()
                 self.paragraphs.append(paragraph)
             paragraph.composite_lines.append(composite_line)
-
-
-        # for paragraph in self.paragraphs:
-        #     if len(paragraph.composite_lines) > 0:
-        #         print(f"lines: {len(paragraph.composite_lines)} {paragraph.composite_lines[0]}")
-
 
     def get_inter_composite_spacings(self):
         last_line = self.composite_lines[0]
@@ -341,6 +338,15 @@ class AmiParagraph:
     """
     def __init__(self):
         self.composite_lines = []
+
+    def create_html_p(self):
+        h_p = E.p()
+        for composite_line in self.composite_lines:
+            text_spans = composite_line.create_sub_super_i_b_spans()
+            for span in text_spans:
+                h_p.append(span)
+        return h_p
+
 
 
 
