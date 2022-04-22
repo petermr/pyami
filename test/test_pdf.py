@@ -6,15 +6,17 @@ import lxml.etree
 import lxml.html
 
 # local
-from py4ami.ami_pdf import SVG_NS, SVGX_NS, STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE
+from py4ami.ami_pdf import SVG_NS, SVGX_NS, STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, HtmlUtil
 
 # class PDFTest:
 
+FINAL_DRAFT_DIR = "/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg"  # PMR only
 RESOURCES = Path(Path(__file__).parent, "resources")  # only works for PMR
 CLIMATE = Path(RESOURCES, "climate")
 PAGE_9 = Path(CLIMATE, "fulltext-page.9.svg")
 PAGE_6 = Path(CLIMATE, "fulltext-page.6.svg")
 HTML_TEMP_DIR = Path(Path(__file__).parent.parent, "temp", "html")
+FULL_TEMP_DIR = Path(Path(__file__).parent.parent, "temp", "full")
 
 
 def test_pdfbox_output_exists():
@@ -97,6 +99,19 @@ def test_create_html():
         ami_page = AmiPage.create_page_from_SVG(page_path)
         ami_page.write_html(html_path, pretty_print, use_lines)
 
+def test_create_chapters():
+    pretty_print = True
+    use_lines = True
+    make_full_draft_html(pretty_print, use_lines)
+    for page_index in range(1, 500):
+        html_path = Path(FULL_TEMP_DIR, f"page.{page_index}.html")
+        with open(html_path, "r") as h:
+            xml = h.read()
+        root = lxml.etree.fromstring(xml)
+        spans = root.findall("./body/p/span")
+        span0 = HtmlUtil.get_text_content(spans[0])
+        print(f" {page_index}: {span0}")
+
 
 
 # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg
@@ -105,9 +120,20 @@ def test_find_breaks_in_many_pages():
     """test hundreds if pages"""
     numpages = 20  # increase later
     for page_index in range(numpages):
-        page_path = Path("/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg",
+        page_path = Path(FINAL_DRAFT_DIR,
                          f"fulltext-page.{page_index}.svg")
         page = AmiPage.create_page_from_SVG(page_path)
         page.create_and_process_text_spans()
 
 # ==============================
+
+def make_full_draft_html(pretty_print, use_lines):
+    if not Path(FINAL_DRAFT_DIR, f"fulltext-page.2912.svg").exists():
+        for page_index in range(1, 2912):
+            page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
+            html_path = Path(FULL_TEMP_DIR, f"page.{page_index}.html")
+            if not FULL_TEMP_DIR.exists():
+                FULL_TEMP_DIR.mkdir()
+            ami_page = AmiPage.create_page_from_SVG(page_path)
+            ami_page.write_html(html_path, pretty_print, use_lines)
+

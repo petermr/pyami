@@ -766,3 +766,6 @@ class HtmlUtil:
         if attname and attvalue:
             element.set(attname, str(attvalue))
 
+    @classmethod
+    def get_text_content(cls, elem):
+        return ''.join(elem.itertext())
