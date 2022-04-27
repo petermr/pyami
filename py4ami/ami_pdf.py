@@ -85,45 +85,54 @@ class AmiPage:
         self.paragraphs = []
 
     @classmethod
-    def create_page_from_SVG(cls, svg_path):
+    def create_page_from_SVG(cls, svg_path, rotatedText=False):
         """Initial parse of SVG and creation of AmiPage
         :param svg_path: path of SVG file
         """
         ami_page = AmiPage()
         ami_page.page_path = svg_path
-        ami_page.create_and_process_text_spans()
+        ami_page.create_text_spans(sort_axes=SORT_XY, rotatedText=rotatedText)
         return ami_page
 
     # AmiPage
 
-    def create_and_process_text_spans(self) -> None:
-        self.create_text_spans(sort_axes=SORT_XY)
-        self.create_spans_from_long_whitespace()
-
-    def create_text_spans(self, sort_axes=None) -> list:
-        """create text spans, including
-
+    def create_text_spans(self, sort_axes=None, rotatedText=False) -> list:
+        """create text spans, from SVG element for page
+        :param sort_axes: by X and/or Y
+        :param rotatedText: iclude rotated text
+        :return: self.text_spans
         """
+        # remove line numbers and headers and footers
+        content_box = BBox(xy_ranges=[[56, 999], [45, 780]])
         if not sort_axes:
             sort_axes = []
-        if not self.text_spans:
+        dot_len = 10
+        if not self.text_spans or not self.text_spans is list:
             print(f"======== {self.page_path} =========")
             self.page_element = lxml.etree.parse(str(self.page_path))
             self.text_elements = self.page_element.findall(f"//{{{SVG_NS}}}text")
             # print(f"texts {len(self.text_elements)}")
             self.text_spans = []
             for text_index, text_element in enumerate(self.text_elements):
-                ami_text = SvgText(text_element)
-                text_span = ami_text.create_text_span()
+                if text_element.attrib.get("rotateDegrees") and not rotatedText:
+                    # print(f"rotated text")
+                    continue
+                svg_text = SvgText(text_element)
+                text_span = svg_text.create_text_span()
                 if not text_span:
                     print(f"cannot create TextSpan")
+                    continue
+                bbox = text_span.create_bbox()
+                if not bbox.intersect(content_box):
+                    # print(f"outside content_box")
                     continue
 
                 if text_span.has_empty_text_content():
                     # test for whitespace content
                     # print(f"whitespace element skipped")
                     continue
-
+                # if (len(self.text_spans) % dot_len) == 0:
+                #     print(".", end="")
                 self.text_spans.append(text_span)
             print(f"no. text_spans {len(self.text_spans)}")
             for axis in sort_axes:
@@ -143,9 +152,6 @@ class AmiPage:
         if not self.text_elements or index < 0 or index >= len(self.text_elements):
             return None
         return SvgText(self.text_elements[index])
-
-    def create_spans_from_long_whitespace(self):
-        pass
 
     def get_bounding_boxes(self) -> list:
         """get/create bounding boxes
@@ -242,24 +248,26 @@ class AmiPage:
 
     def create_paragraphs(self):
         delta_ylist = self.get_inter_composite_spacings()
-        mode = statistics.mode(delta_ylist)
-        # print(f"mode {mode}")
-        paragraph = AmiParagraph()
-        self.paragraphs.append(paragraph)
-        for deltay, composite_line in zip(delta_ylist, self.composite_lines[1:]):
-            # print(f"{deltay} {composite_line}")
-            if deltay > mode * INTERPARA_FACT:
-                paragraph = AmiParagraph()
-                self.paragraphs.append(paragraph)
-            paragraph.composite_lines.append(composite_line)
+        if len(delta_ylist) > 0:
+            mode = statistics.mode(delta_ylist)
+            # print(f"mode {mode}")
+            paragraph = AmiParagraph()
+            self.paragraphs.append(paragraph)
+            for deltay, composite_line in zip(delta_ylist, self.composite_lines[1:]):
+                # print(f"{deltay} {composite_line}")
+                if deltay > mode * INTERPARA_FACT:
+                    paragraph = AmiParagraph()
+                    self.paragraphs.append(paragraph)
+                paragraph.composite_lines.append(composite_line)
 
     def get_inter_composite_spacings(self):
-        last_line = self.composite_lines[0]
         delta_y_list = []
-        for composite_line in self.composite_lines[1:]:
-            delta_y = composite_line.bbox.get_yrange()[0] - last_line.bbox.get_yrange()[0]
-            delta_y_list.append(delta_y)
-            last_line = composite_line
+        if self.composite_lines:
+            last_line = self.composite_lines[0]
+            for composite_line in self.composite_lines[1:]:
+                delta_y = composite_line.bbox.get_yrange()[0] - last_line.bbox.get_yrange()[0]
+                delta_y_list.append(delta_y)
+                last_line = composite_line
         return delta_y_list
 
     # AmiPage
