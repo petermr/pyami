@@ -1,6 +1,4 @@
 import logging
-logging.debug("loading pdfreader.py")
-# https://stackoverflow.com/questions/56494070/how-to-use-pdfminer-six-with-python-3
 
 from pdfminer3.layout import LAParams
 from pdfminer3.pdfpage import PDFPage
@@ -12,8 +10,13 @@ import io
 
 from pathlib import Path
 
-class PdfReader:
+logging.debug("loading pdfreader.py")
 
+
+# https://stackoverflow.com/questions/56494070/how-to-use-pdfminer-six-with-python-3
+
+class PdfReader:
+    """not fully implemented or tested"""
     logger = logging.getLogger("pdfreader")
 
     def __init__(self):
@@ -30,27 +33,26 @@ class PdfReader:
         resource_manager = PDFResourceManager()
         fake_file_handle = io.StringIO()
         image_dir = Path('/Users/pm286/misc/images')
-        imageWriter = ImageWriter(image_dir)
-        layoutParams = LAParams()
+        image_writer = ImageWriter(image_dir)
+        layout_params = LAParams()
         converter = TextConverter(resource_manager, fake_file_handle,
                                   codec='utf-8',
-                                  laparams=layoutParams,
-                                  imagewriter=imageWriter)
+                                  laparams=layout_params,
+                                  imagewriter=image_writer)
         page_interpreter = PDFPageInterpreter(resource_manager, converter)
         print(f" ====== PDF FILE {file} =====")
         with open(file, 'rb') as fh:
             for i, page in enumerate(PDFPage.get_pages(fh,
-                                          caching=True,
-                                          check_extractable=True)):
+                                                       caching=True,
+                                                       check_extractable=True)):
                 page_interpreter.process_page(page)
-                print(f"=================== page {i+1}=================")
+                print(f"=================== page {i + 1}=================")
 
             text = fake_file_handle.getvalue()
 
         # close open handles
         converter.close()
         fake_file_handle.close()
-
 
         """
         > pdf2txt.py [-P password] [-o output] [-t text|html|xml|tag]
@@ -91,11 +93,13 @@ def main():
     """
     pass
 
+
 if __name__ == "__main__":
     main()
 
-def temp():
 
+# this may be obsolete
+def temp():
     resource_manager = PDFResourceManager()
     fake_file_handle = io.StringIO()
     converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
@@ -115,9 +119,27 @@ def temp():
 
     print(text)
 
-    pdfResourceManager = PDFResourceManager()
-    convertedText = StringIO()
-    layoutParams = LAParams()
+    pdf_resource_manager = PDFResourceManager()
+    converted_text = io.StringIO()
+    layout_params = LAParams()
     imageWriter = ImageWriter('pathToSaveImages/..')
-    converter = TextConverter(pdfResourceManager, convertedText, codec='utf-8', laparams=layoutParams,
+    converter = TextConverter(pdf_resource_manager, converted_text, codec='utf-8', laparams=layout_params,
                               imagewriter=imageWriter)
+class Pdf2SvgReader:
+    logger = logging.getLogger("pdf2svgreader")
+
+    def __init__(self):
+        self.text = None
+
+    @classmethod
+    def read_and_convert(cls, file):
+        """ converst a PDF path (to text)
+
+        needs ami3 jar installed
+        Args:
+            file ([str]): filename
+         """
+
+        # run ami3 here
+        raise Exception("ami3 must be installed")
+

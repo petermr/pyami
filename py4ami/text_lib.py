@@ -11,7 +11,7 @@ import glob
 import logging
 logging.debug("loading text_lib")
 
-from .file_lib import AmiPath, FileLib
+from py4ami.file_lib import AmiPath, FileLib
 
 NFKD = "NFKD"
 

@@ -1,4 +1,3 @@
-import unittest
 from pathlib import Path
 
 import lxml
@@ -42,7 +41,7 @@ def test_findall_svg_and_find_texts():
 def test_get_text_attribs():
     """find various SVG attributes, including 'style'
     """
-    ami_page = AmiPage.create_page_from_SVG(PAGE_9)
+    ami_page = AmiPage.create_page_from_svg(PAGE_9)
     # <svg:text> element
     text0 = ami_page.get_svg_text(0)
     assert text0.svg_text_elem.tag == f"{{{SVG_NS}}}text"
@@ -71,7 +70,7 @@ def test_get_text_attribs():
 
 def test_get_text_attrib_vals():
     """more attributes and convenience methods"""
-    ami_page = AmiPage.create_page_from_SVG(PAGE_9)
+    ami_page = AmiPage.create_page_from_svg(PAGE_9)
     # <svg:text> element
     ami_text0 = ami_page.get_svg_text(0)
     x_coords = ami_text0.get_x_coords()
@@ -107,7 +106,7 @@ def test_get_text_attrib_vals():
 
 def test_create_text_lines_page6():
     """creation of AmiPage from SVG page and creation of text spans"""
-    page = AmiPage.create_page_from_SVG(PAGE_6)
+    page = AmiPage.create_page_from_svg(PAGE_6)
     page.create_text_spans(sort_axes=SORT_XY)
     assert 70 >= len(page.text_spans) >= 60
 
@@ -123,7 +122,7 @@ def test_create_html():
         html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
         if not HTML_TEMP_DIR.exists():
             HTML_TEMP_DIR.mkdir()
-        ami_page = AmiPage.create_page_from_SVG(page_path)
+        ami_page = AmiPage.create_page_from_svg(page_path)
         ami_page.write_html(html_path, pretty_print, use_lines)
         assert (html_path.exists(), f"{html_path} exists")
 
@@ -145,7 +144,7 @@ def test_create_html_in_selectiom():
         html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
         if not HTML_TEMP_DIR.exists():
             HTML_TEMP_DIR.mkdir()
-        ami_page = AmiPage.create_page_from_SVG(page_path, rotatedText=False)
+        ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
         ami_page.write_html(html_path, pretty_print, use_lines)
         counter += 1
         assert (html_path.exists(), f"{html_path} exists")
@@ -167,9 +166,9 @@ def test_create_chapters():
         span = None
         chapter = ""
         # bug in parsing line 0
-        if is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[0])):
+        if HtmlUtil.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[0])):
             span = spans[0]
-        if span is None and is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[1])):
+        if span is None and HtmlUtil.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[1])):
             span = spans[1]
         if span is None:
             print(f"p:{page_index}, {HtmlUtil.get_text_content(spans[0])}, {HtmlUtil.get_text_content(spans[1])}")
@@ -178,25 +177,27 @@ def test_create_chapters():
             print("CHAP ", chapter)
 
 
-def is_chapter_or_tech_summary(span_text):
-    return span_text.startswith("Chapter") or span_text.startswith("Technical Summary")
-
-
-# /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg
-@unittest.skip("Not yet ready; depends on line analysis")
-def test_find_breaks_in_many_pages():
-    """test hundreds if pages"""
-    numpages = 20  # increase later
-    for page_index in range(numpages):
-        page_path = Path(FINAL_DRAFT_DIR,
-                         f"fulltext-page.{page_index}.svg")
-        page = AmiPage.create_page_from_SVG(page_path)
-        page.create_text_spans(sort_axes=SORT_XY)
+# # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg
+# @unittest.skip("Not yet ready; depends on line analysis")
+# def test_find_breaks_in_many_pages():
+#     """test hundreds if pages"""
+#     numpages = 20  # increase later
+#     for page_index in range(numpages):
+#         page_path = Path(FINAL_DRAFT_DIR,
+#                          f"fulltext-page.{page_index}.svg")
+#         page = AmiPage.create_page_from_SVG(page_path)
+#         page.create_text_spans(sort_axes=SORT_XY)
 
 
 # ==============================
 
-def make_full_draft_html(pretty_print, use_lines, rotatedText=False):
+def make_full_draft_html(pretty_print, use_lines, rotated_text=False):
+    """reads SVG output from ami3/pdfbox and converts to HTML
+    used by several tests at present and will be intergrated
+    :param pretty_print: pretty print the HTML. Warning may introduce whitespace
+    :param use_lines: output is CompositeLines. Not converted into running text (check)
+    :param rotated_text: include/ignore texts with non-zero @rotateDegress attribute
+    """
     if not Path(FINAL_DRAFT_DIR, f"fulltext-page.2912.svg").exists():
         raise Exception("must have SVG from ami3")
     for page_index in CURRENT_RANGE:
@@ -204,5 +205,5 @@ def make_full_draft_html(pretty_print, use_lines, rotatedText=False):
         html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
         if not HTML_TEMP_DIR.exists():
             HTML_TEMP_DIR.mkdir()
-        ami_page = AmiPage.create_page_from_SVG(page_path, rotatedText=rotatedText)
+        ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
         ami_page.write_html(html_path, pretty_print, use_lines)

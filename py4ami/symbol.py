@@ -5,7 +5,7 @@ import configparser
 import urllib.request
 from pathlib import Path
 
-from .file_lib import FileLib
+from py4ami.file_lib import FileLib
 
 
 class SymbolIni:
@@ -20,10 +20,13 @@ class SymbolIni:
     PYAMI_DIR = "PYAMI_DIR"
     PRIMITIVES = ["<class 'int'>", "<class 'bool'>", "<class 'float'>"]
     LOGDIR = "logs"  # maybe need to change this
+    SYMBOL_INI = "symbol.ini"
 
     SYMBOL_NOT_FOUND = "symbol not found"
+    SYM_START = "${"
+    SYM_END = "}"
 
-    logger = logging.getLogger("symbol.ini")
+    logger = logging.getLogger(SYMBOL_INI)
 
     def __init__(self, pyami):
         # FileLib.force_mkdir(self.LOGDIR)
@@ -31,9 +34,11 @@ class SymbolIni:
         self.symbols = None
         self.pyami = pyami
         pyami.symbol_ini = self
-
+        self.config = None
         self.setup_environment()
         self.process_config_files()
+        self.pyami_home = None
+        self.fileset = None
 
     def process_config_files(self):
         """ """
@@ -245,14 +250,12 @@ assumes value
 
         result = ""
         start = 0
-        SYM_START = "${"
-        SYM_END = "}"
         self.logger.info(f"expanding symbols in {arg}")
-        while SYM_START in arg[start:]:
-            idx0 = arg.index(SYM_START, start)
+        while SymbolIni.SYM_START in arg[start:]:
+            idx0 = arg.index(SymbolIni.SYM_START, start)
             result += arg[start:idx0]
-            idx1 = arg.index(SYM_END, start)
-            symbol = arg[idx0 + len(SYM_START):idx1]
+            idx1 = arg.index(SymbolIni.SYM_END, start)
+            symbol = arg[idx0 + len(SymbolIni.SYM_START):idx1]
             replace = self.symbols.get(symbol)
             if replace is None:
                 if not self.is_reserved_symbol(symbol):
@@ -266,9 +269,9 @@ assumes value
                 # symbol not found
                 raise ValueError(f"symbol replaces itself {symbol}")
             self.logger.debug(f"{idx0} {idx1} {symbol} {replace}")
-            orig = arg[idx0: idx1 + len(SYM_END)]
+            orig = arg[idx0: idx1 + len(SymbolIni.SYM_END)]
             result += replace if replace is not None else orig
-            start = idx1 + len(SYM_END)
+            start = idx1 + len(SymbolIni.SYM_END)
         result += arg[start:]
         if arg != result:
             self.logger.info(f"expanded {arg} to {result}")

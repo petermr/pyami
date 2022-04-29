@@ -3,6 +3,7 @@ import lxml.html
 from lxml import etree
 from lxml.builder import E
 import statistics
+from enum import Enum
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util
@@ -56,9 +57,15 @@ STYLES = [
     STROKE,
 ]
 
+CHAPTER = "Chapter"
+TECHNICAL_SUMMARY = "Technical Summary"
+
+
 # sub/Super
-SUB = "SUB"
-SUP = "SUP"
+
+class SScript(Enum):
+    SUB = 1
+    SUP = 2
 
 
 class AmiPage:
@@ -85,36 +92,37 @@ class AmiPage:
         self.paragraphs = []
 
     @classmethod
-    def create_page_from_SVG(cls, svg_path, rotatedText=False):
+    def create_page_from_svg(cls, svg_path, rotated_text=False):
         """Initial parse of SVG and creation of AmiPage
         :param svg_path: path of SVG file
+        :param rotated_text: if false (default) ignore text with @rotateDegrees
         """
         ami_page = AmiPage()
         ami_page.page_path = svg_path
-        ami_page.create_text_spans(sort_axes=SORT_XY, rotatedText=rotatedText)
+        ami_page.create_text_spans(sort_axes=SORT_XY, rotated_text=rotated_text)
         return ami_page
 
     # AmiPage
 
-    def create_text_spans(self, sort_axes=None, rotatedText=False) -> list:
+    def create_text_spans(self, sort_axes=None, rotated_text=False) -> list:
         """create text spans, from SVG element for page
         :param sort_axes: by X and/or Y
-        :param rotatedText: iclude rotated text
+        :param rotated_text: iclude rotated text
         :return: self.text_spans
         """
         # remove line numbers and headers and footers
         content_box = BBox(xy_ranges=[[56, 999], [45, 780]])
         if not sort_axes:
             sort_axes = []
-        dot_len = 10
-        if not self.text_spans or not self.text_spans is list:
+        # dot_len = 10 # in case we need dots in output
+        if not self.text_spans or self.text_spans is not list:
             print(f"======== {self.page_path} =========")
             self.page_element = lxml.etree.parse(str(self.page_path))
             self.text_elements = self.page_element.findall(f"//{{{SVG_NS}}}text")
             # print(f"texts {len(self.text_elements)}")
             self.text_spans = []
             for text_index, text_element in enumerate(self.text_elements):
-                if text_element.attrib.get("rotateDegrees") and not rotatedText:
+                if text_element.attrib.get("rotateDegrees") and not rotated_text:
                     # print(f"rotated text")
                     continue
                 svg_text = SvgText(text_element)
@@ -221,7 +229,6 @@ class AmiPage:
             self.composite_lines.remove(composite_line)
         return change
 
-
     def create_html(self, use_lines=False) -> E.html:
         """simple html with <p> children (will change later)"""
         self.get_bounding_boxes()
@@ -277,6 +284,7 @@ class AmiPage:
         """create text spans, including
 
         """
+
         print(f"======== {self.page_path} =========")
         page_element = lxml.etree.parse(str(self.page_path))
         text_elements = page_element.findall(f"//{{{SVG_NS}}}text")
@@ -284,7 +292,7 @@ class AmiPage:
         text_breaks_by_line_dict = dict()
         for text_index, text_element in enumerate(text_elements):
             ami_text = SvgText(text_element)
-            style_dict, text_break_list = ami_text.find_breaks_in_text()
+            style_dict, text_break_list = ami_text.find_breaks_in_text(text_element)
 
             text_content = ami_text.get_text_content()
             if text_break_list:
@@ -341,9 +349,11 @@ class AmiPage:
             et = lxml.etree.ElementTree(html)
             et.write(f, pretty_print=pretty_print)
 
+
 class AmiParagraph:
     """holds a list of CompositeLines
     """
+
     def __init__(self):
         self.composite_lines = []
 
@@ -354,8 +364,6 @@ class AmiParagraph:
             for span in text_spans:
                 h_p.append(span)
         return h_p
-
-
 
 
 class CompositeLine:
@@ -416,8 +424,6 @@ class CompositeLine:
         self.text_spans = new_text_spans
         return self.text_spans
 
-
-
     def normalize_text_spans(self) -> None:
         """iterate over text_spans applying normalize_family_weight"""
         for text_span in self.text_spans:
@@ -425,9 +431,10 @@ class CompositeLine:
                 print(f"whitespace")
             text_span.normalize_family_weight()
 
-    def merge(self,  other_line):
+    def merge(self, other_line):
         self.bbox = other_line.bbox.union(self.bbox)
         self.text_spans.extend(other_line.text_spans)
+
 
 class TextSpan:
     """holds text content and attributes
@@ -727,7 +734,7 @@ class HtmlUtil:
         :param last_span: preceding span (if None returns False)
         :param this_span: span to test
         :return: True if this span is smaller and "lower" than last"""
-        return cls.is_script_type(last_span, this_span, script_type=SUB)
+        return cls.is_script_type(last_span, this_span, script_type=SScript.SUB)
 
     @classmethod
     def is_superscript(cls, last_span, this_span) -> bool:
@@ -736,7 +743,7 @@ class HtmlUtil:
         :param last_span: preceding span (if None returns False)
         :param this_span: span to test
         :return: True if this span is smaller and "higher" than last"""
-        return cls.is_script_type(last_span, this_span, script_type=SUP)
+        return cls.is_script_type(last_span, this_span, script_type=SScript.SUP)
 
     @classmethod
     def is_script_type(cls, last_span, this_span, script_type) -> bool:
@@ -744,6 +751,7 @@ class HtmlUtil:
         NOTE: as Y is DOWN the page, a superscript has SMALLER y-value, etc.
         :param last_span: if None, returns false
         :param this_span: if not smaller by SCRIPT_FACT return False
+        :param script_type: SUB or SUP
         :return: True if smaller and moved in right y-direction
         """
         if last_span is None:
@@ -754,10 +762,10 @@ class HtmlUtil:
         if this_font_size < SCRIPT_FACT * last_font_size:
             last_y = last_span.y
             this_y = this_span.y
-            if script_type == SUB:
+            if script_type == SScript.SUB:
                 # is it lowered? Y DOWN
                 return last_y < this_y
-            elif script_type == SUP:
+            elif script_type == SScript.SUP:
                 # is it raised? Y DOWN
                 return last_y > this_y
             else:
@@ -777,3 +785,7 @@ class HtmlUtil:
     @classmethod
     def get_text_content(cls, elem):
         return ''.join(elem.itertext())
+
+    @classmethod
+    def is_chapter_or_tech_summary(cls, span_text):
+        return span_text.startswith(CHAPTER) or span_text.startswith(TECHNICAL_SUMMARY)
