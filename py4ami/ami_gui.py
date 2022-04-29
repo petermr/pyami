@@ -9,11 +9,9 @@ from xml.etree import ElementTree as ET
 from tkinter import TOP, BOTTOM, LEFT
 from pathlib import Path
 
-from .gutil import AmiTree
-from .gutil import Gutil
-from .gutil import Gutil as gu
-from .gutil import CreateToolTip
-from .search_lib import AmiSearch, AmiSection, AmiDictionaries, AmiProjects
+from py4ami.gutil import AmiTree, Gutil, CreateToolTip
+from py4ami.gutil import Gutil as gu
+from py4ami.search_lib import AmiSearch, AmiSection, AmiDictionaries, AmiProjects
 
 from urllib.request import urlopen
 

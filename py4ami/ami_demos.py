@@ -1,13 +1,13 @@
 
 import os
 
-from .constants import PHYSCHEM_PYTHON
-from .util import Util
-from .text_lib import AmiSection
-from .dict_lib import AmiDictionaries
-from .projects import AmiProjects, CProject
-from .text_lib import WordFilter
-from .search_lib import AmiSearch
+from py4ami.constants import PHYSCHEM_PYTHON
+from py4ami.util import Util
+from py4ami.text_lib import AmiSection
+from py4ami.dict_lib import AmiDictionaries
+from py4ami.projects import AmiProjects, CProject
+from py4ami.text_lib import WordFilter
+from py4ami.search_lib import AmiSearch
 
 
 class AmiDemos:

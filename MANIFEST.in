@@ -3,3 +3,4 @@ graft py4ami/resources
 include config.ini.master
 include py4ami/pyami.ini
 include CONFIG.md
+include requirements.txt

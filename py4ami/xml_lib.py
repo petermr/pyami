@@ -3,7 +3,7 @@ import os
 from lxml import etree as LXET
 import logging
 
-from .file_lib import FileLib
+from py4ami.file_lib import FileLib
 
 logging.debug("loading xml_lib")
 

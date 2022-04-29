@@ -91,6 +91,16 @@ class Util:
             dictionary = ast.literal_eval(contents)
             return dictionary
 
+    @classmethod
+    def normalize_whitespace(cls, text):
+        """normalize spaces in string to single space
+        :param text: text to normalize"""
+        return " ".join(text.split())
+
+    @classmethod
+    def is_whitespace(cls, text):
+        text = cls.normalize_whitespace(text)
+        return text == " " or text == ""
 
 class AmiLogger:
     """wrapper for logger to limit or condense voluminous output

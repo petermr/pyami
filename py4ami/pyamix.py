@@ -10,16 +10,16 @@ import traceback
 from pathlib import Path
 import argparse
 
-from .dict_lib import AmiDictionary
-from .examples import Examples
-from .file_lib import FileLib
-from .xml_lib import XmlLib
-from .text_lib import TextUtil, DSLParser
-from .pdfreader import PdfReader
-from .symbol import SymbolIni
-from .util import AmiLogger
-from .wikimedia import WikidataLookup
-from .ami_sections import AMIAbsSection
+from py4ami.dict_lib import AmiDictionary
+from py4ami.examples import Examples
+from py4ami.file_lib import FileLib
+from py4ami.xml_lib import XmlLib
+from py4ami.text_lib import TextUtil, DSLParser
+from py4ami.pdfreader import PdfReader, Pdf2SvgReader
+from py4ami.symbol import SymbolIni
+from py4ami.util import AmiLogger
+from py4ami.wikimedia import WikidataLookup
+from py4ami.ami_sections import AMIAbsSection
 
 logging.debug("loading pyamix.py")
 logging.warning(Path(__file__))
@@ -59,6 +59,9 @@ class PyAMI:
     XPATH = "xpath"
     # apply methods 1:1 input-output
     PDF2TXT = "pdf2txt"
+    PDF2SVG = "pdf2svg"
+    SVG2XML = "svg2xml"
+    XML22HTML = "xml2html"
     TXT2SENT = "txt2sent"
     XML2TXT = "xml2txt"
     # combine methods n:1 input-output
@@ -125,6 +128,9 @@ class PyAMI:
         # tuple of func+file_extnsion
         self.func_dict[self.XML2TXT] = (XmlLib.remove_all_tags, ".xml.txt")
         self.func_dict[self.PDF2TXT] = (PdfReader.read_and_convert, ".pdf.txt")
+        self.func_dict[self.PDF2SVG] = (Pdf2SvgReader.read_and_convert, ".pdf.svg")
+        self.func_dict[self.SVG2XML] = (Svg2XmlReader.read_and_convert, ".svg.xml")
+        self.func_dict[self.XML2HTML] = (Xml2HtmlReader.read_and_convert, ".svg.html")
         self.func_dict[self.TXT2SENT] = (
             TextUtil.split_into_sentences, ".sen.txt")
         # 1:n methods
@@ -760,9 +766,7 @@ class PyAMI:
     def apply_lookup(self, hits, value):
         self.logger.debug(f"LOOKUP: {hits} {value}")
         for hit in hits:
-            if False:
-                pass
-            elif self.get_dictionary(value) is not None:
+            if self.get_dictionary(value) is not None:
                 dictionary = self.get_dictionary(value)
                 self.logger.warning("USE DICTIONARY: NYI", value, dictionary)
             elif value == 'wikidata':
