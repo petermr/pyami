@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 from lxml import etree as LXET
 
-from .xml_lib import XmlLib
+from py4ami.xml_lib import XmlLib
 
 
 class AMIAbsSection(ABC):
