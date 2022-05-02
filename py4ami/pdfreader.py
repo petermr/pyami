@@ -139,7 +139,42 @@ class Pdf2SvgReader:
         Args:
             file ([str]): filename
          """
+        input_dir = "foo"
+        inputname="fulltext.pdf"
+        cmd = f"ami -p={input_dir} --inputname={inputname} pdfbox"
 
         # run ami3 here
         raise Exception("ami3 must be installed")
+
+
+class Svg2XmlReader:
+    logger = logging.getLogger("2svg2xmlreader")
+
+    def __init__(self):
+        self.text = None
+
+    @classmethod
+    def read_and_convert(cls, file):
+        """ converst a PDF path (to text)
+
+        Args:
+            file ([str]): filename
+         """
+        raise Exception("not yet written")
+
+class Xml2HtmlReader:
+    logger = logging.getLogger("xml2htmlreader")
+
+    def __init__(self):
+        self.text = None
+
+    @classmethod
+    def read_and_convert(cls, file):
+        """ converst a PDF path (to text)
+
+        Args:
+            file ([str]): filename
+         """
+
+        raise Exception("not yet written")
 

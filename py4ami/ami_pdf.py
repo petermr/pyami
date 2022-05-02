@@ -350,6 +350,7 @@ class AmiPage:
             et.write(f, pretty_print=pretty_print)
 
 
+
 class AmiParagraph:
     """holds a list of CompositeLines
     """

@@ -15,7 +15,7 @@ from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.xml_lib import XmlLib
 from py4ami.text_lib import TextUtil, DSLParser
-from py4ami.pdfreader import PdfReader, Pdf2SvgReader
+from py4ami.pdfreader import PdfReader, Pdf2SvgReader, Svg2XmlReader, Xml2HtmlReader
 from py4ami.symbol import SymbolIni
 from py4ami.util import AmiLogger
 from py4ami.wikimedia import WikidataLookup
@@ -140,7 +140,7 @@ class PyAMI:
         """
         parser = argparse.ArgumentParser(
             description='Search sections with dictionaries and patterns')
-        apply_choices = [self.PDF2TXT, self.TXT2SENT, self.XML2TXT]
+        apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
         self.logger.debug(f"ch {apply_choices}")
         parser.add_argument('--apply', nargs="+",
                             #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
