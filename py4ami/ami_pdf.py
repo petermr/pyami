@@ -80,7 +80,7 @@ class AmiPage:
         self.page_path = None
         # raw parsed SVG
         self.page_element = None
-        # child elements of type <svg:text>
+        # child elements of type <climate10_:text>
         self.text_elements = None
         # spans created from tex_elements
         self.text_spans = []
@@ -156,7 +156,7 @@ class AmiPage:
     # AmiPage
 
     def get_svg_text(self, index):
-        """gets raw SvgText element (e.g. <svg:text>)"""
+        """gets raw SvgText element (e.g. <climate10_:text>)"""
         if not self.text_elements or index < 0 or index >= len(self.text_elements):
             return None
         return SvgText(self.text_elements[index])
@@ -636,7 +636,7 @@ class SvgText:
         return 0.0 if widths is None or len(widths) == 0 else widths[-1]
 
     def extract_style_dict_from_svg(self) -> dict:
-        """translates svg style attribute into dictionary
+        """translates climate10_ style attribute into dictionary
         names are whatever are contained in the SVG and not checked
         SVG format is name1:val1;name2:val2 ... and these are translated
         literally into a dict()

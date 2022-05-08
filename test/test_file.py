@@ -58,7 +58,7 @@ class TestFile:
             AmiPath.create_ami_path_from_templates("reference", {PROJ: proj_dir}),
             # AmiPath.create_ami_path_from_templates("results", {PROJ: proj_dir}),
             AmiPath.create_ami_path_from_templates("results_discuss", {PROJ: proj_dir}),
-            AmiPath.create_ami_path_from_templates("svg", {PROJ: proj_dir}),
+            AmiPath.create_ami_path_from_templates("climate10_", {PROJ: proj_dir}),
             AmiPath.create_ami_path_from_templates("table", {PROJ: proj_dir}),
             AmiPath.create_ami_path_from_templates("title", {PROJ: proj_dir}),
         ]:

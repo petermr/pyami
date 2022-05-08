@@ -53,7 +53,7 @@ class FileTests:
         open_diagram12 = os.path.join(home, "projects", "*iagram", "**", "*.xml")
         print("od", open_diagram12)
 #        print("b12", glob(open_diagram12, recursive=True))
-        pics = os.path.join(home, "projects", "*iagram", "**", "{*.svg,*.txt,*.png}")
+        pics = os.path.join(home, "projects", "*iagram", "**", "{*.climate10_,*.txt,*.png}")
         print("od", pics)
         print("pics", bg.braced_glob(pics, recursive=True))
 

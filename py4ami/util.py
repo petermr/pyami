@@ -2,6 +2,7 @@ import logging
 import os
 import ast
 import sys
+import shutil, errno
 
 logger = logging.getLogger("py4ami.util")
 
@@ -141,6 +142,19 @@ class Util:
             raise ValueError(f"can only extend default sys.argv (len=1), found {sys.argv}")
         sys.argv.extend(args)
 
+    @classmethod
+    def copyanything(cls, src, dst):
+        """copy file or directory
+        (from StackOverflow)
+        :param src: source file/directory
+        :param dst: destination
+        """
+        try:
+            shutil.copytree(src, dst)
+        except OSError as exc: # python >2.5
+            if exc.errno in (errno.ENOTDIR, errno.EINVAL):
+                shutil.copy(src, dst)
+            else: raise
 
 class AmiLogger:
     """wrapper for logger to limit or condense voluminous output

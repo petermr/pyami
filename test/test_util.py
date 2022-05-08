@@ -3,8 +3,12 @@
 import logging
 import sys
 import unittest
+from pathlib import Path
+import shutil
+
 # local
 from py4ami.util import Util
+from test.resources import Resources
 
 logger = logging.getLogger("py4ami_test_util")
 
@@ -40,5 +44,14 @@ class TestUtil(unittest.TestCase):
         args = ["foox", "barx", "plingex"]
         Util.add_sys_argv(args)
         assert sys.argv[1:] == ["foox", "barx", "plingex"]
+
+    @classmethod
+    def test_copy_anything(cls):
+        src = Resources.TEMP_CLIMATE_10_SVG_DIR
+        dst = Path(Resources.TEMP_DIR, "tempzz")
+        if dst.exists():
+            shutil.rmtree(dst)
+        Util.copyanything(src, dst)
+        assert Path(dst).exists()
 
 

@@ -130,9 +130,9 @@ class PyAMI:
         # tuple of func+file_extnsion
         self.func_dict[self.XML2TXT] = (XmlLib.remove_all_tags, ".xml.txt")
         self.func_dict[self.PDF2TXT] = (PdfReader.read_and_convert, ".pdf.txt")
-        self.func_dict[self.PDF2SVG] = (Pdf2SvgReader.read_and_convert, ".pdf.svg")
-        self.func_dict[self.SVG2XML] = (Svg2XmlReader.read_and_convert, ".svg.xml")
-        self.func_dict[self.XML2HTML] = (Xml2HtmlReader.read_and_convert, ".svg.html")
+        self.func_dict[self.PDF2SVG] = (Pdf2SvgReader.read_and_convert, ".pdf.climate10_")
+        self.func_dict[self.SVG2XML] = (Svg2XmlReader.read_and_convert, ".climate10_.xml")
+        self.func_dict[self.XML2HTML] = (Xml2HtmlReader.read_and_convert, ".climate10_.html")
         self.func_dict[self.TXT2SENT] = (
             TextUtil.split_into_sentences, ".sen.txt")
         # 1:n methods

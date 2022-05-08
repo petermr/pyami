@@ -7,16 +7,15 @@ import lxml.html
 # local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS
 from py4ami.ami_pdf import STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, HtmlUtil, SORT_XY
+from test.resources import Resources
 
 # class PDFTest:
 
 FINAL_DRAFT_DIR = "/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg"  # PMR only
-RESOURCES = Path(Path(__file__).parent, "resources")  # only works for PMR
-CLIMATE = Path(RESOURCES, "climate")
-PAGE_9 = Path(CLIMATE, "fulltext-page.9.svg")
-PAGE_6 = Path(CLIMATE, "fulltext-page.6.svg")
+PAGE_9 = Path(Resources.CLIMATE_10_SVG_DIR, "fulltext-page.9.svg")
+PAGE_6 = Path(Resources.CLIMATE_10_SVG_DIR, "fulltext-page.6.svg")
 CURRENT_RANGE = range(1, 200)
-HTML_TEMP_DIR = Path(Path(__file__).parent.parent, "temp", "html")
+CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
 
 
 # FULL_TEMP_DIR = Path(Path(__file__).parent.parent, "temp", "full")
@@ -25,12 +24,12 @@ HTML_TEMP_DIR = Path(Path(__file__).parent.parent, "temp", "html")
 def test_pdfbox_output_exists():
     """check CLIMATE dir exists
     """
-    assert str(CLIMATE) == "/Users/pm286/workspace/pyami/test/resources/climate", f"resources {CLIMATE}"
-    assert CLIMATE.exists(), f"{CLIMATE} should exist"
+    # assert str(Resources.CLIMATE_10_DIR) == "/Users/pm286/workspace/pyami/test/resources/svg", f"resources {Resources.CLIMATE_10_DIR}"
+    assert Resources.CLIMATE_10_PROJ_DIR.exists(), f"{Resources.CLIMATE_10_PROJ_DIR} should exist"
 
 
 def test_findall_svg_and_find_texts():
-    """find svg:text elements
+    """find climate10_:text elements
     """
     assert PAGE_9.exists(), f"{PAGE_9} should exist"
     page9_elem = lxml.etree.parse(str(PAGE_9))
@@ -42,7 +41,7 @@ def test_get_text_attribs():
     """find various SVG attributes, including 'style'
     """
     ami_page = AmiPage.create_page_from_svg(PAGE_9)
-    # <svg:text> element
+    # <climate10_:text> element
     text0 = ami_page.get_svg_text(0)
     assert text0.svg_text_elem.tag == f"{{{SVG_NS}}}text"
     # single Y-coord
@@ -71,7 +70,7 @@ def test_get_text_attribs():
 def test_get_text_attrib_vals():
     """more attributes and convenience methods"""
     ami_page = AmiPage.create_page_from_svg(PAGE_9)
-    # <svg:text> element
+    # <climate10_:text> element
     ami_text0 = ami_page.get_svg_text(0)
     x_coords = ami_text0.get_x_coords()
     assert x_coords == [
@@ -118,10 +117,10 @@ def test_create_html():
     pretty_print = True
     use_lines = True
     for page_index in range(1, 9):
-        page_path = Path(CLIMATE, f"fulltext-page.{page_index}.svg")
-        html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
-        if not HTML_TEMP_DIR.exists():
-            HTML_TEMP_DIR.mkdir()
+        page_path = Path(Resources.CLIMATE_10_SVG_DIR, f"fulltext-page.{page_index}.svg")
+        html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+        if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
+            Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
         ami_page = AmiPage.create_page_from_svg(page_path)
         ami_page.write_html(html_path, pretty_print, use_lines)
         assert (html_path.exists(), f"{html_path} exists")
@@ -141,9 +140,9 @@ def test_create_html_in_selectiom():
         if counter % counter_tick == 0:
             print(f".", end="")
         page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-        html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
-        if not HTML_TEMP_DIR.exists():
-            HTML_TEMP_DIR.mkdir()
+        html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+        if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
+            Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
         ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
         ami_page.write_html(html_path, pretty_print, use_lines)
         counter += 1
@@ -156,7 +155,7 @@ def test_create_chapters():
     make_full_draft_html(pretty_print, use_lines)
     selection = CURRENT_RANGE
     for page_index in selection:
-        html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
+        html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
         with open(html_path, "r") as h:
             xml = h.read()
         root = lxml.etree.fromstring(xml)
@@ -177,14 +176,14 @@ def test_create_chapters():
             print("CHAP ", chapter)
 
 
-# # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg
+# # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/climate10_
 # @unittest.skip("Not yet ready; depends on line analysis")
 # def test_find_breaks_in_many_pages():
 #     """test hundreds if pages"""
 #     numpages = 20  # increase later
 #     for page_index in range(numpages):
 #         page_path = Path(FINAL_DRAFT_DIR,
-#                          f"fulltext-page.{page_index}.svg")
+#                          f"fulltext-page.{page_index}.climate10_")
 #         page = AmiPage.create_page_from_SVG(page_path)
 #         page.create_text_spans(sort_axes=SORT_XY)
 
@@ -202,8 +201,8 @@ def make_full_draft_html(pretty_print, use_lines, rotated_text=False):
         raise Exception("must have SVG from ami3")
     for page_index in CURRENT_RANGE:
         page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-        html_path = Path(HTML_TEMP_DIR, f"page.{page_index}.html")
-        if not HTML_TEMP_DIR.exists():
-            HTML_TEMP_DIR.mkdir()
+        html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+        if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
+            Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
         ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
         ami_page.write_html(html_path, pretty_print, use_lines)

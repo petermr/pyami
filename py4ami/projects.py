@@ -293,7 +293,7 @@ class CTree(CContainer):
         'pdfimages',
         'results',
         'sections',
-        'svg',
+        'climate10_',
 
     ]
 

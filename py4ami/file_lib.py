@@ -36,7 +36,7 @@ STAR = "*"
 # suffixes
 S_PDF = "pdf"
 S_PNG = "png"
-S_SVG = "svg"
+S_SVG = "climate10_"
 S_TXT = "txt"
 S_XML = "xml"
 
@@ -45,7 +45,7 @@ _NULL = "_NULL"
 _REQD = "_REQD"
 
 # known section names
-SVG = "svg"
+SVG = "climate10_"
 PDFIMAGES = "pdfimages"
 RESULTS = "results"
 SECTIONS = "sections"
@@ -95,7 +95,7 @@ class AmiPath:
     T_PDFIMAGES = "pdfimages"
     T_RESULTS = "results"
     T_SECTIONS = "sections"
-    T_SVG = "svg"
+    T_SVG = "climate10_"
 
     logger = logging.getLogger("ami_path")
     # dict
