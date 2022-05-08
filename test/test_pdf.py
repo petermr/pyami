@@ -5,8 +5,8 @@ import lxml.etree
 import lxml.html
 
 # local
-from py4ami.ami_pdf import SVG_NS, SVGX_NS, STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, HtmlUtil, \
-    SORT_XY
+from py4ami.ami_pdf import SVG_NS, SVGX_NS
+from py4ami.ami_pdf import STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, HtmlUtil, SORT_XY
 
 # class PDFTest:
 

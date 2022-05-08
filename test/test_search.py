@@ -2,12 +2,11 @@
 """
 
 import logging
-logging.warning("loading test_search")
-
+# local
+from py4ami.search_lib import AmiSearch, AmiRake
+from py4ami.dict_lib import AmiDictionary
 
 def test_search():
-    from py4ami.search_lib import AmiSearch, AmiRake
-    from py4ami.dict_lib import AmiDictionary
 
     # option = "search"  # edit this
     #    option = "sparql"

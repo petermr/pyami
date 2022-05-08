@@ -15,9 +15,9 @@ from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.xml_lib import XmlLib
 from py4ami.text_lib import TextUtil, DSLParser
-from py4ami.pdfreader import PdfReader, Pdf2SvgReader, Svg2XmlReader, Xml2HtmlReader
+from py4ami.pdfreader import PdfReader, Svg2XmlReader, Xml2HtmlReader, Pdf2SvgReader
 from py4ami.symbol import SymbolIni
-from py4ami.util import AmiLogger
+from py4ami.util import AmiLogger, Util
 from py4ami.wikimedia import WikidataLookup
 from py4ami.ami_sections import AMIAbsSection
 
@@ -54,6 +54,8 @@ class PyAMI:
     SRC = "src"
     SPLIT = "split"
     SYMBOLS = "symbols"
+    SYSTEM_EXIT_OK = "SystemExitOK"
+    SYSTEM_EXIT_FAIL = "SystemExitFail_"
     TEST = "test"
     WIKIDATA_SPARQL = "wikidata_sparql"
     XPATH = "xpath"
@@ -61,7 +63,7 @@ class PyAMI:
     PDF2TXT = "pdf2txt"
     PDF2SVG = "pdf2svg"
     SVG2XML = "svg2xml"
-    XML22HTML = "xml2html"
+    XML2HTML = "xml2html"
     TXT2SENT = "txt2sent"
     XML2TXT = "xml2txt"
     # combine methods n:1 input-output
@@ -244,11 +246,14 @@ class PyAMI:
         :param arglist: 
 
         """
-        if arglist is None:
-            arglist = []
+        # no args, create help
+        if not arglist:
+            self.logger.warning("No args, running --help")
+            arglist = ["--help"]
         parser = self.create_arg_parser()
-        self.args = self.extract_parsed_arg_tuples(arglist, parser)
+        self.args = self.make_substitutions_create_arg_tuples(arglist, parser)
         self.logger.debug("ARGS before substitution: "+str(self.args))
+        # this may be redundant
         self.substitute_args()
         self.logger.debug(f"self.args {self.args}")
         self.add_single_str_to_list()
@@ -257,7 +262,9 @@ class PyAMI:
         self.run_arguments()
 
     def substitute_args(self):
-        """ """
+        """ iterates through self.args and makes subsitutions
+        May duplicates
+        """
         new_items = {}
         self.logger.debug(f"SYMBOLS1 {self.symbol_ini.symbols}")
         for item in self.args.items():
@@ -291,7 +298,7 @@ class PyAMI:
         self.logger.warning(f"commandline args {self.args}")
         self.logger.warning(f"args: {self.args}")
 
-        if self.args[self.CONFIG]:
+        if self.CONFIG in self.args and self.args[self.CONFIG] != None:
             self.apply_config()
 
         if self.EXAMPLES in self.args:
@@ -379,22 +386,42 @@ class PyAMI:
         """
         return self.symbol_ini.symbols.get(symb)
 
-    def extract_parsed_arg_tuples(self, arglist, parser):
+    def make_substitutions_create_arg_tuples(self, arglist, parser):
         """
+        processes raw args to expand substitutions
 
         :param arglist: 
         :param parser: 
-
+        :return: list of transformed arguments as 2-tuples
         """
-        parsed_args = parser.parse_args() if not arglist else parser.parse_args(arglist)
-        self.logger.debug(f"PARSED_ARGS {parsed_args}")
-        args = {}
-        arg_vars = vars(parsed_args)
         new_items = {}
-        for item in arg_vars.items():
-            new_item = self.make_substitutions(item)
-            new_items[new_item[0]] = new_item[1]
+        if arglist and len(arglist) > 0:
+            parsed_args = self.parse_args_and_trap_errors(arglist, parser)
+            if parsed_args == self.SYSTEM_EXIT_OK: # return code 0
+                return new_items
+            if str(parsed_args).startswith(self.SYSTEM_EXIT_FAIL) :
+                raise ValueError(f"bad command arguments {parsed_args} (see log output)")
+
+            self.logger.debug(f"PARSED_ARGS {parsed_args}")
+            arg_vars = vars(parsed_args)
+            for item in arg_vars.items():
+                new_item = self.make_substitutions(item)
+                new_items[new_item[0]] = new_item[1]
         return new_items
+
+    def parse_args_and_trap_errors(self, arglist, parser):
+        """run argparse parser.parse_args and try to trap serious errors
+        --help calls SystemExit (we trap and return None)"""
+        try:
+            parsed_args = parser.parse_args(arglist)
+        except SystemExit as se: # exit codes
+            if str(se) == '0':
+                parsed_args = self.SYSTEM_EXIT_OK
+            else:
+                parsed_args = self.SYSTEM_EXIT_FAIL + str(se)
+        except Exception as e:
+            self.logger.error(f"Cannot parse {arglist} , {e}")
+        return parsed_args
 
     def add_special_keys_to_symbols_ini(self, key, value):
         """
@@ -454,6 +481,8 @@ class PyAMI:
     def run_proj(self):
         """ project-related commands"""
         self.proj = self.args[self.PROJ]
+
+        self.logger.warning(f"{Util.basename(__file__)} proj: {self.proj}")
         # if self.args[self.CONFIG]:
         #     self.apply_config()
         if self.args[self.DELETE]:
@@ -606,6 +635,7 @@ class PyAMI:
                 self.logger.error(f"Cannot find func for {apply_type}")
             else:
                 # apply data is stored in self.file_dict
+                self.logger.warning(f"running {func_tuple} {apply_type}")
                 self.apply_to_file_content(func_tuple, apply_type)
 
         return
@@ -825,17 +855,20 @@ class PyAMI:
         :param func: 
 
         """
-        # for file in self.content_store.keys():
-        #     data = self.content_store(file)
-        #     self.logger.debug(f"path: {file} => {func_tuple[0]}")
-        #     new_file = self.create_file_name(file, func_tuple[1])
-        #
-        #     try:
-        #         new_data = func_tuple[0](data)
-        #         self.store_or_write_data(file, new_data, new_file)
-        #     except Exception as pdferr:
-        #         self.logger.warning(
-        #             f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
+        self.logger.warning(f"func_tuple {len(func_tuple)}: {func_tuple[0]} => {func_tuple[1]}")
+
+        for file in self.content_store.keys():
+            self.logger.warning(f"converting {file}")
+            data = self.content_store(file)
+            self.logger.debug(f"path: {file} => {func_tuple[0]}")
+            new_file = self.create_file_name(file, func_tuple[1])
+
+            try:
+                new_data = func_tuple[0](data)
+                self.store_or_write_data(file, new_data, new_file)
+            except Exception as pdferr:
+                self.logger.warning(
+                    f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
         return
 
     # needs fixing
@@ -948,12 +981,12 @@ class ContentStore:
         """return dictionary or None"""
         return self.file_dict
 
-
 def main():
+    # make_cmd()
     """ main entry point for cmdline
 
     """
-
+    print(f"PYAMI")
     run_dsl = False
     run_tests = False  # needs re-implementing
     run_commands = True
@@ -965,6 +998,7 @@ def main():
     pyamix = PyAMI()
     # this needs commandline
     if run_commands:
+        # print(f"main(): {sys.argv}")
         pyamix.run_command(sys.argv[1:])
     if run_tests:
         pyamix.run_tests()
@@ -980,4 +1014,6 @@ if __name__ == "__main__":
 
 else:
 
+
     PyAMI.logger.debug(" NOT running search main anyway")
+

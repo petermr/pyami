@@ -1,7 +1,9 @@
 import logging
 import os
 import ast
+import sys
 
+logger = logging.getLogger("py4ami.util")
 
 class Util:
     """Utilities, mainly staticmethod or classmethod and not tightly linked to AMI"""
@@ -101,6 +103,44 @@ class Util:
     def is_whitespace(cls, text):
         text = cls.normalize_whitespace(text)
         return text == " " or text == ""
+
+    @classmethod
+    def basename(cls, file):
+        """returns basename of file
+        convenience (e.g. in debug statements
+        :param file:
+        :return: basename"""
+        return os.path.basename(file) if file else None
+
+    @classmethod
+    def add_sys_argv_str(cls, argstr):
+        """splits argstr and adds (extends) sys.argv
+        simulates a commandline
+        e.g. Util.add_sys_argv_str("foo bar")
+        creates sys.argv as [<progname>, "foo", "bar"]
+        Fails if len(sys.argv) != 1 (traps repeats)
+        :param argstr: argument string spoce separated
+        :return:None
+        """
+        cls.add_sys_argv(argstr.split())
+
+    @classmethod
+    def add_sys_argv(cls, args):
+        """adds (extends) sys.argv
+        simulates a commandline
+        e.g. Util.add_sys_argv_str(["foo", "bar"])
+        creates sys.argv as [<progname>, "foo", "bar"]
+        Fails if len(sys.argv) != 1 (traps repeats)
+        :param args: arguments
+        :return:None
+        """
+        if not args:
+            logger.warning(f"empty args, ignored")
+            return
+        if len(sys.argv) != 1:
+            raise ValueError(f"can only extend default sys.argv (len=1), found {sys.argv}")
+        sys.argv.extend(args)
+
 
 class AmiLogger:
     """wrapper for logger to limit or condense voluminous output

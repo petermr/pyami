@@ -10,10 +10,35 @@ import io
 
 from pathlib import Path
 
+# local
+from py4ami.gutil import Gutil
+
 logging.debug("loading pdfreader.py")
 
 
 # https://stackoverflow.com/questions/56494070/how-to-use-pdfminer-six-with-python-3
+
+class Pdf2SvgReader:
+    logger = logging.getLogger("pdf2svgreader")
+
+    def __init__(self):
+        self.text = None
+
+    @classmethod
+    def read_and_convert(cls, file):
+        """ converst a PDF path (to text)
+
+        needs ami3 jar installed
+        Args:
+            file ([str]): filename
+         """
+        input_dir = "foo"
+        inputname="fulltext.pdf"
+        args = ["ami",  "-p", input_dir, "--inputname", inputname, "pdfbox"]
+        stdout_lines, _ = Gutil.run_subprocess_get_lines(args)
+        # run ami3 here
+        raise Exception("ami3 must be installed")
+
 
 class PdfReader:
     """not fully implemented or tested"""
@@ -88,6 +113,38 @@ class PdfReader:
         return text
 
 
+class Svg2XmlReader:
+    logger = logging.getLogger("2svg2xmlreader")
+
+    def __init__(self):
+        self.text = None
+
+    @classmethod
+    def read_and_convert(cls, file):
+        """ converst a PDF path (to text)
+
+        Args:
+            file ([str]): filename
+         """
+        raise Exception("not yet written")
+
+class Xml2HtmlReader:
+    logger = logging.getLogger("xml2htmlreader")
+
+    def __init__(self):
+        self.text = None
+
+    @classmethod
+    def read_and_convert(cls, file):
+        """ converst a PDF path (to text)
+
+        Args:
+            file ([str]): filename
+         """
+
+        raise Exception("not yet written")
+
+
 def main():
     """[main usually for testing
     """
@@ -125,56 +182,3 @@ def temp():
     imageWriter = ImageWriter('pathToSaveImages/..')
     converter = TextConverter(pdf_resource_manager, converted_text, codec='utf-8', laparams=layout_params,
                               imagewriter=imageWriter)
-class Pdf2SvgReader:
-    logger = logging.getLogger("pdf2svgreader")
-
-    def __init__(self):
-        self.text = None
-
-    @classmethod
-    def read_and_convert(cls, file):
-        """ converst a PDF path (to text)
-
-        needs ami3 jar installed
-        Args:
-            file ([str]): filename
-         """
-        input_dir = "foo"
-        inputname="fulltext.pdf"
-        cmd = f"ami -p={input_dir} --inputname={inputname} pdfbox"
-
-        # run ami3 here
-        raise Exception("ami3 must be installed")
-
-
-class Svg2XmlReader:
-    logger = logging.getLogger("2svg2xmlreader")
-
-    def __init__(self):
-        self.text = None
-
-    @classmethod
-    def read_and_convert(cls, file):
-        """ converst a PDF path (to text)
-
-        Args:
-            file ([str]): filename
-         """
-        raise Exception("not yet written")
-
-class Xml2HtmlReader:
-    logger = logging.getLogger("xml2htmlreader")
-
-    def __init__(self):
-        self.text = None
-
-    @classmethod
-    def read_and_convert(cls, file):
-        """ converst a PDF path (to text)
-
-        Args:
-            file ([str]): filename
-         """
-
-        raise Exception("not yet written")
-

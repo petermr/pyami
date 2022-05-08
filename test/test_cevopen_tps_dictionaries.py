@@ -1,6 +1,6 @@
 import unittest
 
-from ..py4ami.dict_lib import AMIDict
+from py4ami.dict_lib import AMIDict
 """Code for VALIDATING specific DICTIONARIES , not the code
 
  These are effectively tests for the dictionaries

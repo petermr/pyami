@@ -12,13 +12,13 @@ import logging
 logging.info(f"loading {__file__}")
 
 try:
-    from ..py4ami.dict_lib import AMIDict, AMIDictError, Entry
+    from py4ami.dict_lib import AMIDict, AMIDictError, Entry
     logging.info(f"loaded py4ami.dict_lib")
 except Exception:
     try:
         from py4ami.dict_lib import AMIDict, AMIDictError, Entry
     except Exception as e:
-        logging.severe(f"Cannot import from py4ami.dict_lib")
+        logging.error(f"Cannot import from py4ami.dict_lib")
 
 
 # from py4ami.wikimedia import WikidataLooku
