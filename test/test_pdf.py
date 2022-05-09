@@ -8,6 +8,7 @@ import lxml.html
 from py4ami.ami_pdf import SVG_NS, SVGX_NS
 from py4ami.ami_pdf import STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, HtmlUtil, SORT_XY
 from test.resources import Resources
+from py4ami.pyamix import PyAMI
 
 # class PDFTest:
 
@@ -175,18 +176,10 @@ def test_create_chapters():
             chapter = HtmlUtil.get_text_content(span)
             print("CHAP ", chapter)
 
-
-# # /Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/climate10_
-# @unittest.skip("Not yet ready; depends on line analysis")
-# def test_find_breaks_in_many_pages():
-#     """test hundreds if pages"""
-#     numpages = 20  # increase later
-#     for page_index in range(numpages):
-#         page_path = Path(FINAL_DRAFT_DIR,
-#                          f"fulltext-page.{page_index}.climate10_")
-#         page = AmiPage.create_page_from_SVG(page_path)
-#         page.create_text_spans(sort_axes=SORT_XY)
-
+def test_svg2html():
+    proj = Resources.TEMP_CLIMATE_10_PROJ_DIR
+    args = f"--proj {proj} --apply svg2xml"
+    PyAMI().run_command(args)
 
 # ==============================
 
@@ -206,3 +199,4 @@ def make_full_draft_html(pretty_print, use_lines, rotated_text=False):
             Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
         ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
         ami_page.write_html(html_path, pretty_print, use_lines)
+

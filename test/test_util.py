@@ -47,7 +47,7 @@ class TestUtil(unittest.TestCase):
 
     @classmethod
     def test_copy_anything(cls):
-        src = Resources.TEMP_CLIMATE_10_SVG_DIR
+        src = Resources.CLIMATE_10_SVG_DIR
         dst = Path(Resources.TEMP_DIR, "tempzz")
         if dst.exists():
             shutil.rmtree(dst)

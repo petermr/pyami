@@ -87,8 +87,8 @@ class CContainer(ABC):
 
         path in given list OR path is dirx and starts with underscore
         """
-        return file is not None and (file in self.get_reserved_child_files()
-                                     or file in self.get_reserved_child_dirs()
+        return file is not None and (file in self.get_potential_reserved_child_filenames()
+                                     or file in self.get_potential_reserved_child_dirnames()
                                      or self.has_reserved_syntax(file))
 
     @classmethod
@@ -103,11 +103,11 @@ class CContainer(ABC):
             path.name.endswith(".document.xml")
 
     @abstractmethod
-    def get_reserved_child_files(self):
+    def get_potential_reserved_child_filenames(self):
         pass
 
     @abstractmethod
-    def get_reserved_child_dirs(self):
+    def get_potential_reserved_child_dirnames(self):
         pass
 
     @abstractmethod
@@ -138,6 +138,17 @@ class CContainer(ABC):
     def get_child_files(self) -> list:
         self.child_files = [p for p in self.get_children() if p.is_file()]
         return self.child_files
+
+    def get_existing_reserved_directory(self, child_name):
+        """get child directory if reserved and exists
+        :param child_name: name in get_potential_reserved_child_dirnames
+        :return: pathname if dir exists else None
+        """
+        if child_name in self.get_potential_reserved_child_dirnames():
+            path = Path(self.pathx, child_name)
+            if path.exists():
+                return path
+        return None
 
     def __repr__(self):
         r = self.dirx.name
@@ -207,10 +218,10 @@ class CProject(CContainer):
         'target',  # delete
     ]
 
-    def get_reserved_child_files(self):
+    def get_potential_reserved_child_filenames(self):
         return self.RESERVED_FILES
 
-    def get_reserved_child_dirs(self):
+    def get_potential_reserved_child_dirnames(self):
         return self.RESERVED_DIRS
 
     def get_name(self):
@@ -255,8 +266,11 @@ class CProject(CContainer):
         fpath = Path(f)
         if not fpath.is_dir():
             return False
-        for c in [CTree.FULLTEXT_PDF, CTree.FULLTEXT_XML, CTree.EUPMC_RESULT_JSON]:
+        for c in CTree.get_potential_reserved_child_filenames():
             if Path(fpath, c).exists():
+                return True
+        for c in CTree.get_potential_reserved_child_dirnames():
+            if Path(fpath, c).is_dir():
                 return True
         cls.logger.warning(f"failed CTree {f}")
         return False
@@ -265,9 +279,17 @@ class CProject(CContainer):
 class CTree(CContainer):
     logger = logging.getLogger("ctree")
 
+# child files
     FULLTEXT_PDF = "fulltext.pdf"
     FULLTEXT_XML = "fulltext.xml"
     EUPMC_RESULT_JSON = 'eupmc_result.json'
+    SCHOLARLY_HTML = 'scholarly.html'
+# child dirs
+    HTML_DIR = "html"
+    PDFIMAGES_DIR = 'pdfimages'
+    RESULTS_DIR = "results"
+    SECTIONS_DIR = "sections"
+    SVG_DIR = "svg"
 
     def __init__(self, dirx):
         self.logger.debug("CTree ctr")
@@ -278,7 +300,7 @@ class CTree(CContainer):
         EUPMC_RESULT_JSON,
         FULLTEXT_PDF,
         FULLTEXT_XML,
-        'scholarly.html',
+        SCHOLARLY_HTML,
 
         # probably in wrong place
         'search.foo.count.xml',
@@ -289,19 +311,22 @@ class CTree(CContainer):
         'word.frequencies.snippets.xml',
     ]
 
-    RESERVED_DIRS = [
-        'pdfimages',
-        'results',
-        'sections',
-        'climate10_',
 
+    RESERVED_DIRS = [
+        HTML_DIR,
+        PDFIMAGES_DIR,
+        RESULTS_DIR,
+        SECTIONS_DIR,
+        SVG_DIR,
     ]
 
-    def get_reserved_child_files(self):
-        return self.RESERVED_FILES
+    @classmethod
+    def get_potential_reserved_child_filenames(cls):
+        return cls.RESERVED_FILES
 
-    def get_reserved_child_dirs(self):
-        return self.RESERVED_DIRS
+    @classmethod
+    def get_potential_reserved_child_dirnames(cls):
+        return cls.RESERVED_DIRS
 
     def get_name(self):
         return None if not self.dirx else self.dirx.name
