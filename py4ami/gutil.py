@@ -24,6 +24,7 @@ class ToolTip(object):
         self.tipwindow = None
         self.id = None
         self.x = self.y = 0
+        self.text = None
 
     def showtip(self, text):
         OFFSET_X = 57
@@ -191,10 +192,10 @@ class Gutil:
         if tooltip is not None:
             CreateToolTip(frame, text=tooltip)
         hide_button = None
-        show_button = tk.Button(hide_frame, text="show "+title, command=lambda: Gutil.labelactive(
+        show_button = tk.Button(hide_frame, text="show " + title, command=lambda: Gutil.labelactive(
             frame, show_button, hide_button))
         show_button.pack_forget()
-        hide_button = tk.Button(hide_frame, text="hide "+title, command=lambda: Gutil.labeldeactive(
+        hide_button = tk.Button(hide_frame, text="hide " + title, command=lambda: Gutil.labeldeactive(
             frame, show_button, hide_button))
         hide_button.pack()
         # leave in the hidden state. this should contract all frames within the master
@@ -296,7 +297,7 @@ class Gutil:
 
     @staticmethod
     def make_spinbox(master, title, minn=3, maxx=100):
-        spin_frame = tk.Frame(master=master, bg="#444444", bd=1,)
+        spin_frame = tk.Frame(master=master, bg="#444444", bd=1, )
         spin_frame.pack(expand=True)
         label = tk.Label(master=spin_frame, text=title)
         label.pack(side="left")
@@ -309,6 +310,7 @@ class AmiTree:
     def __init__(self, ami_gui):
         self.tree = None
         self.ami_gui = ami_gui
+        self.main_image_display = None
 
     def get_or_create_treeview(self, frame, title):
         if self.tree is not None:
@@ -348,10 +350,12 @@ class AmiTree:
                 if self.is_text_tag(tag):
                     self.ami_gui.view_main_text(file)
 
-    def is_image_tag(self, tag):
+    @classmethod
+    def is_image_tag(cls, tag):
         return tag in ["png", "jpg"]
 
-    def is_text_tag(self, tag):
+    @classmethod
+    def is_text_tag(cls, tag):
         return tag in ["txt", "xml"]
 
     def make_file_path(self, idx):
@@ -380,33 +384,38 @@ class AmiTree:
             if self.display_filename(f):
                 tag = self.tag_from_file_suffix(f)
                 child_id = tree.insert(parent_id, 'end', text=filename, tags=tag)
-#                tree.tag_bind(tag, '<1>', self.itemClicked)
+            #                tree.tag_bind(tag, '<1>', self.itemClicked)
 
             if os.path.isdir(f) and child_id is not None:
                 self.recursive_display(f, child_id, tree)
 
-    def tag_from_file_suffix(self, file):
+    @classmethod
+    def tag_from_file_suffix(cls, file):
         tag = ""
         for suff in ["xml", "txt", "pdf", "png", "jpg", "gif"]:
             if file.endswith("." + suff):
                 tag = suff
         return tag
 
-    def sorted_alphanumeric(self, data):
+    @classmethod
+    def sorted_alphanumeric(cls, data):
         import re
-# https://stackoverflow.com/questions/800197/how-to-get-all-of-the-immediate-subdirectories-in-python
+        # https://stackoverflow.com/questions/800197/how-to-get-all-of-the-immediate-subdirectories-in-python
         convert = lambda text: int(text) if text.isdigit() else text.lower()
         alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
         return sorted(data, key=alphanum_key)
 
-    def path_leaf(self, path):
+    @classmethod
+    def path_leaf(cls, path):
         import ntpath
         head, tail = ntpath.split(path)
         return tail or ntpath.basename(head)
 
-    def display_filename(self, filename):
+    @classmethod
+    # FIXME
+    def display_filename(cls, filename):
         isd = os.path.isdir(filename)
-#        return isd or filename.endswith(".xml")
+        # return isd or filename.endswith(".xml")
         return True
 
 
@@ -556,7 +565,6 @@ class ExtraWidgets(tk.Frame):
         self.test()
 
     def test(self):
-
         ss = ttk.Style()
         ss.configure('Yellow.TFrame', background='yellow', foreground="pink", border=10, padx=5,
                      highlightcolor="purple", highlightthickness=1)
@@ -598,7 +606,7 @@ class ExtraWidgets(tk.Frame):
         button2.pack()
         p.add(f2)
         p.pack()
-        
+
         lf = ttk.Labelframe(self.master, text='LabelFrame', height=100, width=10, border=15)
         buttonz1 = tk.Button(lf, text="z1")
         buttonz1.pack()

@@ -1,4 +1,11 @@
 import logging
+import os
+from shutil import copyfile
+from lxml import etree as ET
+
+# local
+
+#from py4ami.dict_lib import AmiDictionary
 
 logging.debug("loading wikimedia.py")
 
@@ -120,12 +127,12 @@ class WikidataBrowser:
     import tkinter as tk
 
     def __init__(self, ami_gui, text):
-        from pyami.xml_lib import XmlLib
+        from py4ami.xml_lib import XmlLib
         from lxml import etree as LXET
         from tkinterhtml import HtmlFrame
         import tkinter as tk
         from tkinter import scrolledtext
-        from pyami.gutil import CreateToolTip
+        from py4ami.gutil import CreateToolTip
         from urllib.request import urlopen
 
         toplevel = tk.Toplevel(ami_gui.master)
@@ -334,8 +341,6 @@ class WikidataSparql:
                 self.sparql_result_by_wikidata_id[wikidata_id].append(result)
 
     def apply_dicts_and_sparql(self, dictionary_file, rename_file, sparql2amidict_dict, sparql_files):
-        from shutil import copyfile
-        from pyami.dict_lib import AmiDictionary
 
         keystring = ""
         # svae original path

@@ -2,9 +2,11 @@ from pathlib import Path
 import os
 import logging
 from abc import ABC, abstractmethod
+import re
+
+# local
 
 from py4ami.util import Util
-from py4ami.pyamix import PyAMI
 from py4ami.ami_sections import AMIFigure, AMIAbsSection
 
 
@@ -97,10 +99,10 @@ class CContainer(ABC):
 
         Currently must start with "_" and be directory
         """
-        return path.name.startswith("_") and os.path.isdir(path) or \
-            path.name.endswith(".count.xml") or \
-            path.name.endswith(".snippets.xml") or \
-            path.name.endswith(".document.xml")
+        return (path.name.startswith("_") and os.path.isdir(path) or
+                path.name.endswith(".count.xml") or
+                path.name.endswith(".snippets.xml") or
+                path.name.endswith(".document.xml"))
 
     @abstractmethod
     def get_potential_reserved_child_filenames(self):
@@ -125,14 +127,12 @@ class CContainer(ABC):
         return list(files)
 
     def get_children(self) -> list:
-        """lust children as Paths"""
+        """list children as Paths"""
         child_paths = [] if self.dirx is None else list(Path(self.dirx).iterdir())
-        self.logger.debug(f"child[0] {child_paths[0]}")
         return child_paths
 
     def get_child_dirs(self) -> list:
         self.child_dirs = [p for p in self.get_children() if p.is_dir()]
-        self.logger.debug(f"child[0] {self.child_dirs[0]}")
         return self.child_dirs
 
     def get_child_files(self) -> list:
@@ -279,12 +279,12 @@ class CProject(CContainer):
 class CTree(CContainer):
     logger = logging.getLogger("ctree")
 
-# child files
+    # child files
     FULLTEXT_PDF = "fulltext.pdf"
     FULLTEXT_XML = "fulltext.xml"
     EUPMC_RESULT_JSON = 'eupmc_result.json'
     SCHOLARLY_HTML = 'scholarly.html'
-# child dirs
+    # child dirs
     HTML_DIR = "html"
     PDFIMAGES_DIR = 'pdfimages'
     RESULTS_DIR = "results"
@@ -310,7 +310,6 @@ class CTree(CContainer):
         'word.frequencies.count.xml',
         'word.frequencies.snippets.xml',
     ]
-
 
     RESERVED_DIRS = [
         HTML_DIR,
@@ -344,7 +343,7 @@ class CTree(CContainer):
         with open(pp, "w") as p:
             for ff in files:
                 #  filename relative to CTree
-                ll = len(str(self.pathx)+'/')
+                ll = len(str(self.pathx) + '/')
                 self.logger.debug(ff, ll)
                 p.write(f"{str(ff)[ll:]},\n")
 
@@ -380,7 +379,7 @@ class CTree(CContainer):
         """creates sections based on JATS"""
         self.fulltext_xml = Path(self.dirx, self.FULLTEXT_XML)
         if self.fulltext_xml.exists():
-            AMIAbsSection.make_xml_sections(self.fulltext_xml, self.dirx, force)
+            AMIAbsSection.make_xml_sections(self.fulltext_xml, str(self.dirx), force)
 
     @classmethod
     def tests(cls):
@@ -409,6 +408,42 @@ class CTree(CContainer):
     def get_fulltext_xml(self):
         self.fulltext_xml = Path(self.dirx, self.FULLTEXT_XML)
         return self.fulltext_xml
+
+
+class CSubDir(CContainer):
+    """manages a descendant directory/subtree of a CTree
+    This is less formalized than cproject and ctree and may change
+    frequently.
+    At the moment (2022-05) there are now "special" subtrees so code is generic
+    """
+    logger = logging.getLogger("subtree")
+
+    def __init__(self, dirx, desc=None):
+        self.logger.debug("CProject ctr")
+        super().__init__(dirx)
+        self.description = desc
+        self.files = None
+        self.dirs = None
+
+    def get_name(self):
+        return None
+
+    def get_potential_reserved_child_dirnames(self):
+        return []
+
+    def get_potential_reserved_child_filenames(self):
+        return []
+
+    def get_child_files_by_name(self, regex=None):
+        """list child files and directories, optionally filter by regex
+        matching is on the basename, not the complete filename
+        Note that "." is a regex metacharacter and needs escaping with \
+        :param regex: regex matching basename"""
+        files = self.get_child_files()
+        if regex:
+            p = re.compile(regex)
+            files = [f for f in files if p.match(os.path.basename(f))]
+        return files
 
 
 class CProjectTests:
@@ -516,14 +551,6 @@ class CProjectTests:
     def tests_sections_liion4(cls):
         project = CProject(AmiProjects.C_LIION4)
         project.make_jats_sections(force=True)
-
-    @classmethod
-    def test_captions_oil186(cls):
-        c_project = CProject(Path("/Users/pm286/projects/CEVOpen/searches/oil186"))
-        dirx = c_project.dirx
-        print(f"dirx {dirx}")
-        PyAMI().run_command(f"--proj {dirx} --split xml2sect")
-        cls.print_fig_caption(c_project, cls.FIGURE_OLD)
 
     @classmethod
     def print_fig_caption(cls, project, fig_type):

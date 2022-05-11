@@ -2,7 +2,7 @@ import unittest
 import logging
 from pathlib import Path
 # local
-from py4ami.projects import CProject, CTree, AmiProjects, CProjectTests
+from py4ami.projects import CProject, CTree, AmiProjects, CProjectTests, CSubDir
 from py4ami.pyamix import PyAMI
 from test.resources import Resources
 
@@ -144,3 +144,25 @@ class TestCProjTree(unittest.TestCase):
         assert svg_dir.exists(), f"{svg_dir} should exist"
         pdfimages_dir = ctree.get_existing_reserved_directory(CTree.PDFIMAGES_DIR)
         assert not pdfimages_dir, f"{pdfimages_dir} shoukd not exist"
+
+    def test_find_sub_trees(self):
+        """find files in parts of CTree
+        """
+        cproj = CProject(Resources.CLIMATE_10_PROJ_DIR)
+        svg_dir = cproj.get_ctree("climate10").get_existing_reserved_directory(CTree.SVG_DIR)
+        svg_subtree = CSubDir(svg_dir)
+        svg_child_files = svg_subtree.get_child_files()
+        assert len(svg_child_files) == 10
+        svg_child_dir = svg_subtree.get_child_dirs()
+        assert len(svg_child_dir) == 0
+
+    def test_find_sub_files_by_name(self):
+        """find files in parts of CTree
+
+        Note the escaping in the basename. This gets all files
+        """
+        cproj = CProject(Resources.CLIMATE_10_PROJ_DIR)
+        svg_dir = cproj.get_ctree("climate10").get_existing_reserved_directory(CTree.SVG_DIR)
+
+        svg_child_files = CSubDir(svg_dir).get_child_files_by_name("fulltext-page\.[2-5]\.svg")
+        assert len(svg_child_files) == 4

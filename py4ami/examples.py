@@ -19,6 +19,7 @@ class Examples:
         # self.pyamix = pyamix if pyamix is not None else PyAMI()
         self.logger = logger
         self.pyamix = pyamix
+        self.test_copy_dir = None
 
     def example_help(self):
         """checks whether parser works"""
@@ -66,7 +67,7 @@ class Examples:
         """
         # self.setup()
         self.pyamix.run_command(
-            "--proj ${examples_test.p} --glob ${examples_test.p}/**/sections/**/*fig.xml" \
+            "--proj ${examples_test.p} --glob ${examples_test.p}/**/sections/**/*fig.xml"
             # f"--proj {self.test_copy_dir} --glob {self.test_copy_dir}/**/sections/**/*fig.xml" \
             # " --outfile _figures/fig0.txt"
         )
@@ -268,7 +269,8 @@ class Examples:
             "--words",
         ])
 
-    def banner(self, msg):
+    @classmethod
+    def banner(cls, msg):
         print(f"===================={msg}==================")
         ss = " "*len(msg)
         print(f"===================={ss}==================")

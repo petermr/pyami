@@ -1,5 +1,10 @@
 import os
+from configparser import ConfigParser, ExtendedInterpolation
+import lxml.etree as ET
+import urllib
 
+
+# local
 
 class AmiConfig:
     """configuration files for the AMI system
@@ -38,6 +43,7 @@ class AmiConfig:
     def traverse_dictionary_dirs(self):
 
         assert self.parser is not None
+        result = "traversed"
         dict_section = self.parser[AmiConfig.DICTS]
         for dict_key in dict_section.keys():
             print("dict key", dict_key)
@@ -53,6 +59,7 @@ class AmiConfig:
                 pass
             else:
                 print("skipped key:", dict_key)
+        return result
 
     def read_file_dicts(self, dict_key, dict_section):
         ini_file = self.create_ini_filename_from_link(dict_key, dict_section)
@@ -75,10 +82,12 @@ class AmiConfig:
                 print("No subsection for ", dict_id)
             else:
                 file = self.read_dict_xml(dict_ref, dict_section, dict_id, sub_section)
+                # FIXME
                 if file is not None and dict_id in self.dict_id_dict:
                     self.dict_id_dict[dict_id]
 
-    def create_ini_filename_from_link(self, ini_key, dict_section):
+    @classmethod
+    def create_ini_filename_from_link(cls, ini_key, dict_section):
         # ini_key = dict_ref[:-(len(AmiConfig.LINK_SUFFIX))] + AmiConfig.INI_SUFFIX
         ini_file = dict_section[ini_key] if ini_key in dict_section else None
         return ini_file
@@ -100,7 +109,8 @@ class AmiConfig:
         file = file.replace(AmiConfig.SLASH, os.path.sep)
         return file
 
-    def _debug_desc_and_entries(self, dict_name, file_tree_xml):
+    @classmethod
+    def _debug_desc_and_entries(cls, dict_name, file_tree_xml):
         descs = file_tree_xml.findall("desc")
         entries = file_tree_xml.findall("entry")
         wikidata = file_tree_xml.findall("entry[@wikidataID]")
@@ -129,7 +139,8 @@ class AmiConfig:
             entries = tree_xml.findall("entry")
             print(dict_terminal, "=", len(entries))
 
-    def read_xml_from_url(self, dict_url):
+    @classmethod
+    def read_xml_from_url(cls, dict_url):
         response = urllib.request.urlopen(dict_url).read()
         tree_xml = ET.fromstring(response)
         return tree_xml
@@ -183,7 +194,8 @@ class AmiConfig:
         home = os.path.expanduser("~")
         return home
 
-    def create_ini_url_from_link(self, dict_ref, dict_section):
+    @staticmethod
+    def create_ini_url_from_link(dict_ref, dict_section):
         ini_key = dict_ref[:-(len(AmiConfig.URL_SUFFIX))] + AmiConfig.INI_SUFFIX
         ini_file = dict_section[ini_key] if ini_key in dict_section else None
         return ini_file

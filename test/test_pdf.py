@@ -15,7 +15,8 @@ from py4ami.pyamix import PyAMI
 FINAL_DRAFT_DIR = "/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg"  # PMR only
 PAGE_9 = Path(Resources.CLIMATE_10_SVG_DIR, "fulltext-page.9.svg")
 PAGE_6 = Path(Resources.CLIMATE_10_SVG_DIR, "fulltext-page.6.svg")
-CURRENT_RANGE = range(1, 200)
+CURRENT_RANGE = range(1, 20)
+# CHAPTER_RANGE = range(1, 200)
 CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
 
 
@@ -177,7 +178,7 @@ def test_create_chapters():
             print("CHAP ", chapter)
 
 def test_svg2html():
-    proj = Resources.TEMP_CLIMATE_10_PROJ_DIR
+    proj = Resources.CLIMATE_10_PROJ_DIR
     args = f"--proj {proj} --apply svg2xml"
     PyAMI().run_command(args)
 

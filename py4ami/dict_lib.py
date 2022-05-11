@@ -249,7 +249,8 @@ class AmiDictionary:
                 self.wikilangs)
             self.add_wikipedia_page_links(entry, wikipedia_dict)
 
-    def add_wikipedia_page_links(self, entry, wikipedia_dict):
+    @classmethod
+    def add_wikipedia_page_links(cls, entry, wikipedia_dict):
         for wp in wikipedia_dict.items():
             if wp[0] == "en":
                 entry.attrib[WIKIPEDIA_PAGE] = wp[1]

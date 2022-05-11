@@ -1,5 +1,6 @@
 # Tests wikipedia and wikidata methods under pytest
 import os
+import unittest
 from pathlib import Path
 import logging
 
@@ -36,7 +37,7 @@ def test_lookup_wikidata_bad():
     # this needs mending as it found dopmamine (4-(2-azanylethyl)benzene-1,2-diol)
     assert wikidata_hits == ['Q170304', 'Q2270', 'Q15779', 'Q186242', 'Q28917']
 
-
+@unittest.skip(reason="NET, long")
 def test_lookup_solvents():
     terms = ["acetone", "chloroform", "ethanol"]
     wikidata_lookup = WikidataLookup()
@@ -45,6 +46,7 @@ def test_lookup_solvents():
     assert descs == ['chemical compound', 'chemical compound', 'chemical compound']
 
 
+@unittest.skip(reason="Net, Long")
 def test_lookup_parkinsons():
     terms = [
         "SCRNASeq",

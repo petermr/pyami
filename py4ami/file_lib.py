@@ -1,16 +1,16 @@
 """classes and methods to support path operations
 
 """
-import json
+from braceexpand import braceexpand
 import copy
+from enum import Enum, auto
 import glob
+from glob import glob
+import logging
 import re
 import os
-import shutil
 from pathlib import Path, PurePath
-import logging
-from glob import glob
-from braceexpand import braceexpand
+import shutil
 
 logging.debug("loading file_lib")
 
@@ -36,7 +36,7 @@ STAR = "*"
 # suffixes
 S_PDF = "pdf"
 S_PNG = "png"
-S_SVG = "climate10_"
+S_SVG = "pdf"
 S_TXT = "txt"
 S_XML = "xml"
 
@@ -45,7 +45,7 @@ _NULL = "_NULL"
 _REQD = "_REQD"
 
 # known section names
-SVG = "climate10_"
+SVG = "svg"
 PDFIMAGES = "pdfimages"
 RESULTS = "results"
 SECTIONS = "sections"
@@ -228,6 +228,8 @@ class BraceGlobber:
         ll = [glob(x, recursive=recursive) for x in braceexpand(path)]
         return ll
 
+class Filetype(Enum):
+    pass
 
 class FileLib:
 

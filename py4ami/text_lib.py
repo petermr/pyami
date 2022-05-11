@@ -1,14 +1,16 @@
-import unicodedata
-import nltk
-import json
-import re
-import xml.etree.ElementTree as ET
-from collections import Counter
-from pathlib import Path
+import ast
 from bs4 import BeautifulSoup
-import os
+from collections import Counter
 import glob
+import json
 import logging
+import nltk
+import os
+from pathlib import Path
+import re
+import unicodedata
+import xml.etree.ElementTree as ET
+
 logging.debug("loading text_lib")
 
 from py4ami.file_lib import AmiPath, FileLib
@@ -59,6 +61,8 @@ OIL186 = "/Users/pm286/projects/CEVOpen/searches/oil186"  # pmr only
 class ProjectCorpus:
     """manages an AMI CProject, not yet fully incorporated"""
 
+    logger = logging.getLogger("text_lib_corpus")
+
     def __init__(self, cwd, tree_glob="./*/"):
         self.cwd = cwd
         self.tree_glob = tree_glob
@@ -68,7 +72,7 @@ class ProjectCorpus:
 
     def read_analyze_child_documents(self):
         self.logger.warning("WARNING NYI FULLY")
-#        self.files = self.glob_corpus_files()
+        #        self.files = self.glob_corpus_files()
         self.files = glob.glob(os.path.join(self.cwd, self.tree_glob))
         self.logger.warning("glob", self.cwd, self.tree_glob,
                             str(len(self.files)), self.files[:5])
@@ -76,7 +80,7 @@ class ProjectCorpus:
             section = AmiSection()
             section.read_file_get_text_filtered_words(file)
             c = Counter(AmiSection.get_section_with_words(file).words)
-#            self.logger.warning("most common", path.split("/")[-2:-1], c.most_common(20))
+        #            self.logger.warning("most common", path.split("/")[-2:-1], c.most_common(20))
         wordz = TextUtil.get_aggregate_words_from_files(self.files)
         self.logger.warning(wordz)
         cc = Counter(wordz)
@@ -118,8 +122,9 @@ class Document:
         self.sections = None
         self.file = file
         self.words = []
-#        if path is not None and os.path.isfile(path):
-#            self.words = self.get_words_from_terminal_file(path)
+
+    #        if path is not None and os.path.isfile(path):
+    #            self.words = self.get_words_from_terminal_file(path)
 
     def create_analyze_sections(self):
         sections_file = os.path.abspath(os.path.join(self.file, "sections"))
@@ -127,8 +132,7 @@ class Document:
             if not os.path.exists("fulltext.xml"):
                 logging.error("No fulltext.xml, so no sections")
             else:
-                logging.error(
-                    "PLEASE CREATE sections with ami sections, will add pyami later")
+                logging.error("PLEASE CREATE sections with ami sections, will add pyami later")
                 jats_parser = JatsParser()
                 jats_parser.create_sections_from_xml("fulltext.xml")
             return
@@ -174,6 +178,7 @@ class AmiSection:
 
 ≈    Will often get annotated with sentence markers
     """
+    logger = logging.getLogger("ami_section")
 
     SECTION_LIST = None
     XML_SUFF = ".xml"
@@ -200,7 +205,7 @@ class AmiSection:
     PUB_DATE = "PUB_DATE"
     PUBLISHER = "PUBLISHER"
     REFERENCE = "REFERENCE"
-#    RESULTS     = "results_discuss"
+    #    RESULTS     = "results_discuss"
     RESULTS = "RESULTS"
     SECTIONS = "SECTIONS"
     SVG = "SVG"
@@ -269,7 +274,8 @@ class AmiSection:
         self.write_text = True
         self.sentences = None
         self.name = None
-#        self.read_section()
+
+    #        self.read_section()
 
     @classmethod
     def get_section_with_words(cls, file, filter=True):
@@ -297,7 +303,7 @@ class AmiSection:
             # read back to "sections" and then read the CTree name
             components.append(c)
             if c == "sections":
-                components.append(file_components[i+1])
+                components.append(file_components[i + 1])
                 break
         self.name = "/".join(components[::-1])
 
@@ -335,7 +341,7 @@ class AmiSection:
                 self.text = self.flatten_xml_to_text(self.xml)
                 self.sentences = [Sentence(s) for s in (
                     nltk.sent_tokenize(self.text))]
-#                        self.sentences = Sentence.merge_false_sentence_breaks(self.sentences)
+                #                        self.sentences = Sentence.merge_false_sentence_breaks(self.sentences)
                 if self.write_text and not os.path.exists(self.txt_file):
                     self.logger.warning("wrote sentence path", self.txt_file)
                     AmiSection.write_numbered_sentence_file(
@@ -355,7 +361,7 @@ class AmiSection:
         s += f"txt: {self.txt_file}"
         return self.name
 
-# static utilities
+    # static utilities
     @staticmethod
     def check_sections(sections):
         for section in sections:
@@ -368,7 +374,7 @@ class AmiSection:
     @staticmethod
     def create_txt_filename_from_xml(xml_file):
         sentence_file = xml_file[:-
-                                 len(AmiSection.XML_SUFF)] + AmiSection.TXT_SUFF
+        len(AmiSection.XML_SUFF)] + AmiSection.TXT_SUFF
         return sentence_file
 
     @staticmethod
@@ -413,12 +419,11 @@ class AmiSection:
 
 
 class Sentence:
-
     NUMBER_SPLIT = ": "
 
     def __init__(self, string):
         self.string = string
-#        self.words = Sentence.tokenize_to_words(string)
+        #        self.words = Sentence.tokenize_to_words(string)
         self.words = string.split(" ")
         self.words = Sentence.remove_punct(self.words)
 
@@ -466,7 +471,6 @@ class Sentence:
 
 
 class TextUtil:
-
     logger = logging.getLogger("text_util")
 
     @staticmethod
@@ -624,11 +628,10 @@ baz
 boodle
         """
         lines = cls.split_at_empty_newline(text)
-        assert(str(lines) == "[['foo', 'bar'], ['baz'], [], ['boodle']]")
+        assert (str(lines) == "[['foo', 'bar'], ['baz'], [], ['boodle']]")
 
 
 class WordFilter:
-
     # These should really be read from path
 
     # false positives in organizatiom dictionary.
@@ -649,7 +652,7 @@ class WordFilter:
         self.stop_words_set = {}
         for swset in stopword_sets:
             self.stop_words_set = self.stop_words_set.union(swset)
-#            set(STOPWORDS_EN).union(STOPWORDS_PUB)
+        #            set(STOPWORDS_EN).union(STOPWORDS_PUB)
         self.delete_numeric = delete_numeric
         self.delete_non_alphanum = True
         self.regex = None
@@ -809,7 +812,8 @@ class DSLParser:
             argstr = rest_argstr[1:]
         self.logger.info(f"{len(args)} ARGS: {args}")
 
-    def dequote(self, arg):
+    @classmethod
+    def dequote(cls, arg):
         """remove balanced qoutes from start and end of string
 
         len(arg) must be > 1
@@ -856,7 +860,7 @@ class DSLParser:
             return None
         idx = argstr.index("(")
         funct = argstr[:idx]
-        funct_args = argstr[idx+1:-1]
+        funct_args = argstr[idx + 1:-1]
         return funct, funct_args
 
     def grab_number(self, argstr):  # ends with comma or EOS
@@ -880,8 +884,8 @@ class DSLParser:
         idx = argstr.find(quote, 1)
         if idx == -1:
             raise Exception(f"cannot parse as quoted string: {argstr}")
-        arg = argstr[:idx+1]
-        argstr = argstr[idx+1:]
+        arg = argstr[:idx + 1]
+        argstr = argstr[idx + 1:]
         self.logger.debug(f"str {argstr}")
         return arg, argstr,
 
@@ -912,7 +916,7 @@ class DSLParser:
                     return i
         return -1
 
-# ============================================
+    # ============================================
 
     def assert_file_exists(self, file):
         """
@@ -1000,18 +1004,24 @@ class DSLParser:
         # DSLParser().parse_and_run("starts_with(item(list(content('myfile')),2),'bar')")
 
     @classmethod
-    def run_tests(cls):
+    def run_tests(cls, dummy):
         cls.test_parser1()
+
+
+class JatsParser:
+    # TODO
+    def __init__(self):
+        raise NotImplementedError()
 
 
 def main():
     import lxml
     print("started text_lib")
-#    ProjectCorpus.test(CCT_PROJ)
-#    ProjectCorpus.test(LIION_PROJ)
-#     ProjectCorpus.test_oil()
-#     TextUtil.test_split_at_empty_newline()
-#     ProjectCorpus.test_oil()
+    #    ProjectCorpus.test(CCT_PROJ)
+    #    ProjectCorpus.test(LIION_PROJ)
+    #     ProjectCorpus.test_oil()
+    #     TextUtil.test_split_at_empty_newline()
+    #     ProjectCorpus.test_oil()
     DSLParser.test_parser1()
     print("finished text_lib")
 

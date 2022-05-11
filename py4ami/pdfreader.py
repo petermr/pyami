@@ -1,15 +1,15 @@
-import logging
-
-from pdfminer3.layout import LAParams
-from pdfminer3.pdfpage import PDFPage
-from pdfminer3.pdfinterp import PDFResourceManager
-from pdfminer3.pdfinterp import PDFPageInterpreter
-from pdfminer3.converter import TextConverter
-from pdfminer3.image import ImageWriter
 import io
-
+import logging
 from pathlib import Path
 
+from pdfminer3.converter import TextConverter
+from pdfminer3.image import ImageWriter
+from pdfminer3.layout import LAParams
+from pdfminer3.pdfinterp import PDFPageInterpreter
+from pdfminer3.pdfinterp import PDFResourceManager
+from pdfminer3.pdfpage import PDFPage
+
+from py4ami.ami_pdf import AmiPage
 # local
 from py4ami.gutil import Gutil
 
@@ -18,7 +18,7 @@ logging.debug("loading pdfreader.py")
 
 # https://stackoverflow.com/questions/56494070/how-to-use-pdfminer-six-with-python-3
 
-class Pdf2SvgReader:
+class Pdf2SvgConverter:
     logger = logging.getLogger("pdf2svgreader")
 
     def __init__(self):
@@ -26,18 +26,20 @@ class Pdf2SvgReader:
 
     @classmethod
     def read_and_convert(cls, file):
-        """ converst a PDF path (to text)
+        """ converts a PDF path (to text)
 
         needs ami3 jar installed
         Args:
             file ([str]): filename
          """
+
         input_dir = "foo"
-        inputname="fulltext.pdf"
-        args = ["ami",  "-p", input_dir, "--inputname", inputname, "pdfbox"]
-        stdout_lines, _ = Gutil.run_subprocess_get_lines(args)
-        # run ami3 here
-        raise Exception("ami3 must be installed")
+        inputname = "fulltext.pdf"
+        args = ["ami", "-p", input_dir, "--inputname", inputname, "pdfbox"]
+        try:
+            stdout_lines, _ = Gutil.run_subprocess_get_lines(args)
+        except Exception as e:
+            raise Exception(f"{e} ami3 must be installed")
 
 
 class PdfReader:
@@ -113,8 +115,24 @@ class PdfReader:
         return text
 
 
-class Svg2XmlReader:
+class Svg2XmlConverter:
     logger = logging.getLogger("2svg2xmlreader")
+
+    def __init__(self):
+        self.text = None
+
+    @classmethod
+    def read_and_convert(cls, file, output_file, rotated_text=False, pretty_print=True, use_lines=False):
+        """ converst a PDF path (to text)
+
+         """
+        print(f"file: {file}")
+        ami_page = AmiPage.create_page_from_svg(file, rotated_text=rotated_text)
+        ami_page.write_html(output_file, pretty_print, use_lines)
+
+
+class Xml2HtmlConverter:
+    logger = logging.getLogger("xml2htmlreader")
 
     def __init__(self):
         self.text = None
@@ -126,9 +144,11 @@ class Svg2XmlReader:
         Args:
             file ([str]): filename
          """
+
         raise Exception("not yet written")
 
-class Xml2HtmlReader:
+
+class Xml2TxtConverter:
     logger = logging.getLogger("xml2htmlreader")
 
     def __init__(self):
@@ -156,29 +176,29 @@ if __name__ == "__main__":
 
 
 # this may be obsolete
-def temp():
-    resource_manager = PDFResourceManager()
-    fake_file_handle = io.StringIO()
-    converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
-    page_interpreter = PDFPageInterpreter(resource_manager, converter)
-
-    with open('/storage/emulated/0/Download/Rick-Riordan-The-Tyrants-Tomb-The-Trials-of-Apollo-4.pdf', 'rb') as fh:
-        for page in PDFPage.get_pages(fh,
-                                      caching=True,
-                                      check_extractable=True):
-            page_interpreter.process_page(page)
-
-        text = fake_file_handle.getvalue()
-
-    # close open handles
-    converter.close()
-    fake_file_handle.close()
-
-    print(text)
-
-    pdf_resource_manager = PDFResourceManager()
-    converted_text = io.StringIO()
-    layout_params = LAParams()
-    imageWriter = ImageWriter('pathToSaveImages/..')
-    converter = TextConverter(pdf_resource_manager, converted_text, codec='utf-8', laparams=layout_params,
-                              imagewriter=imageWriter)
+# def temp():
+#     resource_manager = PDFResourceManager()
+#     fake_file_handle = io.StringIO()
+#     converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
+#     page_interpreter = PDFPageInterpreter(resource_manager, converter)
+#
+#     with open('/storage/emulated/0/Download/Rick-Riordan-The-Tyrants-Tomb-The-Trials-of-Apollo-4.pdf', 'rb') as fh:
+#         for page in PDFPage.get_pages(fh,
+#                                       caching=True,
+#                                       check_extractable=True):
+#             page_interpreter.process_page(page)
+#
+#         text = fake_file_handle.getvalue()
+#
+#     # close open handles
+#     converter.close()
+#     fake_file_handle.close()
+#
+#     print(text)
+#
+#     pdf_resource_manager = PDFResourceManager()
+#     converted_text = io.StringIO()
+#     layout_params = LAParams()
+#     imageWriter = ImageWriter('pathToSaveImages/..')
+#     converter = TextConverter(pdf_resource_manager, converted_text, codec='utf-8', laparams=layout_params,
+#                               imagewriter=imageWriter)

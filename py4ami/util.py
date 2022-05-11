@@ -1,10 +1,12 @@
+import ast
+import errno
 import logging
 import os
-import ast
+import shutil
 import sys
-import shutil, errno
 
 logger = logging.getLogger("py4ami.util")
+
 
 class Util:
     """Utilities, mainly staticmethod or classmethod and not tightly linked to AMI"""
@@ -151,19 +153,57 @@ class Util:
         """
         try:
             shutil.copytree(src, dst)
-        except OSError as exc: # python >2.5
+        except OSError as exc:  # python >2.5
             if exc.errno in (errno.ENOTDIR, errno.EINVAL):
                 shutil.copy(src, dst)
-            else: raise
+            else:
+                raise
+
+    @classmethod
+    def create_name_value(cls, arg: str, delim: str = "=") -> tuple:
+        """create name-value from argument
+        if arg is simple string, set value to True
+        if arg contains delimeter (e.g. "=") split at that
+        :param arg: argument (with 0 or 1 delimiters
+        :param delim: delimiter (default "=", cannot be whitespace
+        :return: name, value , or name, True or None
+        """
+        if not arg:
+            return None
+        if not delim:
+            raise ValueError(f"delimiter cannot be None")
+        if arg.isspace():
+            raise ValueError(f"arg cannot be whitespace")
+        if len(arg) == 0:
+            raise ValueError(f"arg cannot be empty")
+        if len(arg.split()) > 1:
+            raise ValueError(f"arg [{arg}] may not contain whitespace")
+
+        if delim.isspace():
+            raise ValueError(f"cannot use whitespace delimiter")
+
+        ss = arg.split(delim)
+        if len(ss) == 1:
+            return arg, True
+        if len(ss) > 2:
+            raise ValueError(f"too many delimiters in {arg}")
+        # convert words to booleans
+        try:
+            ss[1] = ast.literal_eval(ss[1])
+        except Exception:
+            pass
+        return ss[0], ss[1]
+
 
 class AmiLogger:
     """wrapper for logger to limit or condense voluminous output
 
     adds a dictionary of counts for each log level
     """
-    def __init__(self, logger, initial=10, routine=100):
+
+    def __init__(self, loggerx, initial=10, routine=100):
         """create from an existing logger"""
-        self.logger = logger
+        self.logger = loggerx
         self.func_dict = {
             "debug": self.logger.debug,
             "info": self.logger.info,
@@ -193,6 +233,7 @@ class AmiLogger:
 
     def error(self, msg):
         self._print_count(msg, "error")
+
     # =======
 
     def _print_count(self, msg, level):

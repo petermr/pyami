@@ -1,6 +1,5 @@
 import tkinter as tk
 import tkinter.ttk as ttk
-import subprocess
 from tkinter import messagebox
 from tkinter import scrolledtext
 from PIL import ImageTk, Image
@@ -8,16 +7,18 @@ import os
 from xml.etree import ElementTree as ET
 from tkinter import TOP, BOTTOM, LEFT
 from pathlib import Path
+from urllib.request import urlopen
+import tkinterhtml as th
+from io import BytesIO
+from tkinter import filedialog as fd
+
+# local
 
 from py4ami.gutil import AmiTree, Gutil, CreateToolTip
 from py4ami.gutil import Gutil as gu
 from py4ami.search_lib import AmiSearch, AmiSection, AmiDictionaries, AmiProjects
-
-from urllib.request import urlopen
-
-import tkinterhtml as th
-
-from io import BytesIO
+from py4ami.xml_lib import XmlLib
+from py4ami.wikimedia import WikidataBrowser
 
 PYGETPAPERS = "pygetpapers"
 
@@ -69,6 +70,31 @@ class AmiGui(tk.Frame):
         self.show_html_frame = False
         self.dictionary_content_notebook = None
         self.assets = Path(Path(__file__).parent.parent, "assets")
+        self.main_display_frame = None
+        self.main_text_display = None
+        self.label_display_var = None
+        self.label_display = None
+        self.html_frame = None
+        self.xml_box = None
+        self.xml_var = None
+        self.pdf_box = None
+        self.pdf_var = None
+        self.supp_box = None
+        self.supp_var = None
+        self.noexec_box = None
+        self.noexec_var = None
+        self.csv_box = None
+        self.csv_var = None
+        self.html_box = None
+        self.html_var = None
+        self.pdfbox_box = None
+        self.pdfbox_var = None
+        self.ami_section_dict = None
+
+        self.new_project_name_var = None
+        self.new_project_name_entry = None
+        self.new_project_desc_var = None
+        self.new_project_desc_entry = None
 
         self.pack()
         self.current_ami_projects = AmiProjects()
@@ -110,7 +136,7 @@ class AmiGui(tk.Frame):
         """
         text = self.get_main_text_on_release(event)
         if text:
-            response = self.query_wikidata(text)
+            self.query_wikidata(text)
 
     def get_main_text_on_release(self, event):
         """
@@ -235,7 +261,6 @@ class AmiGui(tk.Frame):
         :param file: 
 
         """
-        from pyami.xml_lib import XmlLib
         self.xml_root = XmlLib.parse_xml_file_to_root(file)
         for child in self.xml_root:
             pass
@@ -613,7 +638,7 @@ class AmiGui(tk.Frame):
             self.make_pygetpapers_check_button(checkbox_frame, key)
 
         self.spin = Gutil.make_spinbox(
-            getpapers_args_frame, "maximum hits (-k)", min=1, max=self.max_max_hits)
+            getpapers_args_frame, "maximum hits (-k)", minn=1, maxx=self.max_max_hits)
 
     def make_pygetpapers_check_button(self, master, key):
         """
@@ -729,8 +754,6 @@ class AmiGui(tk.Frame):
 
     def select_directory(self):
         """ """
-        from tkinter import filedialog as fd
-        from tkinter import messagebox
 
         filename = fd.askdirectory(
             title='Output directory',
@@ -907,7 +930,6 @@ class AmiGui(tk.Frame):
 
     def run_ami_sections(self):
         """ """
-        import subprocess
         args = ["ami", "-p", self.project_dir, "section"]
 #        print("making sections", args)
         stdout_lines, _ = Gutil.run_subprocess_get_lines(args)
@@ -916,7 +938,6 @@ class AmiGui(tk.Frame):
 
     def run_ami_pdfbox(self):
         """ """
-        import subprocess
         args = ["ami", "-p", self.project_dir, "pdfbox"]
         stdout_lines, _ = Gutil.run_subprocess_get_lines(args)
         #            self.main_text_display(stdout_lines)
@@ -1089,7 +1110,6 @@ class AmiGui(tk.Frame):
         return self.dcb_frame
 
     def query_wikidata(self, text):
-        from pyami.wikimedia import WikidataBrowser
         """
 
         :param text: 

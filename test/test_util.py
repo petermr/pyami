@@ -54,4 +54,39 @@ class TestUtil(unittest.TestCase):
         Util.copyanything(src, dst)
         assert Path(dst).exists()
 
+    def test_create_name_value(self):
+        """tests parsing of PyAMI flags
+        """
+        name, value = Util.create_name_value("foo=bar")
+        assert name, value == ("foo", "bar")
+        name, value = Util.create_name_value("foo")
+        assert name, value == ("foo", True)
+        try:
+            arg = "foo=bar=plugh"
+            Util.create_name_value(arg)
+            raise ValueError(f"failed to trap {arg}")
+        except ValueError as ve:
+            assert str(ve == "too many delimiters in {arg}")
+        try:
+            arg = "foo bar"
+            n,v = Util.create_name_value(arg)
+            raise ValueError(f"failed to trap {arg}")
+        except ValueError as ve:
+            assert str(ve) == "arg [foo bar] may not contain whitespace"
+
+        Util.create_name_value("foo/bar")
+        assert name, value == ("foo/bar")
+
+        Util.create_name_value("foo/bar", delim="/")
+        assert name, value == ("foo", "bar")
+
+        assert Util.create_name_value("") is None
+
+        try:
+            arg = "foo bar"
+            n,v = Util.create_name_value(arg, delim=" ")
+            raise ValueError(f"failed to trap {arg}")
+        except ValueError as ve:
+            assert str(ve) == f"arg [{arg}] may not contain whitespace"
+
 

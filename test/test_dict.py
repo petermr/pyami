@@ -1,20 +1,22 @@
-from py4ami.dict_lib import AmiDictionary
 from lxml import etree as ET
 import os
+import pprint
+
+# local
+
+from py4ami.wikimedia import WikidataSparql
+from py4ami.dict_lib import AmiDictionary
 
 
 class SearchDictionaryTest:
     @classmethod
     def test_parse_wikidata_page(cls):
-        qitem = "Q144362" # azulene
+        qitem = "Q144362"  # azulene
         ahref_dict = cls.get_wikipedia_page_links(qitem, ["en", "de", "zz"])
         print(ahref_dict)
 
     @classmethod
     def test_create_from_words(cls):
-        from lxml import etree
-        from py4ami.wikimedia import WikidataPage
-        import pprint
 
         words = ["limonene", "alpha-pinene", "lantana camara"]
         dictionary = AmiDictionary.create_from_words(words, "test", "created from words", wikilangs=["en", "de"])
@@ -27,7 +29,7 @@ class SearchDictionaryTest:
 
     @classmethod
     def test(cls):
-        from pyami.constants import PHYSCHEM_RESOURCES
+        from py4ami.constants import PHYSCHEM_RESOURCES
         PLANT = os.path.join(PHYSCHEM_RESOURCES, "plant")
         sparql_file = os.path.join(PLANT, "plant_part_sparql.xml")
         dictionary_file = os.path.join(PLANT, "eoplant_part.xml")
@@ -46,7 +48,7 @@ class SearchDictionaryTest:
             "sparql_name": "image",
             "dict_name": "image",
         }
-        dictionary = SearchDictionary(dictionary_file)
+        dictionary = WikidataSparql(dictionary_file)
         dictionary.update_from_sparqlx(sparql_file, sparql_to_dictionary)
         ff = dictionary_file[:-(len(".xml"))] + "_update" + ".xml"
         print("saving to", ff)
@@ -57,7 +59,7 @@ class SearchDictionaryTest:
         """
         """
 
-        from pyami.constants import CEV_OPEN_DICT_DIR
+        from py4ami.constants import CEV_OPEN_DICT_DIR
         import glob
         # from shutil import copyfile
 
@@ -90,14 +92,14 @@ class SearchDictionaryTest:
             # }
         }
 
-        SearchDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
+        WikidataSparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
     @classmethod
     def test_plant_genus(cls):
         """
         """
 
-        from pyami.constants import CEV_OPEN_DICT_DIR
+        from py4ami.constants import CEV_OPEN_DICT_DIR
         import glob
         # from shutil import copyfile
 
@@ -130,14 +132,14 @@ class SearchDictionaryTest:
             },
         }
 
-        SearchDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
+        WikidataSparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
     @classmethod
     def test_compound(cls):
         """
         """
 
-        from pyami.constants import CEV_OPEN_DICT_DIR
+        from py4ami.constants import CEV_OPEN_DICT_DIR
         import glob
         # from shutil import copyfile
 
@@ -176,7 +178,7 @@ class SearchDictionaryTest:
             # }
         }
 
-        SearchDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
+        WikidataSparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
     @classmethod
     def test_plant_part(cls):
@@ -184,7 +186,7 @@ class SearchDictionaryTest:
         """
         # current dictionary does not need updating
 
-        from pyami.constants import CEV_OPEN_DICT_DIR
+        from py4ami.constants import CEV_OPEN_DICT_DIR
         import glob
 
         DICT_DIR = os.path.join(CEV_OPEN_DICT_DIR, "eoPlantPart")
@@ -207,7 +209,7 @@ class SearchDictionaryTest:
             },
         }
 
-        SearchDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
+        WikidataSparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
     @classmethod
     def test_plant(cls):
@@ -249,7 +251,7 @@ class SearchDictionaryTest:
         else:
             print("no option given")
 
-        from pyami.constants import CEV_OPEN_DICT_DIR
+        from py4ami.constants import CEV_OPEN_DICT_DIR
         import glob
         import os
         # from shutil import copyfile

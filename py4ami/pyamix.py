@@ -1,3 +1,4 @@
+import ast
 import logging
 import sys
 import os
@@ -9,17 +10,19 @@ from collections import Counter
 import traceback
 from pathlib import Path
 import argparse
-
+from enum import Enum
+# local
+from py4ami.ami_sections import AMIAbsSection
 from py4ami.dict_lib import AmiDictionary
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
-from py4ami.xml_lib import XmlLib
-from py4ami.text_lib import TextUtil, DSLParser
-from py4ami.pdfreader import PdfReader, Svg2XmlReader, Xml2HtmlReader, Pdf2SvgReader
+from py4ami.pdfreader import Svg2XmlConverter, Xml2HtmlConverter, Xml2TxtConverter, Pdf2SvgConverter
+from py4ami.projects import CProject, CTree, CSubDir
 from py4ami.symbol import SymbolIni
+from py4ami.text_lib import TextUtil, DSLParser
 from py4ami.util import AmiLogger, Util
 from py4ami.wikimedia import WikidataLookup
-from py4ami.ami_sections import AMIAbsSection
+from py4ami.xml_lib import XmlLib
 
 logging.debug("loading pyamix.py")
 logging.warning(Path(__file__))
@@ -44,6 +47,7 @@ class PyAMI:
     DICTIONARY = "dictionary"
     EXAMPLES = "examples"
     FILTER = "filter"
+    FLAGS = "flags"
     GLOB = "glob"
     LOOKUP = "lookup"
     PRINT_SYMBOLS = "print_symbols"
@@ -98,7 +102,8 @@ class PyAMI:
         self.content_store = ContentStore(self)  # will expose content_store.file_dict
         self.func_dict = {}
         self.result = None
-        self.set_flags()
+        self.flag_dict = {}
+        self.initialize_flags()
         self.wikidata_lookup = None
         self.wikipedia_lookup = None
         self.hit_counter = None
@@ -108,20 +113,23 @@ class PyAMI:
         self.ami_dictionary = None
         self.proj = None  # current project in searches
         self.current_ctree = None  # current ctree (may change during iteration
-        # self.ami_logger = None
+        self.cproject = None
+        self.ami_logger = None
         if self.show_symbols:
             pprint.pp(f"SYMBOLS\n {self.symbol_ini.symbols}")
 
-    def set_flags(self):
+    def initialize_flags(self):
         """initialises flag_dict
         """
 
-        self.flag_dict = {}
-        self.flag_dict[self.APPLY] = None
-        self.flag_dict[self.CHECK_URLS] = None
-        self.flag_dict[self.COMBINE] = None
-        self.flag_dict[self.PRINT_SYMBOLS] = None
-        self.flag_dict[self.RECURSE] = True
+        self.flag_dict = {
+
+            self.APPLY: None,
+            self.CHECK_URLS: None,
+            self.COMBINE: None,
+            self.PRINT_SYMBOLS: False,
+            self.RECURSE: True,
+        }
 
     def set_funcs(self):
         """initializes func_dict
@@ -129,12 +137,11 @@ class PyAMI:
         # 1:1 methods
         # tuple of func+file_extnsion
         self.func_dict[self.XML2TXT] = (XmlLib.remove_all_tags, ".xml.txt")
-        self.func_dict[self.PDF2TXT] = (PdfReader.read_and_convert, ".pdf.txt")
-        self.func_dict[self.PDF2SVG] = (Pdf2SvgReader.read_and_convert, ".pdf.climate10_")
-        self.func_dict[self.SVG2XML] = (Svg2XmlReader.read_and_convert, ".climate10_.xml")
-        self.func_dict[self.XML2HTML] = (Xml2HtmlReader.read_and_convert, ".climate10_.html")
-        self.func_dict[self.TXT2SENT] = (
-            TextUtil.split_into_sentences, ".sen.txt")
+        # self.func_dict[self.PDF2TXT] = (PdfReader.read_and_convert, ".pdf.txt")
+        self.func_dict[self.PDF2SVG] = (Pdf2SvgConverter.read_and_convert, ".pdf.svg")
+        self.func_dict[self.SVG2XML] = (Svg2XmlConverter.read_and_convert, ".svg.xml")
+        self.func_dict[self.XML2HTML] = (Xml2HtmlConverter.read_and_convert, ".svg.html")
+        # self.func_dict[self.TXT2SENT] = (TextUtil.split_into_sentences, ".sen.txt")
         # 1:n methods
 
     def create_arg_parser(self):
@@ -165,9 +172,11 @@ class PyAMI:
         parser.add_argument('--dict', '-d', nargs="+",
                             help='dictionaries to ami-search with, _help gives list')
         parser.add_argument('--examples', nargs="*", type=str,
-                            help='simple demos, empty gives list, "all" runes all. May need downloading corpora')
+                            help='simple demos, empty gives list, "all" runs all. May need downloading corpora')
         parser.add_argument('--filter', nargs="+",
                             help='expr to filter with')
+        parser.add_argument('--flags', nargs="+",
+                            help='name-value pairs collected into self.flag_dict, "help" gives list')
         parser.add_argument('--glob', '-g', nargs="+",
                             help='glob files; python syntax (* and ** wildcards supported); '
                                  'include alternatives in {...,...}. ')
@@ -237,7 +246,7 @@ class PyAMI:
 
         self.logger.debug(f"********** raw arglist {arglist}")
         self.parse_and_run_args(arglist)
-        if self.flagged(self.PRINT_SYMBOLS):
+        if self.is_flag_true(self.PRINT_SYMBOLS):
             self.symbol_ini.print_symbols()
 
     def parse_and_run_args(self, arglist):
@@ -252,12 +261,12 @@ class PyAMI:
             arglist = ["--help"]
         parser = self.create_arg_parser()
         self.args = self.make_substitutions_create_arg_tuples(arglist, parser)
-        self.logger.debug("ARGS before substitution: "+str(self.args))
+        self.logger.debug("ARGS before substitution: " + str(self.args))
         # this may be redundant
         self.substitute_args()
         self.logger.debug(f"self.args {self.args}")
         self.add_single_str_to_list()
-        self.logger.debug("ARGS after substitution: "+str(self.args))
+        self.logger.debug("ARGS after substitution: " + str(self.args))
         self.set_loglevel_from_args()
         self.run_arguments()
 
@@ -298,7 +307,10 @@ class PyAMI:
         self.logger.warning(f"commandline args {self.args}")
         self.logger.warning(f"args: {self.args}")
 
-        if self.CONFIG in self.args and self.args[self.CONFIG] != None:
+        if self.FLAGS in self.args and self.args[self.FLAGS] is not None:
+            self.add_flags()
+
+        if self.CONFIG in self.args and self.args[self.CONFIG] is not None:
             self.apply_config()
 
         if self.EXAMPLES in self.args:
@@ -326,7 +338,7 @@ class PyAMI:
         This is to avoid strings being interpreted as lists of characters
         I am sure there is a more pythonic way
         """
-        argsx = None
+        # argsx = None
         if self.args is None:
             self.logger.warning(f"NULL self.args")
         elif key in self.args:
@@ -343,7 +355,7 @@ class PyAMI:
         """
         old_val = item[1]
         key = item[0]
-        new_val = None
+        # new_val = None
         if old_val is None:
             new_val = None
         elif isinstance(old_val, list) and len(old_val) == 1:  # single string in list
@@ -371,7 +383,7 @@ class PyAMI:
                 # new_val = self.symbol_ini.replace_symbols_in_arg(old_val)
             # else:
             #     new_val = old_val
-                # new_items[key] = new_val
+            # new_items[key] = new_val
         else:
             self.logger.error(f"{old_val} unknown arg type {type(old_val)}")
             new_val = old_val
@@ -397,9 +409,9 @@ class PyAMI:
         new_items = {}
         if arglist and len(arglist) > 0:
             parsed_args = self.parse_args_and_trap_errors(arglist, parser)
-            if parsed_args == self.SYSTEM_EXIT_OK: # return code 0
+            if parsed_args == self.SYSTEM_EXIT_OK:  # return code 0
                 return new_items
-            if str(parsed_args).startswith(self.SYSTEM_EXIT_FAIL) :
+            if str(parsed_args).startswith(self.SYSTEM_EXIT_FAIL):
                 raise ValueError(f"bad command arguments {parsed_args} (see log output)")
 
             self.logger.debug(f"PARSED_ARGS {parsed_args}")
@@ -414,12 +426,13 @@ class PyAMI:
         --help calls SystemExit (we trap and return None)"""
         try:
             parsed_args = parser.parse_args(arglist)
-        except SystemExit as se: # exit codes
+        except SystemExit as se:  # exit codes
             if str(se) == '0':
                 parsed_args = self.SYSTEM_EXIT_OK
             else:
                 parsed_args = self.SYSTEM_EXIT_FAIL + str(se)
         except Exception as e:
+            parsed_args = None
             self.logger.error(f"Cannot parse {arglist} , {e}")
         return parsed_args
 
@@ -474,13 +487,18 @@ class PyAMI:
     def run_debug(self):
         for arg in self.args[self.DEBUG]:
             if arg == self.SYMBOLS:
-                self.symbol_ini.print_symbols()
+                if self.is_flag_true(self.PRINT_SYMBOLS):
+                    self.symbol_ini.print_symbols()
             else:
                 self.logger.warning(f"unknown arg {arg} in  debug: ")
 
     def run_proj(self):
         """ project-related commands"""
         self.proj = self.args[self.PROJ]
+        if not self.proj:
+            self.logger.error(f"--proj must be given")
+            return
+        self.cproject = CProject(self.proj)
 
         self.logger.warning(f"{Util.basename(__file__)} proj: {self.proj}")
         # if self.args[self.CONFIG]:
@@ -492,7 +510,10 @@ class PyAMI:
         if self.args[self.SPLIT]:
             self.split(self.args.get(self.SPLIT))
         if self.args[self.APPLY]:
-            self.apply_func(self.args.get(self.APPLY))
+            apply_type = self.args.get(self.APPLY)
+            self.add_ctree_filenames_to_content_store(apply_type)
+            # print(f"content_store {self.content_store.file_dict}")
+            self.apply_func(apply_type)
         if self.args[self.FILTER]:
             self.filter_file()
         if self.args[self.COMBINE]:
@@ -508,12 +529,7 @@ class PyAMI:
         copies a path or complete directory
 
         Args:
-            src (str): path or dirx to copy, must exist
-            dest (str): destination must be a directory. If path becomes a child of <to>; if a
-            directory creates or replaces <to>
-            overwrite (bool, optional): whether to overwrite if path exists. Defaults to False.
         Exceptions:
-            FileNotFoundError: if src does not exist, or dest cannot be created
 
         """
         # self.logger.warning(f"NOT IMPLERMENTED")
@@ -535,6 +551,19 @@ class PyAMI:
         overwrite = len(argsx) > 2 and argsx[2] == "overwrite"
         FileLib.copy_file_or_directory(dest_path, src_path, overwrite)
 
+    def add_flags(self):
+        """uses values from '--flag [value]' arguments """
+        flags = self.args[self.FLAGS]
+        if type(flags) is str:
+            flags = [flags]
+        for flag in flags:
+            nv = Util.create_name_value(flag)
+            if nv is None or len(nv) != 2:
+                raise ValueError(f"bad value {flag}")
+            if self.flag_dict.get(nv[0]) is None:
+                self.logger.warning(f"adding new flag {nv}")
+            self.flag_dict[nv[0]] = nv[1]
+
     def apply_config(self):
         config_args = self.args[self.CONFIG]
         if type(config_args) == str:
@@ -542,7 +571,8 @@ class PyAMI:
         self.logger.debug(f" type {type(config_args)}")
         for config_arg in config_args:
             if config_arg == self.SYMBOLS:
-                self.symbol_ini.print_symbols()
+                if self.is_flag_true(self.PRINT_SYMBOLS):
+                    self.symbol_ini.print_symbols()
             else:
                 self.logger.warning(f"processing INI NYI: {config_arg}")
 
@@ -555,11 +585,12 @@ class PyAMI:
             self.logger.error(f"delete requires --proj; ignored")
             return
         globs = self.args[self.DELETE]
-        for glob in globs:
-            self.delete_glob(glob)
+        for globx in globs:
+            self.delete_glob(globx)
 
     def delete_glob(self, glob_exp):
         """deletes globbed files
+        requires self.proj as root of globbing
 
         Args:
             glob_exp (str): glob expression
@@ -584,7 +615,7 @@ class PyAMI:
                     p.unlink()
 
     def glob_files(self):
-        glob_recurse = self.flagged(self.RECURSE)
+        glob_recurse = self.is_flag_true(self.RECURSE)
         glob_ = self.args[self.GLOB]
         self.logger.info(f"glob: {glob_}")
         # create dictionary wiuth empty values?
@@ -593,20 +624,20 @@ class PyAMI:
 
         self.logger.info(f"glob path count {len(self.content_store.keys())}")
 
-    def split(self, type):
+    def split(self, typex):
         """ split fulltext.xml into sections"""
 
         # file_keys = self.content_store.get_file_keys()
         file_keys = self.content_store.keys()
         for file in file_keys:
             suffix = FileLib.get_suffix(file)
-            if ".xml" == suffix and type == self.XML2SECT:
+            if ".xml" == suffix and typex == self.XML2SECT:
                 # self.make_xml_sections(file)
-                force = False
+                # force = False
                 force = True
                 outdir = Path(Path(file).parent, "sections")
-                AMIAbsSection.make_xml_sections(file, outdir, force)
-            elif ".txt" == suffix or type == self.TXT2PARA:
+                AMIAbsSection.make_xml_sections(file, str(outdir), force)
+            elif ".txt" == suffix or typex == self.TXT2PARA:
                 self.make_text_sections(file)
             else:
                 self.logger.warning(f"no match for suffix: {suffix}")
@@ -627,6 +658,7 @@ class PyAMI:
 
     def apply_func(self, apply_type):
         """ """
+        #
         self.read_file_content()
         if apply_type:
             self.logger.info(f"apply {apply_type}")
@@ -687,39 +719,39 @@ class PyAMI:
         if filter_value is None:
             self.logger.error(f"bad filter_expr {filter_expr}")
             return hit_list
-        filter = filter_value[0]
+        filterx = filter_value[0]
         value = filter_value[1]
         value = self.symbol_ini.replace_symbols_in_arg(value)
         if value is None:
-            self.logger.warning(f"null value in filter {filter}")
+            self.logger.warning(f"null value in filter {filterx}")
             return None
-        if filter == self.CONTAINS and file.endswith(".txt"):
+        if filterx == self.CONTAINS and file.endswith(".txt"):
             if value in content:
                 hit_list.append(value)
 
-        elif filter == self.DICTIONARY and file.endswith(".xml"):
+        elif filterx == self.DICTIONARY and file.endswith(".xml"):
             hits = self.apply_dictionary(hit_list, value)
             if len(hits) > 0:
                 self.logger.debug(f"xpath {type(hits)} {hits}")
                 hit_list.extend(hits)
 
-        elif filter == self.LOOKUP:
+        elif filterx == self.LOOKUP:
             self.logger.debug(f"LOOKUP VALUE {value}")
             hits = self.apply_lookup(hit_list, value)
             if hits:
                 hit_list = hits
-        elif filter == self.REGEX:
+        elif filterx == self.REGEX:
             hits = self.apply_regex(hit_list, value)
             if hits:
                 self.logger.debug(f"regex hits {hits}")
                 hit_list = hits
-        elif filter == self.WIKIDATA_SPARQL:
+        elif filterx == self.WIKIDATA_SPARQL:
             hits = self.apply_wikidata_sparql(hit_list, value)
             if hits:
                 self.logger.warning(f"wikidata_sparql hits {hits}")
                 hit_list = hits
 
-        elif filter == self.XPATH and file.endswith(".xml"):
+        elif filterx == self.XPATH and file.endswith(".xml"):
             tree = etree.parse(file)
             hits = [h.strip() for h in tree.xpath(value)]
             if len(hits) > 0:
@@ -768,6 +800,28 @@ class PyAMI:
     def apply_regex(cls, hits, regex):
         return [hit for hit in hits if re.match(regex, hit)]
 
+    def add_ctree_filenames_to_content_store(self, apply_type):
+        # files = []
+        ctree_list = self.cproject.get_ctrees()
+        # TODO add this functionality to enums
+        subdir_name = None
+        if apply_type == self.SVG2XML:
+            subdir_name = CTree.SVG_DIR
+            subdir_ext = "svg"
+
+        subdirs = []
+        subfiles = []
+        for ctree in ctree_list:
+            sd = ctree.get_existing_reserved_directory(subdir_name)
+            subdir = CSubDir(sd)
+            subdirs.append(subdir)
+            globx = "*.svg"
+            sf = subdir.get_descendants(globx)
+            subfiles.extend(sf)
+
+        print(f"subdirs {len(subdirs)} subfiles {len(subfiles)}")
+        self.content_store.add_files(subfiles)
+
     # def get_search_string(self, filter_expr, search_method):
     #     return filter_expr[len(search_method) + 1:-1]
     #
@@ -779,16 +833,21 @@ class PyAMI:
         :param to_str:  (Default value = True)
 
         """
-        self.logger = AmiLogger(self.logger, initial=10, routine=100)
-        for file in self.content_store.keys():
+        self.ami_logger = AmiLogger(self.logger, initial=10, routine=100)
+        keys = self.content_store.keys()
+        print(f"keys {len(keys)}")
+        for file in keys:
+            filestr = str(file)
             self.logger.info(f"reading... {file}")
-            if file.endswith(".xml"):
+            if filestr.endswith(".xml"):
                 self.read_string_content_to_dict(file, to_str)
-            elif file.endswith(".pdf"):
+            elif filestr.endswith(".svg"):
+                self.read_string_content_to_dict(file, to_str)
+            elif filestr.endswith(".pdf"):
                 self.save_file_name_to_dict(file)
-            elif file.endswith(".png"):
+            elif filestr.endswith(".png"):
                 self.read_binary_content_to_dict(file)
-            elif file.endswith(".txt"):
+            elif filestr.endswith(".txt"):
                 self.read_string_content_to_dict(file, to_str=False)
             else:
                 self.logger.warning(f"cannot read path into string {file}")
@@ -798,7 +857,7 @@ class PyAMI:
         for hit in hits:
             if self.get_dictionary(value) is not None:
                 dictionary = self.get_dictionary(value)
-                self.logger.warning("USE DICTIONARY: NYI", value, dictionary)
+                self.logger.warning("USE DICTIONARY: NYI" + str(value) + str(dictionary))
             elif value == 'wikidata':
                 qnumber = self.wikipedia_lookup.lookup_wikidata(hit)
                 self.ami_logger.info(f"qnumber {qnumber}")
@@ -857,22 +916,43 @@ class PyAMI:
         """
         self.logger.warning(f"func_tuple {len(func_tuple)}: {func_tuple[0]} => {func_tuple[1]}")
 
+        open_flag = self.get_open_type(apply_type)
         for file in self.content_store.keys():
             self.logger.warning(f"converting {file}")
-            data = self.content_store(file)
+            data = self.content_store.get_file_contents(file)
+            if not data:
+                encoding = "utf-8" if open_flag == "r" else None
+                with open(file, open_flag, encoding=encoding) as f:
+                    data = f.read()
+            print(f"file {file} data {len(data)}")
             self.logger.debug(f"path: {file} => {func_tuple[0]}")
             new_file = self.create_file_name(file, func_tuple[1])
+            print(f"new file: {new_file}")
 
             try:
                 new_data = func_tuple[0](data)
+                print(f"new {len(new_data)}")
+            except Exception as err:
+                print(f"cannot convert {file} because {err} skipped")
+                return
+
+            try:
                 self.store_or_write_data(file, new_data, new_file)
-            except Exception as pdferr:
-                self.logger.warning(
-                    f"cannot read PDF {file} because {pdferr} (probably not a PDF), skipped")
+            except Exception as err:
+                print(f"cannot save {new_file} because {err} skipped")
+                return
         return
 
+    def get_open_type(self, apply_type):
+        """ gets 'rb' for binary files or 'r' for text"""
+        open_type = "rb"
+        if str(apply_type) in [self.SVG2XML, self.XML2TXT, self.XML2HTML, self.TXT2SENT]:
+            open_type = "r"
+        return open_type
+
     # needs fixing
-    def create_file_name(self, file, extension):
+    @classmethod
+    def create_file_name(cls, file, extension):
         pathname = Path(file)
         return str(pathname.with_suffix(extension))
 
@@ -943,16 +1023,22 @@ class PyAMI:
             for assertion in assertions:
                 self.parser.parse_and_run(assertion)
 
-    def flagged(self, flag):
+    def is_flag_true(self, flag):
         """is flag set in flag_dict
-
-        if flag is in flag_dict and not falsy return true
-        :flag:
-
+        values can be None, "None", "True", True, "False", False or strings
+        Messay
         :param flag: 
 
         """
-        return True if self.flag_dict.get(flag) else False
+        val = self.flag_dict.get(flag)
+        if not val or val == "None" or val == "False":
+            return False
+        if val:
+            return True
+        try:
+            return ast.literal_eval(val)
+        except Exception:
+            return False
 
 
 class ContentStore:
@@ -977,9 +1063,26 @@ class ContentStore:
     def keys(self):
         return self.file_dict.keys() if self.file_dict is not None else None
 
-    def get_file_contents(self):
+    def get_file_contents(self, file):
         """return dictionary or None"""
-        return self.file_dict
+        return self.file_dict.get(file)
+
+
+class Converter(Enum):
+
+    def __init__(self, converter_class, intype, outtype, indir=".", outdir="."):
+        self.intype = intype
+        self.indir = indir
+        self.outtype = outtype
+        self.outdir = outdir
+
+    PDF2SVG = (Pdf2SvgConverter, "pdf", "svg", ".", "svg")
+    # PDF2TXT = (PdfReader, Filetype.F_PDF, Filetype.F_TXT, ".", ".")
+    XML2HTML = (Xml2HtmlConverter, "pdf", "html", ".", ".")
+    XML2TXT = (Xml2TxtConverter, "xml", "txt", ".", ".")
+    SVG2XML = (Svg2XmlConverter, "svg", "xml", "svg", "xml")
+    # TXT2SENT = (Txt2SentSplitter, Filetype.F_TXT, Filetype.F_TXT, ".", "sent")
+
 
 def main():
     # make_cmd()
@@ -990,8 +1093,8 @@ def main():
     run_dsl = False
     run_tests = False  # needs re-implementing
     run_commands = True
-#    run_commands = False
-#    run_tests = True
+    #    run_commands = False
+    #    run_tests = True
 
     PyAMI.logger.warning(
         f"\n============== running pyami main ===============\n{sys.argv[1:]}")
@@ -1014,6 +1117,4 @@ if __name__ == "__main__":
 
 else:
 
-
     PyAMI.logger.debug(" NOT running search main anyway")
-

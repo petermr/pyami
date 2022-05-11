@@ -350,7 +350,6 @@ class AmiPage:
             et.write(f, pretty_print=pretty_print)
 
 
-
 class AmiParagraph:
     """holds a list of CompositeLines
     """
@@ -721,7 +720,7 @@ class SvgText:
         try:
             return float(attval)
         except Exception as e:
-            return None
+            pass
 
 
 class HtmlUtil:

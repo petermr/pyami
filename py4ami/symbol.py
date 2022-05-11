@@ -97,12 +97,14 @@ class SymbolIni:
             else:
                 self.logger.warning(f"*** cannot find config path {file} ***")
 
-    def get_home_dir(self, config_file):
+    @classmethod
+    def get_home_dir(cls, config_file):
         home = os.path.expanduser("~")
         file = home + config_file[len("~"):]
         return file
 
-    def get_code_dir(self, config_file):
+    @classmethod
+    def get_code_dir(cls, config_file):
         home = os.path.expanduser("~")
         file = __file__
         print("FILE ", file)
@@ -147,7 +149,7 @@ assumes value
             # we are going through ALL the symbols? possibly needs rethinking
             val = item[1]
             if val.startswith("http"):
-                if self.pyami.flagged(self.pyami.CHECK_URLS):
+                if self.pyami.is_flag_true(self.pyami.CHECK_URLS):
                     try:
                         with urllib.request.urlopen(val) as response:
                             html = response.read()
@@ -279,7 +281,8 @@ assumes value
 
         # return arg[2:-1] if arg.startswith(SYM_START) and arg.endswith(SYM_END) else arg
 
-    def is_reserved_symbol(self, symbol):
+    @classmethod
+    def is_reserved_symbol(cls, symbol):
         """reserved symbols start with underscore"""
         return symbol is not None and symbol.startswith("_")
 

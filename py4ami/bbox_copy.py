@@ -14,7 +14,7 @@ class BBox:
     WIDTH = "width"
     HEIGHT = "height"
 
-# indexes for convenience
+    # indexes for convenience
     MIN = 0
     MAX = 1
 
@@ -192,7 +192,6 @@ class BBox:
     @classmethod
     def intersect_range(cls, range0, range1):
         """intersects 2 range tuples"""
-        rrange = ()
         if len(range0) != 2 or len(range1) != 2:
             return None
         min_coord = max(range0[cls.MIN], range1[cls.MIN])
@@ -200,15 +199,6 @@ class BBox:
         if max_coord < min_coord:
             return None
         return [min_coord, max_coord]
-        # maxmin = max(range0[cls.MIN], range1[cls.MIN])
-        # minmax = min(range0[cls.NAX], range1[cls.MAX])
-        # rrange = [maxmin, minmax] if minmax >= maxmin else None
-            # print(f" maxmin {maxmin} minmax {minmax} -> {rrange}")
-
-        # if len(range0) == 2 and len(range1) == 2:
-        #     maxmin = max(range0[0], range1[0])
-        #     minmax = min(range0[1], range1[1])
-        #     rrange = [maxmin, minmax] if minmax >= maxmin else None
 
     @classmethod
     def union_range(cls, range0, range1):
