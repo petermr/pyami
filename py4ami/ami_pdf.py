@@ -117,32 +117,16 @@ class AmiPage:
         # dot_len = 10 # in case we need dots in output
         if not self.text_spans or self.text_spans is not list:
             print(f"======== {self.page_path} =========")
-            self.page_element = lxml.etree.parse(str(self.page_path))
-            self.text_elements = self.page_element.findall(f"//{{{SVG_NS}}}text")
-            # print(f"texts {len(self.text_elements)}")
-            self.text_spans = []
-            for text_index, text_element in enumerate(self.text_elements):
-                if text_element.attrib.get("rotateDegrees") and not rotated_text:
-                    # print(f"rotated text")
-                    continue
-                svg_text = SvgText(text_element)
-                text_span = svg_text.create_text_span()
-                if not text_span:
-                    print(f"cannot create TextSpan")
-                    continue
-                bbox = text_span.create_bbox()
-                if not bbox.intersect(content_box):
-                    # print(f"outside content_box")
-                    continue
 
-                if text_span.has_empty_text_content():
-                    # test for whitespace content
-                    # print(f"whitespace element skipped")
-                    continue
-                # if (len(self.text_spans) % dot_len) == 0:
-                #     print(".", end="")
-                self.text_spans.append(text_span)
-            print(f"no. text_spans {len(self.text_spans)}")
+            if self.page_path:
+                self.page_element = lxml.etree.parse(str(self.page_path))
+            elif self.data:
+                self.page_element = lxml.etree.toxml(self.data)
+            else:
+                self.logger.warning("no svg file or data")
+                return
+            self.text_elements = self.page_element.findall(f"//{{{SVG_NS}}}text")
+            self.create_text_spans_from_text_elements(content_box, rotated_text)
             for axis in sort_axes:
                 if axis == X:
                     self.text_spans = sorted(self.text_spans, key=lambda span: span.start_x)
@@ -152,6 +136,31 @@ class AmiPage:
                 print(f"text_spans {axis}: {self.text_spans}")
 
         return self.text_spans
+
+    def create_text_spans_from_text_elements(self, content_box, rotated_text):
+        self.text_spans = []
+        for text_index, text_element in enumerate(self.text_elements):
+            if text_element.attrib.get("rotateDegrees") and not rotated_text:
+                # print(f"rotated text")
+                continue
+            svg_text = SvgText(text_element)
+            text_span = svg_text.create_text_span()
+            if not text_span:
+                print(f"cannot create TextSpan")
+                continue
+            bbox = text_span.create_bbox()
+            if not bbox.intersect(content_box):
+                # print(f"outside content_box")
+                continue
+
+            if text_span.has_empty_text_content():
+                # test for whitespace content
+                # print(f"whitespace element skipped")
+                continue
+            # if (len(self.text_spans) % dot_len) == 0:
+            #     print(".", end="")
+            self.text_spans.append(text_span)
+        print(f"no. text_spans {len(self.text_spans)}")
 
     # AmiPage
 

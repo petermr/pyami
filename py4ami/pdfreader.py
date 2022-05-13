@@ -123,7 +123,7 @@ class Svg2XmlConverter:
 
     @classmethod
     def read_and_convert(cls, file, output_file, rotated_text=False, pretty_print=True, use_lines=False):
-        """ converst a PDF path (to text)
+        """ converts a PDF path (to text)
 
          """
         print(f"file: {file}")

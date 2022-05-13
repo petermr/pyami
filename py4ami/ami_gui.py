@@ -1141,14 +1141,20 @@ def print_console():
     root.after(1000, print_console)
 
 
-# main
-use_console = False  # debugging not yet finished
-root = tk.Tk()
-# screen = Frame(root)
-# screen.pack()
-app = AmiGui(master=root)
-console = tk.Text(app)
-# console.pack()
-#    print_console()
+def run_gui():
+    global root, console
+    use_console = False  # debugging not yet finished
+    root = tk.Tk()
+    # screen = Frame(root)
+    # screen.pack()
+    app = AmiGui(master=root)
+    console = tk.Text(app)
+    # console.pack()
+    #    print_console()
+    app.mainloop()
 
-app.mainloop()
+def main():
+    run_gui()
+
+if __name__ == '__main__':
+    main()

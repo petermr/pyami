@@ -12,6 +12,7 @@ from pathlib import Path
 import argparse
 from enum import Enum
 # local
+from py4ami.ami_convert import ConvType, Converters
 from py4ami.ami_sections import AMIAbsSection
 from py4ami.dict_lib import AmiDictionary
 from py4ami.examples import Examples
@@ -64,17 +65,18 @@ class PyAMI:
     WIKIDATA_SPARQL = "wikidata_sparql"
     XPATH = "xpath"
     # apply methods 1:1 input-output
+    # obsolete (use Converters)
     PDF2TXT = "pdf2txt"
     PDF2SVG = "pdf2svg"
     SVG2XML = "svg2xml"
     XML2HTML = "xml2html"
     TXT2SENT = "txt2sent"
     XML2TXT = "xml2txt"
+    TXT2PARA = "txt2para"
+    XML2SECT = "xml2sect"
     # combine methods n:1 input-output
     CONCAT_STR = "concat_str"
     # split methods 1:n input-output
-    TXT2PARA = "txt2para"
-    XML2SECT = "xml2sect"
     # symbols to update table
     SPECIAL_SYMBOLS = ["_proj"]
     LOGLEVEL = "loglevel"
@@ -149,7 +151,8 @@ class PyAMI:
         """
         parser = argparse.ArgumentParser(
             description='Search sections with dictionaries and patterns')
-        apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
+        # apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
+        apply_choices = ConvType.list_values()
         self.logger.debug(f"ch {apply_choices}")
         parser.add_argument('--apply', nargs="+",
                             #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
@@ -511,6 +514,9 @@ class PyAMI:
             self.split(self.args.get(self.SPLIT))
         if self.args[self.APPLY]:
             apply_type = self.args.get(self.APPLY)
+            converter = Converters.get_converter(apply_type)
+            if not converter:
+                raise ValueError(f"cannot find converter for {apply_type}")
             self.add_ctree_filenames_to_content_store(apply_type)
             # print(f"content_store {self.content_store.file_dict}")
             self.apply_func(apply_type)
@@ -842,6 +848,7 @@ class PyAMI:
             if filestr.endswith(".xml"):
                 self.read_string_content_to_dict(file, to_str)
             elif filestr.endswith(".svg"):
+                # self.save_file_name_to_dict(file)
                 self.read_string_content_to_dict(file, to_str)
             elif filestr.endswith(".pdf"):
                 self.save_file_name_to_dict(file)
