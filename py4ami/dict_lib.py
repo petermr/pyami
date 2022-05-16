@@ -11,6 +11,7 @@ from abc import ABC
 from pathlib import Path
 
 """AMI dictionary classes"""
+"""this may have circular import of AmiDictionary"""
 from py4ami.wikimedia import WikidataLookup, WikidataPage
 from py4ami.util import Util
 from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3

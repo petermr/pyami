@@ -5,7 +5,7 @@ from lxml import etree as ET
 
 # local
 
-#from py4ami.dict_lib import AmiDictionary
+# from py4ami.dict_lib import AmiDictionary
 
 logging.debug("loading wikimedia.py")
 
@@ -308,12 +308,13 @@ class WikidataPage:
 
 class WikidataSparql:
 
-    def __init__(self):
-        pass
+    def __init__(self, dictionary):
+        self.dictionary = dictionary
 
     def update_from_sparqlx(self, sparql_file, sparql_to_dictionary):
         self.sparql_to_dictionary = sparql_to_dictionary
-        self.check_unique_wikidata_ids()
+
+        self.dictionary.check_unique_wikidata_ids()
         self.create_sparql_result_list(sparql_file)
         self.create_sparql_result_by_wikidata_id()
         self.update_dictionary_from_sparql()
@@ -330,6 +331,7 @@ class WikidataSparql:
         self.sparql_result_by_wikidata_id = {}
         id_element = self.sparql_to_dictionary[ID_NAME]
         for result in self.sparql_result_list:
+            # TODO fix syntax
             bindings = result.findall(SPQ_BINDING + "[@name='%s']/" + SPQ_URI % id_element, NS_MAP)
             if len(bindings) == 0:
                 print("no bindings for {id_element}")
@@ -353,7 +355,7 @@ class WikidataSparql:
             keystring += f"_{key}"
             for i, sparql_file in enumerate(sparql_files):
                 assert (os.path.exists(sparql_file))
-                dictionary = SearchDictionary(dictionary_file)
+                dictionary = AmiDictionary(dictionary_file)
                 dictionary.update_from_sparqlx(sparql_file, sparq2dict)
                 dictionary_file = f"{dictionary_root}{keystring}_{i + 1}.xml"
                 dictionary.write(dictionary_file)
