@@ -1,3 +1,5 @@
+import unittest
+
 from lxml import etree as ET
 import os
 import pprint
@@ -7,15 +9,13 @@ import pprint
 from py4ami.wikimedia import WikidataSparql
 from py4ami.dict_lib import AmiDictionary
 
-
-class SearchDictionaryTest:
-    @classmethod
+class TestSearchDictionary:
+    @unittest.skip(reason="needs debugging")
     def test_parse_wikidata_page(cls):
         qitem = "Q144362"  # azulene
         ahref_dict = cls.get_wikipedia_page_links(qitem, ["en", "de", "zz"])
         print(ahref_dict)
 
-    @classmethod
     def test_create_from_words(cls):
 
         words = ["limonene", "alpha-pinene", "lantana camara"]
@@ -27,8 +27,8 @@ class SearchDictionaryTest:
             ids = wikidata_page.get_properties()
             print(ids)
 
-    @classmethod
-    def test(cls):
+    @unittest.skip(reason="needs debugging")
+    def test_sparql(cls):
         from py4ami.constants import PHYSCHEM_RESOURCES
         PLANT = os.path.join(PHYSCHEM_RESOURCES, "plant")
         sparql_file = os.path.join(PLANT, "plant_part_sparql.xml")
@@ -54,7 +54,7 @@ class SearchDictionaryTest:
         print("saving to", ff)
         dictionary.write(ff)
 
-    @classmethod
+    @unittest.skip(reason="needs debugging")
     def test_invasive(cls):
         """
         """
@@ -94,7 +94,7 @@ class SearchDictionaryTest:
 
         WikidataSparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-    @classmethod
+    @unittest.skip(reason="needs debugging")
     def test_plant_genus(cls):
         """
         """
@@ -134,7 +134,7 @@ class SearchDictionaryTest:
 
         WikidataSparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-    @classmethod
+    @unittest.skip(reason="needs debugging")
     def test_compound(cls):
         """
         """
@@ -180,7 +180,7 @@ class SearchDictionaryTest:
 
         WikidataSparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-    @classmethod
+    @unittest.skip(reason="needs debugging")
     def test_plant_part(cls):
         """
         """
@@ -211,7 +211,7 @@ class SearchDictionaryTest:
 
         WikidataSparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-    @classmethod
+    @unittest.skip(reason="needs debugging")
     def test_plant(cls):
         """
         <result>
@@ -233,21 +233,21 @@ class SearchDictionaryTest:
         option = "test_dict"
         # option = "wikipedia"
         if option == "sparql":
-            SearchDictionaryTest.test()
+            TestSearchDictionary.test()
         elif option == "plant":
-            SearchDictionaryTest.test_plant()
+            TestSearchDictionary.test_plant()
         elif option == "invasive":
-            SearchDictionaryTest.test_invasive()
+            TestSearchDictionary.test_invasive()
         elif option == "genus":
-            SearchDictionaryTest.test_plant_genus()
+            TestSearchDictionary.test_plant_genus()
         elif option == "compound":
-            SearchDictionaryTest.test_compound()
+            TestSearchDictionary.test_compound()
         elif option == "plant_part":
-            SearchDictionaryTest.test_plant_part()
+            TestSearchDictionary.test_plant_part()
         elif option == "test_dict":
-            SearchDictionaryTest.test_create_from_words()
+            TestSearchDictionary.test_create_from_words()
         elif option == "wikipedia":
-            SearchDictionaryTest.test_parse_wikidata_page()
+            TestSearchDictionary.test_parse_wikidata_page()
         else:
             print("no option given")
 
@@ -282,4 +282,4 @@ class SearchDictionaryTest:
 
 
 if __name__ == '__main__':
-    SearchDictionaryTest.test_plant()
+    TestSearchDictionary.test_plant()

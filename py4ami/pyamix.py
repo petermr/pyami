@@ -117,6 +117,7 @@ class PyAMI:
         self.current_ctree = None  # current ctree (may change during iteration
         self.cproject = None
         self.ami_logger = None
+        self.outfile = None
         if self.show_symbols:
             pprint.pp(f"SYMBOLS\n {self.symbol_ini.symbols}")
 
@@ -236,19 +237,19 @@ class PyAMI:
             for arglist in arglistlist:
                 self.run_command(arglist)
 
-    def run_command(self, arglist):
+    def run_command(self, args):
         """parses cmdline, runs command and outputs symbols
 
-        :param arglist: either a string or a list of strings
+        :param args: either a string or a list of strings
 
-        if arglist is a string we split it at spaces into a list of strings
+        if args is a string we split it at spaces into a list of strings
 
         """
-        if isinstance(arglist, str):
-            arglist = arglist.split(" ")
+        if isinstance(args, str):
+            args = args.split(" ")
 
-        self.logger.debug(f"********** raw arglist {arglist}")
-        self.parse_and_run_args(arglist)
+        self.logger.debug(f"********** raw arglist {args}")
+        self.parse_and_run_args(args)
         if self.is_flag_true(self.PRINT_SYMBOLS):
             self.symbol_ini.print_symbols()
 
@@ -517,9 +518,16 @@ class PyAMI:
             converter = Converters.get_converter(apply_type)
             if not converter:
                 raise ValueError(f"cannot find converter for {apply_type}")
-            self.add_ctree_filenames_to_content_store(apply_type)
-            # print(f"content_store {self.content_store.file_dict}")
-            self.apply_func(apply_type)
+            previous = False
+            if previous:
+                self.add_ctree_filenames_to_content_store(apply_type)
+                # print(f"content_store {self.content_store.file_dict}")
+                self.apply_func(apply_type)
+            else:
+                converter = Converters.get_converter(apply_type)()
+                print(f"{type(converter)}")
+                converter.iterate_cproject(cproject=self.proj)
+
         if self.args[self.FILTER]:
             self.filter_file()
         if self.args[self.COMBINE]:
@@ -871,7 +879,7 @@ class PyAMI:
             else:
                 self.logger.error(f"cannot parse lookup: {value}")
 
-    def apply_wikidata_sparql(self, hit_list, value):
+    def apply_wikidata_sparql(self, hit_list):
         if hit_list:
             self.logger.warning(f"wikidata input {hit_list}")
         return hit_list
