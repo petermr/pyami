@@ -2,6 +2,7 @@ import logging
 import os
 from shutil import copyfile
 from lxml import etree as ET
+from lxml import html
 
 # local
 
@@ -306,6 +307,18 @@ class WikidataPage:
         return ids
 
 
+    @classmethod
+    def get_predicate_object(cls, wikidata_file, pred, obj):
+        """finds wikidata predicate+object
+        a WikidataPage contains a list of predicate+obj
+        we search with their values
+        :param
+        """
+        root = html.parse(wikidata_file).getroot()
+        pred_obj_list = root.xpath(f".//div[@id='{pred}']//div[@class='wikibase-snakview-body']//a[@title='{obj}']")
+        return pred_obj_list
+
+
 class WikidataSparql:
 
     def __init__(self, dictionary):
@@ -402,7 +415,6 @@ class WikidataSparql:
         sparql.setQuery(query)
         # sparql.setReturnFormat(XML)
         return sparql.query().convert().toxml()
-
 
 class ParserWrapper:
     @classmethod
