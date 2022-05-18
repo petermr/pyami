@@ -9,6 +9,7 @@ import os
 import re
 from abc import ABC
 from pathlib import Path
+from urllib.error import URLError
 
 """AMI dictionary classes"""
 """this may have circular import of AmiDictionary"""
@@ -33,6 +34,10 @@ WIKIDATA_ID = "wikidataID"
 WIKIDATA_URL = "wikidataURL"
 WIKIDATA_SITE = "https://www.wikidata.org/wiki/"
 WIKIPEDIA_PAGE = "wikipediaPage"
+TYPE = "type"
+ANY = "ANY"
+WIKIDATA_HITS = "wikidata_hits"
+
 # elements
 
 logger = logging.getLogger("dict_lib")
@@ -120,21 +125,17 @@ class AmiDictionary:
             for entry in self.entries:
                 if AmiDictionary.TERM in entry.attrib:
                     term = self.term_from_entry(entry)
-#                    print("tterm", term)
                     # single word terms
                     if " " not in term:
                         self.add_processed_term(term)
                     elif self.split_terms:
                         # multiword terms
                         for termx in term.split(" "):
-                            #                            print("term", termx)
                             self.add_processed_term(termx)
                     else:
                         # add multiword term
                         self.add_processed_term(term)
 
-        #            print(len(self.term_set), list(sorted(self.term_set)))
-        #        print ("terms", len(self.term_set))
         return self.term_set
 
     def get_or_create_multiword_terms(self):
@@ -233,22 +234,23 @@ class AmiDictionary:
             et.write(f, encoding="utf-8",
                      xml_declaration=True, pretty_print=True)
 
-    def add_wikidata_from_terms(self):
+    def add_wikidata_from_terms(self, description=ANY):
 
         entries = self.root.findall(ENTRY)
         for entry in entries:
-            self.add_wikidata_to_entry(entry)
+            self.add_wikidata_to_entry(entry, description=description)
 
-    def add_wikidata_to_entry(self, entry):
+    def add_wikidata_to_entry(self, entry, description=ANY):
         term = entry.attrib[TERM]
         if entry.get(WIKIDATA_ID) is None:
             qitem, desc, qitems = self.wikidata_lookup.lookup_wikidata(term)
-            if qitem is not None:
+
+            if qitem is not None and (description == desc or description == ANY):
                 entry.attrib[WIKIDATA_ID] = qitem
                 entry.attrib[WIKIDATA_URL] = WIKIDATA_SITE + qitem
                 entry.attrib[DESC] = desc
-                synonym = ET.SubElement(entry, "synonym")
-                synonym.attrib["type"] = "wikidata_hits"
+                synonym = ET.SubElement(entry, Synonym.TAG)
+                synonym.attrib[TYPE] = WIKIDATA_HITS
                 synonym.text = str(qitems)
                 wikidata_page = WikidataPage(qitem)
                 assert wikidata_page is not None
@@ -424,7 +426,6 @@ class AmiDictionaries:
             self.dictionary_dict[key] = dictionary
         except Exception as ex:
             print("Failed to read dictionary", file, ex)
-#        print(dictionary.get_or_create_term_set())
         return
 
 
@@ -545,13 +546,11 @@ class AMIDict(AbsDictElem):
             with urllib.request.urlopen(xml_url) as f:
                 # content = f.read().decode('utf-8')
                 content = f.read()
-        except urllib.error.URLError as e:
+        except URLError as e:
             raise AMIDictError(f"Failed to read URL: {xml_url}; reason = {e.reason}")
         assert content is not None
 
         assert type(content) is bytes
-        # msg = f"content {content}"
-        # assert content == "foo", msg
         element = etree.fromstring(content)
 
         assert element.tag == AMIDict.TAG
@@ -1022,6 +1021,26 @@ class Entry(AbsDictElem):
     @classmethod
     def create_and_add_to(cls, parent_element):
         return etree.SubElement(parent_element, cls.TAG)
+
+    @property
+    def name(self):
+        return self.element.get(self.NAME_A)
+
+    @property
+    def term(self):
+        return self.element.get(self.TERM_A)
+
+    @property
+    def term(self):
+        return self.element.get(self.TERM_A)
+
+    @property
+    def get_wikidata_id(self):
+        return self.element.get(self.WIKIDATA_A)
+
+    @property
+    def get_wikipedia_page(self):
+        return self.element.get(self.WIKIPEDIA_A)
 
     def get_synonyms(self):
         """list of child synonym objects"""

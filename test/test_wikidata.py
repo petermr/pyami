@@ -22,9 +22,10 @@ except Exception:
 
 RESOURCES_DIR = Path(Path(__file__).parent.parent, "test", "resources")
 TEMP_DIR = Path(Path(__file__).parent.parent, "temp")
+DICTIONARY_DIR = Path(os.path.expanduser("~"), "projects", "CEVOpen", "dictionary")
 
 
-# NOTE some of these are lengthy (seconds) as they lookup on the Net
+# NOTE some of these are lengthy (seconds) as they lookup on the Ne
 
 class TestWikidataLookup:
 
@@ -194,6 +195,34 @@ class TestWikidataLookup:
         assert entry.get(WIKIDATA_ID) == "Q27155908"
 
         dictionary.write(Path(TEMP_DIR, "dict_5.xml"))
+
+    def test_add_wikidata_to_complete_dictionary(self):
+        input_dir = DICTIONARY_DIR
+        input_dir = TEMP_DIR
+        output_dir = TEMP_DIR
+        start_entry = 0
+        end_entry = 1000000
+        path = Path(input_dir, "eoCompound", "eoCompound1.xml")
+        assert path.exists(), f"{path} should exist"
+        dictionary = AmiDictionary(str(path))
+        assert len(dictionary.entries) == 2114
+        description = "chemical compound"
+        for entry in dictionary.entries[start_entry: end_entry]:
+            if entry.get(WIKIDATA_ID) is None:
+                term = entry.term()
+                print(f"no wikidataID in entry: {term}")
+                dictionary.add_wikidata_to_entry(entry, description=description)
+                wikidata_id = entry.get(WIKIDATA_ID)
+                if wikidata_id is None:
+                    print(f"no wikidata entry for {term}")
+                    entry.attrib[WIKIDATA_ID] = "NOT_FOUND"
+                else:
+                    print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
+        dictionary.write(Path(output_dir, "eoCompound", "eoCompound1.xml"))
+
+
+
+
 
 
 
