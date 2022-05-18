@@ -60,6 +60,7 @@ class AmiDictionary:
         self.split_terms = False
         self.term_set = set()
         self.wikilangs = wikilangs
+        self.wikidata_lookup = WikidataLookup()
 
         if xml_file is not None:
             if not os.path.exists(xml_file):
@@ -234,21 +235,26 @@ class AmiDictionary:
 
     def add_wikidata_from_terms(self):
 
-        wikidata_lookup = WikidataLookup()
         entries = self.root.findall(ENTRY)
         for entry in entries:
-            term = entry.attrib[TERM]
-            qitem, desc, qitems = wikidata_lookup.lookup_wikidata(term)
-            entry.attrib[WIKIDATA_ID] = qitem
-            entry.attrib[WIKIDATA_URL] = WIKIDATA_SITE + qitem
-            entry.attrib[DESC] = desc
-            synonym = ET.SubElement(entry, "synonym")
-            synonym.attrib["type"] = "wikidata_hits"
-            synonym.text = str(qitems)
-            wikidata_page = WikidataPage(qitem)
-            wikipedia_dict = wikidata_page.get_wikipedia_page_links(
-                self.wikilangs)
-            self.add_wikipedia_page_links(entry, wikipedia_dict)
+            self.add_wikidata_to_entry(entry)
+
+    def add_wikidata_to_entry(self, entry):
+        term = entry.attrib[TERM]
+        if entry.get(WIKIDATA_ID) is None:
+            qitem, desc, qitems = self.wikidata_lookup.lookup_wikidata(term)
+            if qitem is not None:
+                entry.attrib[WIKIDATA_ID] = qitem
+                entry.attrib[WIKIDATA_URL] = WIKIDATA_SITE + qitem
+                entry.attrib[DESC] = desc
+                synonym = ET.SubElement(entry, "synonym")
+                synonym.attrib["type"] = "wikidata_hits"
+                synonym.text = str(qitems)
+                wikidata_page = WikidataPage(qitem)
+                assert wikidata_page is not None
+                wikipedia_dict = wikidata_page.get_wikipedia_page_links(
+                    self.wikilangs)
+                self.add_wikipedia_page_links(entry, wikipedia_dict)
 
     @classmethod
     def add_wikipedia_page_links(cls, entry, wikipedia_dict):
@@ -508,6 +514,7 @@ class AMIDict(AbsDictElem):
         assert self.element is not None
         self.entries = []  # child entries
         self.logger = logging.getLogger("amidict")
+        self.wikidata_lookup = WikidataLookup()
 
     @classmethod
     def create_minimal_dictionary(cls):
@@ -942,9 +949,9 @@ class AMIDict(AbsDictElem):
     def lookup_terms_in_wikidata(self, terms):
         """looks up terms in Wikidata
         uses self.lookup_wikidata"""
-        wikidata_lookup = WikidataLookup()
+        # wikidata_lookup = WikidataLookup()
         for term in terms:
-            qitem, desc, _ = wikidata_lookup.lookup_wikidata(term)
+            qitem, desc, _ = self.wikidata_lookup.lookup_wikidata(term)
             if qitem is None:
                 print(f"could not lookup Wikidata: {term}")
             else:
