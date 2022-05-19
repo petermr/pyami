@@ -173,6 +173,14 @@ class TestWikidataLookup:
         qval = WikidataPage(file).get_predicate_object(pred, obj)
         assert qval[0].text == 'chemical compound'
 
+    def test_get_title(self):
+        title = WikidataPage("q407418").get_title()
+        assert title == "L-menthol"
+
+    def test_get_alias_list(self):
+        aliases = WikidataPage("q407418").get_aliases()
+        assert len(aliases) >= 30 and aliases[0:2] == ["l-menthol", "levomenthol"]
+
     def test_update_dictionary_with_wikidata_ids(self):
         """Update dictionary by adding Wikidata IDs where missing"""
         """

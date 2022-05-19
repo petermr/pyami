@@ -11,6 +11,7 @@ from abc import ABC
 from pathlib import Path
 from urllib.error import URLError
 
+# local
 """AMI dictionary classes"""
 """this may have circular import of AmiDictionary"""
 from py4ami.wikimedia import WikidataLookup, WikidataPage

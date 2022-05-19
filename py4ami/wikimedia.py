@@ -197,6 +197,8 @@ class WikidataPage:
     def get_wikidata_site(cls):
         return WIKIDATA_SITE
 
+# WikidataPage
+
     def get_wikipedia_page_links(self, lang_list):
         """
 <h2 class="wb-section-heading section-heading wikibase-sitelinks" dirx="auto">
@@ -270,6 +272,8 @@ class WikidataPage:
     <div class="wikibase-statementgroupview-property">
     """
 
+    # WikidataPage
+
     def get_properties(self):
         pdivs = self.root.findall(".//div[@class='wikibase-statementgroupview']")
         ids = [pdiv.attrib[ID] for pdiv in pdivs]
@@ -291,6 +295,29 @@ class WikidataPage:
         pred_obj_list = self.root.xpath(
             f".//div[@id='{pred}']//div[@class='wikibase-snakview-body']//a[@title='{obj}']")
         return pred_obj_list
+
+    def get_title(self):
+        """gets title (string preceeding Q/P number)
+        identical to label in language of browser (or only en?)
+        """
+        title_elem_list = self.root.xpath(
+            f"/html/body/div/h1/span/span[@class='wikibase-title-label']")
+        title = title_elem_list[0].text
+        return title
+
+    def get_aliases(self):
+        """gets aliases ("also known as")
+        """
+        """
+        < ul
+        class ="wikibase-entitytermsview-aliases" >
+        < li class ="wikibase-entitytermsview-aliases-alias" data-aliases-separator="|" > l-menthol < / li > 
+        < li class ="wikibase-entitytermsview-aliases-alias" data-aliases-separator="|" > levomenthol < / li > 
+        """
+        alias_elem_list = self.root.xpath(
+            f"/html/body//ul[@class='wikibase-entitytermsview-aliases']/li")
+        alias_list = [li.text for li in alias_elem_list]
+        return alias_list
 
 
 class WikidataSparql:
@@ -329,6 +356,7 @@ class WikidataSparql:
                     self.sparql_result_by_wikidata_id[wikidata_id] = []
                 self.sparql_result_by_wikidata_id[wikidata_id].append(result)
 
+# WikidataSparql
     @classmethod
     def apply_dicts_and_sparql(cls, dictionary_file, rename_file, sparql2amidict_dict, sparql_files):
         """TODO this is a mess"""
@@ -356,6 +384,8 @@ class WikidataSparql:
         dictionary_file = f"{dictionary_root}{keystring}_{i + 1}.xml"
         dictionary.write(dictionary_file)
         return dictionary_file
+
+    # WikidataSparql
 
     def update_dictionary_from_sparql(self):
 
