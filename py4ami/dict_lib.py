@@ -33,11 +33,12 @@ NAME = "name"
 TERM = "term"
 WIKIDATA_ID = "wikidataID"
 WIKIDATA_URL = "wikidataURL"
-WIKIDATA_SITE = "https://www.wikidata.org/wiki/"
+WIKIDATA_SITE = "https://www.wikidata.org/entity/"
 WIKIPEDIA_PAGE = "wikipediaPage"
 TYPE = "type"
 ANY = "ANY"
 WIKIDATA_HITS = "wikidata_hits"
+WIKIDATA_HIT = "wikidataHit"
 
 # elements
 
@@ -49,6 +50,7 @@ class AmiDictionary:
 
     """
     TERM = "term"
+    NOT_FOUND = "NOT_FOUND"
 
     def __init__(self, xml_file=None, name=None, wikilangs=None, **kwargs):
         self.logger = logger
@@ -235,29 +237,36 @@ class AmiDictionary:
             et.write(f, encoding="utf-8",
                      xml_declaration=True, pretty_print=True)
 
-    def add_wikidata_from_terms(self, description=ANY):
+    def add_wikidata_from_terms(self, allowed_descriptions=ANY):
 
         entries = self.root.findall(ENTRY)
         for entry in entries:
-            self.add_wikidata_to_entry(entry, description=description)
+            self.lookup_and_add_wikidata_to_entry(entry, allowed_descriptions=allowed_descriptions)
 
-    def add_wikidata_to_entry(self, entry, description=ANY):
+    def lookup_and_add_wikidata_to_entry(self, entry, allowed_descriptions=ANY):
+        """lookup term and  add wikidata Info to entry if desc fits required description
+        :param entry: to add wikidata to
+        :param allowed_descriptions: only add if the description fits (ANY overrides)"""
         term = entry.attrib[TERM]
-        if entry.get(WIKIDATA_ID) is None:
-            qitem, desc, qitems = self.wikidata_lookup.lookup_wikidata(term)
+        qitem, desc, qitems = self.wikidata_lookup.lookup_wikidata(term)
+        if not qitem:
+            print(f"Wikidata lookup for {term} failed")
+            return
 
-            if qitem is not None and (description == desc or description == ANY):
-                entry.attrib[WIKIDATA_ID] = qitem
-                entry.attrib[WIKIDATA_URL] = WIKIDATA_SITE + qitem
-                entry.attrib[DESC] = desc
-                synonym = ET.SubElement(entry, Synonym.TAG)
-                synonym.attrib[TYPE] = WIKIDATA_HITS
-                synonym.text = str(qitems)
-                wikidata_page = WikidataPage(qitem)
-                assert wikidata_page is not None
-                wikipedia_dict = wikidata_page.get_wikipedia_page_links(
-                    self.wikilangs)
-                self.add_wikipedia_page_links(entry, wikipedia_dict)
+        if allowed_descriptions == ANY:
+            entry.attrib[WIKIDATA_ID] = qitem
+            entry.attrib[WIKIDATA_URL] = WIKIDATA_SITE + qitem
+            entry.attrib[DESC] = desc
+            for wid in qitems:
+                if wid != qitem:
+                    wikidata_hit = ET.SubElement(entry, WIKIDATA_HIT)
+                    wikidata_hit.attrib[TYPE] = WIKIDATA_HITS
+                    wikidata_hit.text = str(wid)
+            wikidata_page = WikidataPage(qitem)
+            assert wikidata_page is not None
+            wikipedia_dict = wikidata_page.get_wikipedia_page_links(
+                self.wikilangs)
+            self.add_wikipedia_page_links(entry, wikipedia_dict)
 
     @classmethod
     def add_wikipedia_page_links(cls, entry, wikipedia_dict):
@@ -269,6 +278,17 @@ class AmiDictionary:
                 wikipedia.attrib["lang"] = wp[0]
                 wikipedia.text = wp[1]
 
+    @classmethod
+    def is_valid_wikidata_id(cls, wikidata_id):
+        """is a wikidataID not null, not empty and not a reserved keyword """
+        if wikidata_id is None:
+            return False
+        if wikidata_id == "":
+            return False
+        if wikidata_id == AmiDictionary.NOT_FOUND:
+            return False
+        return True
+
     def create_wikidata_page(self, entry_element):
         from py4ami.wikimedia import WikidataPage
 
@@ -279,6 +299,14 @@ class AmiDictionary:
             wikidata_page = WikidataPage(qitem)
 
         return wikidata_page
+
+    @classmethod
+    def get_term(cls, entry):
+        return entry.get(TERM)
+
+    @classmethod
+    def get_wikidata_id(cls, entry):
+        return entry.get(WIKIDATA_ID)
 
 
 class AmiDictionaries:
@@ -1032,10 +1060,6 @@ class Entry(AbsDictElem):
         return self.element.get(self.TERM_A)
 
     @property
-    def term(self):
-        return self.element.get(self.TERM_A)
-
-    @property
     def get_wikidata_id(self):
         return self.element.get(self.WIKIDATA_A)
 
@@ -1081,7 +1105,7 @@ class Entry(AbsDictElem):
             raise AMIDictError(f"wikidata id {idx} must be Qddd... or Pddd...")
         self.set_attribute(Entry.WIKIDATA_A, idx)
 
-    def get_wikidata_id(self):
+    def wikidata_id(self):
         return self.get_attribute_value(Entry.WIKIDATA_A)
 
     def set_description(self, desc):

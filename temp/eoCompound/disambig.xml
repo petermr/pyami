@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<dictionary title="eoCompound">
+    <desc>A dictionary of 2114 constituent chemical compounds extracted from Essential Oils converted from essoldb1.0 data</desc>
+	<authors>Dr. Gitanjali Yadav, Ph.D., Computational Biology Laboratory, NIPGR National Institute of Plant Genome Research, Lecturer, University of Cambridge Dept. of Plant Sciences; Ambarish Kumar</authors>
+	<contributors> Clyde Davies, https://www.chem4word.co.uk/, Peter Murray-Rust, Reader Emeritus in Molecular Informatics, Unilever Centre, Dept. Of Chemistry University of Cambridge </contributors>
+	<lastupdate> by Ambarish Kumar</lastupdate>
+    <entry name="(-)-alloaromadendrene" term="(-)-alloaromadendrene" wikidataID="Q67879598"/> 
+    <entry name="(-)-alpha-bisabolol" term="(-)-alpha-bisabolol" wikidataID="NOT_FOUND"/>
+    <entry name="(-)-alpha-pinene" term="(-)-alpha-pinene" wikidataID="Q300852"/>
+    <entry name="(-)-alpha-selinene" term="(-)-alpha-selinene" wikidataURL="https://www.wikidata.org/wiki/Q27108640" desc="chemical compound" wikidataID="NOT_FOUND"><synonym type="wikidata_hits">['Q27108640', 'Q7448480', 'Q27131695', 'Q27132627', 'Q28598787']</synonym></entry>
+    <entry name="(-)-italicene ether" term="(-)-italicene ether" wikidataURL="https://www.wikidata.org/wiki/Q67880203" desc="chemical compound" wikidataID="NOT_FOUND"><synonym type="wikidata_hits">['Q67880203', 'Q67880198', 'Q67879558']</synonym></entry>
+    <entry name="(-)-limonene" term="(-)-limonene" wikidataID="Q278809"/>
+    <entry name="(-)-linalool" term="(-)-linalool" wikidataID="Q27105200"/>
+    <entry name="(-) italicene ether" term="(-) italicene ether" wikidataURL="https://www.wikidata.org/wiki/Q67880203" desc="chemical compound" wikidataID="NOT_FOUND"><synonym type="wikidata_hits">['Q67880203', 'Q67880198', 'Q67879558']</synonym></entry>
+    <entry name="(+)-aromadendrene" term="(+)-aromadendrene" wikidataURL="https://www.wikidata.org/wiki/Q67879598" desc="chemical compound" wikidataID="NOT_FOUND"><synonym type="wikidata_hits">['Q67879598', 'Q42930816', 'Q81981670', 'Q67879696', 'Q72789865']</synonym></entry>
+</dictionary>

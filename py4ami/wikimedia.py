@@ -44,6 +44,29 @@ SPQ_NAME = "sparql_name"
 DICT_NAME = "dict_name"
 
 
+# this should go in config files
+class WikidataPredicate:
+    chemistry = {
+        "P31": {
+            "Q11173": "chemical compound",
+            "weight": 0.9
+            },
+
+        "P117": {"object": "chemical structure",
+                 "weight": 0.9
+                 },
+        "P271": {"object": "chemical formula",
+                 "weight": 0.9
+                 },
+        "P223": {"object": "canonical SMILES",
+                 "weight": 0.9
+                 },
+        "P223": {"object": "canonical SMILES",
+                 "weight": 0.9
+                 },
+        # "IDENTIFIER": {"InChI" : }
+    }
+
 # TODO add docstrings and check return values
 class WikidataLookup:
 
@@ -319,7 +342,87 @@ class WikidataPage:
         alias_list = [li.text for li in alias_elem_list]
         return alias_list
 
+    def get_description(self):
+        """gets description (maybe in English?)
+        precedes the aliases
 
+        <div class="wikibase-entitytermsview-heading-description">chemical compound</div>
+
+        """
+        # desc_list = self.root.xpath(
+        #     f"/html//*[@class='wikibase-entitytermsview-heading-description']")
+        desc_list = self.get_elements_for_normalized_attrib_val("class", "wikibase-entitytermsview-heading-description")
+        # desc_list = self.root.xpath(
+        #     f"/html//*[normalize-space(@class)='wikibase-entitytermsview-heading-description']")
+        assert desc_list is not None
+        assert len(desc_list) == 1
+        desc = desc_list[0].text
+        return desc
+
+    def get_elements_for_normalized_attrib_val(self, attname, attval, lead="//*", trail=""):
+        """some attvals contain leading/trailing space
+        searches for <lead>/*[@foo=bar] where bar might be whitespaced
+        :param attname: attribute name
+        :param attval: normalized attribute value required
+        :param lead: leading string (e.g. "/html//*")
+        :param trail: trailing string (e.g. "/li"
+        """
+        xpath = self.create_xpath_for_equality_whitespaced_attvals(attname, attval, lead=lead, trail=trail)
+        elems = self.root.xpath(xpath)
+        return elems
+
+    def create_xpath_for_equality_whitespaced_attvals(self, attname, attval, lead="", trail=""):
+        """Some attribute values have extraneous whitespace
+        <zz foo="bar "/>
+        then [@foo='bar'] fails
+        This is a hack
+        :param attname: attribute name
+        :param attval: normalized attribute value required
+        :param lead: leading string (e.g. "/html//*")
+        :param trail: trailing string (e.g. "/li"
+        return xpath
+        """
+
+        xpath = f"{lead}[concat(' ',normalize-space(@{attname}),' ')=concat(' ',normalize-space('{attval}'),' ')]{trail}"
+        return xpath
+
+    def get_elements_for_attval_containing_word(self, attname, attval, lead="//*", trail=""):
+        """some attvals contain leading/trailing space
+        searches for <lead>/*[@foo=bar] where bar might be whitespaced
+        :param attname: attribute name
+        :param attval: normalized attribute value required
+        :param lead: leading string (e.g. "/html//*")
+        :param trail: trailing string (e.g. "/li"
+        """
+        xpath = self.create_xpath_for_contains_whitespaced_attvals(attname, attval, lead=lead, trail=trail)
+        # print(f"{xpath}")
+        elems = self.root.xpath(xpath)
+        return elems
+
+    def create_xpath_for_contains_whitespaced_attvals(self, attname, attval, lead="", trail=""):
+        """searches for complete words in whitespace-concatenated attribute values
+        <zz foo="bar plugh barbara plinge"/>
+        searches for 'bar' but not 'barbara'
+        Not tested
+        :param attname: attribute name
+        :param attval: normalized attribute value required
+        :param lead: leading string (e.g. "/html//*")
+        :param trail: trailing string (e.g. "/li"
+        return xpath
+        """
+
+        xpath = f"{lead}[contains(concat(' ',normalize-space(@{attname}),' '),concat(' ',normalize-space('{attval}'),' '))]{trail}"
+        return xpath
+
+    # def _get_elements_for_normalized_attrib_val(self, attname, attval):
+    #     """some attvals contain trailing space"""
+    #     xpath = f"/html//*[contains(concat(' ',@{attname},' '),concat(' ','{attval}',' '))]"
+    #     print(f"xpath |{xpath}|")
+    #     xpath = f"/html//*[normalize-space(@{attname})='{attval}']"
+    #     elems = self.root.xpath(xpath)
+    #     return elems
+
+"""<div class="wikibase-entitytermsview-heading-description">chemical compound</div>"""
 class WikidataSparql:
 
     def __init__(self, dictionary):

@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import sys
+import csv
 
 logger = logging.getLogger("py4ami.util")
 
@@ -193,6 +194,17 @@ class Util:
         except Exception:
             pass
         return ss[0], ss[1]
+
+    @classmethod
+    def extract_csv_fields(cla, csv_file, name, selector, typex):
+        """select fields in CSV file by selector value"""
+        values = []
+        with open(str(csv_file), newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for i, row in enumerate(reader):
+                if row[selector] == typex:
+                    values.append(row[name])
+        return values
 
 
 class AmiLogger:

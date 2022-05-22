@@ -5,6 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 import shutil
+import csv
 
 # local
 from py4ami.util import Util
@@ -88,5 +89,42 @@ class TestUtil(unittest.TestCase):
             raise ValueError(f"failed to trap {arg}")
         except ValueError as ve:
             assert str(ve) == f"arg [{arg}] may not contain whitespace"
+
+
+    def test_read_csv(self):
+        """use Python csv to select column values"""
+        csv_file = Path(Resources.TEST_RESOURCES_DIR, "eoCompound", "compound_enzyme.csv")
+        assert csv_file.exists(), f"{csv_file} should exist"
+        with open(str(csv_file), newline='') as csvfile:
+            row_values = [["isopentenyl diphosphate", "COMPOUND"],
+                          ["dimethylallyl diphosphate", "COMPOUND"],
+                          ["hemiterpene", "COMPOUND"]]
+            reader = csv.DictReader(csvfile)
+
+            for i, row in enumerate(reader):
+                if i < 3:
+                    assert row['NAME'] == row_values[i][0]
+                    assert row['TYPE'] == row_values[i][1]
+
+    def test_select_csv_field_by_type(self):
+        """select value in column of csv file by value of defining column
+        """
+        csv_file = Path(Resources.TEST_RESOURCES_DIR, "eoCompound", "compound_enzyme.csv")
+        assert csv_file.exists(), f"{csv_file} should exist"
+        selector_column = "TYPE"
+        column_with_values = "NAME"
+        selector_value = "COMPOUND"
+
+        values = Util.extract_csv_fields(csv_file, column_with_values, selector_column, selector_value)
+        assert len(values) == 89
+        assert values[:3] == ['isopentenyl diphosphate', 'dimethylallyl diphosphate', 'hemiterpene']
+
+        selector_value = "ENZYME"
+        values = Util.extract_csv_fields(csv_file, column_with_values, selector_column, selector_value)
+        assert len(values) == 92
+        assert values[:3] == ['isomerase', 'GPP synthase', 'FPP synthase']
+
+
+
 
 
