@@ -1,0 +1,13 @@
+<dictionary version="0.0.1" title="enzymes_mini" encoding="UTF-8">
+  <metadata user="pm286" date="2022-05-23 10:47:22.268687"/>
+  <entry term="isopentyl-diphosphate delta-isomerasesqualene synthase"/>
+  <entry term="squalene monoxygenase"/>
+  <entry term="phytoene synthase" wikidataID="Q23222193" description="microbial gene found in Burkholderia mallei ATCC 23344"/>
+  <entry term="EC 2.5.1.6" wikidataID="Q180912" description="hormone primarily released by the pineal gland"/>
+  <entry term="EC 4.4.1.14" wikidataID="Q213511" description="chemical compound"/>
+  <entry term="EC 1.14.17.4" wikidataID="Q213511" description="chemical compound"/>
+  <entry term="ETRL"/>
+  <entry term="ETR2" wikidataID="Q47875804" description="scientific article published on 5 May 2009"/>
+  <entry term="ERS1" wikidataID="Q37330864" description="scientific article published on 30 June 2009"/>
+  <entry term="EIN4" wikidataID="Q1741" description="capital of and state in Austria"/>
+</dictionary>

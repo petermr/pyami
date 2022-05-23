@@ -272,9 +272,9 @@ class TestWikidataLookup:
              'mass', 'chemical formula', 'canonical SMILES', 'isomeric SMILES', 'density']
 
         properties_dict = WikidataPage.get_properties_dict(property_list)
-        # pprint.pprint(properties_dict)
         dict_str = pprint.pformat(properties_dict)
-        # print(f"\ndict {dict_str}")
+        print(f"\ndict: \n"
+              f"{dict_str}")
         assert properties_dict['P662'] == {'name': 'PubChem CID', 'value': '16666'}
         assert properties_dict['P31'] == {'name': 'instance of',
                                          'statements': {'Q11173': 'chemical compound',
@@ -369,6 +369,7 @@ class TestWikidataLookup:
         dictionary.write(Path(output_dir, "eoCompound", "disambig.xml"))
 
 
+
     def test_get_instances(self):
         """<div class="wikibase-statementview-mainsnak-container">
 <div class="wikibase-statementview-mainsnak" dir="auto"><div class="wikibase-snakview wikibase-snakview-e823b98d1498aa78e139709b1b02f5decd75c887">
@@ -388,4 +389,25 @@ class TestWikidataLookup:
         pass
 
     def test_add_wikidata_to_imageanalysis_output(self):
-        pass
+        """creates dictionary from list of terms and looks up Wikidata"""
+        terms = [
+            "isopentyl-diphosphate delta-isomerase"
+            "squalene synthase",
+            "squalene monoxygenase",
+            "phytoene synthase",
+            "EC 2.5.1.6",
+            "EC 4.4.1.14",
+            "EC 1.14.17.4",
+            "ETRL",
+            "ETR2",
+            "ERS1",
+            "EIN4",
+        ]
+        wikidata_lookup = WikidataLookup()
+        # qitems, descs = wikidata_lookup.lookup_items(terms)
+        temp_dir = Path(TEMP_DIR, "wikidata")
+        if not temp_dir.exists():
+            temp_dir.mkdir()
+        dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="enzymes_mini",
+                                                                                  wikidata=True, directory=temp_dir)
+        assert os.path.exists(dictfile)
