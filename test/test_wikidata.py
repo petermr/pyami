@@ -193,7 +193,8 @@ class TestWikidataLookup:
         <th scope="col" class="wikibase-entitytermsforlanguagelistview-cell wikibase-entitytermsforlanguagelistview-language">Language</th>
 
         """
-        language_elems = WikidataPage("q407418").get_elements_for_attval_containing_word("class", "wikibase-entitytermsforlanguagelistview-language")
+        language_elems = WikidataPage("q407418").get_elements_for_attval_containing_word("class",
+                                                                                         "wikibase-entitytermsforlanguagelistview-language")
         assert len(language_elems) == 1
         assert language_elems[0].text == 'Language'
 
@@ -269,7 +270,7 @@ class TestWikidataLookup:
             'P31', 'P279', 'P361', 'P117', 'P8224', 'P2067', 'P274', 'P233', 'P2017', 'P2054']
         assert wikidata_page.get_property_name_list()[:10] == [
             'instance of', 'subclass of', 'part of', 'chemical structure', 'molecular model or crystal lattice model',
-             'mass', 'chemical formula', 'canonical SMILES', 'isomeric SMILES', 'density']
+            'mass', 'chemical formula', 'canonical SMILES', 'isomeric SMILES', 'density']
 
         properties_dict = WikidataPage.get_properties_dict(property_list)
         dict_str = pprint.pformat(properties_dict)
@@ -277,10 +278,11 @@ class TestWikidataLookup:
               f"{dict_str}")
         assert properties_dict['P662'] == {'name': 'PubChem CID', 'value': '16666'}
         assert properties_dict['P31'] == {'name': 'instance of',
-                                         'statements': {'Q11173': 'chemical compound',
-                                                        'Q12140': 'medication',
-                                                        'Q27109870': 'p-menthan-3-ol',
-                                                        'Q66124573': 'menthane monoterpenoids'}}
+                                          'statements': {
+                                              'Q11173': 'chemical compound',
+                                              'Q12140': 'medication',
+                                              'Q27109870': 'p-menthan-3-ol',
+                                              'Q66124573': 'menthane monoterpenoids'}}
         # retains the order of addition
         assert list(properties_dict.keys()) == [
             'P31', 'P279', 'P361', 'P117', 'P8224', 'P2067', 'P274', 'P233', 'P2017', 'P2054', 'P2101', 'P2102',
@@ -290,7 +292,6 @@ class TestWikidataLookup:
             'P2566', 'P5930', 'P8121', 'P7049', 'P595', 'P3345', 'P715', 'P2057', 'P2064', 'P652', 'P2115', 'P665',
             'P2063', 'P8313', 'P1417', 'P646', 'P1296', 'P8408', 'P6366', 'P2004', 'P10283', 'P3417', 'P5076', 'P5082'
         ]
-
 
     def test_update_dictionary_with_wikidata_ids(self):
         """Update dictionary by adding Wikidata IDs where missing"""
@@ -368,8 +369,6 @@ class TestWikidataLookup:
                     print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
         dictionary.write(Path(output_dir, "eoCompound", "disambig.xml"))
 
-
-
     def test_get_instances(self):
         """<div class="wikibase-statementview-mainsnak-container">
 <div class="wikibase-statementview-mainsnak" dir="auto"><div class="wikibase-snakview wikibase-snakview-e823b98d1498aa78e139709b1b02f5decd75c887">
@@ -403,11 +402,20 @@ class TestWikidataLookup:
             "ERS1",
             "EIN4",
         ]
+        with open(Path(RESOURCES_DIR, "eoCompound", "enzymes.txt"), "r") as f:
+            terms = f.readlines()
+            assert 100 > len(terms) > 90
         wikidata_lookup = WikidataLookup()
         # qitems, descs = wikidata_lookup.lookup_items(terms)
         temp_dir = Path(TEMP_DIR, "wikidata")
         if not temp_dir.exists():
             temp_dir.mkdir()
-        dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="enzymes_mini",
+        dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="enzymes",
                                                                                   wikidata=True, directory=temp_dir)
         assert os.path.exists(dictfile)
+
+    def test_json_wikidata_download(self):
+        """Test json/php api for downloadin wikidata
+        see https://github.com/sedthh/awena-wikidata-crawler
+        """
+        query = "Einstein"

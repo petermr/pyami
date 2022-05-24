@@ -19,7 +19,7 @@ logger = logging.getLogger(os.path.basename(__file__))
 class ConvType(Enum):
     PDF2TXT = "pdf2txt"
     PDF2SVG = "pdf2svg"
-    SVG2XML = "svg2xml"
+    SVG2PAGE = "svg2page"
     TXT2PARA = "txt2para"
     TXT2SENT = "txt2sent"
     XML2HTML = "xml2html"
@@ -146,10 +146,25 @@ class Pdf2SvgConverter(AmiConverter):
             raise Exception(f"{e} ami3 must be installed")
 
 
-class Svg2XmlConverter(AmiConverter):
+class Page2SectConverter(AmiConverter):
 
     def __init__(self):
-        super().__init__(infile_type="*.svg", outfile_type="html", ctree_indir="svg", ctree_outdir="html",
+        super().__init__(infile_type="*.html", outfile_type="html", ctree_indir="page", ctree_outdir="sect",
+                         io_arity=IOArity.A1_1)
+
+    def read_write_file(self, infile, outfile, pretty_print=True, rotated_text=False, use_lines=False):
+        try:
+            # ami_page = AmiPage.create_page_from_svg(infile, rotated_text=rotated_text)
+            ami_sect = AmiSect.create_sect_from_page(infile)
+            ami_sect.write_html(outfile)
+        except Exception as e:
+            raise Exception(f'failed to convert because {e}')
+
+
+class Svg2PageConverter(AmiConverter):
+
+    def __init__(self):
+        super().__init__(infile_type="*.svg", outfile_type="html", ctree_indir="svg", ctree_outdir="page",
                          io_arity=IOArity.A1_1)
 
     def read_write_file(self, infile, outfile, pretty_print=True, rotated_text=False, use_lines=False):
@@ -173,7 +188,7 @@ class Converters:
     converter_dict = {
         ConvType.PDF2TXT.value: None,
         ConvType.PDF2SVG.value: Pdf2SvgConverter,
-        ConvType.SVG2XML.value: Svg2XmlConverter,
+        ConvType.SVG2PAGE.value: Svg2PageConverter,
         ConvType.TXT2PARA.value: None,
         ConvType.TXT2SENT.value: None,
         ConvType.XML2HTML.value: Xml2HtmlConverter,

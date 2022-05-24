@@ -325,11 +325,12 @@ def test_add_list_of_entries_from_list_of_string_with_duplicates_and_replace():
 
 
 def test_add_list_of_entries_from_list_of_string_with_duplicates_and_no_replace():
+    """add list of terms which contains duplicate and raise error"""
     terms = ["foo", "bar", "plugh", "xyzzy", "bar"]
     amidict = AMIDict.create_minimal_dictionary()
     try:
         amidict.create_and_add_entries_from_str_list(terms, replace=False)
-        assert False, f"AMIDict duplicate error should have been thrown"
+        assert False, f"AMIDict duplicate error (bar) should have been thrown"
     except AMIDictError:
         assert True, "error should have been throwm"
     assert amidict.get_entry_count() == 4, f"'bar' should be present"

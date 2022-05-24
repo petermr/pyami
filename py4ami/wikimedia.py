@@ -620,11 +620,11 @@ class ParserWrapper:
         from lxml import etree
         from urllib.error import HTTPError
 
-        with urlopen(url) as u:
-            try:
+        try:
+            with urlopen(url) as u:
                 content = u.read().decode("utf-8")
-            except HTTPError as e:
-                print(f"cannout open {url} because {e}")
+        except HTTPError as e:
+            print(f"cannout open {url} because {e}")
         tree = etree.parse(StringIO(content), etree.HTMLParser())
         root = tree.getroot()
         return root

@@ -115,8 +115,8 @@ class PdfReader:
         return text
 
 
-class Svg2XmlConverter:
-    logger = logging.getLogger("2svg2xmlreader")
+class Svg2PageConverter:
+    logger = logging.getLogger("2svg2pagereader")
 
     def __init__(self):
         self.text = None
@@ -129,6 +129,22 @@ class Svg2XmlConverter:
         print(f"file: {file}")
         ami_page = AmiPage.create_page_from_svg(file, rotated_text=rotated_text)
         ami_page.write_html(output_file, pretty_print, use_lines)
+
+
+class Page2SectConverter:
+    logger = logging.getLogger("page2sectreader")
+
+    def __init__(self):
+        self.text = None
+
+    @classmethod
+    def read_and_convert(cls, file, output_file, rotated_text=False, pretty_print=True, use_lines=False):
+        """ converts a PDF path (to text)
+
+         """
+        print(f"file: {file}")
+        ami_sect = AmiSect.create_sect_from_page(file)
+        ami_sect.write_html(output_file, pretty_print, use_lines)
 
 
 class Xml2HtmlConverter:
