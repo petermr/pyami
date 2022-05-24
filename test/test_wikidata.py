@@ -1,11 +1,13 @@
 # Tests wikipedia and wikidata methods under pytest
 import os
+import pprint
 import unittest
 from pathlib import Path
 import logging
 from lxml import etree, html
+import requests
 # local
-from py4ami.wikimedia import WikidataPage, ParserWrapper
+from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor
 from py4ami.dict_lib import AmiDictionary, WIKIDATA_ID, TERM
 
 try:
@@ -192,7 +194,8 @@ class TestWikidataLookup:
         <th scope="col" class="wikibase-entitytermsforlanguagelistview-cell wikibase-entitytermsforlanguagelistview-language">Language</th>
 
         """
-        language_elems = WikidataPage("q407418").get_elements_for_attval_containing_word("class", "wikibase-entitytermsforlanguagelistview-language")
+        language_elems = WikidataPage("q407418").get_elements_for_attval_containing_word("class",
+                                                                                         "wikibase-entitytermsforlanguagelistview-language")
         assert len(language_elems) == 1
         assert language_elems[0].text == 'Language'
 
@@ -237,67 +240,67 @@ class TestWikidataLookup:
 
         property_list = WikidataPage("q407418").root.xpath(selector)
 
-# <!-- property-[statement-list] container TOP LEVEL -->
-# <div class="wikibase-statementgroupview listview-item" id="P31" data-property-id="P31">
-# <!-- property-subject container -->
-# <div class="wikibase-statementgroupview-property">
-#   <div class="wikibase-statementgroupview-property-label" dir="auto"><a title="Property:P31" href="/wiki/Property:P31">instance of</a></div>
-# </div>
-# <!-- statementlist container -->
-# <div class="wikibase-statementlistview">
-# <div class="wikibase-statementlistview-listview">
-# <div id="Q407418$8A24EA26-7C5E-4494-B40C-65356BBB3AA4" class="wikibase-statementview wikibase-statement-Q407418$8A24EA26-7C5E-4494-B40C-65356BBB3AA4 wb-normal listview-item wikibase-toolbar-item">
-# <div class="wikibase-statementview-rankselector"><div class="wikibase-rankselector ui-state-disabled">
-# <!-- "button?" -->
-# <span class="ui-icon ui-icon-rankselector wikibase-rankselector-normal" title="Normal rank"></span>
-# </div></div>
-# <div class="wikibase-statementview-mainsnak-container">
-# <div class="wikibase-statementview-mainsnak" dir="auto"><div class="wikibase-snakview wikibase-snakview-e823b98d1498aa78e139709b1b02f5decd75c887">
-# <div class="wikibase-snakview-property-container">
-# <div class="wikibase-snakview-property" dir="auto"></div>
-# </div>
-# <!-- object-value-container -->
-# <div class="wikibase-snakview-value-container" dir="auto">
-# <div class="wikibase-snakview-typeselector"></div>
-# <div class="wikibase-snakview-body">
-# <div class="wikibase-snakview-value wikibase-snakview-variation-valuesnak"><a title="Q11173" href="/wiki/Q11173">chemical compound</a></div>
-# <div class="wikibase-snakview-indicators"></div>
-# </div>
-# </div>
-# </div></div>
-# <div class="wikibase-statementview-qualifiers"></div>
-# </div>
-# <span class="wikibase-toolbar-container wikibase-edittoolbar-container"><span class="wikibase-toolbar wikibase-toolbar-item wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-edit"><a href="#" title=""><span class="wb-icon"></span>edit</a></span></span></span>
-# <div class="wikibase-statementview-references-container">
-# <div class="wikibase-statementview-references-heading"><a class="ui-toggler ui-toggler-toggle ui-state-default"><span class="ui-toggler-icon ui-icon ui-icon-triangle-1-s"></span><span class="ui-toggler-label">0 references</span></a><div class="wikibase-tainted-references-container" data-v-app=""><div class="wb-tr-app"><!----></div></div></div>
-# <div class="wikibase-statementview-references "><div class="wikibase-addtoolbar wikibase-toolbar-item wikibase-toolbar wikibase-addtoolbar-container wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-add"><a href="#" title=""><span class="wb-icon"></span>add reference</a></span></div></div>
-# </div>
-# </div><div id="Q407418$A25EE807-DBE3-47CA-9272-00BF975DAEA8" class="wikibase-statementview wikibase-statement-Q407418$A25EE807-DBE3-47CA-9272-00BF975DAEA8 wb-normal listview-item wikibase-toolbar-item">
-# <div class="wikibase-statementview-rankselector"><div class="wikibase-rankselector ui-state-disabled">
-# <span class="ui-icon ui-icon-rankselector wikibase-rankselector-normal" title="Normal rank"></span>
-# </div></div>
-# <div class="wikibase-statementview-mainsnak-container">
-# <div class="wikibase-statementview-mainsnak" dir="auto"><div class="wikibase-snakview wikibase-snakview-87cdd435c7bb91eadb3355615e99ee224aa44984">
-# <div class="wikibase-snakview-property-container">
-# <div class="wikibase-snakview-property" dir="auto"></div>
-# </div>
-# <!-- object-value-container -->
-# <div class="wikibase-snakview-value-container" dir="auto">
-# <div class="wikibase-snakview-typeselector"></div>
-# <div class="wikibase-snakview-body">
-# <div class="wikibase-snakview-value wikibase-snakview-variation-valuesnak"><a title="Q12140" href="/wiki/Q12140">medication</a></div>
-# <div class="wikibase-snakview-indicators"></div>
-# <!-- ..... -->
-# </div>
-# </div></div>
-# </div></div>
-# </div></div><div class="wikibase-addtoolbar wikibase-toolbar-item wikibase-toolbar wikibase-addtoolbar-container wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-add"><a href="#" title=""><span class="wb-icon"></span>add reference</a></span></div></div>
-# </div>
-# </div>
-# </div>
-# <span class="wikibase-toolbar-container"></span>
-# <span class="wikibase-toolbar-wrapper"><div class="wikibase-addtoolbar wikibase-toolbar-item wikibase-toolbar wikibase-addtoolbar-container wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-add"><a href="#" title="Add a new value"><span class="wb-icon"></span>add value</a></span></div></span></div>
-# </div>"""
+        # <!-- property-[statement-list] container TOP LEVEL -->
+        # <div class="wikibase-statementgroupview listview-item" id="P31" data-property-id="P31">
+        # <!-- property-subject container -->
+        # <div class="wikibase-statementgroupview-property">
+        #   <div class="wikibase-statementgroupview-property-label" dir="auto"><a title="Property:P31" href="/wiki/Property:P31">instance of</a></div>
+        # </div>
+        # <!-- statementlist container -->
+        # <div class="wikibase-statementlistview">
+        # <div class="wikibase-statementlistview-listview">
+        # <div id="Q407418$8A24EA26-7C5E-4494-B40C-65356BBB3AA4" class="wikibase-statementview wikibase-statement-Q407418$8A24EA26-7C5E-4494-B40C-65356BBB3AA4 wb-normal listview-item wikibase-toolbar-item">
+        # <div class="wikibase-statementview-rankselector"><div class="wikibase-rankselector ui-state-disabled">
+        # <!-- "button?" -->
+        # <span class="ui-icon ui-icon-rankselector wikibase-rankselector-normal" title="Normal rank"></span>
+        # </div></div>
+        # <div class="wikibase-statementview-mainsnak-container">
+        # <div class="wikibase-statementview-mainsnak" dir="auto"><div class="wikibase-snakview wikibase-snakview-e823b98d1498aa78e139709b1b02f5decd75c887">
+        # <div class="wikibase-snakview-property-container">
+        # <div class="wikibase-snakview-property" dir="auto"></div>
+        # </div>
+        # <!-- object-value-container -->
+        # <div class="wikibase-snakview-value-container" dir="auto">
+        # <div class="wikibase-snakview-typeselector"></div>
+        # <div class="wikibase-snakview-body">
+        # <div class="wikibase-snakview-value wikibase-snakview-variation-valuesnak"><a title="Q11173" href="/wiki/Q11173">chemical compound</a></div>
+        # <div class="wikibase-snakview-indicators"></div>
+        # </div>
+        # </div>
+        # </div></div>
+        # <div class="wikibase-statementview-qualifiers"></div>
+        # </div>
+        # <span class="wikibase-toolbar-container wikibase-edittoolbar-container"><span class="wikibase-toolbar wikibase-toolbar-item wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-edit"><a href="#" title=""><span class="wb-icon"></span>edit</a></span></span></span>
+        # <div class="wikibase-statementview-references-container">
+        # <div class="wikibase-statementview-references-heading"><a class="ui-toggler ui-toggler-toggle ui-state-default"><span class="ui-toggler-icon ui-icon ui-icon-triangle-1-s"></span><span class="ui-toggler-label">0 references</span></a><div class="wikibase-tainted-references-container" data-v-app=""><div class="wb-tr-app"><!----></div></div></div>
+        # <div class="wikibase-statementview-references "><div class="wikibase-addtoolbar wikibase-toolbar-item wikibase-toolbar wikibase-addtoolbar-container wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-add"><a href="#" title=""><span class="wb-icon"></span>add reference</a></span></div></div>
+        # </div>
+        # </div><div id="Q407418$A25EE807-DBE3-47CA-9272-00BF975DAEA8" class="wikibase-statementview wikibase-statement-Q407418$A25EE807-DBE3-47CA-9272-00BF975DAEA8 wb-normal listview-item wikibase-toolbar-item">
+        # <div class="wikibase-statementview-rankselector"><div class="wikibase-rankselector ui-state-disabled">
+        # <span class="ui-icon ui-icon-rankselector wikibase-rankselector-normal" title="Normal rank"></span>
+        # </div></div>
+        # <div class="wikibase-statementview-mainsnak-container">
+        # <div class="wikibase-statementview-mainsnak" dir="auto"><div class="wikibase-snakview wikibase-snakview-87cdd435c7bb91eadb3355615e99ee224aa44984">
+        # <div class="wikibase-snakview-property-container">
+        # <div class="wikibase-snakview-property" dir="auto"></div>
+        # </div>
+        # <!-- object-value-container -->
+        # <div class="wikibase-snakview-value-container" dir="auto">
+        # <div class="wikibase-snakview-typeselector"></div>
+        # <div class="wikibase-snakview-body">
+        # <div class="wikibase-snakview-value wikibase-snakview-variation-valuesnak"><a title="Q12140" href="/wiki/Q12140">medication</a></div>
+        # <div class="wikibase-snakview-indicators"></div>
+        # <!-- ..... -->
+        # </div>
+        # </div></div>
+        # </div></div>
+        # </div></div><div class="wikibase-addtoolbar wikibase-toolbar-item wikibase-toolbar wikibase-addtoolbar-container wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-add"><a href="#" title=""><span class="wb-icon"></span>add reference</a></span></div></div>
+        # </div>
+        # </div>
+        # </div>
+        # <span class="wikibase-toolbar-container"></span>
+        # <span class="wikibase-toolbar-wrapper"><div class="wikibase-addtoolbar wikibase-toolbar-item wikibase-toolbar wikibase-addtoolbar-container wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-add"><a href="#" title="Add a new value"><span class="wb-icon"></span>add value</a></span></div></span></div>
+        # </div>"""
         # """wikibase-statementgroupview listview-item"""
         assert len(property_list) > 0
         print(f"properties {len(property_list)}")
@@ -424,7 +427,6 @@ class TestWikidataLookup:
                     print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
         dictionary.write(Path(output_dir, "eoCompound", "disambig.xml"))
 
-
     def test_get_instances(self):
         """<div class="wikibase-statementview-mainsnak-container">
 <div class="wikibase-statementview-mainsnak" dir="auto"><div class="wikibase-snakview wikibase-snakview-e823b98d1498aa78e139709b1b02f5decd75c887">
@@ -445,3 +447,159 @@ class TestWikidataLookup:
 
     def test_add_wikidata_to_imageanalysis_output(self):
         pass
+
+    def test_wikidata_extractor(self):
+        query = '2-fluorobenzoic acid'
+        extractor = WikidataExtractor('en')
+        id = extractor.search(query)
+        id_dict = extractor.load(id)
+        print(id_dict)
+
+    # def test_wikidata_json_api(self):
+    #     """use Wikidata API for downloading wikidata entry info
+    #     (Thanks to https://github.com/sedthh/awena-wikidata-crawler for Ideas)
+    #     """
+    #
+    #     import requests
+    #
+    #     class Crawler:
+    #
+    #         VERSION = "0.1"
+    #         USER_AGENT = "Mozilla/5.0 (compatible; Awena/" + VERSION + "; +https://github.com/petermr/)"
+    #
+    #         ##### CONSTRUCTOR #####
+    #         def __init__(self, lang='en'):
+    #             self.lang = lang.lower()
+    #             self.cache = {}
+    #             self.n = 0
+    #
+    #         ##### DATA MODEL #####
+    #         def __repr__(self):
+    #             return "<Awena Search instance at {0}>".format(hex(id(self)))
+    #
+    #         def __str__(self):
+    #             return self.query
+    #
+    #         def __len__(self):
+    #             return len(self.cache)
+    #
+    #         def __eq__(self, other):
+    #             if isinstance(other, bool):
+    #                 return bool(self.cache) == other
+    #             return False
+    #
+    #         def __ne__(self, other):
+    #             return not self.__eq__(other)
+    #
+    #         def number_of_requests(self):
+    #             return self.n
+    #
+    #         def search(self, query):
+    #             result = self._request(query, False)
+    #             print(f"result: {result}")
+    #
+    #         def load(self, id=None):
+    #             if not id:
+    #                 return {}
+    #             if id not in self.cache:
+    #                 data = self._request(False, id)
+    #                 self.cache[id] = self._parse(data, id)
+    #             return self.cache[id]
+    #
+    #         def _request(self, query=False, id=False):
+    #             headers = {
+    #                 "User-Agent": Crawler.USER_AGENT
+    #             }
+    #             if id:
+    #                 params = {
+    #                     "action": "wbgetentities",
+    #                     "ids"	: id,
+    #                     "language"		: self.lang,
+    #                     "format"		: "json"
+    #                 }
+    #             else:
+    #                 if not query:
+    #                     return None
+    #                 query	= query.strip()
+    #                 params	= {
+    #                     "action"		: "wbsearchentities",
+    #                     "search"		: query,
+    #                     "language"		: self.lang,
+    #                     "format"		: "json"
+    #                 }
+    #             data = requests.get("https://www.wikidata.org/w/api.php" ,headers=headers, params=params)
+    #             result = data.json()
+    #             self.n += 1
+    #             if 'error' in result:
+    #                 raise Exception(result['error']['cod'], result['error']['info'])
+    #             elif query and "search" in result and result["search"]:
+    #                 guess = None
+    #                 for item in result["search"]:
+    #                     if "id" in item and "match" in item and "text" in item["match"] and "language" in item["match"]:
+    #                         if item["match"]["language"] == self.lang:
+    #                             if not guess:
+    #                                 guess = item["id"]
+    #                             if item["match"]["text"].lower().strip() == query.lower():
+    #                                 return item["id"]
+    #                     return guess
+    #             elif id and "entities" in result and result["entities"]:
+    #                 if id in result["entities"] and result["entities"][id]:
+    #                     return result["entities"][id]
+    #             if query:
+    #                 return {}
+    #             return result
+    #
+    #         def _parse(self, data, id):
+    #             result = {"i": id}
+    #             if id and data:
+    #                 if "labels" in data:
+    #                     if self.lang in data["labels"]:
+    #                         result["label"] = data["labels"][self.lang]["value"]
+    #                 if "descriptions" in data:
+    #                     if self.lang in data["descriptions"]:
+    #                         result["description "] = data["descriptions"][self.lang]["value"]
+    #                 if "claims" in data:
+    #                     # results to human readable format
+    #                     for key in data["claims"]:
+    #                         try:
+    #                             if key == "P31":  # instance of
+    #                                 result["instance"] = data["claims"][key][0]["mainsnak"]["datavalue"]["value"]["id"]
+    #                             # humans
+    #                             elif key == "P27":  # country of citizenship
+    #                                 result["country"] = data["claims"][key][0]["mainsnak"]["datavalue"]["value"]["id"]
+    #                             elif key == "P106":  # occupation
+    #                                 result["occupation"] = data["claims"][key][0]["mainsnak"]["datavalue"]["value"][
+    #                                     "id"]
+    #
+    #
+    #                         except KeyError:
+    #                             pass
+    #             return result
+    #
+    #     query = 'Einstein'
+    #     crawler = Crawler('en')
+    #     id = crawler.search(query)
+    #     info = crawler.load(id)
+    #     info_str = pprint.pformat(info)
+    #     print(info_str)
+    #     # citizen_of = crawler.load(info["citizen"])
+    #     # print(citizen_of)
+
+    def test_simple_wikidata_query(self):
+        query = "isomerase"
+        url_str = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={query}&language=en&format=json"
+        response = requests.get(url_str)
+        js = response.json()
+        print(pprint.pformat(js))
+
+    def test_wikidata_id_lookup(self):
+        ids = "P117"
+        url_str = f"https://www.wikidata.org/w/api.php?action=wbgetentities&ids={ids}&language=en&format=json"
+        response = requests.get(url_str)
+        js = response.json()["entities"]["P117"]
+        assert list(js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'datatype', 'id', 'labels', 'descriptions', 'aliases', 'claims']
+        assert js["id"] == "P117"
+        assert js["title"] == "Property:P117"
+        assert js["labels"]["en"]["value"] == "chemical structure"
+        assert js["descriptions"]["en"]["value"] == "image of a representation of the structure for a chemical compound"
+        assert list(js["claims"].keys()) == ['P31', 'P1855', 'P3254', 'P2302', 'P1629', 'P1647', 'P2875', 'P1659']

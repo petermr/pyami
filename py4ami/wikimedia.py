@@ -550,3 +550,131 @@ class ParserWrapper:
         tree = etree.parse(StringIO(content), etree.HTMLParser())
         root = tree.getroot()
         return root
+
+import pprint
+import requests
+
+class WikidataExtractor:
+    VERSION = "0.1"
+    USER_AGENT = "Mozilla/5.0 (compatible; Awena/" + VERSION + "; +https://github.com/petermr/pyami/)"
+    WIKIDATA_API = "https://www.wikidata.org/w/api.php"
+
+    def __init__(self, lang='en'):
+        self.lang = lang.lower()
+        self.cache = {}
+        self.query = None
+        self.number_of_requests = 0
+        self.result = None
+
+    def __str__(self):
+        return self.query
+
+    def __len__(self):
+        return len(self.cache)
+
+    def __eq__(self, other):
+        if isinstance(other, bool):
+            return bool(self.cache) == other
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def number_of_requests(self):
+        return self.number_of_requests
+
+    def search(self, query):
+        return self._request(query, False)
+
+    def load(self, id=None):
+        if not id:
+            return {}
+        if id not in self.cache:
+            data = self._request(False, id)
+            self.cache[id] = self._parse(data, id)
+        return self.cache[id]
+
+    def _request(self, query=False, id=False):
+        headers = {
+            "User-Agent": WikidataExtractor.USER_AGENT
+        }
+
+        params, self.query = self.get_params(id, query)
+        data = requests.get(self.WIKIDATA_API, headers=headers, params=params)
+        result = data.json()
+        self.result = result
+
+        self.number_of_requests += 1
+        CODE = "code"
+        ENTITIES = "entities"
+        ERR = "error"
+        ID = "id"
+        INFO = "info"
+        LANGUAGE = "language"
+        MATCH = "match"
+        SEARCH = "search"
+        TEXT = "text"
+
+        if ERR in result:
+            raise Exception(result[ERR][CODE], result[ERR][INFO])
+        elif query and SEARCH in result and result[SEARCH]:
+            guess = None
+            for item in result[SEARCH]:
+                if ID in item and MATCH in item and TEXT in item[MATCH] and LANGUAGE in item[MATCH]:
+                    if item[MATCH][LANGUAGE] == self.lang:
+                        if not guess:
+                            guess = item[ID]
+                        if item[MATCH][TEXT].lower().strip() == query.lower():
+                            return item[ID]
+                return guess
+        elif id and ENTITIES in result and result[ENTITIES]:
+            if id in result[ENTITIES] and result[ENTITIES][id]:
+                return result[ENTITIES][id]
+        if query:
+            return {}
+        # return None
+        return result
+
+    def get_params(self, id, query):
+        params = None
+        if id:
+            params = {
+                "action": "wbgetentities",
+                "ids": id,
+                "language": self.lang,
+                "format": "json"
+            }
+        elif query:
+            query = query.strip()
+            params = {
+                "action": "wbsearchentities",
+                "search": query,
+                "language": self.lang,
+                "format": "json"
+            }
+        return params, query
+
+    def _parse(self, data, id):
+        DESCRIPTION = "description"
+        DESCRIPTIONS = "descriptions"
+        ID = "id"
+        LABEL = "label"
+        LABELS = "labels"
+        VALUE = "value"
+
+        result = {ID: id}
+        if id and data:
+            if LABELS in data:
+                if self.lang in data[LABELS]:
+                    result[LABEL] = data[LABELS][self.lang][VALUE]
+            if DESCRIPTIONS in data:
+                if self.lang in data[DESCRIPTIONS]:
+                    result[DESCRIPTION] = data[DESCRIPTIONS][self.lang][VALUE]
+        # if "claims" in data:
+        # 	# results to human readable format
+        # 	for key	in data["claims"]:
+        # 		try:
+        # 			if key=="P31":		# instance of
+        # 				result["instance"]			= data["claims"][key][0]["mainsnak"]["datavalue"]["value"]["id"]
+        return result
+

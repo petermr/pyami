@@ -13,8 +13,8 @@ from test.resources import Resources
 
 logger = logging.getLogger("py4ami_test_util")
 
-class TestUtil(unittest.TestCase):
 
+class TestUtil(unittest.TestCase):
     # def __init__(self):
     sys_argv_save = None
 
@@ -70,26 +70,25 @@ class TestUtil(unittest.TestCase):
             assert str(ve == "too many delimiters in {arg}")
         try:
             arg = "foo bar"
-            n,v = Util.create_name_value(arg)
+            _, v = Util.create_name_value(arg)
             raise ValueError(f"failed to trap {arg}")
         except ValueError as ve:
             assert str(ve) == "arg [foo bar] may not contain whitespace"
 
         Util.create_name_value("foo/bar")
-        assert name, value == ("foo/bar")
+        assert name, value == "foo/bar"
 
         Util.create_name_value("foo/bar", delim="/")
         assert name, value == ("foo", "bar")
 
         assert Util.create_name_value("") is None
 
+        arg = "foo bar"
         try:
-            arg = "foo bar"
-            n,v = Util.create_name_value(arg, delim=" ")
+            _, v = Util.create_name_value(arg, delim=" ")
             raise ValueError(f"failed to trap {arg}")
         except ValueError as ve:
             assert str(ve) == f"arg [{arg}] may not contain whitespace"
-
 
     def test_read_csv(self):
         """use Python csv to select column values"""
@@ -123,8 +122,3 @@ class TestUtil(unittest.TestCase):
         values = Util.extract_csv_fields(csv_file, column_with_values, selector_column, selector_value)
         assert len(values) == 92
         assert values[:3] == ['isomerase', 'GPP synthase', 'FPP synthase']
-
-
-
-
-
