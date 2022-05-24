@@ -17,7 +17,7 @@ from py4ami.ami_sections import AMIAbsSection
 from py4ami.dict_lib import AmiDictionary
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
-from py4ami.pdfreader import Svg2XmlConverter, Xml2HtmlConverter, Xml2TxtConverter, Pdf2SvgConverter
+from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, Pdf2SvgConverter
 from py4ami.projects import CProject, CTree, CSubDir
 from py4ami.symbol import SymbolIni
 from py4ami.text_lib import TextUtil, DSLParser
@@ -66,9 +66,9 @@ class PyAMI:
     XPATH = "xpath"
     # apply methods 1:1 input-output
     # obsolete (use Converters)
-    PDF2TXT = "pdf2txt"
+    PDF2TXT = "pdf2svg"
     PDF2SVG = "pdf2svg"
-    SVG2XML = "svg2xml"
+    SVG2PAGE = "svg2page"
     XML2HTML = "xml2html"
     TXT2SENT = "txt2sent"
     XML2TXT = "xml2txt"
@@ -142,7 +142,7 @@ class PyAMI:
         self.func_dict[self.XML2TXT] = (XmlLib.remove_all_tags, ".xml.txt")
         # self.func_dict[self.PDF2TXT] = (PdfReader.read_and_convert, ".pdf.txt")
         self.func_dict[self.PDF2SVG] = (Pdf2SvgConverter.read_and_convert, ".pdf.svg")
-        self.func_dict[self.SVG2XML] = (Svg2XmlConverter.read_and_convert, ".svg.xml")
+        self.func_dict[self.SVG2PAGE] = (Svg2PageConverter.read_and_convert, ".svg.xml")
         self.func_dict[self.XML2HTML] = (Xml2HtmlConverter.read_and_convert, ".svg.html")
         # self.func_dict[self.TXT2SENT] = (TextUtil.split_into_sentences, ".sen.txt")
         # 1:n methods
@@ -819,7 +819,7 @@ class PyAMI:
         ctree_list = self.cproject.get_ctrees()
         # TODO add this functionality to enums
         subdir_name = None
-        if apply_type == self.SVG2XML:
+        if apply_type == self.SVG2PAGE:
             subdir_name = CTree.SVG_DIR
             subdir_ext = "svg"
 
@@ -961,7 +961,7 @@ class PyAMI:
     def get_open_type(self, apply_type):
         """ gets 'rb' for binary files or 'r' for text"""
         open_type = "rb"
-        if str(apply_type) in [self.SVG2XML, self.XML2TXT, self.XML2HTML, self.TXT2SENT]:
+        if str(apply_type) in [self.SVG2PAGE, self.XML2TXT, self.XML2HTML, self.TXT2SENT]:
             open_type = "r"
         return open_type
 
@@ -1095,7 +1095,8 @@ class Converter(Enum):
     # PDF2TXT = (PdfReader, Filetype.F_PDF, Filetype.F_TXT, ".", ".")
     XML2HTML = (Xml2HtmlConverter, "pdf", "html", ".", ".")
     XML2TXT = (Xml2TxtConverter, "xml", "txt", ".", ".")
-    SVG2XML = (Svg2XmlConverter, "svg", "xml", "svg", "xml")
+    SVG2PAGE = (Svg2PageConverter, "svg", "html", "svg", "page")
+    PAGE2SECT = (Page2SectConverter, "html", "html", "page", "sect")
     # TXT2SENT = (Txt2SentSplitter, Filetype.F_TXT, Filetype.F_TXT, ".", "sent")
 
 

@@ -685,9 +685,11 @@ class AMIDict(AbsDictElem):
             raise AMIDictError(f"cannot add entry with term = None or ''")
         old_entry = self.find_entry_with_term(term)
         if old_entry is not None:
-            if replace is False:
-                raise AMIDictError(f"cannot replace old entry with term {term}")
-            self.delete_entry(old_entry)
+            print(f" old {old_entry.get_term()}")
+            if replace:
+                self.delete_entry(old_entry)
+            else:
+                raise AMIDictError("duplicate entry and replace is False")
         entry = self.create_and_add_entry()
         assert entry.get_term() is None
         entry.add_term(term)
@@ -733,8 +735,9 @@ class AMIDict(AbsDictElem):
         if directory is None:
             raise AMIDictError("no output directory for amidict")
         amidict = cls.create_from_list_of_strings(terms, title, metadata)
+        # print(f"amidict |{amidict.get_entries()[0].get_term()}|")
         if wikidata:
-            amidict.lookup_terms_in_wikidata(terms)
+            amidict.lookup_terms_in_wikidata(terms, replace=True)
         file = amidict.write_to_file(directory)
         return file, amidict
 
@@ -783,14 +786,22 @@ class AMIDict(AbsDictElem):
         else:
             return entries
 
-    def find_entries_with_term(self, term, abort_multiple=False):
-        entries = []
+    def find_entries_with_term(self, term: str, abort_multiple: bool = False) -> list:
+        """iterates over all entries checking `term` attribute against "term" argument
+        May allow multiple terms
+        :param term: term to match in entry@term
+        :param abort_multiple: if True raise AmiDictError for multiple entries with same term
+        """
+        # print(f"looking for {term} in {len(self.get_entries())}")
+        _entries = []
         for entry in self.get_entries():
+            print(f"{type(entry)} {entry.get_term()} => {term}")
             if entry.get_term() == term:
-                if abort_multiple and len(entries) > 0:
+                if abort_multiple and len(_entries) > 0:
                     raise AMIDictError(f"multiple entries with term = {term}")
-                entries.append(entry)
-        return entries
+                # print(f" matched: {term}")
+                _entries.append(entry)
+        return _entries
 
     def delete_entries_with_term(self, term):
         """Deletes ALL entries with term
@@ -974,16 +985,21 @@ class AMIDict(AbsDictElem):
             amidict.write_to_file(directory)
         return amidict
 
-    def lookup_terms_in_wikidata(self, terms):
+    def lookup_terms_in_wikidata(self, terms: list, replace=False):
         """looks up terms in Wikidata
-        uses self.lookup_wikidata"""
+        uses self.lookup_wikidata
+
+        """
         # wikidata_lookup = WikidataLookup()
         for term in terms:
             qitem, desc, _ = self.wikidata_lookup.lookup_wikidata(term)
             if qitem is None:
                 print(f"could not lookup Wikidata: {term}")
             else:
+                print(f"terms {len(self.get_entries())}")
                 entry = self.find_entry_with_term(term)
+                if entry is None:
+                    entry = self.create_and_add_entry_with_term(term, replace=replace)
                 entry.set_wikidata_id(qitem)
                 entry.set_description(desc)
 
@@ -1110,7 +1126,8 @@ class Entry(AbsDictElem):
 
     def set_description(self, desc):
         """set description attribute, can be anything"""
-        self.set_attribute(Entry.DESCRIPTION_A, desc)
+        if desc:
+            self.set_attribute(Entry.DESCRIPTION_A, desc)
 
     def get_description(self):
         return self.get_attribute_value(Entry.DESCRIPTION_A)

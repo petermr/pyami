@@ -1,0 +1,13 @@
+<dictionary version="0.0.1" title="enzymes_mini" encoding="UTF-8">
+  <metadata user="pm286" date="2022-05-24 12:03:13.230139"/>
+  <entry term="isomerase" wikidataID="Q118026" description="class of enzymes"/>
+  <entry term="GPP synthase" wikidataID="Q38979601" description="scientific article"/>
+  <entry term="FPP synthase" wikidataID="Q21107439" description="mammalian protein found in Homo sapiens"/>
+  <entry term="GGPP synthase" wikidataID="Q44377667" description="scientific article published in June 2013"/>
+  <entry term="carboxylase" wikidataID="Q776026" description="multiple carboxylase deficiency that involves a deficiency in biotinidase"/>
+  <entry term="synthase" wikidataID="Q37463023" description="scientific article published on April 1991"/>
+  <entry term="beta-ketoacyl reductase" wikidataID="Q83177151" description="scientific article published on 18 April 2006"/>
+  <entry term="glutaryl-CoA-synthase" wikidataID="Q34541065" description="scientific article"/>
+  <entry term="beta-hydroxyacyl dehydratase" wikidataID="Q56586343"/>
+  <entry term="beta-ketoacyl-ACP synthase" wikidataID="Q22336317" description="microbial protein found in Legionella pneumophila subsp. pneumophila str. Philadelphia 1"/>
+</dictionary>

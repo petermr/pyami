@@ -302,54 +302,36 @@ class TestWikidataLookup:
         # <span class="wikibase-toolbar-wrapper"><div class="wikibase-addtoolbar wikibase-toolbar-item wikibase-toolbar wikibase-addtoolbar-container wikibase-toolbar-container"><span class="wikibase-toolbarbutton wikibase-toolbar-item wikibase-toolbar-button wikibase-toolbar-button-add"><a href="#" title="Add a new value"><span class="wb-icon"></span>add value</a></span></div></span></div>
         # </div>"""
         # """wikibase-statementgroupview listview-item"""
-        assert len(property_list) > 0
-        print(f"properties {len(property_list)}")
-        for property in property_list:
-            adesc = property.xpath('./div/div/a')
-            print(f"\nproperty: {property.get('id')} => {adesc[0].text}")
-            # print(f"property: |{property.get('class')}| |{property.text}")
-            """        <div class="wikibase-statementlistview"> <!-- head of property list -->
-            <div class="wikibase-statementlistview-listview">
-                <div id="Q407418$8A24EA26-7C5E-4494-B40C-65356BBB3AA4" class="wikibase-statementview wikibase-statement-Q407418$8A24EA26-7C5E-4494-B40C-65356BBB3AA4 wb-normal listview-item wikibase-toolbar-item">
-                    <div class="wikibase-statementview-rankselector"><div class="wikibase-rankselector ui-state-disabled">
-                        <span class="ui-icon ui-icon-rankselector wikibase-rankselector-normal" title="Normal rank"></span>
-                    </div>
-                </div>
-                <div class="wikibase-statementview-mainsnak-container">
-                    <div class="wikibase-statementview-mainsnak" dir="auto">
-                        <div class="wikibase-snakview wikibase-snakview-e823b98d1498aa78e139709b1b02f5decd75c887">
-                            <div class="wikibase-snakview-property-container">
-                                <div class="wikibase-snakview-property" dir="auto"></div>
-                            </div>
-                            <div class="wikibase-snakview-value-container" dir="auto">
-                                <div class="wikibase-snakview-typeselector"></div>
-                                <div class="wikibase-snakview-body">
-                                    <div class="wikibase-snakview-value wikibase-snakview-variation-valuesnak">
-                                        <a title="Q11173" href="/wiki/Q11173">chemical compound</a>
-                                    </div>
-                                    <div class="wikibase-snakview-indicators"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="wikibase-statementview-qualifiers"></div>
-                </div>
-            """
-            xpath = "./div[@class='wikibase-statementlistview']" \
-                    "/div[@class='wikibase-statementlistview-listview']" \
-                    "/div/" \
-                    "div[@class='wikibase-statementview-mainsnak-container']" \
-                    "/div[@class='div.wikibase-statementview-mainsnak']" \
-                    "/div" \
-                    "/div[@class='wikibase-snakview-value-container']" \
-                    "/div[@class='wikibase-snakview-body']/div/a"
-            xpath = f"./div[@class='wikibase-statementlistview']/div[@class='wikibase-statementlistview-listview']/div/div[@class='wikibase-statementview-mainsnak-container']/div[@class='wikibase-statementview-mainsnak']/div/div[@class='wikibase-snakview-value-container']/div[@class='wikibase-snakview-body']//div/a"
-            # xpath = f"./div/div/div/div/div[@class='div.wikibase-statementview-mainsnak']/div/div[@class='wikibase-snakview-value-container']/div[@class='wikibase-snakview-body']//div/a"
-            # xpath = "./div[@class='wikibase-statementlistview']//div/a"
-            # statements = property.xpath(".//div[@class='wikibase-statementlistview']//a")
-            statements = property.xpath(xpath)
-            for statement in statements:
-                print(f"statement {statement.get('title')} {statement.text}")
+
+        wikidata_page = WikidataPage("q407418")
+        property_list = wikidata_page.get_data_property_list()
+        assert 74 > len(property_list) > 70
+        assert wikidata_page.get_property_id_list()[:10] == [
+            'P31', 'P279', 'P361', 'P117', 'P8224', 'P2067', 'P274', 'P233', 'P2017', 'P2054']
+        assert wikidata_page.get_property_name_list()[:10] == [
+            'instance of', 'subclass of', 'part of', 'chemical structure', 'molecular model or crystal lattice model',
+            'mass', 'chemical formula', 'canonical SMILES', 'isomeric SMILES', 'density']
+
+        properties_dict = WikidataPage.get_properties_dict(property_list)
+        dict_str = pprint.pformat(properties_dict)
+        print(f"\ndict: \n"
+              f"{dict_str}")
+        assert properties_dict['P662'] == {'name': 'PubChem CID', 'value': '16666'}
+        assert properties_dict['P31'] == {'name': 'instance of',
+                                          'statements': {
+                                              'Q11173': 'chemical compound',
+                                              'Q12140': 'medication',
+                                              'Q27109870': 'p-menthan-3-ol',
+                                              'Q66124573': 'menthane monoterpenoids'}}
+        # retains the order of addition
+        assert list(properties_dict.keys()) == [
+            'P31', 'P279', 'P361', 'P117', 'P8224', 'P2067', 'P274', 'P233', 'P2017', 'P2054', 'P2101', 'P2102',
+            'P2128', 'P2275', 'P703', 'P2175', 'P129', 'P366', 'P2789', 'P2868', 'P1343', 'P1987', 'P1748', 'P527',
+            'P1889', 'P935', 'P373', 'P910', 'P268', 'P227', 'P8189', 'P244', 'P234', 'P235', 'P231', 'P661',
+            'P662', 'P1579', 'P683', 'P592', 'P6689', 'P4964', 'P679', 'P2062', 'P3117', 'P8494', 'P2840', 'P232',
+            'P2566', 'P5930', 'P8121', 'P7049', 'P595', 'P3345', 'P715', 'P2057', 'P2064', 'P652', 'P2115', 'P665',
+            'P2063', 'P8313', 'P1417', 'P646', 'P1296', 'P8408', 'P6366', 'P2004', 'P10283', 'P3417', 'P5076', 'P5082'
+        ]
 
     def test_update_dictionary_with_wikidata_ids(self):
         """Update dictionary by adding Wikidata IDs where missing"""
@@ -446,7 +428,37 @@ class TestWikidataLookup:
         pass
 
     def test_add_wikidata_to_imageanalysis_output(self):
-        pass
+        """creates dictionary from list of terms and looks up Wikidata"""
+        terms = [
+            "isopentyl-diphosphate delta-isomerase"
+            "squalene synthase",
+            "squalene monoxygenase",
+            "phytoene synthase",
+            "EC 2.5.1.6",
+            "EC 4.4.1.14",
+            "EC 1.14.17.4",
+            "ETRL",
+            "ETR2",
+            "ERS1",
+            "EIN4",
+        ]
+        with open(Path(RESOURCES_DIR, "eoCompound", "enzymes.txt"), "r") as f:
+            terms = f.readlines()
+            assert 100 > len(terms) > 90
+        wikidata_lookup = WikidataLookup()
+        # qitems, descs = wikidata_lookup.lookup_items(terms)
+        temp_dir = Path(TEMP_DIR, "wikidata")
+        if not temp_dir.exists():
+            temp_dir.mkdir()
+        dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="enzymes",
+                                                                                  wikidata=True, directory=temp_dir)
+        assert os.path.exists(dictfile)
+
+    def test_json_wikidata_download(self):
+        """Test json/php api for downloadin wikidata
+        see https://github.com/sedthh/awena-wikidata-crawler
+        """
+        query = "Einstein"
 
     def test_wikidata_extractor(self):
         query = '2-fluorobenzoic acid'

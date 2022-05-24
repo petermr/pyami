@@ -4,6 +4,7 @@ from lxml import etree
 from lxml.builder import E
 import statistics
 from enum import Enum
+from pathlib import Path
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util
@@ -74,6 +75,7 @@ class AmiPage:
     Used as a working container, utimately being merged with
     neighbouring documents into complete HTML document
     """
+    CONTENT_RANGES = [[56, 999], [45, 780]]
 
     def __init__(self):
         # path of SVG page
@@ -111,7 +113,8 @@ class AmiPage:
         :return: self.text_spans
         """
         # remove line numbers and headers and footers
-        content_box = BBox(xy_ranges=[[56, 999], [45, 780]])
+        # USED
+        content_box = BBox(xy_ranges=self.CONTENT_RANGES)
         if not sort_axes:
             sort_axes = []
         # dot_len = 10 # in case we need dots in output
@@ -138,6 +141,7 @@ class AmiPage:
         return self.text_spans
 
     def create_text_spans_from_text_elements(self, content_box, rotated_text):
+        # USED
         self.text_spans = []
         for text_index, text_element in enumerate(self.text_elements):
             if text_element.attrib.get("rotateDegrees") and not rotated_text:
@@ -263,6 +267,7 @@ class AmiPage:
         return html
 
     def create_paragraphs(self):
+        """ """
         delta_ylist = self.get_inter_composite_spacings()
         if len(delta_ylist) > 0:
             mode = statistics.mode(delta_ylist)
@@ -277,6 +282,7 @@ class AmiPage:
                 paragraph.composite_lines.append(composite_line)
 
     def get_inter_composite_spacings(self):
+        """ """
         delta_y_list = []
         if self.composite_lines:
             last_line = self.composite_lines[0]
@@ -346,17 +352,30 @@ class AmiPage:
         style_dict = ami_text.extract_style_dict_from_svg()
         return style_dict, breaks
 
-    def write_html(self, html_path, pretty_print=False, use_lines=False) -> None:
+    def write_html(self, html_path: str, pretty_print: bool = False, use_lines: bool = False) -> None:
         """convenience method to create and write HTML
         :param html_path: path to write to
         :param pretty_print: pretty print HTML (may introduce spurious whitespace) default= False
         :param use_lines: retain PDF lines (mainly for debugging) default= False
         """
 
+        # USED
         html = self.create_html(use_lines=use_lines)
+        parent_dir = Path(html_path).parent
+        if not parent_dir.exists():
+            parent_dir.mkdir()
         with open(html_path, "wb") as f:
             et = lxml.etree.ElementTree(html)
             et.write(f, pretty_print=pretty_print)
+
+
+class AmiSect:
+    """Transformation of an Html Page to sections
+    NOT Yet tested
+    """
+
+    def __init__(self):
+        pass
 
 
 class AmiParagraph:

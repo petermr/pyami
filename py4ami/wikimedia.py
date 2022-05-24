@@ -198,6 +198,7 @@ class WikidataBrowser:
 
 
 class WikidataPage:
+    PROPERTY_ID = "id"
 
     def __init__(self, pqitem):
         self.root = None
@@ -301,6 +302,83 @@ class WikidataPage:
         pdivs = self.root.findall(".//div[@class='wikibase-statementgroupview']")
         ids = [pdiv.attrib[ID] for pdiv in pdivs]
         return ids
+
+    def get_data_property_list(self):
+        """gets data_properties (the Statements and Identifiers)
+        :return: list of properties , may be empty
+        """
+        selector = WikidataPage.get_data_property_xpath()
+        property_list = self.root.xpath(selector)
+        return property_list
+
+    @classmethod
+    def get_data_property_xpath(cls):
+        """selector for data_properties """
+        return f".//div[@data-property-id]"
+
+    def get_property_id_list(self):
+        property_list = self.get_data_property_list()
+        property_id_list = [property.get("id") for property in property_list]
+        return property_id_list
+
+    def get_property_name_list(self):
+        property_list = self.get_data_property_list()
+        property_name_list = [WikidataPage.get_property_name(property) for property in property_list]
+        return property_name_list
+
+    @classmethod
+    def get_property_name(cls, property):
+        """gets property name from property box"""
+        return property.xpath('./div/div/a')[0].text
+
+    @classmethod
+    def get_id(cls, property):
+        """gets property name from property box"""
+        return property.get(cls.PROPERTY_ID)
+
+    @classmethod
+    def extract_statements(cls, property):
+        xpath = f"./div[@class='wikibase-statementlistview']/div[@class='wikibase-statementlistview-listview']/div/div[@class='wikibase-statementview-mainsnak-container']/div[@class='wikibase-statementview-mainsnak']/div/div[@class='wikibase-snakview-value-container']/div[@class='wikibase-snakview-body']//div/a"
+        statements = property.xpath(xpath)
+        return statements
+
+    @classmethod
+    def get_properties_dict(cls, property_list):
+        """makes python dict from list of properties"""
+        properties_dict = {}
+        for property in property_list:
+            id = WikidataPage.get_id(property)
+            property_dict = cls.create_property_dict(property)
+            properties_dict[id] = property_dict
+        return properties_dict
+
+    @classmethod
+    def create_property_dict(cls, property):
+        """creates python dict from wikidata_page
+        Not complete (doesn't do scalar values)"""
+        id = WikidataPage.get_property_name(property)
+        name = WikidataPage.get_property_name(property)
+        property_dict = {
+            "name": name,
+        }
+        statements = WikidataPage.extract_statements(property)
+        if len(statements) > 0:
+            statement_dict = {}
+            for statement in statements:
+                id = statement.get('title')
+                value = statement.text
+                if id:
+                    statement_dict[id] = value
+                    # print(f"statement {id} {value}")
+                else:
+                    # print(f"value: {value}")
+                    property_dict["value"] = value
+            if len(statement_dict) > 0:
+                property_dict["statements"] = statement_dict
+        return property_dict
+
+
+
 
     @classmethod
     def get_predicate_object_from_file(cls, wikidata_file, pred, obj):
@@ -542,11 +620,11 @@ class ParserWrapper:
         from lxml import etree
         from urllib.error import HTTPError
 
-        with urlopen(url) as u:
-            try:
+        try:
+            with urlopen(url) as u:
                 content = u.read().decode("utf-8")
-            except HTTPError as e:
-                print(f"cannout open {url} because {e}")
+        except HTTPError as e:
+            print(f"cannout open {url} because {e}")
         tree = etree.parse(StringIO(content), etree.HTMLParser())
         root = tree.getroot()
         return root

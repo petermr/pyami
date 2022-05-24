@@ -3,6 +3,7 @@ from pathlib import Path
 import lxml
 import lxml.etree
 import lxml.html
+import unittest
 
 # local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS
@@ -128,7 +129,7 @@ def test_create_html():
         assert (html_path.exists(), f"{html_path} exists")
 
 
-def test_create_html_in_selectiom():
+def test_create_html_in_selection():
     """
     Test 10 pages
     """
@@ -177,9 +178,15 @@ def test_create_chapters():
             chapter = HtmlUtil.get_text_content(span)
             print("CHAP ", chapter)
 
-def test_svg2html():
+def test_svg2page():
     proj = Resources.CLIMATE_10_PROJ_DIR
-    args = f"--proj {proj} --apply svg2xml"
+    args = f"--proj {proj} --apply svg2page"
+    PyAMI().run_command(args)
+
+@unittest.skip("Needs debugging")
+def test_page2chap():
+    proj = Resources.CLIMATE_10_PROJ_DIR
+    args = f"--proj {proj} --apply page2sect"
     PyAMI().run_command(args)
 
 # ==============================
