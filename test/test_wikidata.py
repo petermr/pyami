@@ -486,3 +486,15 @@ class TestWikidataLookup:
         assert js["labels"]["en"]["value"] == "chemical structure"
         assert js["descriptions"]["en"]["value"] == "image of a representation of the structure for a chemical compound"
         assert list(js["claims"].keys()) == ['P31', 'P1855', 'P3254', 'P2302', 'P1629', 'P1647', 'P2875', 'P1659']
+
+    def test_multiple_ids(self):
+        ids = "P31|P117"
+        url_str = f"https://www.wikidata.org/w/api.php?action=wbgetentities&ids={ids}&language=en&format=json"
+        response = requests.get(url_str)
+        json_dict = response.json()
+        assert list(json_dict['entities'].keys()) == ['P31', 'P117']
+        assert list(json_dict['entities']['P117'].keys()) == [
+            'pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'datatype', 'id', 'labels',
+            'descriptions', 'aliases', 'claims']
+        assert json_dict['entities']['P117']['labels']['en']['value'] == 'chemical structure'
+        assert json_dict['entities']['P31']['labels']['en']['value'] == 'instance of'
