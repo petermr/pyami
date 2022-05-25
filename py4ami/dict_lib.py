@@ -703,7 +703,7 @@ class AMIDict(AbsDictElem):
         :replace: if True will replace entry, if False will raise error if entry exists
         """
         for term in strings:
-            self.create_and_add_entry_with_term(term, replace)
+            self.create_and_add_entry_with_term(term, replace=replace)
 
     @classmethod
     def create_from_list_of_strings(cls, terms, title, metadata=None):
@@ -717,13 +717,13 @@ class AMIDict(AbsDictElem):
         if title is None or title.strip() == "":
             raise AMIDictError(f"must give non-empty title {title}")
         amidict = AMIDict.create_minimal_dictionary()
-        amidict.create_and_add_entries_from_str_list(terms)
+        amidict.create_and_add_entries_from_str_list(terms, replace=True)
         amidict.set_title(title)
         amidict.create_and_add_base_metadata()
         return amidict
 
     @classmethod
-    def create_from_list_of_strings_and_write_to_file(cls, terms, title, directory, wikidata=False, metadata=None):
+    def create_from_list_of_strings_and_write_to_file(cls, terms, title, directory, wikidata=False, metadata=None, replace=True):
         """create a minimal dictionary from list of strings
 
         :terms: to add

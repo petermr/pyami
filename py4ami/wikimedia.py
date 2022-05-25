@@ -633,8 +633,9 @@ import pprint
 import requests
 
 class WikidataExtractor:
+    """Thanks to Awena for showing the approach"""
     VERSION = "0.1"
-    USER_AGENT = "Mozilla/5.0 (compatible; Awena/" + VERSION + "; +https://github.com/petermr/pyami/)"
+    USER_AGENT = "Mozilla/5.0 (compatible; Pyami/" + VERSION + "; +https://github.com/petermr/pyami/)"
     WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 
     def __init__(self, lang='en'):

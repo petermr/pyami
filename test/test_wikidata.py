@@ -442,16 +442,22 @@ class TestWikidataLookup:
             "ERS1",
             "EIN4",
         ]
-        with open(Path(RESOURCES_DIR, "eoCompound", "enzymes.txt"), "r") as f:
+        # with open(Path(RESOURCES_DIR, "eoCompound", "enzymes.txt"), "r") as f:
+        #     terms = f.readlines()
+        #     assert 100 > len(terms) > 90
+        with open(Path(RESOURCES_DIR, "eoCompound", "compounds.txt"), "r") as f:
             terms = f.readlines()
-            assert 100 > len(terms) > 90
+            assert 100 > len(terms) > 87
         wikidata_lookup = WikidataLookup()
         # qitems, descs = wikidata_lookup.lookup_items(terms)
         temp_dir = Path(TEMP_DIR, "wikidata")
         if not temp_dir.exists():
             temp_dir.mkdir()
-        dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="enzymes",
+        # limit = 10000
+        limit = 5
+        dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms[:limit], title="compounds",
                                                                                   wikidata=True, directory=temp_dir)
+        print(f"wrote to {dictfile}")
         assert os.path.exists(dictfile)
 
     def test_json_wikidata_download(self):
@@ -469,17 +475,30 @@ class TestWikidataLookup:
 
 
     def test_simple_wikidata_query(self):
+        """get ID list for query results
+        each entry has a small number of attributes (e.g. description, URL, )"""
         query = "isomerase"
-        url_str = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={query}&language=en&format=json"
+        query = "NIPGR"
+        url_str = f"https://www.wikidata.org/w/api.php?" \
+                  f"action=wbsearchentities" \
+                  f"&search={query}" \
+                  f"&language=en" \
+                  f"&format=json"
         response = requests.get(url_str)
         js = response.json()
         print(pprint.pformat(js))
 
     def test_wikidata_id_lookup(self):
+        # ids = "Q11966262"
         ids = "P117"
-        url_str = f"https://www.wikidata.org/w/api.php?action=wbgetentities&ids={ids}&language=en&format=json"
+        url_str = f"https://www.wikidata.org/w/api.php?" \
+                  f"action=wbgetentities" \
+                  f"&ids={ids}" \
+                  f"&language=en" \
+                  f"&format=json"
         response = requests.get(url_str)
-        js = response.json()["entities"]["P117"]
+        js = response.json()["entities"][ids]
+        # print(f"pages for {ids}\n", pprint.pformat(js))
         assert list(js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'datatype', 'id', 'labels', 'descriptions', 'aliases', 'claims']
         assert js["id"] == "P117"
         assert js["title"] == "Property:P117"
