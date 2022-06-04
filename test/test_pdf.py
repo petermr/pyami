@@ -4,7 +4,7 @@ import lxml
 import lxml.etree
 import lxml.html
 import unittest
-
+from decimal import Decimal
 # local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS
 from py4ami.ami_pdf import STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, HtmlUtil, SORT_XY
@@ -22,6 +22,8 @@ CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
 
 
 # FULL_TEMP_DIR = Path(Path(__file__).parent.parent, "temp", "full")
+
+PMC1421 = Path(Resources.RESOURCES_DIR, "projects", "liion4", "PMC4391421", "fulltext.pdf")
 
 
 def test_pdfbox_output_exists():
@@ -136,10 +138,10 @@ def test_create_html_in_selection():
     pretty_print = True
     use_lines = True
     # selection = range(1, 2912)
-    selection = range(1, 50)
+    page_selection = range(1, 50)
     counter = 0
     counter_tick = 20
-    for page_index in selection:
+    for page_index in page_selection:
         if counter % counter_tick == 0:
             print(f".", end="")
         page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
@@ -189,6 +191,235 @@ def test_page2chap():
     args = f"--proj {proj} --apply page2sect"
     PyAMI().run_command(args)
 
+def test_pdfplumber():
+    """NOTE REQUIRES LATEST pdfplumber"""
+    import pdfplumber
+    assert PMC1421.exists(), f"{PMC1421} should exist"
+
+    with pdfplumber.open(PMC1421) as pdf:
+        first_page = pdf.pages[0]
+        # print(type(first_page), first_page.__dir__())
+        """
+        dir: ['pdf', 'root_page', 'page_obj', 'page_number', 'rotation', 'initial_doctop', 'cropbox', 'mediabox', 
+        'bbox', 'cached_properties', 'is_original', 'pages', 'width', 
+        'height', 'layout', 'annots', 'hyperlinks', 'objects', 'process_object', 'iter_layout_objects', 'parse_objects', 
+        'debug_tablefinder', 'find_tables', 'extract_tables', 'extract_table', 'get_text_layout', 'search', 'extract_text',
+         'extract_words', 'crop', 'within_bbox', 'filter', 'dedupe_chars', 'to_image', 'to_dict', 
+         'flush_cache', 'rects', 'lines', 'curves', 'images', 'chars', 'textboxverticals', 'textboxhorizontals', 
+         'textlineverticals', 'textlinehorizontals', 'rect_edges', 'edges', 'horizontal_edges', 'vertical_edges', 'to_json',
+          'to_csv', ]
+        """
+        assert first_page.page_number == 1
+        assert first_page.rotation == 0
+        assert first_page.initial_doctop == 0
+        assert first_page.cropbox == [0, 0, 595.22, 842]
+        assert first_page.mediabox == [0, 0, 595.22, 842]
+        assert first_page.bbox == (0, 0, 595.22, 842)
+        assert first_page.rotation == 0
+        assert first_page.initial_doctop == 0
+        assert first_page.cached_properties == ['_rect_edges', '_edges', '_objects', '_layout']
+        assert first_page.is_original == True
+        assert first_page.pages == None
+        assert first_page.width == 595.22
+        assert first_page.height == 842
+        # assert first_page.layout: < LTPage(1)
+        # 0.000, 0.000, 595.220, 842.000
+        # rotate = 0 >
+        assert first_page.annots == []
+        assert first_page.hyperlinks == []
+        assert first_page.find_tables() == []
+        assert first_page.extract_tables() == []
+        assert first_page.extract_text()[:20] == "Journal of Medicine "
+        assert first_page.extract_words()[:3] == [
+            {'text': 'Journal', 'x0': 319.74, 'x1': 346.2432, 'top': 37.8297, 'doctop': 37.8297, 'bottom': 46.8297,
+             'upright': True, 'direction': 1},
+            {'text': 'of', 'x0': 348.2808, 'x1': 355.641, 'top': 37.8297, 'doctop': 37.8297, 'bottom': 46.8297,
+             'upright': True, 'direction': 1},
+            {'text': 'Medicine', 'x0': 357.6786, 'x1': 391.08299999999997, 'top': 37.8297, 'doctop': 37.8297,
+             'bottom': 46.8297, 'upright': True, 'direction': 1}]
+        assert first_page.rects == []
+        assert first_page.rects == []
+        assert first_page.lines == [{'x0': 56.7, 'y0': 793.76, 'x1': 542.76, 'y1': 793.76, 'width': 486.06, 'height': 0.0,
+                 'pts': [(56.7, 793.76), (542.76, 793.76)], 'linewidth': 1, 'stroke': True, 'fill': False,
+                 'evenodd': False, 'stroking_color': (0.3098, 0.24706, 0.2549, 0), 'non_stroking_color': 0,
+                 'object_type': 'line', 'page_number': 1, 'top': 48.24000000000001, 'bottom': 48.24000000000001,
+                 'doctop': 48.24000000000001}]
+
+        assert first_page.curves == []
+        assert first_page.images == []
+        assert first_page.chars[:1] == [
+{  'adv': 0.319,
+  'bottom': 46.8297,
+  'doctop': 37.8297,
+  'fontname': 'KAAHHD+Calibri,Italic',
+  'height': 9.0,
+  'matrix': (9, 0, 0, 9, 319.74, 797.4203),
+  'non_stroking_color': (0.86667, 0.26667, 1, 0.15294),
+  'object_type': 'char',
+  'page_number': 1,
+  'size': 9.0,
+  'stroking_color': None,
+  'text': 'J',
+  'top': 37.8297,
+  'upright': True,
+  'width': 2.870999999999981,
+  'x0': 319.74,
+  'x1': 322.611,
+  'y0': 795.1703,
+  'y1': 804.1703},
+], ""
+        assert first_page.chars[0] == {'matrix': (9, 0, 0, 9, 319.74, 797.4203), 'fontname': 'KAAHHD+Calibri,Italic', 'adv': 0.319,
+                 'upright': True, 'x0': 319.74, 'y0': 795.1703, 'x1': 322.611, 'y1': 804.1703,
+                 'width': 2.870999999999981, 'height': 9.0, 'size': 9.0, 'object_type': 'char', 'page_number': 1,
+                 'text': 'J', 'stroking_color': None, 'non_stroking_color': (0.86667, 0.26667, 1, 0.15294),
+                 'top': 37.8297, 'bottom': 46.8297, 'doctop': 37.8297}
+        first_100 = first_page.extract_text()[:100]
+        assert first_100.startswith("Journal of Medicine and Life Volume 7, Special Issue 3")
+        assert 612 < len(first_page.extract_words()) < 616
+        word0 = first_page.extract_words()[0]
+        assert list(word0.keys()) == ['text', 'x0', 'x1', 'top', 'doctop', 'bottom', 'upright', 'direction']
+
+# too fragile
+        assert first_page.edges == [{'x0': 56.7, 'y0': 793.76, 'x1': 542.76, 'y1': 793.76, 'width': 486.06, 'height': 0.0,
+                                    'pts': [(56.7, 793.76), (542.76, 793.76)], 'linewidth': 1, 'stroke': True, 'fill': False,
+                                    'evenodd': False, 'stroking_color': (0.3098, 0.24706, 0.2549, 0), 'non_stroking_color': 0,
+                                    'object_type': 'line', 'page_number': 1, 'top': 48.24000000000001, 'bottom': 48.24000000000001,
+                                    'doctop': 48.24000000000001, 'orientation': 'h'}]
+        assert first_page.horizontal_edges == [{'x0': 56.7, 'y0': 793.76, 'x1': 542.76, 'y1': 793.76, 'width': 486.06, 'height': 0.0, 'pts': [(56.7, 793.76), (542.76, 793.76)], 'linewidth': 1, 'stroke': True, 'fill': False, 'evenodd': False, 'stroking_color': (0.3098, 0.24706, 0.2549, 0), 'non_stroking_color': 0, 'object_type': 'line', 'page_number': 1, 'top': 48.24000000000001, 'bottom': 48.24000000000001, 'doctop': 48.24000000000001, 'orientation': 'h'}]
+        assert first_page.vertical_edges == []
+        assert first_page.textboxverticals == []
+        assert first_page.textboxhorizontals == []
+        assert first_page.textlineverticals == []
+        assert first_page.textlinehorizontals == []
+
+# CSV
+        csv = first_page.to_csv()
+        assert type(csv) is str
+        rows = csv.split("\r")
+        assert len(rows) == 4414
+        assert rows[0] == "object_type,page_number,x0,x1,y0,y1,doctop,top,bottom,width,height,adv,evenodd,fill,fontname,linewidth,matrix,non_stroking_color,pts,size,stroke,stroking_color,text,upright"
+        assert rows[0].split() == ['object_type,page_number,x0,x1,y0,y1,doctop,top,bottom,width,height,adv,evenodd,fill,fontname,linewidth,matrix,non_stroking_color,pts,size,stroke,stroking_color,text,upright']
+        assert rows[1].split() == ['char,1,319.74,322.611,795.1703,804.1703,37.8297,37.8297,46.8297,2.870999999999981,9.0,0.319,,,"KAAHHD+Calibri,Italic",,"(9,','0,','0,','9,','319.74,','797.4203)","(0.86667,','0.26667,','1,','0.15294)",,9.0,,,J,1']
+
+#        assert rows[1] == 'char,1,319.74,322.611,795.1703,804.1703,37.8297,37.8297,46.8297,2.870999999999981,9.0,0.319,,,"KAAHHD+Calibri,Italic",,"(9, '\n '0, 0, 9, 319.74, 797.4203)","(0.86667, 0.26667, 1, 0.15294)",,9.0,,,J,1'
+
+        assert first_page.chars[0:1] == [
+            {'adv': 0.319,'bottom': 46.8297,'doctop': 37.8297,'fontname': 'KAAHHD+Calibri,Italic','height': 9.0,
+            'matrix': (9, 0, 0, 9, 319.74, 797.4203),'non_stroking_color': (0.86667, 0.26667, 1, 0.15294),'object_type': 'char',
+            'page_number': 1,'size': 9.0,'stroking_color': None,'text': 'J','top': 37.8297,'upright': True,
+            'width': 2.870999999999981,'x0': 319.74,'x1': 322.611,'y0': 795.1703,'y1': 804.1703}]
+
+        assert type(first_page.extract_text()) is str
+        for ch in first_page.chars:  # prints all text as a single line
+            print(ch.get("text"), end="")
+
+
+# See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
+
+"""
+from depdf import DePDF
+from depdf import DePage
+
+# general
+with DePDF.load('test/test.pdf') as pdf
+    pdf_html = pdf.to_html
+    print(pdf_html)
+
+# with dedicated configurations
+c = Config(
+    debug_flag=True,
+    verbose_flag=True,
+    add_line_flag=True
+)
+pdf = DePDF.load('test/test.pdf', config=c)
+page_index = 23  # start from zero
+page = pdf_file.pages[page_index]
+page_soup = page.soup
+print(page_soup.text)
+
+
+extract_page_paragraphs | extract paragraphs from specific page
+extract_page_tables	| extract tables from specific page
+convert_pdf_to_html	| convert the entire pdf to html
+convert_page_to_html | convert specific page to html
+"""
+# probably not working yet
+@unittest.skip("fragile library")
+def test_dedpf():
+    """ this example didn't parse and it will need edbugging"""
+    from depdf import DePDF
+    from depdf import DePage
+
+    # general
+    with DePDF.load(PMC1421) as pdf:
+        pdf_html = pdf.to_html()
+        print(pdf_html)
+
+    # with dedicated configurations
+    c = Config(
+        debug_flag=True,
+        verbose_flag=True,
+        add_line_flag=True
+    )
+    pdf = DePDF.load(PMC1421, config=c)
+    page_index = 23  # start from zero
+    page = pdf.pages[page_index]
+    page_soup = page.soup
+    print(page_soup.text)
+
+# https://towardsdatascience.com/pdf-text-extraction-in-python-5b6ab9e92dd
+"""
+from io import StringIO
+
+from pdfminer.converter import TextConverter
+from pdfminer.layout import LAParams
+from pdfminer.pdfdocument import PDFDocument
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.pdfpage import PDFPage
+from pdfminer.pdfparser import PDFParser
+
+def convert_pdf_to_string(file_path):
+
+	output_string = StringIO()
+	with open(file_path, 'rb') as in_file:
+	    parser = PDFParser(in_file)
+	    doc = PDFDocument(parser)
+	    rsrcmgr = PDFResourceManager()
+	    device = TextConverter(rsrcmgr, output_string, laparams=LAParams())
+	    interpreter = PDFPageInterpreter(rsrcmgr, device)
+	    for page in PDFPage.create_pages(doc):
+	        interpreter.process_page(page)
+
+	return(output_string.getvalue())
+
+                
+def convert_title_to_filename(title):
+    filename = title.lower()
+    filename = filename.replace(' ', '_')
+    return filename
+
+
+def split_to_title_and_pagenum(table_of_contents_entry):
+    title_and_pagenum = table_of_contents_entry.strip()
+    
+    title = None
+    pagenum = None
+    
+    if len(title_and_pagenum) > 0:
+        if title_and_pagenum[-1].isdigit():
+            i = -2
+            while title_and_pagenum[i].isdigit():
+                i -= 1
+
+            title = title_and_pagenum[:i].strip()
+            pagenum = int(title_and_pagenum[i:].strip())
+        
+    return title, pagenum
+    
+"""
+
+
+
 # ==============================
 
 def make_full_draft_html(pretty_print, use_lines, rotated_text=False):
@@ -207,4 +438,5 @@ def make_full_draft_html(pretty_print, use_lines, rotated_text=False):
             Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
         ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
         ami_page.write_html(html_path, pretty_print, use_lines)
+
 

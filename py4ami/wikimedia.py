@@ -200,14 +200,23 @@ class WikidataBrowser:
 class WikidataPage:
     PROPERTY_ID = "id"
 
-    def __init__(self, pqitem):
+    def __init__(self, pqitem=None):
         self.root = None
         self.pqitem = pqitem
-        self.root = self.get_root_for_item(self.pqitem)
+        self.root = None if not pqitem else self.get_root_for_item(self.pqitem)
+        self.json = None
 
     @classmethod
     def create_wikidata_ppage_from_file(cls, file):
         pass
+
+    @classmethod
+    def create_wikidata_page_from_response(cls, response):
+        if not response:
+            return None
+        wikidata_page = WikidataPage()
+        wikidata_page.json = response.json()
+        return wikidata_page
 
     def get_root_for_item(self, qitem):
         """search wikidata site for QItem

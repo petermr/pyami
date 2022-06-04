@@ -10,6 +10,11 @@ import requests
 from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor
 from py4ami.dict_lib import AmiDictionary, WIKIDATA_ID, TERM
 
+"""This runs under Pycharm and also
+cd pyami # toplevel checkout
+python3 -m test.test_wikidata
+"""
+
 try:
     from py4ami.wikimedia import WikidataLookup
     from py4ami.dict_lib import AMIDict, AMIDictError, Entry, AmiDictionary
@@ -31,7 +36,7 @@ EO_COMPOUND_DIR = Path(RESOURCES_DIR, EO_COMPOUND)
 
 # NOTE some of these are lengthy (seconds) as they lookup on the Ne
 
-class TestWikidataLookup:
+class TestWikidataLookup(unittest.TestCase):
 
     def test_lookup_wikidata_acetone(self):
         term = "acetone"
@@ -476,9 +481,9 @@ class TestWikidataLookup:
 
     def test_simple_wikidata_query(self):
         """get ID list for query results
+        see https://www.wikidata.org/w/api.php for options
         each entry has a small number of attributes (e.g. description, URL, )"""
         query = "isomerase"
-        query = "NIPGR"
         url_str = f"https://www.wikidata.org/w/api.php?" \
                   f"action=wbsearchentities" \
                   f"&search={query}" \
@@ -489,22 +494,43 @@ class TestWikidataLookup:
         print(pprint.pformat(js))
 
     def test_wikidata_id_lookup(self):
-        # ids = "Q11966262"
-        ids = "P117"
+        """test query wikidata by ID
+        """
+        ids = "Q11966262" # "Dyschirius politus" a species of insect
         url_str = f"https://www.wikidata.org/w/api.php?" \
                   f"action=wbgetentities" \
                   f"&ids={ids}" \
                   f"&language=en" \
                   f"&format=json"
         response = requests.get(url_str)
-        js = response.json()["entities"][ids]
-        # print(f"pages for {ids}\n", pprint.pformat(js))
-        assert list(js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'datatype', 'id', 'labels', 'descriptions', 'aliases', 'claims']
-        assert js["id"] == "P117"
-        assert js["title"] == "Property:P117"
-        assert js["labels"]["en"]["value"] == "chemical structure"
-        assert js["descriptions"]["en"]["value"] == "image of a representation of the structure for a chemical compound"
-        assert list(js["claims"].keys()) == ['P31', 'P1855', 'P3254', 'P2302', 'P1629', 'P1647', 'P2875', 'P1659']
+        response_js = response.json()["entities"][ids]
+        # print(f"pages for {ids}\n", pprint.pformat(response_js))
+        assert list(response_js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'id', 'labels', 'descriptions', 'aliases', 'claims','sitelinks']
+        assert response_js["id"] == ids
+        assert response_js["title"] == "Q11966262"
+        assert response_js["labels"]["en"]["value"] == "Dyschirius politus"
+        assert response_js["descriptions"]["en"]["value"] == "species of insect"
+        assert list(response_js["claims"].keys()) == [
+            'P225', 'P105', 'P171', 'P31', 'P685', 'P846', 'P1939', 'P373', 'P815', 'P3151', 'P3186',
+            'P3405', 'P2464', 'P1843', 'P7202', 'P7552', 'P6105', 'P6864', 'P8915', 'P3240', 'P2671',
+            'P3606','P8707','P10243'
+        ]
+        ids = "P117" # chemical compound
+        url_str = f"https://www.wikidata.org/w/api.php?" \
+                  f"action=wbgetentities" \
+                  f"&ids={ids}" \
+                  f"&language=en" \
+                  f"&format=json"
+        response = requests.get(url_str)
+        response_js = response.json()["entities"][ids]
+        # print(f"pages for {ids}\n", pprint.pformat(response_js))
+        assert list(response_js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'datatype', 'id', 'labels', 'descriptions', 'aliases', 'claims']
+        assert response_js["id"] == "P117"
+        assert response_js["title"] == "Property:P117"
+        assert response_js["labels"]["en"]["value"] == "chemical structure"
+        assert response_js["descriptions"]["en"]["value"] == "image of a representation of the structure for a chemical compound"
+        assert list(response_js["claims"].keys()) == ['P31', 'P1855', 'P3254', 'P2302', 'P1629', 'P1647', 'P2875', 'P1659']
+#        wikidata_page = WikidataPage.create_from_response(response)
 
     def test_multiple_ids(self):
         ids = "P31|P117"
@@ -517,3 +543,6 @@ class TestWikidataLookup:
             'descriptions', 'aliases', 'claims']
         assert json_dict['entities']['P117']['labels']['en']['value'] == 'chemical structure'
         assert json_dict['entities']['P31']['labels']['en']['value'] == 'instance of'
+
+if __name__ == '__main__':
+    unittest.main()

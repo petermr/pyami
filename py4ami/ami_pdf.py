@@ -281,8 +281,9 @@ class AmiPage:
                     self.paragraphs.append(paragraph)
                 paragraph.composite_lines.append(composite_line)
 
-    def get_inter_composite_spacings(self):
-        """ """
+    def get_inter_composite_spacings(self) -> list:
+        """
+        :return: list of interline spacings"""
         delta_y_list = []
         if self.composite_lines:
             last_line = self.composite_lines[0]
