@@ -4,6 +4,8 @@ import lxml
 import lxml.etree
 import lxml.html
 import unittest
+from pdfplumber.table import Row
+
 """NOTE REQUIRES LATEST pdfplumber"""
 import pdfplumber
 
@@ -24,10 +26,15 @@ CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
 
 PMC1421 = Path(Resources.RESOURCES_DIR, "projects", "liion4", "PMC4391421", "fulltext.pdf")
 
-IPCC_GLOSS_DIR = Path(Resources.TEST_RESOURCES_DIR, "ipcc_gloss")
+IPCC_DIR = Path(Resources.TEST_RESOURCES_DIR, "ipcc")
+IPCC_GLOSS_DIR = Path(IPCC_DIR, "glossary")
 IPCC_GLOSSARY = Path(IPCC_GLOSS_DIR, "IPCC_AR6_WGIII_Annex-I.pdf")
+IPCC_CHAP6_DIR = Path(IPCC_DIR, "Chapter06")
+IPCC_CHAP6_PDF = Path(IPCC_CHAP6_DIR, "fulltext.pdf")
+
 
 class PDFTest(unittest.TestCase):
+    MAX_PAGE = 5
 
     def test_pdfbox_output_exists(self):
         """check CLIMATE dir exists
@@ -212,8 +219,8 @@ class PDFTest(unittest.TestCase):
             assert first_page.rotation == 0
             assert first_page.initial_doctop == 0
             assert first_page.cached_properties == ['_rect_edges', '_edges', '_objects', '_layout']
-            assert first_page.is_original == True
-            assert first_page.pages == None
+            assert first_page.is_original
+            assert first_page.pages is None
             assert first_page.width == 595.22
             assert first_page.height == 842
             # assert first_page.layout: < LTPage(1)
@@ -331,34 +338,6 @@ class PDFTest(unittest.TestCase):
 
     # See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
 
-    # extract_page_paragraphs | extract paragraphs from specific page
-    # extract_page_tables	| extract tables from specific page
-    # convert_pdf_to_html	| convert the entire pdf to html
-    # convert_page_to_html | convert specific page to html
-    # probably not working yet
-    # @unittest.skip("fragile library")
-    # def test_dedpf():
-    #      this example didn't parse and it will need edbugging
-    #     from depdf import DePDF
-    #     from depdf import DePage
-    #
-    #     # general
-    #     with DePDF.load(PMC1421) as pdf:
-    #         pdf_html = pdf.to_html()
-    #         print(pdf_html)
-    #
-    #     # with dedicated configurations
-    #     c = Config(
-    #         debug_flag=True,
-    #         verbose_flag=True,
-    #         add_line_flag=True
-    #     )
-    #     pdf = DePDF.load(PMC1421, config=c)
-    #     page_index = 23  # start from zero
-    #     page = pdf.pages[page_index]
-    #     page_soup = page.soup
-    #     print(page_soup.text)
-
     # https://towardsdatascience.com/pdf-text-extraction-in-python-5b6ab9e92dd
 
     def test_pdfminer_layout(self):
@@ -369,12 +348,15 @@ class PDFTest(unittest.TestCase):
         page = pdf.pages[0].layout
         for element in page:
             if isinstance(element, LTTextLineHorizontal):
-                print(f"text: ({element.bbox}) .. {element.get_text()}")
+                print(f"textlinehorizontal: ({element.bbox}): {element.get_text()}", end="")
             if isinstance(element, LTTextBoxHorizontal):
-                for line in element:
-                    print(f"....textbox: ({line.bbox}) {line.get_text()}")
+                print(f">>start_text_box")
+                for text_line in element:
+                    print(f"dir: {text_line.__dir__()}")
+                    print(f"....textboxhorizontal: ({text_line.bbox}): {text_line.get_text()}", end="")
+                print(f"<<end_text_box")
 
-# https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
+    # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
 
     def test_pdfminer_font(self):
         from pathlib import Path
@@ -423,11 +405,23 @@ class PDFTest(unittest.TestCase):
 
         """
         assert IPCC_GLOSSARY.exists(), f"{IPCC_GLOSSARY} should exist"
-        with pdfplumber.open(IPCC_GLOSSARY) as pdf:
-            pages = list(pdf.pages)
-            assert len(pages) == 51
-            for page in pages:
-                self.debug_page_properties(page)
+
+        for (pdf_file, page_count) in [
+            (IPCC_GLOSSARY, 51),
+            (IPCC_CHAP6_PDF, 219)]:
+            with pdfplumber.open(pdf_file) as pdf:
+                print(f"file {pdf_file}")
+                pages = list(pdf.pages)
+                assert len(pages) == page_count
+                for page in pages[:PDFTest.MAX_PAGE]:
+                    self.debug_page_properties(page)
+
+    # ==============================
+    MAX_RECT = 5
+    MAX_CURVE = 5
+    MAX_TABLE = 5
+    MAX_ROW = 10
+    MAX_IMAGE = 5
 
     def debug_page_properties(self, page):
         print(f"\n\n======page: {page.page_number} ===========")
@@ -441,44 +435,68 @@ class PDFTest(unittest.TestCase):
         print_annots(page)
 
 
-# ==============================
-
 def print_words(page):
     print(f"words {len(page.extract_words())}", end=" | ")
+
 
 def print_lines(page):
     if (n_line := len(page.lines)) > 0:
         print(f"lines {n_line}", end=" | ")
 
+
 def print_rects(page, debug=False):
-    if (n_rect := len(page.rects)) > 0:
+    if n_rect := len(page.rects) > 0:
         print(f"rects {n_rect}", end=" | ")
         if debug:
-            for rect in page.rects:
+            for rect in page.rects[:PDFTest.MAX_RECT]:
                 print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
 
+
 def print_curves(page):
-    if (n_curve := len(page.curves)) > 0:
+    if n_curve := len(page.curves) > 0:
         print(f"curves {n_curve}", end=" | ")
-        for curve in page.curves:
+        for curve in page.curves[:PDFTest.MAX_CURVE]:
+            print(f"keys: {curve.keys()}")
             print(f"curve {curve['points']}")
 
+
 def print_images(page):
-    if (n_image := len(page.images)) > 0:
+    if n_image := len(page.images) > 0:
         print(f"images {n_image}", end=" | ")
-        for image in page.images:
+        for image in page.images[:PDFTest.MAX_IMAGE]:
             print(f"image: {image.values()}")
 
+
 def print_tables(page):
-    if (n_table := len(page.find_tables())) > 0:
+    tables = page.find_tables()
+    if n_table := len(tables) > 0:
         print(f"tables {n_table}", end=" | ")
+        print(f"table_dir {tables[0].__dir__()}")
+        for table in tables[:PDFTest.MAX_TABLE]:
+            table_lists = table.extract() # essentially a list of lists
+            for table_row in table_lists:
+                print(f"table_row: {table_row}")
+            # print(f"table: rows: {len(table.rows)}")
+            # for row in table.rows[:PDFTest.MAX_ROW]:
+            #     # print("row/cells: ", end="")
+            #     print(f"row {row}")
+            #     # cell is a tuple (x, y) - where is the content?
+            #     # print(f"cell {type(row.cells[0])}, end="")
+            #     # for cell in row.cells:
+            #     #     print(f"[{cell}]", end="")
+            #     # print("")
+
+
 
 def print_hyperlinks(page):
-    if (n_hyper := len(page.hyperlinks)) > 0:
+    if n_hyper := len(page.hyperlinks) > 0:
         print(f"hyperlinks {n_hyper}", end=" | ")
+        for hyperlink in page.hyperlinks:
+            print(f"hyperlink {hyperlink.values()}")
+
 
 def print_annots(page):
-    if (n_annot := len(page.annots)) > 0:
+    if n_annot := len(page.annots) > 0:
         print(f"annots {n_annot}", end=" | ")
 
 
@@ -488,7 +506,7 @@ def make_full_draft_html(pretty_print, use_lines, rotated_text=False):
     used by several tests at present and will be intergrated
     :param pretty_print: pretty print the HTML. Warning may introduce whitespace
     :param use_lines: output is CompositeLines. Not converted into running text (check)
-    :param rotated_text: include/ignore texts with non-zero @rotateDegress attribute
+    :param rotated_text: include/ignore tex# ts with non-zero @rotateDegress attribute
     """
     if not Path(FINAL_DRAFT_DIR, f"fulltext-page.2912.svg").exists():
         raise Exception("must have SVG from ami3")
