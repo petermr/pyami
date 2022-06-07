@@ -3,11 +3,15 @@ import unittest
 from lxml import etree as ET
 import os
 import pprint
+from pathlib import Path
 
 # local
 
 from py4ami.wikimedia import WikidataSparql, WikidataPage
 from py4ami.dict_lib import AmiDictionary
+
+TEST_DIR = Path(Path(__file__).parent.parent, "test")
+TEST_RESOURCE_DIR = Path(TEST_DIR, "resources")
 
 class TestSearchDictionary:
 
@@ -40,7 +44,7 @@ class TestSearchDictionary:
         assert property_ids[:10] == ['P31', 'P279', 'P361', 'P2067', 'P274', 'P233',
                                      'P2054', 'P2101', 'P2128', 'P2199']
 
-    @unittest.skip(reason="needs debugging")
+    # @unittest.skip(reason="needs debugging")
     def test_create_dictionary_from_sparql(self):
         from py4ami.constants import PHYSCHEM_RESOURCES
         PLANT = os.path.join(PHYSCHEM_RESOURCES, "plant")
@@ -195,17 +199,21 @@ class TestSearchDictionary:
         wikidata_sparql = WikidataSparql(AmiDictionary(dictionary_file))
         wikidata_sparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-    @unittest.skip(reason="circular import AmiDictionary")
+    # @unittest.skip(reason="circular import AmiDictionary")
     def test_plant_part(cls):
         """
+        Takes WD-SPARQL-XML output (sparql.xml) and maps to AMIDictionary (eo_plant_part.xml)
+
         """
         # current dictionary does not need updating
 
         from py4ami.constants import CEV_OPEN_DICT_DIR
         import glob
 
+        print(f"***test_plant_part")
         DICT_DIR = os.path.join(CEV_OPEN_DICT_DIR, "eoPlantPart")
-        assert (os.path.exists(DICT_DIR))
+        DICT_DIR = Path(TEST_RESOURCE_DIR,  "eoPlantPart")
+        assert os.path.exists(DICT_DIR), f"{DICT_DIR} should exist"
         dictionary_file = os.path.join(DICT_DIR, "eoplant_part.xml")
         assert (os.path.exists(dictionary_file))
         SPARQL_DIR = os.path.join(DICT_DIR, "raw")
@@ -226,72 +234,4 @@ class TestSearchDictionary:
 
         wikidata_sparql = WikidataSparql(AmiDictionary(dictionary_file))
         wikidata_sparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
-
-# def test_plant(cls):
-#     """
-#     <result>
-#         <binding name='item'>
-#             <uri>http://www.wikidata.org/entity/Q2923673</uri>
-#         </binding>
-#         <binding name='image'>
-#             <uri>http://commons.wikimedia.org/wiki/Special:FilePath/White%20Branches.jpg</uri>
-#         </binding>
-#     </result>
-#     """
-#
-#     option = "sparql"
-#     option = "plant"
-#     option = "invasive"
-#     option = "genus"
-#     option = "compound"
-#     option = "plant_part"
-#     option = "test_dict"
-#     # option = "wikipedia"
-#     if option == "sparql":
-#         TestSearchDictionary.test()
-#     elif option == "plant":
-#         TestSearchDictionary.test_plant()
-#     elif option == "invasive":
-#         TestSearchDictionary.test_invasive()
-#     elif option == "genus":
-#         TestSearchDictionary.test_plant_genus()
-#     elif option == "compound":
-#         TestSearchDictionary.test_compound()
-#     elif option == "plant_part":
-#         TestSearchDictionary.test_plant_part()
-#     elif option == "test_dict":
-#         TestSearchDictionary.test_create_from_words()
-#     elif option == "wikipedia":
-#         TestSearchDictionary.test_parse_wikidata_page()
-#     else:
-#         print("no option given")
-#
-#     from py4ami.constants import CEV_OPEN_DICT_DIR
-#     import glob
-#     import os
-#     # from shutil import copyfile
-#
-#     PLANT_DIR = os.path.join(CEV_OPEN_DICT_DIR, "eoPlant")
-#     assert (os.path.exists(PLANT_DIR))
-#     dictionary_file = os.path.join(PLANT_DIR, "eo_plant.xml")
-#     assert (os.path.exists(dictionary_file))
-#     PLANT_SPARQL_DIR = os.path.join(PLANT_DIR, "sparql_output")
-#     assert (os.path.exists(PLANT_SPARQL_DIR))
-#     rename_file = False
-#
-#     sparql_files = glob.glob(os.path.join(PLANT_SPARQL_DIR, "sparql_*.xml"))
-#
-#     sparql_files.sort()
-#     sparql2amidict_dict = {
-#         "image": {
-#             "id_name": "item",
-#             "sparql_name": "image_link",
-#             "dict_name": "image",
-#         },
-#         "taxon": {
-#             "id_name": "item",
-#             "sparql_name": "taxon",
-#             "dict_name": "synonym",
-#         }
-#     }
 

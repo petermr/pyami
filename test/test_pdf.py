@@ -24,6 +24,8 @@ CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
 
 PMC1421 = Path(Resources.RESOURCES_DIR, "projects", "liion4", "PMC4391421", "fulltext.pdf")
 
+IPCC_GLOSS_DIR = Path(Resources.TEST_RESOURCES_DIR, "ipcc_gloss")
+IPCC_GLOSSARY = Path(IPCC_GLOSS_DIR, "IPCC_AR6_WGIII_Annex-I.pdf")
 
 class PDFTest(unittest.TestCase):
 
@@ -325,15 +327,7 @@ class PDFTest(unittest.TestCase):
             pages = list(pdf.pages)
             assert len(pages) == 5
             for page in pages:
-                print(f"\n\n======page: {page.page_number} ===========")
-                print_words(page)
-                print_lines(page)
-                print_rects(page)
-                print_curves(page)
-                print_images(page)
-                print_tables(page)
-                print_hyperlinks(page)
-                print_annots(page)
+                self.debug_page_properties(page)
 
     # See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
 
@@ -424,6 +418,29 @@ class PDFTest(unittest.TestCase):
         pages = extract_pages(path)
         show_ltitem_hierarchy(pages)
 
+    def test_read_ipcc_chapter(self):
+        """read multipage document and extract properties
+
+        """
+        assert IPCC_GLOSSARY.exists(), f"{IPCC_GLOSSARY} should exist"
+        with pdfplumber.open(IPCC_GLOSSARY) as pdf:
+            pages = list(pdf.pages)
+            assert len(pages) == 51
+            for page in pages:
+                self.debug_page_properties(page)
+
+    def debug_page_properties(self, page):
+        print(f"\n\n======page: {page.page_number} ===========")
+        print_words(page)
+        print_lines(page)
+        print_rects(page, debug=False)
+        print_curves(page)
+        print_images(page)
+        print_tables(page)
+        print_hyperlinks(page)
+        print_annots(page)
+
+
 # ==============================
 
 def print_words(page):
@@ -433,11 +450,12 @@ def print_lines(page):
     if (n_line := len(page.lines)) > 0:
         print(f"lines {n_line}", end=" | ")
 
-def print_rects(page):
+def print_rects(page, debug=False):
     if (n_rect := len(page.rects)) > 0:
         print(f"rects {n_rect}", end=" | ")
-        for rect in page.rects:
-            print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
+        if debug:
+            for rect in page.rects:
+                print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
 
 def print_curves(page):
     if (n_curve := len(page.curves)) > 0:
