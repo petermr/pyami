@@ -99,11 +99,10 @@ class AmiDictionary:
         if desc:
             dictionary.add_desc_element(desc)
         for term in terms:
-            entry = dictionary.add_entry_element(term=None)
+            entry = dictionary.add_entry_element(term=term)
             dictionary.entries.append(entry)
         return dictionary
 
-    @classmethod
     def add_entry_element(self, term):
         """create and add antry with term/name
         :param term: term (will also set name attribute
@@ -115,9 +114,9 @@ class AmiDictionary:
         entry.attrib[TERM] = term
         return entry
 
-    @classmethod
     def add_desc_element(self, desc):
         """create and add desc element to root element"""
+        print(f"self.root {self.root}")
         desc_elem = ET.SubElement(self.root, DESC)
         desc_elem.text = desc
 

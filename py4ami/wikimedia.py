@@ -515,7 +515,7 @@ class WikidataSparql:
     def __init__(self, dictionary):
         self.dictionary = dictionary
 
-    def update_from_sparqlx(self, sparql_file, sparql_to_dictionary):
+    def update_from_sparql(self, sparql_file, sparql_to_dictionary):
         self.sparql_to_dictionary = sparql_to_dictionary
 
         self.dictionary.check_unique_wikidata_ids()
@@ -577,7 +577,8 @@ class WikidataSparql:
         from py4ami.dict_lib import AmiDictionary
         assert (os.path.exists(sparql_file))
         dictionary = AmiDictionary(dictionary_file)
-        dictionary.update_from_sparql(sparql_file, sparq2dict)
+        wikidata_sparql = WikidataSparql(dictionary)
+        wikidata_sparql.update_from_sparql(sparql_file, sparq2dict)
         dictionary_file = f"{dictionary_root}{keystring}_{i + 1}.xml"
         dictionary.write(dictionary_file)
         return dictionary_file
@@ -590,8 +591,8 @@ class WikidataSparql:
         sparql_name = self.sparql_to_dictionary[SPQ_NAME]
         dict_name = self.sparql_to_dictionary[DICT_NAME]
         for wikidata_id in self.sparql_result_by_wikidata_id.keys():
-            if wikidata_id in self.entry_by_wikidata_id.keys():
-                entry = self.entry_by_wikidata_id[wikidata_id]
+            if wikidata_id in self.dictionary.entry_by_wikidata_id.keys():
+                entry = self.dictionary.entry_by_wikidata_id[wikidata_id]
                 result_list = self.sparql_result_by_wikidata_id[wikidata_id]
                 for result in result_list:
                     bindings = list(result.findall(SPQ_BINDING + "/" + f"[@name='{sparql_name}']", NS_MAP))

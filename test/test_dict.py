@@ -67,7 +67,7 @@ class TestSearchDictionary:
         }
         dictionary = AmiDictionary(dictionary_file)
         wikidata_sparql = WikidataSparql(dictionary)
-        wikidata_sparql.update_from_sparqlx(sparql_file, sparql_to_dictionary)
+        wikidata_sparql.update_from_sparql(sparql_file, sparql_to_dictionary)
         ff = dictionary_file[:-(len(".xml"))] + "_update" + ".xml"
         print("saving to", ff)
         dictionary.write(ff)

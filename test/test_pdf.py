@@ -35,6 +35,7 @@ IPCC_CHAP6_PDF = Path(IPCC_CHAP6_DIR, "fulltext.pdf")
 
 class PDFTest(unittest.TestCase):
     MAX_PAGE = 5
+    MAX_ITER = 20
 
     def test_pdfbox_output_exists(self):
         """check CLIMATE dir exists
@@ -359,6 +360,15 @@ class PDFTest(unittest.TestCase):
     # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
 
     def test_pdfminer_font(self):
+        """Examines every character and annotates it
+        Typical:
+LTPage
+  LTTextBoxHorizontal                               Journal of Medicine and Life Volume 7, Special Issue 3, 2014
+    LTTextLineHorizontal                            Journal of Medicine and Life Volume 7, Special Issue 3, 2014
+      LTChar                   KAAHHD+Calibri,Itali J
+      LTChar                   KAAHHD+Calibri,Itali o
+      LTChar                   KAAHHD+Calibri,Itali u
+        """
         from pathlib import Path
         from typing import Iterable, Any
 
@@ -397,24 +407,112 @@ class PDFTest(unittest.TestCase):
             return ''
 
         path = Path(PMC1421)
-        pages = extract_pages(path)
-        show_ltitem_hierarchy(pages)
+        pages = list(extract_pages(path))
+        # this next debugs the character_stream
+        show_ltitem_hierarchy(pages[0])
 
     def test_read_ipcc_chapter(self):
         """read multipage document and extract properties
 
         """
         assert IPCC_GLOSSARY.exists(), f"{IPCC_GLOSSARY} should exist"
+        max_page = 10 # increase this if yiu want more output
 
         for (pdf_file, page_count) in [
-            (IPCC_GLOSSARY, 51),
+            # (IPCC_GLOSSARY, 51),
             (IPCC_CHAP6_PDF, 219)]:
             with pdfplumber.open(pdf_file) as pdf:
                 print(f"file {pdf_file}")
                 pages = list(pdf.pages)
                 assert len(pages) == page_count
-                for page in pages[:PDFTest.MAX_PAGE]:
+                max_page = PDFTest.MAX_PAGE
+                for page in pages[:max_page]:
                     self.debug_page_properties(page)
+
+    def test_pdfminer_html(self):
+        # Use `pip3 install pdfminer.six` for python3
+
+        from typing import Container
+        from io import BytesIO
+        from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+        from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
+        from pdfminer.layout import LAParams
+        from pdfminer.pdfpage import PDFPage
+
+        def convert_pdf(
+                path: str,
+                format: str = "text",
+                codec: str = "utf-8",
+                password: str = "",
+                maxpages: int = 0,
+                caching: bool = True,
+                pagenos: Container[int] = set(),
+        ) -> str:
+            """Summary
+            Parameters
+            ----------
+            path : str
+                Path to the pdf file
+            format : str, optional
+                Format of output, must be one of: "text", "html", "xml".
+                By default, "text" format is used
+            codec : str, optional
+                Encoding. By default "utf-8" is used
+            password : str, optional
+                Password
+            maxpages : int, optional
+                Max number of pages to convert. By default is 0, i.e. reads all pages.
+            caching : bool, optional
+                Caching. By default is True
+            pagenos : Container[int], optional
+                Provide a list with numbers of pages to convert
+            Returns
+            -------
+            str
+                Converted pdf file
+            """
+            rsrcmgr = PDFResourceManager()
+            retstr = BytesIO()
+            laparams = LAParams()
+            if format == "text":
+                device = TextConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+            elif format == "html":
+                device = HTMLConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+            elif format == "xml":
+                device = XMLConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+            else:
+                raise ValueError("provide format, either text, html or xml!")
+            fp = open(path, "rb")
+            interpreter = PDFPageInterpreter(rsrcmgr, device)
+            for page in PDFPage.get_pages(
+                    fp,
+                    pagenos,
+                    maxpages=maxpages,
+                    password=password,
+                    caching=caching,
+                    check_extractable=True,
+            ):
+                interpreter.process_page(page)
+            text = retstr.getvalue().decode()
+            fp.close()
+            device.close()
+            retstr.close()
+            return text
+
+        pathx = Path(PMC1421)
+
+        result = convert_pdf(
+            path = pathx,
+            format = "html",
+            caching = True,
+        )
+        # print(f"result {result}")
+        html_dir = Path(Resources.TEMP_DIR, "html")
+        if not html_dir.exists():
+            html_dir.mkdir()
+        with open(Path(html_dir, "pmc4121.html"), "w") as f:
+            f.write(result)
+            print(f"wrote {f}")
 
     # ==============================
     MAX_RECT = 5
@@ -461,10 +559,39 @@ def print_curves(page):
 
 
 def print_images(page):
+    write_image = True
+    from pdfminer.image import ImageWriter
+    from pdfminer.layout import LTImage
     if n_image := len(page.images) > 0:
         print(f"images {n_image}", end=" | ")
-        for image in page.images[:PDFTest.MAX_IMAGE]:
-            print(f"image: {image.values()}")
+        for i, image in enumerate(page.images[:PDFTest.MAX_IMAGE]):
+            print(f"image: {type(image)}: {image.values()}")
+
+            path = Path(Resources.TEMP_DIR, "images")
+            if not path.exists():
+                path.mkdir()
+            if isinstance(image, LTImage):
+                imagewriter = ImageWriter(Path(path, f"image{i}.png"))
+                imagewriter.export_image(image)
+            page_height = page.height
+            image_bbox = (image['x0'], page_height - image['y1'], image['x1'], page_height - image['y0'])
+            print(f"image: {image_bbox}")
+
+            cropped_page = page.crop(image_bbox) # crop screen display (may have overwriting text)
+            image_obj = cropped_page.to_image(resolution=1000)
+            path1 = Path(path, f"image_{page.page_number}_{i}_{format_bbox(image_bbox)}.png")
+            if write_image:
+                image_obj.save(path1)
+                print(f" wrote image {path1}")
+            continue
+
+            # for p in pdf.pages:
+            #     for obj in p.layout:
+            #         if isinstance(obj, LTImage):
+            #             imagewriter.export_image(obj)
+def format_bbox(bbox: tuple):
+    # return f"{bbox[0]:.2f}_{bbox[2]:.2f}_{bbox[0]:.1f}_{bbox[3]:.2f}"
+    return f"{int(bbox[0])}_{int(bbox[2])}_{int(bbox[1])}_{int(bbox[3])}"
 
 
 def print_tables(page):
