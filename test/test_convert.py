@@ -5,7 +5,7 @@ from py4ami.pyamix import PyAMI
 from test.resources import Resources
 
 
-class TestConvert:
+class TestConvert(unittest.TestCase):
 
     def test_list_enum_values(self):
         assert ConvType.list_values() == [
@@ -50,3 +50,6 @@ class TestConvert:
         """PyAMI conversion with implicit directories set by converter"""
         cmd = f"-p {Resources.CLIMATE_10_PROJ_DIR} --apply svg2page"
         PyAMI().run_command(cmd)
+
+if __name__ == '__main__':
+    unittest.main()

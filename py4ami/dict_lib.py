@@ -97,17 +97,34 @@ class AmiDictionary:
         dictionary.root = ET.Element(DICTIONARY)
         dictionary.root.attrib[TITLE] = name
         if desc:
-            desc_elem = ET.SubElement(dictionary.root, DESC)
-            desc_elem.text = desc
+            dictionary.add_desc_element(desc)
         for term in terms:
-            entry = ET.SubElement(dictionary.root, ENTRY)
-            entry.attrib[NAME] = term
-            entry.attrib[TERM] = term
+            entry = dictionary.add_entry_element(term=term)
             dictionary.entries.append(entry)
         return dictionary
 
+    def add_entry_element(self, term):
+        """create and add antry with term/name
+        :param term: term (will also set name attribute
+         :return entry"""
+        if not term:
+            raise ValueError("must have term for new entry")
+        entry = ET.SubElement(self.root, ENTRY)
+        entry.attrib[NAME] = term
+        entry.attrib[TERM] = term
+        return entry
+
+    def add_desc_element(self, desc):
+        """create and add desc element to root element"""
+        print(f"self.root {self.root}")
+        desc_elem = ET.SubElement(self.root, DESC)
+        desc_elem.text = desc
+
     @classmethod
     def read_dictionary(cls, file):
+        """create dictionary from file
+        :param file: containing dictionary
+        :return: new Dictionary"""
         return AmiDictionary(xml_file=file) if file is not None else None
 
     def read_dictionary_from_xml_file(self, file, ignorecase=True):
@@ -212,8 +229,7 @@ class AmiDictionary:
         return entry
 
     def create_entry_by_term(self):
-        self.entry_by_term = {self.term_from_entry(
-            entry): entry for entry in self.entries}
+        self.entry_by_term = {self.term_from_entry(entry): entry for entry in self.entries}
 
     def check_unique_wikidata_ids(self):
         # print("entries", len(self.entries))
@@ -264,8 +280,7 @@ class AmiDictionary:
                     wikidata_hit.text = str(wid)
             wikidata_page = WikidataPage(qitem)
             assert wikidata_page is not None
-            wikipedia_dict = wikidata_page.get_wikipedia_page_links(
-                self.wikilangs)
+            wikipedia_dict = wikidata_page.get_wikipedia_page_links(self.wikilangs)
             self.add_wikipedia_page_links(entry, wikipedia_dict)
 
     @classmethod

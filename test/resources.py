@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 class Resources:
 
+    RESOURCES_DIR = Path(Path(__file__).parent.parent, "py4ami", "resources")
     TEST_RESOURCES_DIR = Path(Path(__file__).parent, "resources")
     assert TEST_RESOURCES_DIR.exists(), f"dir exists {TEST_RESOURCES_DIR}"
     assert TEST_RESOURCES_DIR.is_dir(), f"file exists {TEST_RESOURCES_DIR}"

@@ -200,14 +200,23 @@ class WikidataBrowser:
 class WikidataPage:
     PROPERTY_ID = "id"
 
-    def __init__(self, pqitem):
+    def __init__(self, pqitem=None):
         self.root = None
         self.pqitem = pqitem
-        self.root = self.get_root_for_item(self.pqitem)
+        self.root = None if not pqitem else self.get_root_for_item(self.pqitem)
+        self.json = None
 
     @classmethod
     def create_wikidata_ppage_from_file(cls, file):
         pass
+
+    @classmethod
+    def create_wikidata_page_from_response(cls, response):
+        if not response:
+            return None
+        wikidata_page = WikidataPage()
+        wikidata_page.json = response.json()
+        return wikidata_page
 
     def get_root_for_item(self, qitem):
         """search wikidata site for QItem
@@ -506,7 +515,7 @@ class WikidataSparql:
     def __init__(self, dictionary):
         self.dictionary = dictionary
 
-    def update_from_sparqlx(self, sparql_file, sparql_to_dictionary):
+    def update_from_sparql(self, sparql_file, sparql_to_dictionary):
         self.sparql_to_dictionary = sparql_to_dictionary
 
         self.dictionary.check_unique_wikidata_ids()
@@ -527,10 +536,17 @@ class WikidataSparql:
         id_element = self.sparql_to_dictionary[ID_NAME]
         for result in self.sparql_result_list:
             # TODO fix syntax
-            bindings = result.findall(SPQ_BINDING + "[@name='%s']/" + SPQ_URI % id_element, NS_MAP)
+            # bindings = result.findall(SPQ_BINDING + "[@name='%s']/" + SPQ_URI % id_element, NS_MAP)
+            print(f"NS_MAP {NS_MAP}")
+            print(f"result {result} {ET.tostring(result)}")
+            spq_uri = SPQ_BINDING + f"[@name='{id_element}']/" + SPQ_URI
+            print(spq_uri)
+            bindings = result.findall(spq_uri, namespaces=NS_MAP)
+            print(f"bindings {bindings}")
             if len(bindings) == 0:
-                print("no bindings for {id_element}")
+                print(f"no bindings for {id_element}")
             else:
+                print(f"found item {id_element}")
                 uri = list(bindings)[0]
                 wikidata_id = uri.text.split("/")[-1]
                 if wikidata_id not in self.sparql_result_by_wikidata_id:
@@ -561,7 +577,8 @@ class WikidataSparql:
         from py4ami.dict_lib import AmiDictionary
         assert (os.path.exists(sparql_file))
         dictionary = AmiDictionary(dictionary_file)
-        dictionary.update_from_sparqlx(sparql_file, sparq2dict)
+        wikidata_sparql = WikidataSparql(dictionary)
+        wikidata_sparql.update_from_sparql(sparql_file, sparq2dict)
         dictionary_file = f"{dictionary_root}{keystring}_{i + 1}.xml"
         dictionary.write(dictionary_file)
         return dictionary_file
@@ -574,11 +591,11 @@ class WikidataSparql:
         sparql_name = self.sparql_to_dictionary[SPQ_NAME]
         dict_name = self.sparql_to_dictionary[DICT_NAME]
         for wikidata_id in self.sparql_result_by_wikidata_id.keys():
-            if wikidata_id in self.entry_by_wikidata_id.keys():
-                entry = self.entry_by_wikidata_id[wikidata_id]
+            if wikidata_id in self.dictionary.entry_by_wikidata_id.keys():
+                entry = self.dictionary.entry_by_wikidata_id[wikidata_id]
                 result_list = self.sparql_result_by_wikidata_id[wikidata_id]
                 for result in result_list:
-                    bindings = list(result.findall(SPQ_BINDING + "/" + "[@name='" + sparql_name + "']", NS_MAP))
+                    bindings = list(result.findall(SPQ_BINDING + "/" + f"[@name='{sparql_name}']", NS_MAP))
                     if len(bindings) > 0:
                         binding = bindings[0]
                         self.update_entry(entry, binding, dict_name)
