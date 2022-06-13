@@ -1,5 +1,4 @@
 """bounding box"""
-from skimage import draw
 
 import math
 from pyamiimage.ami_util import AmiUtil
@@ -376,42 +375,43 @@ class BBox:
         # remember that the indexing is in terms of rows and columns
         # hence x(columns) y(rows) values are flipped when returning point pair
 
-    @classmethod
-    def plot_bbox_on(cls, image, bbox):
-        """
-        Plots bbox on an image
-        :param: image
-        :type: numpy array
-        :param: bbox
-        :type: BBox or list
-        :returns: fig, ax
-        """
-        pixel_value = 200  # 0 is black
-        # bbox can either be BBox object or in form of [[a, b][c, d]]
-
-        # if type(bbox) == BBox:
-        #     assert bbox.is_valid()
-        # elif type(bbox) == list:
-        #     bbox = BBox(bbox)
-        #     assert bbox.is_valid()
-        # else:
-        #     # the bbox passed is not invalid
-        #     return None
-
-        point_pair = bbox.get_point_pair()
-        if point_pair[0][0] > image.shape[0] or point_pair[0][1] > image.shape[1]:
-            # if the starting point is outside the image, ignore bbox
-            return image
-
-        try:
-            row, col = draw.rectangle_perimeter(start=point_pair[0], end=point_pair[1])
-            image[row, col] = pixel_value
-        except IndexError:
-            point_pair = BBox.fit_point_pair_within_image(image, point_pair)
-            row, col = draw.rectangle_perimeter(start=point_pair[0], end=point_pair[1])
-            image[row, col] = pixel_value
-
-        return image
+    # @classmethod
+    # def plot_bbox_on(cls, image, bbox):
+    #     """
+    #     Plots bbox on an image
+    #     :param: image
+    #     :type: numpy array
+    #     :param: bbox
+    #     :type: BBox or list
+    #     :returns: fig, ax
+    #     """
+    #     from skimage import draw
+    #     pixel_value = 200  # 0 is black
+    #     # bbox can either be BBox object or in form of [[a, b][c, d]]
+    #
+    #     # if type(bbox) == BBox:
+    #     #     assert bbox.is_valid()
+    #     # elif type(bbox) == list:
+    #     #     bbox = BBox(bbox)
+    #     #     assert bbox.is_valid()
+    #     # else:
+    #     #     # the bbox passed is not invalid
+    #     #     return None
+    #
+    #     point_pair = bbox.get_point_pair()
+    #     if point_pair[0][0] > image.shape[0] or point_pair[0][1] > image.shape[1]:
+    #         # if the starting point is outside the image, ignore bbox
+    #         return image
+    #
+    #     try:
+    #         row, col = draw.rectangle_perimeter(start=point_pair[0], end=point_pair[1])
+    #         image[row, col] = pixel_value
+    #     except IndexError:
+    #         point_pair = BBox.fit_point_pair_within_image(image, point_pair)
+    #         row, col = draw.rectangle_perimeter(start=point_pair[0], end=point_pair[1])
+    #         image[row, col] = pixel_value
+    #
+    #     return image
 
     @classmethod
     def fit_point_pair_within_image(cls, image, point_pair):

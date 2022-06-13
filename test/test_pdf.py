@@ -1073,10 +1073,26 @@ LTPage
 
     # ==============================
 
+def create_arg_parser():
+    """creates adds the arguments for pyami commandline
+    """
+    parser = argparse.ArgumentParser(
+        description='PDF parsing (general, but developed for IPCC reports)')
+    parser.add_argument('--ipcc', nargs=1,
+                        help='select IPCC chapter [1-17], currently only 6')
+    parser.add_argument("--maxpage", help="maximum number of pages", default=10)
+    parser.add_argument("--outform", help="output format ", default="html")
+    parser.add_argument("--flow", help="create flowing HTML (heuristics)", default=True)
+    return parser
+
+
 def main(argv=None):
     print(f"running PDFTest main")
     print(f"argv {sys.argv}")
-    if not sys.argv:
+    parser = create_arg_parser()
+    if len(sys.argv) == 1:
+        parser.print_help()
+        parser.print_usage()
         print(f"test_pdf: [test_chap6]")
     elif "test_chap6" in sys.argv:
         print("test_chap6")
@@ -1084,21 +1100,7 @@ def main(argv=None):
         PDFTest().test_pdfminer_html_xml_climate()
         print("end")
     else:
-        print(f"cannot parse args {argv}")
-    def create_arg_parser(self):
-        """creates adds the arguments for pyami commandline
-        """
-        parser = argparse.ArgumentParser(
-            description='Search sections with dictionaries and patterns')
-        # apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
-        parser.add_argument('--assert', nargs="+",
-                            help='assertions; failure gives error message (prototype)')
-        parser.add_argument('--combine', nargs=1,
-                            help='operation to combine files into final object (e.g. concat text or CSV path')
-        parser.add_argument('--config', '-c', nargs="+",
-                            help='path (e.g. ~/pyami/config.ini.master) with list of config path(s) or config vars;'
-                                 ' "symbols": gives symbols')
-        return parser
+        print(f"cannot parse args {sys.argv}")
 
 
 if __name__ == "__main__":
