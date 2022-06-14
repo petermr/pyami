@@ -580,6 +580,24 @@ class TextStyle:
             s = f"{name}: {val1} => {val2}"
         return s
 
+class PDFParser:
+    def __init__(self):
+        self.indir = None
+        self.infile = None
+        self.outdir = None
+        self.outform = "html"
+        self.flow = True
+        self.maxpage = 9999999
+        self.resolution = 400
+        self.template = None
+        self.images = None
+
+    @classmethod
+    def create_from_argparse(cls, parser):
+        pdf_parser = PDFParser()
+        print(f"NYI, create from arg_parse")
+        return pdf_parser
+
 
 class SvgText:
     """wrapper for svg_text elemeent.

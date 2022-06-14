@@ -1,9 +1,12 @@
 import argparse
-import unittest
 import sys
+import re
+import unittest
 from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Container
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 import lxml
 import lxml.etree
@@ -48,17 +51,59 @@ IPCC_GLOSSARY = Path(IPCC_GLOSS_DIR, "IPCC_AR6_WGIII_Annex-I.pdf")
 IPCC_CHAP6_DIR = Path(IPCC_DIR, "Chapter06")
 IPCC_CHAP6_PDF = Path(IPCC_CHAP6_DIR, "fulltext.pdf")
 
+# arg_dict
+MAXPAGE = "maxpage"
+INDIR = "indir"
+INPATH = "inpath"
+OUTDIR = "outdir"
+OUTFORM = "outform"
+OUTSTEM = "outstem"
+FLOW = "flow"
+# FORMAT = "fmt"
+IMAGEDIR = "imagedir"
+RESOLUTION = "resolution"
+TEMPLATE = "template"
 
-def debug_page_properties(page):
+# debug
+WORDS = "words"
+LINES = "lines"
+RECTS = "rects"
+CURVES = "curves"
+IMAGES = "images"
+TABLES = "tables"
+HYPERLINKS = "hyperlinks"
+ANNOTS = "annots"
+DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS]
+DEBUG_ALL = "debug_all"
+
+
+
+def debug_page_properties(page, debug=None):
+    """debug print selected DEBUG_OPTIONS
+    :param debug: list of options (from DEBUG_OPTIONS)
+    """
+    if not debug:
+        debug = []
+        print(f"no optiomns given, choose from: {DEBUG_OPTIONS}")
+    if DEBUG_ALL in debug:
+        debug = DEBUG_OPTIONS
     print(f"\n\n======page: {page.page_number} ===========")
-    print_words(page)
-    print_lines(page)
-    print_rects(page, debug=False)
-    print_curves(page)
-    print_images(page)
-    print_tables(page)
-    print_hyperlinks(page)
-    print_annots(page)
+    if WORDS in debug:
+        print_words(page)
+    if LINES in debug:
+        print_lines(page)
+    if RECTS in debug:
+        print_rects(page, debug=False)
+    if CURVES in debug:
+        print_curves(page)
+    if IMAGES in debug:
+        print_images(page)
+    if TABLES in debug:
+        print_tables(page)
+    if HYPERLINKS in debug:
+        print_hyperlinks(page)
+    if ANNOTS in debug:
+        print_annots(page)
 
 
 def print_words(page):
@@ -171,7 +216,6 @@ def print_annots(page):
             print(f"annot: {annot.items()}")
 
 
-
 # ==============================
 
 def make_full_draft_html(pretty_print, use_lines, rotated_text=False):
@@ -229,6 +273,7 @@ def convert_pdf(
     device, interpreter, retstr = create_interpreter(fmt)
 
     fp = open(path, "rb")
+    print(f"maxpages: {maxpages}")
     for page in PDFPage.get_pages(
             fp,
             pagenos,
@@ -245,6 +290,16 @@ def convert_pdf(
     retstr.close()
     return text
 
+def default_arg_dict():
+    arg_dict = dict()
+    arg_dict[OUTFORM] = "html.flow"
+    arg_dict[MAXPAGE] = 5
+    arg_dict[INDIR] = None
+    arg_dict[INPATH] = None
+    arg_dict[OUTDIR] = None
+    arg_dict[OUTSTEM] = None
+    arg_dict[FLOW] = True
+    return arg_dict
 
 def create_interpreter(fmt, codec: str = "UTF-8"):
     """creates a PDFPageInterpreter
@@ -271,7 +326,7 @@ def create_interpreter(fmt, codec: str = "UTF-8"):
     rsrcmgr = PDFResourceManager()
     retstr = BytesIO()
     laparams = LAParams()
-    converters = {"text": TextConverter, "html": HTMLConverter, "xml": XMLConverter}
+    converters = {"text": TextConverter, "html": HTMLConverter, "flow.html": HTMLConverter, "xml": XMLConverter}
     converter = converters.get(fmt)
     if not converter:
         raise ValueError(f"provide format, {converters.keys()}")
@@ -301,43 +356,36 @@ def print_tables(page, odir=Resources.TEMP_DIR):
         print(f"tables {n_table}", end=" | ")
         print(f"table_dir {tables[0].__dir__()}")
         for i, table in enumerate(tables[:PDFTest.MAX_TABLE]):
-            h_table = lxml.etree.Element(H_TABLE)
-            h_thead = lxml.etree.SubElement(h_table, H_THEAD)
-            h_tbody = lxml.etree.SubElement(h_table, H_TBODY)
-            table_lists = table.extract()  # essentially a list of lists
-            for table_row in table_lists:
-                h_row = lxml.etree.SubElement(h_tbody, H_TR)
-                for cell_value in table_row:
-                    h_td = lxml.etree.SubElement(h_row, H_TD)
-                    h_td.text = str(cell_value)
-            h_str = lxml.etree.tostring(h_table, encoding='UTF-8', xml_declaration=False)
+            h_table = create_table_element(table)
             table_file = Path(odir, f"table_{i + 1}.html")
-            with open(table_file, "wb") as f:
-                f.write(h_str)
-                print(f"wrote {table_file}")
+            print_table_element(h_table, table_file)
 
-            # print(f"table: rows: {len(table.rows)}")
-            # for row in table.rows[:PDFTest.MAX_ROW]:
-            #     # print("row/cells: ", end="")
-            #     print(f"row {row}")
-            #     # cell is a tuple (x, y) - where is the content?
-            #     # print(f"cell {type(row.cells[0])}, end="")
-            #     # for cell in row.cells:
-            #     #     print(f"[{cell}]", end="")
-            #     # print("")
+def print_table_element(h_table, table_file):
+    h_str = lxml.etree.tostring(h_table, encoding='UTF-8', xml_declaration=False)
+    with open(table_file, "wb") as f:
+        f.write(h_str)
+        print(f"wrote {table_file}")
 
+def create_table_element(table):
+    h_table = lxml.etree.Element(H_TABLE)
+    h_thead = lxml.etree.SubElement(h_table, H_THEAD)
+    h_tbody = lxml.etree.SubElement(h_table, H_TBODY)
+    table_lists = table.extract()  # essentially a list of lists
+    for table_row in table_lists:
+        h_row = lxml.etree.SubElement(h_tbody, H_TR)
+        for cell_value in table_row:
+            h_td = lxml.etree.SubElement(h_row, H_TD)
+            h_td.text = str(cell_value)
+    return h_table
 
-# def print_hyperlinks(page):
-#     if n_hyper := len(page.hyperlinks) > 0:
-#         print(f"hyperlinks {n_hyper}", end=" | ")
-#         for hyperlink in page.hyperlinks:
-#             print(f"hyperlink {hyperlink.values()}")
-#
-#
-# def print_annots(page):
-#     if n_annot := len(page.annots) > 0:
-#         print(f"annots {n_annot}", end=" | ")
-#
+def add_ids(root_elem):
+    """adds IDs to all elements in document order
+    :param root_elem: element defining tree of subelements"""
+    xpath = "//*"
+    elems = root_elem.xpath(xpath)
+    for i, el in enumerate(elems):
+        el.attrib["id"] = "id" + str(i)
+
 
 class CSSStyle:
     BOLD = "Bold"
@@ -363,6 +411,9 @@ class CSSStyle:
 
     @classmethod
     def create_css_style(cls, elem):
+        """create CSSStyle object from elem
+        :param elem:
+        """
         css_style = CSSStyle()
         style_attval = elem.get(CSSStyle.STYLE)
         css_style.name_value_dict = cls.create_dict_from_string(style_attval)
@@ -443,6 +494,62 @@ class CSSStyle:
         :return: True if name contains "Bold" or ".B" or .."""
         fontname = self.font_family
         return self.BOLD in fontname or fontname.endswith(self.DOT_B) if fontname else False
+
+    def obeys(self, condition):
+        """test if style obeys a (simple) condition
+        (I'll write a DSL later)
+        :param condition: (name, operator, value), e.g. "font-size>10
+        :return: test of condition
+
+        """
+        result = False
+        if condition:
+            ss = re.split('(>|<|==|!=)', condition)
+            if len(ss) != 3:
+                print(f"Cannot parse as condition {condition}")
+            else:
+                lhs = ss[0].strip()
+                rhs = ss[2].strip()
+
+                # print(f"condition: {ss}")
+                if not lhs in self.name_value_dict:
+                    return False
+                value1 = self.name_value_dict.get(lhs)
+                if not value1:
+                    print(f"{lhs} not in style attribute {self.name_value_dict}")
+                    return False
+                if value1.endswith("px"):
+                    value1 = value1[:-2]
+                try:
+                    value1 = float(value1)
+                except Exception:
+                    print(f"not a number {value1}")
+                    return False
+
+                if rhs.endswith("px"):
+                    rhs = rhs[:-2]
+                try:
+                    value2 = float(rhs)
+                except Exception:
+                    print(f"not a number {rhs}")
+                    return False
+                oper = ss[1]
+                if oper == ">":
+                    result = value1 > value2
+                elif oper == "<":
+                    result = value1 < value2
+                elif oper == "!=":
+                    result = value1 != value2
+                elif oper == "==":
+                    result = (value1 == value2)
+                else:
+                    raise ValueError(f"bad operator: {oper}")
+                if result:
+                    # print(f"condition TRUE {condition}")
+                    pass
+        return result
+
+
 
 class PDFTest(unittest.TestCase):
     MAX_PAGE = 5
@@ -741,12 +848,13 @@ class PDFTest(unittest.TestCase):
             for ch in first_page.chars:  # prints all text as a single line
                 print(ch.get("text"), end="")
 
-    def test_scan_document(self):
+    def test_debug_page_properties(self):
+        """debug the PDF objects (crude)"""
         with pdfplumber.open(PMC1421) as pdf:
             pages = list(pdf.pages)
             assert len(pages) == 5
             for page in pages:
-                debug_page_properties(page)
+                debug_page_properties(page, debug=[WORDS, IMAGES])
 
     # See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
 
@@ -828,7 +936,9 @@ LTPage
         """
         assert IPCC_GLOSSARY.exists(), f"{IPCC_GLOSSARY} should exist"
         max_page = PDFTest.MAX_PAGE
-        # max_page = 100  # increase this if yiu want more output
+        # max_page = 999999
+        options = [WORDS, ANNOTS]
+        # max_page = 100  # increase this if yu want more output
 
         for (pdf_file, page_count) in [
             # (IPCC_GLOSSARY, 51),
@@ -839,30 +949,45 @@ LTPage
                 pages = list(pdf.pages)
                 assert len(pages) == page_count
                 for page in pages[:max_page]:
-                    debug_page_properties(page)
+                    debug_page_properties(page, debug=options)
 
-    def test_pdfminer_html_xml_article(self):
-        """runs pdfinterpreter/converter over 5-page article and creates html and xml versions"""
-        maxpages = 0
-        in_path = Path(PMC1421)
-        outf = "pmc4121"
-        out_dir = make_html_dir()
 
-        self.convert_write("html", maxpages, out_dir, outf, in_path)
-        self.convert_write("xml", maxpages, out_dir, outf, in_path)
+    def test_make_structured_html(self):
+        """structures the flat HTML from pdfplumber"""
+        file = IPCC_CHAP6_PDF
+        assert file.exists(), f"chap6 {IPCC_CHAP6_PDF}"
+        arg_dict = default_arg_dict()
+        arg_dict[INPATH] = file
+        arg_dict[MAXPAGE] = 10
+        print(f"arg_dict {arg_dict}")
+        self.convert_write(arg_dict=arg_dict)
 
-    def test_pdfminer_html_xml_climate(self):
-        """runs pdfinterpreter/converter over climate chapter and creates html and xml versions"""
-        output_xml = False
-        maxpages = 20
-        in_path = Path(IPCC_CHAP6_PDF)
-        outf = "chap6"
-        out_dir = make_html_dir()
 
-        self.convert_write("html", maxpages, out_dir, outf, in_path)
-        self.convert_write("html", maxpages, out_dir, outf, in_path, flow=True)
-        if output_xml:
-            self.convert_write("xml", maxpages, out_dir, outf, in_path)
+    def process_args(self, arg_dict):
+        """runs parsed args
+        :param arg_dict: parsed arguments
+        :return:
+  --maxpage MAXPAGE     maximum number of pages
+  --indir INDIR         input directory
+  --infile INFILE [INFILE ...]
+                        input file
+  --outdir OUTDIR       output directory
+  --outform OUTFORM     output format
+  --flow FLOW           create flowing HTML (heuristics)
+  --images IMAGES       output images
+  --resolution RESOLUTION
+                        resolution of output images
+  --template TEMPLATE   file to parse specific type of document"""
+
+        fmt = arg_dict.get(OUTFORM)
+        print(f"fmt: {fmt}")
+        maxpage = arg_dict.get(MAXPAGE)
+        indir = arg_dict.get(INDIR)
+        inpath = arg_dict.get(INPATH)
+        outdir = arg_dict.get(OUTDIR)
+        outstem = arg_dict.get(OUTSTEM)
+        flow = arg_dict.get(FLOW) is not None
+        self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
 
     def test_pdfminer_text_html_xml(self):
         # Use `pip3 install pdfminer.six` for python3
@@ -887,23 +1012,59 @@ LTPage
     MAX_ROW = 10
     MAX_IMAGE = 5
 
-    def convert_write(self, fmt, maxpages, out_dir, out_stem, in_path, flow=False):
+    def convert_write(self, fmt=None, maxpage=999999, outdir=None, outstem=None, inpath=None, flow=False, arg_dict=None):
         """
         create HTML (absolute or flowing) or XML
+        The preferred method is to use arg_dict
         :param fmt: format html/xml/text
-        :param maxpages: if 0, writes all else staops at maxpages
-        :param out_dir: output dir
-        :param out_stem: stem of output file
-        :param in_path: input file
-        :param flow: remover absolute positin so text can flow
+        :param maxpage: if 0, writes all else staops at maxpages
+        :param outdir: output dir
+        :param outstem: stem of output file
+        :param inpath: input file
+        :param flow: remove absolute position so text can flow
+        :param arg_dict: preferred method - extract properties by dict key
         """
+        if arg_dict:
+            maxp = arg_dict.get(MAXPAGE)
+            maxpage = int(maxp) if maxp else maxpage
+            outd = arg_dict.get(OUTDIR)
+            outdir = outd if outd else outdir
+            outs = arg_dict.get(OUTSTEM)
+            outdir = outs if outs else outstem
+            inp = arg_dict.get(INPATH)
+            inpath = inp if inp else inpath
+            fm = arg_dict.get(OUTFORM)
+            fmt = fm if fm else fmt
+            fl = arg_dict.get(FLOW)
+            flow = fl if fl else flow
+
+            # header_offset = -50
+            header_height = 90
+            # page_height = 892
+            # page_height_cm = 29.7
+            footer_height = 90
+
+        print(f"==============CONVERT================")
         cls = PDFTest
-        result = convert_pdf(path=in_path, fmt=fmt, maxpages=maxpages)
+        if fmt == "html.flow":
+            fmt = "html"
+            flow = True
+        result = convert_pdf(path=inpath, fmt=fmt, maxpages=maxpage)
+
+
         if flow:
+            # with open(Path(inpath), "r") as f:
+            #     pages = PDFPage.get_pages(f)
+            # for page in list(pages):
+            #     page0 = page
+            #     break
+            # print(f"media {page0.mediabox}")
+            # print(f"page0 {page0.media_box}")
             tree = lxml.etree.parse(StringIO(result), lxml.etree.HTMLParser())
             result_elem = tree.getroot()
+            add_ids(result_elem)
             # this is slightly tacky
-            cls.remove_elem("br", result_elem)
+            cls.remove_descendant_elements_by_tag("br", result_elem)
             cls.remove_style(result_elem, [
                 "position",
                 # "left",
@@ -912,12 +1073,61 @@ LTPage
                 "width",  # this disables flowing text
             ])
             cls.remove_empty_elements(result_elem, ["span"])
-            cls.find_elements_with_style(result_elem, ".//*[@style]", "_font_size > 30", remove=True)
+            cls.remove_lh_line_numbers(result_elem)
+            cls.remove_large_fonted_elements(result_elem)
+            marker_xpath = ".//div[a[@name]]"
+            offset, pagesize, page_coords = cls.find_constant_coordinate_markers(result_elem, marker_xpath)
+            cls.remove_headers_and_footers(result_elem, pagesize, header_height, footer_height, marker_xpath)
+            cls.make_tree(result_elem)
+
+
             result = lxml.etree.tostring(result_elem).decode("UTF-8")
             fmt = "flow.html"
-        with open(Path(out_dir, f"{out_stem}.{fmt}"), "w") as f:
+        if not outdir:
+            indir = Path(inpath).parent
+            outdir = indir
+            print(f"no outdir given, taking input {indir}")
+            outstem = Path(inpath).stem
+            outfile = Path(outdir, f"{outstem}.{fmt}")
+        print(f"outfile {outfile}")
+        with open(str(outfile), "w") as f:
             f.write(result)
             print(f"wrote {f.name}")
+    @classmethod
+    def remove_large_fonted_elements(cls, ref_elem):
+        cls.find_elements_with_style(ref_elem, ".//*[@style]", "font-size>30", remove=True)
+
+    @classmethod
+    def remove_lh_line_numbers(cls, ref_elem):
+        cls.find_elements_with_style(ref_elem, ".//*[@style]", "left<49", remove=True)
+
+    @classmethod
+    def find_constant_coordinate_markers(cls, ref_elem, xpath, style="top"):
+        """
+        finds a line with constant difference from top of page
+<div style="top: 50px;"><a name="1">Page 1</a></div>
+        """
+
+        elems = ref_elem.xpath(xpath)
+        coords = []
+        for elem in elems:
+            css_style = CSSStyle.create_css_style(elem)
+            coord = css_style.name_value_dict.get(style)
+            if coord:
+                try:
+                    coords.append(float(coord[:-2]))
+                except Exception:
+                    print(f"cannot parse {coord} for {style}")
+        np_coords = np.array(coords)
+        x = np.array(range(np_coords.size)).reshape((-1, 1))
+        print(x, coords)
+        model = LinearRegression().fit(x, coords)
+        r_sq = model.score(x, coords)
+        # print(f"coefficient of determination: {r_sq} intercept {model.intercept_} slope {model.coef_}")
+        if r_sq < 0.98:
+            print(f"cannot calculate offset reliably")
+        return model.intercept_, model.coef_, np_coords
+
 
     @classmethod
     def remove_empty_elements(cls, elem, tag):
@@ -945,15 +1155,16 @@ LTPage
         parent.remove(el)
 
     @classmethod
-    def remove_elem(cls, tag, result_elem):
+    def remove_descendant_elements_by_tag(cls, tag, result_elem):
         lxml.etree.strip_tags(result_elem, tag)
 
     @classmethod
-    def remove_style(cls, elem, names):
+    def remove_style(cls, xpath_root_elem, names):
+        """removes name-value pairs from css-style and reapply to xpath'ed elements"""
         xpath = f".//*[@style]"
         print(f"xpath: {xpath}")
         try:
-            styled_elems = elem.xpath(xpath)
+            styled_elems = xpath_root_elem.xpath(xpath)
         except lxml.etree.XPathEvalError as xpee:
             raise ValueError(f"Bad xpath {xpath}")
 
@@ -983,6 +1194,11 @@ LTPage
         elems = []
         for el in els:
             css_style = CSSStyle.create_css_style(el)
+            if condition:
+                if css_style.obeys(condition):
+                    # print(f"{elem} obeys {condition}")
+                    if remove:
+                        cls.remove_elem_keep_tail(el)
 
     def test_pdfminer_style(self):
         """Examines every character and annotates it
@@ -1048,14 +1264,6 @@ LTPage
     def test_pdfminer_html(self):
         # Use `pip3 install pdfminer.six` for python3
 
-        from typing import Container
-        from io import BytesIO
-        from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
-        from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
-        from pdfminer.layout import LAParams
-        from pdfminer.pdfpage import PDFPage
-
-
         pathx = Path(PMC1421)
 
         result = convert_pdf(
@@ -1072,39 +1280,72 @@ LTPage
             print(f"wrote {f}")
 
     # ==============================
+    def apply_args(self, parsed_args):
+        print(f"PARSED_ARGS {parsed_args}")
+        arg_vars = vars(parsed_args)
+        arg_dict = dict()
+        for item in arg_vars.items():
+            key = item[0]
+            if item[1] is None:
+                pass
+            elif type(item[1]) is list and len(item[1]) == 1:
+               arg_dict[key] = item[1][0]
+            else:
+                arg_dict[key] = item[1]
+
+        return arg_dict
+
+    @classmethod
+    def remove_headers_and_footers(cls, ref_elem, pagesize, header_height, footer_height, marker_xpath):
+        elems = ref_elem.xpath(marker_xpath)
+
+        for elem in ref_elem.xpath("//*[@style]"):
+            top = CSSStyle.create_css_style(elem).get_numeric_attval("top") # the y-coordinate
+            if top:
+                top = top % pagesize
+                if top < header_height or top > pagesize - footer_height:
+                    cls.remove_elem_keep_tail(elem)
+
+    @classmethod
+    def make_tree(cls, elem):
+        """find decimal number for tree"""
+        spans = elem.xpath(".//span")
+        print(f"spans {len(spans)}")
+        for span in spans:
+            txt = ''.join(span.itertext())
+            # txt = lxml.etree.tostring(span)
+            print(f">>>text>>> {txt}<<<")
+
 
 def create_arg_parser():
     """creates adds the arguments for pyami commandline
+
     """
-    parser = argparse.ArgumentParser(
-        description='PDF parsing (general, but developed for IPCC reports)')
-    parser.add_argument('--ipcc', nargs=1,
-                        help='select IPCC chapter [1-17], currently only 6')
-    parser.add_argument("--maxpage", help="maximum number of pages", default=10)
-    parser.add_argument("--outform", help="output format ", default="html")
-    parser.add_argument("--flow", help="create flowing HTML (heuristics)", default=True)
+    parser = argparse.ArgumentParser(description='PDF parsing')
+    parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
+    parser.add_argument("--indir", type=str, nargs=1, help="input directory")
+    parser.add_argument("--inpath", type=str, nargs=1, help="input file")
+    parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
+    parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
+    parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
+    parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
+    parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)", default=400)
+    parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
+    parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
     return parser
 
 
 def main(argv=None):
     print(f"running PDFTest main")
-    print(f"argv {sys.argv}")
     parser = create_arg_parser()
-    if len(sys.argv) == 1:
+    if len(sys.argv) == 1:  # no args, print help
         parser.print_help()
-        parser.print_usage()
-        print(f"test_pdf: [test_chap6]")
-    elif "test_chap6" in sys.argv:
-        print("test_chap6")
-
-        PDFTest().test_pdfminer_html_xml_climate()
-        print("end")
     else:
-        print(f"cannot parse args {sys.argv}")
-
+        parsed_args = parser.parse_args(sys.argv[1:])
+        arg_dict = PDFTest().apply_args(parsed_args)
+        PDFTest().process_args(arg_dict)
 
 if __name__ == "__main__":
     main()
 else:
     pass
-
