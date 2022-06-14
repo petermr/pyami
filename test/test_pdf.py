@@ -1078,7 +1078,10 @@ LTPage
             marker_xpath = ".//div[a[@name]]"
             offset, pagesize, page_coords = cls.find_constant_coordinate_markers(result_elem, marker_xpath)
             cls.remove_headers_and_footers(result_elem, pagesize, header_height, footer_height, marker_xpath)
+            cls.remove_style_attribute(result_elem, "top")
+            cls.remove_style(result_elem, ["left", "height"])
             cls.make_tree(result_elem)
+
 
 
             result = lxml.etree.tostring(result_elem).decode("UTF-8")
@@ -1100,6 +1103,16 @@ LTPage
     @classmethod
     def remove_lh_line_numbers(cls, ref_elem):
         cls.find_elements_with_style(ref_elem, ".//*[@style]", "left<49", remove=True)
+
+    @classmethod
+    def remove_style_attribute(cls, ref_elem, style_name):
+        elems = ref_elem.xpath(".//*")
+        for el in elems:
+            css_style = CSSStyle.create_css_style(el)
+            if css_style.name_value_dict.get(style_name):
+                css_style.name_value_dict.pop(style_name)
+                css_style.apply_to(el)
+
 
     @classmethod
     def find_constant_coordinate_markers(cls, ref_elem, xpath, style="top"):
