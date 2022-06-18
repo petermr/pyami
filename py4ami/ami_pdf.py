@@ -1,3 +1,4 @@
+import argparse
 import lxml
 import lxml.html
 from lxml import etree
@@ -5,6 +6,17 @@ from lxml.builder import E
 import statistics
 from enum import Enum
 from pathlib import Path
+from typing import Container
+from io import BytesIO, StringIO
+import sys
+import re
+from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
+from pdfminer.layout import LAParams
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.pdfpage import PDFPage
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util
@@ -60,6 +72,27 @@ STYLES = [
 
 CHAPTER = "Chapter"
 TECHNICAL_SUMMARY = "Technical Summary"
+
+# debug
+WORDS = "words"
+LINES = "lines"
+RECTS = "rects"
+CURVES = "curves"
+IMAGES = "images"
+TABLES = "tables"
+HYPERLINKS = "hyperlinks"
+ANNOTS = "annots"
+DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS]
+DEBUG_ALL = "debug_all"
+
+
+def add_ids(root_elem):
+    """adds IDs to all elements in document order
+    :param root_elem: element defining tree of subelements"""
+    xpath = "//*"
+    elems = root_elem.xpath(xpath)
+    for i, el in enumerate(elems):
+        el.attrib["id"] = "id" + str(i)
 
 
 # sub/Super
@@ -394,6 +427,170 @@ class AmiParagraph:
                 h_p.append(span)
         return h_p
 
+class CSSStyle:
+    BOLD = "Bold"
+    BOTTOM = "bottom"
+    DOT_B = ".B"
+    FONT_FAMILY = "font-family"
+    FONT_SIZE = "font-size"
+    LEFT = "left"
+    PX = "px"
+    STYLE = "style"
+    TOP = "top"
+    WIDTH = "width"
+
+    def __init__(self):
+        self.name_value_dict = dict()
+
+    def __str__(self):
+        s = ""
+        for k, v in self.name_value_dict.items():
+            s += f"{k}:{v}; "
+        s = s.strip()
+        return s
+
+    @classmethod
+    def create_css_style(cls, elem):
+        """create CSSStyle object from elem
+        :param elem:
+        """
+        css_style = CSSStyle()
+        style_attval = elem.get(CSSStyle.STYLE)
+        css_style.name_value_dict = cls.create_dict_from_string(style_attval)
+        return css_style
+
+    @classmethod
+    def create_dict_from_string(cls, style_attval):
+        name_value_dict = dict()
+        if style_attval:
+            styles = style_attval.split(";")
+            for style in styles:
+                if len(style.strip()) > 0:
+                    ss = style.split(":")
+                    name = ss[0].strip()
+                    if name in name_value_dict:
+                        raise KeyError(f"{name} duplicated in CSS: {style_attval}")
+                    name_value_dict[name] = ss[1].strip()
+        return name_value_dict
+
+    def remove(self, name):
+        if type(name) is list:
+            for n in name:
+                self.remove(n)
+        elif name in self.name_value_dict:
+            self.name_value_dict.pop(name, None)
+
+    def apply_to(self, elem):
+        css_str = self.generate_css_value()
+        elem.attrib["style"] = css_str
+
+    def generate_css_value(self):
+        s = ""
+        for key in self.name_value_dict:
+            val = self.name_value_dict[key]
+            s += key + ": " + val + "; "
+        return s.strip()
+
+    def attval(self, name):
+        return self.name_value_dict.get(name) if self.name_value_dict else None
+
+    @property
+    def font_family(self):
+        return self.attval(CSSStyle.FONT_FAMILY)
+
+    @property
+    def top(self):
+        return self.get_numeric_attval(CSSStyle.TOP)
+
+    @property
+    def font_size(self):
+        size = self.get_numeric_attval(CSSStyle.FONT_SIZE)
+        return size
+
+    @property
+    def bottom(self):
+        return self.get_numeric_attval(CSSStyle.BOTTOM)
+
+    @property
+    def left(self):
+        return self.get_numeric_attval(CSSStyle.LEFT)
+
+    @property
+    def width(self):
+        return self.get_numeric_attval(CSSStyle.WIDTH)
+
+    def get_numeric_attval(self, name):
+        value = self.attval(name)
+        if not value:
+            return None
+        value = value[:-2] if value.endswith(CSSStyle.PX) else value
+        try:
+            return float(value)
+        except Exception:
+            return None
+
+    def is_bold_name(self):
+        """Heuristic using font-name
+        :return: True if name contains "Bold" or ".B" or .."""
+        fontname = self.font_family
+        result = (self.BOLD in fontname) or (fontname.endswith(self.DOT_B)) if fontname else False
+        return result
+
+    def obeys(self, condition):
+        """test if style obeys a (simple) condition
+        (I'll write a DSL later)
+        :param condition: (name, operator, value), e.g. "font-size>10
+        :return: test of condition
+
+        """
+        result = False
+        if condition:
+            ss = re.split('(>|<|==|!=)', condition)
+            if len(ss) != 3:
+                print(f"Cannot parse as condition {condition}")
+            else:
+                lhs = ss[0].strip()
+                rhs = ss[2].strip()
+
+                # print(f"condition: {ss}")
+                if not lhs in self.name_value_dict:
+                    return False
+                value1 = self.name_value_dict.get(lhs)
+                if not value1:
+                    print(f"{lhs} not in style attribute {self.name_value_dict}")
+                    return False
+                if value1.endswith("px"):
+                    value1 = value1[:-2]
+                try:
+                    value1 = float(value1)
+                except Exception:
+                    print(f"not a number {value1}")
+                    return False
+
+                if rhs.endswith("px"):
+                    rhs = rhs[:-2]
+                try:
+                    value2 = float(rhs)
+                except Exception:
+                    print(f"not a number {rhs}")
+                    return False
+                oper = ss[1]
+                if oper == ">":
+                    result = value1 > value2
+                elif oper == "<":
+                    result = value1 < value2
+                elif oper == "!=":
+                    result = value1 != value2
+                elif oper == "==":
+                    result = (value1 == value2)
+                else:
+                    raise ValueError(f"bad operator: {oper}")
+                if result:
+                    # print(f"condition TRUE {condition}")
+                    pass
+        return result
+
+
 
 class CompositeLine:
     """holds text spans which touch or intersect and overall bbox"""
@@ -534,6 +731,418 @@ class TextSpan:
     def has_empty_text_content(self) -> bool:
         return len("".join(self.text_content.split())) == 0
 
+# arg_dict
+MAXPAGE = "maxpage"
+INDIR = "indir"
+INPATH = "inpath"
+OUTDIR = "outdir"
+OUTFORM = "outform"
+OUTSTEM = "outstem"
+FLOW = "flow"
+# FORMAT = "fmt"
+IMAGEDIR = "imagedir"
+RESOLUTION = "resolution"
+TEMPLATE = "template"
+class PDFArgs:
+    def __init__(self):
+        """arg_dict is set to default"""
+        self.parser = None
+        self.parsed_args = None
+        self.arg_dict = self.create_default_arg_dict()
+
+    def create_arg_parser(self):
+        """creates adds the arguments for pyami commandline
+
+        """
+        self.parser = argparse.ArgumentParser(description='PDF parsing')
+        self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
+        self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
+        self.parser.add_argument("--inpath", type=str, nargs=1, help="input file")
+        self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
+        self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
+        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
+        self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
+        self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)",
+                                 default=400)
+        self.parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
+        self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
+        return self.parser
+
+    # class PDFArgs:
+    def process_args(self):
+        """runs parsed args
+        :param arg_dict: parsed arguments
+        :return:
+  --maxpage MAXPAGE     maximum number of pages
+  --indir INDIR         input directory
+  --infile INFILE [INFILE ...]
+                        input file
+  --outdir OUTDIR       output directory
+  --outform OUTFORM     output format
+  --flow FLOW           create flowing HTML (heuristics)
+  --images IMAGES       output images
+  --resolution RESOLUTION
+                        resolution of output images
+  --template TEMPLATE   file to parse specific type of document"""
+
+        if self.arg_dict:
+            fmt = self.arg_dict.get(OUTFORM)
+            print(f"fmt: {fmt}")
+            maxpage = self.arg_dict.get(MAXPAGE)
+            indir = self.arg_dict.get(INDIR)
+            inpath = self.arg_dict.get(INPATH)
+            outdir = self.arg_dict.get(OUTDIR)
+            outstem = self.arg_dict.get(OUTSTEM)
+            flow = self.arg_dict.get(FLOW) is not None
+            self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
+
+    def create_arg_dict(self):
+        print(f"PARSED_ARGS {self.parsed_args}")
+        if not self.parsed_args:
+            return None
+        arg_vars = vars(self.parsed_args)
+        self.arg_dict = dict()
+        for item in arg_vars.items():
+            key = item[0]
+            if item[1] is None:
+                pass
+            elif type(item[1]) is list and len(item[1]) == 1:
+                self.arg_dict[key] = item[1][0]
+            else:
+                self.arg_dict[key] = item[1]
+
+        return self.arg_dict
+
+    # class PDFArgs:
+    @classmethod
+    def convert_pdf(cls,
+                    path: str,
+                    fmt: str = "text",
+                    codec: str = "utf-8",
+                    password: str = "",
+                    maxpages: int = 0,
+                    caching: bool = True,
+                    pagenos: Container[int] = set(),
+                    ) -> str:
+        """Summary
+        Parameters
+        ----------
+        path : str
+            Path to the pdf file
+        fmt : str, optional
+            Format of output, must be one of: "text", "html", "xml".
+            By default, "text" format is used
+        codec : str, optional
+            Encoding. By default "utf-8" is used
+        password : str, optional
+            Password
+        maxpages : int, optional
+            Max number of pages to convert. By default is 0, i.e. reads all pages.
+        caching : bool, optional
+            Caching. By default is True
+        pagenos : Container[int], optional
+            Provide a list with numbers of pages to convert
+        Returns
+        -------
+        str
+            Converted pdf file
+        """
+        """from pdfminer/pdfplumber"""
+        device, interpreter, retstr = PDFArgs.create_interpreter(fmt)
+
+        fp = open(path, "rb")
+        print(f"maxpages: {maxpages}")
+        for page in PDFPage.get_pages(
+                fp,
+                pagenos,
+                maxpages=maxpages,
+                password=password,
+                caching=caching,
+                check_extractable=True,
+        ):
+            interpreter.process_page(page)
+
+        text = retstr.getvalue().decode()
+        fp.close()
+        device.close()
+        retstr.close()
+        return text
+
+    # class PDFArgs:
+
+    @classmethod
+    def create_default_arg_dict(cls):
+        """returns a new COPY of the default dictionary"""
+        arg_dict = dict()
+        arg_dict[OUTFORM] = "html.flow"
+        arg_dict[MAXPAGE] = 5
+        arg_dict[INDIR] = None
+        arg_dict[INPATH] = None
+        arg_dict[OUTDIR] = None
+        arg_dict[OUTSTEM] = None
+        arg_dict[FLOW] = True
+        return arg_dict
+
+    @classmethod
+    def create_interpreter(cls, fmt, codec: str = "UTF-8"):
+        """creates a PDFPageInterpreter
+        :format: "text, "xml", "html"
+        :codec: default UTF-8
+        :return: (device, interpreter, retstr) device must be closed after reading, retstr
+        contains resultant str
+
+        Typical use:
+        device, interpreter, retstr = create_interpreter(format)
+
+        fp = open(path, "rb")
+        for page in PDFPage.get_pages(fp):
+            interpreter.process_page(page)
+
+        text = retstr.getvalue().decode()
+        fp.close()
+        device.close()
+        retstr.close()
+        return text
+
+        TODO convert to context manager?
+        """
+        rsrcmgr = PDFResourceManager()
+        retstr = BytesIO()
+        laparams = LAParams()
+        converters = {"text": TextConverter, "html": HTMLConverter, "flow.html": HTMLConverter, "xml": XMLConverter}
+        converter = converters.get(fmt)
+        if not converter:
+            raise ValueError(f"provide format, {converters.keys()}")
+        device = converter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+        # if format == "text":
+        #     device = TextConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+        # elif format == "html":
+        #     device = HTMLConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+        # elif format == "xml":
+        #     device = XMLConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+        # else:
+        interpreter = PDFPageInterpreter(rsrcmgr, device)
+        return device, interpreter, retstr
+
+    # class PDFArgs:
+
+    def convert_write(self, fmt=None, maxpage=999999, outdir=None, outstem=None, inpath=None, flow=False):
+        """
+        create HTML (absolute or flowing) or XML
+        The preferred method is to use arg_dict
+        :param fmt: format html/xml/text
+        :param maxpage: if 0, writes all else staops at maxpages
+        :param outdir: output dir
+        :param outstem: stem of output file
+        :param inpath: input file
+        :param flow: remove absolute position so text can flow
+        :param arg_dict: preferred method - extract properties by dict key
+        """
+        if self.arg_dict:
+            maxp = self.arg_dict.get(MAXPAGE)
+            maxpage = int(maxp) if maxp else maxpage
+            outd = self.arg_dict.get(OUTDIR)
+            outdir = outd if outd else outdir
+            outs = self.arg_dict.get(OUTSTEM)
+            outdir = outs if outs else outstem
+            inp = self.arg_dict.get(INPATH)
+            inpath = inp if inp else inpath
+            if fm := self.arg_dict.get(OUTFORM):
+                fmt = fm
+            if fl := self.arg_dict.get(FLOW):
+                flow = fl
+
+            # header_offset = -50
+            header_height = 90
+            # page_height = 892
+            # page_height_cm = 29.7
+            footer_height = 90
+
+        print(f"==============CONVERT================")
+        if fmt == "html.flow":
+            fmt = "html"
+            flow = True
+        result = PDFArgs.convert_pdf(path=inpath, fmt=fmt, maxpages=maxpage)
+
+        if flow:
+            # with open(Path(inpath), "r") as f:
+            #     pages = PDFPage.get_pages(f)
+            # for page in list(pages):
+            #     page0 = page
+            #     break
+            # print(f"media {page0.mediabox}")
+            # print(f"page0 {page0.media_box}")
+            tree = lxml.etree.parse(StringIO(result), lxml.etree.HTMLParser())
+            result_elem = tree.getroot()
+            add_ids(result_elem)
+            # this is slightly tacky
+            PDFUtil.remove_descendant_elements_by_tag("br", result_elem)
+            PDFUtil.remove_style(result_elem, [
+                "position",
+                # "left",
+                "border",
+                "writing-mode",
+                "width",  # this disables flowing text
+            ])
+            PDFUtil.remove_empty_elements(result_elem, ["span"])
+            PDFUtil.remove_empty_elements(result_elem, ["div"])
+            PDFUtil.remove_lh_line_numbers(result_elem)
+            PDFUtil.remove_large_fonted_elements(result_elem)
+            marker_xpath = ".//div[a[@name]]"
+            offset, pagesize, page_coords = PDFUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
+            PDFUtil.remove_headers_and_footers(result_elem, pagesize, header_height, footer_height, marker_xpath)
+            PDFUtil.remove_style_attribute(result_elem, "top")
+            PDFUtil.remove_style(result_elem, ["left", "height"])
+            HtmlTree.make_tree(result_elem, output_dir=outd)
+
+            result = lxml.etree.tostring(result_elem).decode("UTF-8")
+            fmt = "flow.html"
+        if not outdir:
+            indir = Path(inpath).parent
+            outdir = indir
+            print(f"no outdir given, taking input {indir}")
+            outstem = Path(inpath).stem
+            outfile = Path(outdir, f"{outstem}.{fmt}")
+        print(f"outfile {outfile}")
+        with open(str(outfile), "w") as f:
+            f.write(result)
+            print(f"wrote {f.name}")
+
+    # class PDFArgs:
+    def process1_args(self):
+        self.create_arg_parser()
+        if len(sys.argv) == 1:  # no args, print help
+            self.parser.print_help()
+        else:
+            self.parsed_args = self.parser.parse_args(sys.argv[1:])
+            self.arg_dict = self.create_arg_dict()
+            self.process_args()
+
+class HtmlTree:
+    """builds a tree from a flat set of Html elemnets"""
+
+    @classmethod
+    def make_tree(cls, elem, output_dir):
+        """find decimal number for tree"""
+        markers = ["Chapter",
+                   # "Table of Contents",
+                   "Table of",  # one is concatenated (Chapter01) so abbreviate, unweighted Chap16
+                   # "Executive Summary",
+                   "Executive",  # case variation
+                   # "Frequently Asked Questions", # not in Chapter01
+                   "Frequently",  # case variation
+                   "References",
+                   ]
+        is_bold = True
+        font_size_range = (12, 999)
+        for marker in markers:
+            marked_div, divs = cls.get_div_span_starting_with(elem, marker, is_bold, font_size_range=font_size_range)
+            if not marked_div:
+                l = len(divs) if divs else 0
+                print(f"Cannot find marker {marker} found {l} markers")
+        decimal_divs = cls.get_div_spans_with_decimals(elem, is_bold, font_size_range=font_size_range)
+        etree1 = lxml.etree.ElementTree(decimal_divs)
+        top = lxml.etree.Element("top")
+        next = lxml.etree.SubElement(top, "next")
+        final = lxml.etree.SubElement(next, "bottom")
+        print(f"flat {lxml.etree.tostring(top)}")
+        print("pretty", lxml.etree.tostring(top, pretty_print=True))
+        # print(lxml.etree.tostring(decimal_divs, pretty_print=True).decode())
+        if output_dir:
+            if not output_dir.exists():
+                output_dir.mkdir()
+            for i, child in enumerate(decimal_divs):
+                path = Path(output_dir, f"sect.4.{i + 1}.html")
+                with open(path, "wb") as f:
+                    f.write(lxml.etree.tostring(child, pretty_print=True))
+            print(f"decimals: {len(decimal_divs)}")
+
+    @classmethod
+    def get_div_span_starting_with(cls, elem, strg, is_bold=False, font_size_range=None):
+        result = None
+        xpath = f".//div[span[starts-with(.,'{strg}')]]"
+        print(f"xpath {xpath}")
+        divs = elem.xpath(xpath)
+        if len(divs) == 0:
+            print(f"No divs with {strg}")
+            return result, None
+        print(f"found divs {len(divs)}")
+        new_divs = []
+        for div in divs:
+            spans = div.xpath("./span")
+            if spans:
+                css_style = CSSStyle.create_css_style(spans[0])
+                if not (is_bold and css_style.is_bold_name()):
+                    continue
+                if not (font_size_range and cls.in_range(css_style.font_size, font_size_range)):
+                    continue
+                new_divs.append(div)
+                pass
+        divs = new_divs
+        # also test font here NYI
+        if len(divs) == 0:
+            print(f"cannot find div: len={len(divs)}")
+        elif len(divs) > 1:
+            print(f"too many divs: len={len(divs)}")
+        else:
+            result = divs[0]
+            print(f"marked with {strg} : {''.join(result.itertext())}")
+            result.attrib["marker"] = strg
+        return (result, divs)
+
+    @classmethod
+    def get_div_spans_with_decimals(cls, elem, is_bold=None, font_size_range=None):
+        """Matches div/span starting with a decimal index
+        d.d or d.d.d
+        """
+        result = None
+        # first add all numbered divs to decimal_div
+        decimal_div = lxml.etree.SubElement(elem, "decimal_root")
+        current_div = decimal_div
+        xpath = f".//div"  # iterate over all divs, only append those with decimal
+        print(f"xpath {xpath}")
+        divs = elem.xpath(xpath)
+        print(f"found divs {len(divs)}")
+        digital = re.compile("\\d+\\.\\d+(\\.\\d+)?$")
+        decimal_count = 0
+        for div in divs:
+            spans = div.xpath("./span")
+            if not spans:
+                # no spans, concatenate with siblings
+                current_div.append(div)
+                continue
+            span0 = spans[0]
+            css_style = CSSStyle.create_css_style(span0)  # normally comes first
+            # check weight, if none append to siblings
+            if not (is_bold and css_style.is_bold_name()):
+                current_div.append(div)
+                continue
+            # check fon-size, if none append to siblings
+            if not (font_size_range and cls.in_range(css_style.font_size, font_size_range)):
+                current_div.append(div)
+                continue
+            # span content
+            text = ''.join(span0.itertext())
+            if digital.match(text):
+                decimal_div.append(div)
+                div.attrib["marker"] = text
+                current_div = div
+                decimal_count += 1
+            else:
+                current_div.append(div)
+        print(f"decimals: {decimal_count}")
+        return decimal_div
+
+    @classmethod
+    def in_range(cls, num, num_range):
+        """is a number in a numeric range"""
+        assert num_range or len(num_range) == 2, f"range must have 2 elements"
+        assert num_range[0] <= num_range[1], f"font_size_range must be (lower,higher)"
+        assert float(num_range[0])
+        result = num_range[0] <= num <= num_range[1]
+        return result
+
+
 
 class TextStyle:
     # try to map onto HTML italic/normal
@@ -597,6 +1206,136 @@ class PDFParser:
         pdf_parser = PDFParser()
         print(f"NYI, create from arg_parse")
         return pdf_parser
+
+class PDFUtil:
+    """utility routieses which need extracting into classes"""
+
+    @classmethod
+    def remove_empty_elements(cls, elem, tag):
+        if tag:
+            if type(tag) is list:
+                for t in tag:
+                    cls.remove_empty_elements(elem, t)
+            else:
+                xp = f".//{tag}[normalize-space(.)='' and count({tag}/*) = 0]"
+                elems = elem.xpath(xp)
+                for el in elems:
+                    cls.remove_elem_keep_tail(el)
+
+    @classmethod
+    def remove_elem_keep_tail(cls, el):
+        parent = el.getparent()
+        tail = el.tail
+        if tail is not None and len(tail.strip()) > 0:
+            prev = el.getprevious()
+            if prev is not None:
+                prev.tail = (prev.tail or '') + el.tail
+            else:
+                parent.text = (parent.text or '') + el.tail
+
+        parent.remove(el)
+
+    @classmethod
+    def remove_descendant_elements_by_tag(cls, tag, result_elem):
+        lxml.etree.strip_tags(result_elem, tag)
+
+    @classmethod
+    def remove_style(cls, xpath_root_elem, names):
+        """removes name-value pairs from css-style and reapply to xpath'ed elements"""
+        xpath = f".//*[@style]"
+        # print(f"xpath: {xpath}")
+        try:
+            styled_elems = xpath_root_elem.xpath(xpath)
+        except lxml.etree.XPathEvalError as xpee:
+            raise ValueError(f"Bad xpath {xpath}")
+
+        print(f"styles {len(styled_elems)}")
+        for styled_elem in styled_elems:
+            css_style = CSSStyle.create_css_style(styled_elem)
+            css_style.remove(names)
+            css_style.apply_to(styled_elem)
+            style = styled_elem.attrib["style"]
+
+    @classmethod
+    def find_elements_with_style(cls, elem, xpath, condition=None, remove=False):
+        """remove all elements with style fulfilling condition
+        :param elem: root element for xpath
+        :param xpath: elements to scan , should normally contain the @style condition
+                          if None uses
+        :param condition: style condition primitive at present
+                          (variable, or variable  operator value (eval is evil)
+                          example "_font-size > 30" or "_position" (means has position)
+        :param remove: remove these elements (not their tail)
+        """
+        assert elem is not None, f"must have elem"
+        if xpath:
+            els = elem.xpath(xpath)
+        else:
+            els = [elem]
+        elems = []
+        for el in els:
+            css_style = CSSStyle.create_css_style(el)
+            if condition:
+                if css_style.obeys(condition):
+                    # print(f"{elem} obeys {condition}")
+                    if remove:
+                        cls.remove_elem_keep_tail(el)
+
+    @classmethod
+    def remove_headers_and_footers(cls, ref_elem, pagesize, header_height, footer_height, marker_xpath):
+        elems = ref_elem.xpath(marker_xpath)
+
+        for elem in ref_elem.xpath("//*[@style]"):
+            top = CSSStyle.create_css_style(elem).get_numeric_attval("top")  # the y-coordinate
+            if top:
+                top = top % pagesize
+                if top < header_height or top > pagesize - footer_height:
+                    cls.remove_elem_keep_tail(elem)
+
+    @classmethod
+    def remove_lh_line_numbers(cls, ref_elem):
+        cls.find_elements_with_style(ref_elem, ".//*[@style]", "left<49", remove=True)
+
+    @classmethod
+    def remove_style_attribute(cls, ref_elem, style_name):
+        elems = ref_elem.xpath(".//*")
+        for el in elems:
+            css_style = CSSStyle.create_css_style(el)
+            if css_style.name_value_dict.get(style_name):
+                css_style.name_value_dict.pop(style_name)
+                css_style.apply_to(el)
+
+    @classmethod
+    def remove_large_fonted_elements(cls, ref_elem):
+        cls.find_elements_with_style(ref_elem, ".//*[@style]", "font-size>30", remove=True)
+
+    @classmethod
+    def find_constant_coordinate_markers(cls, ref_elem, xpath, style="top"):
+        """
+        finds a line with constant difference from top of page
+<div style="top: 50px;"><a name="1">Page 1</a></div>
+        """
+
+        elems = ref_elem.xpath(xpath)
+        coords = []
+        for elem in elems:
+            css_style = CSSStyle.create_css_style(elem)
+            coord = css_style.name_value_dict.get(style)
+            if coord:
+                try:
+                    coords.append(float(coord[:-2]))
+                except Exception:
+                    print(f"cannot parse {coord} for {style}")
+        np_coords = np.array(coords)
+        x = np.array(range(np_coords.size)).reshape((-1, 1))
+        # print(x, coords)
+        model = LinearRegression().fit(x, coords)
+        r_sq = model.score(x, coords)
+        # print(f"coefficient of determination: {r_sq} intercept {model.intercept_} slope {model.coef_}")
+        if r_sq < 0.98:
+            print(f"cannot calculate offset reliably")
+        return model.intercept_, model.coef_, np_coords
+
 
 
 class SvgText:
