@@ -11,7 +11,7 @@ import lxml.html
 import pdfplumber
 
 # local
-from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs
+from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
 from py4ami.ami_pdf import STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, HtmlUtil, SORT_XY
 from test.resources import Resources
 from py4ami.pyamix import PyAMI
@@ -55,144 +55,6 @@ FLOW = "flow"
 IMAGEDIR = "imagedir"
 RESOLUTION = "resolution"
 TEMPLATE = "template"
-
-
-def debug_page_properties(page, debug=None):
-    """debug print selected DEBUG_OPTIONS
-    :param debug: list of options (from DEBUG_OPTIONS)
-    """
-    if not debug:
-        debug = []
-        print(f"no optiomns given, choose from: {DEBUG_OPTIONS}")
-    if DEBUG_ALL in debug:
-        debug = DEBUG_OPTIONS
-    print(f"\n\n======page: {page.page_number} ===========")
-    if WORDS in debug:
-        print_words(page)
-    if LINES in debug:
-        print_lines(page)
-    if RECTS in debug:
-        print_rects(page, debug=False)
-    if CURVES in debug:
-        print_curves(page)
-    if IMAGES in debug:
-        print_images(page)
-    if TABLES in debug:
-        print_tables(page)
-    if HYPERLINKS in debug:
-        print_hyperlinks(page)
-    if ANNOTS in debug:
-        print_annots(page)
-
-
-def print_words(page):
-    print(f"words {len(page.extract_words())}", end=" | ")
-
-
-def print_lines(page):
-    if (n_line := len(page.lines)) > 0:
-        print(f"lines {n_line}", end=" | ")
-
-
-def print_rects(page, debug=False):
-    if n_rect := len(page.rects) > 0:
-        print(f"rects {n_rect}", end=" | ")
-        if debug:
-            for rect in page.rects[:PDFTest.MAX_RECT]:
-                print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
-
-
-def print_curves(page):
-    if n_curve := len(page.curves) > 0:
-        print(f"curves {n_curve}", end=" | ")
-        for curve in page.curves[:PDFTest.MAX_CURVE]:
-            print(f"keys: {curve.keys()}")
-            print(f"curve {curve['points']}")
-
-
-def print_images(page):
-    write_image = True
-    resolution = 400  # may be better
-    from pdfminer.image import ImageWriter
-    from pdfminer.layout import LTImage
-    if n_image := len(page.images) > 0:
-        print(f"images {n_image}", end=" | ")
-        for i, image in enumerate(page.images[:PDFTest.MAX_IMAGE]):
-            print(f"image: {type(image)}: {image.values()}")
-
-            path = Path(Resources.TEMP_DIR, "images")
-            if not path.exists():
-                path.mkdir()
-            if isinstance(image, LTImage):
-                imagewriter = ImageWriter(Path(path, f"image{i}.png"))
-                imagewriter.export_image(image)
-            page_height = page.height
-            image_bbox = (image['x0'], page_height - image['y1'], image['x1'], page_height - image['y0'])
-            print(f"image: {image_bbox}")
-
-            cropped_page = page.crop(image_bbox)  # crop screen display (may have overwriting text)
-            image_obj = cropped_page.to_image(resolution=resolution)
-            path1 = Path(path, f"image_{page.page_number}_{i}_{format_bbox(image_bbox)}.png")
-            if write_image:
-                image_obj.save(path1)
-                print(f" wrote image {path1}")
-            continue
-
-            # for p in pdf.pages:
-            #     for obj in p.layout:
-            #         if isinstance(obj, LTImage):
-            #             imagewriter.export_image(obj)
-
-
-def format_bbox(bbox: tuple):
-    return f"{int(bbox[0])}_{int(bbox[2])}_{int(bbox[1])}_{int(bbox[3])}"
-
-
-def print_hyperlinks(page):
-    if n_hyper := len(page.hyperlinks) > 0:
-        print(f"hyperlinks {n_hyper}", end=" | ")
-        for hyperlink in page.hyperlinks:
-            print(f"hyperlink {hyperlink.values()}")
-
-
-def print_annots(page):
-    """Prints annots
-
-    Here's the output of one (it's a hyperlink)
-    annot: dict_items(
-[
-    ('page_number', 4),
-    ('object_type', 'annot'),
-    ('x0', 80.75),
-    ('y0', 698.85),
-    ('x1', 525.05),
-    ('y1', 718.77),
-    ('doctop', 2648.91),
-    ('top', 123.14999999999998),
-    ('bottom', 143.06999999999994),
-    ('width', 444.29999999999995),
-    ('height', 19.91999999999996),
-    ('uri', None),
-    ('title', None),
-    ('contents', None),
-    ('data',
-        {'BS': {'W': 0},
-         'Dest': [<PDFObjRef:7>, /'XYZ', 69, 769, 0],
-         'F': 4,
-         'Rect': [80.75, 698.85, 525.05, 718.77],
-         'StructParent': 3,
-         'Subtype': /'Link'
-         }
-    )
-]
-)
-    and there are 34 (in a TableOfContents) and they work
-
-    """
-    if n_annot := len(page.annots) > 0:
-        print(f"annots {n_annot}", end=" | ")
-        for annot in page.annots:
-            print(f"annot: {annot.items()}")
 
 
 # ==============================
@@ -558,7 +420,7 @@ class PDFTest(unittest.TestCase):
             pages = list(pdf.pages)
             assert len(pages) == 5
             for page in pages:
-                debug_page_properties(page, debug=[WORDS, IMAGES])
+                PDFDebug.debug_page_properties(page, debug=[WORDS, IMAGES])
 
     # See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
 
@@ -653,7 +515,7 @@ LTPage
                 pages = list(pdf.pages)
                 assert len(pages) == page_count
                 for page in pages[:max_page]:
-                    debug_page_properties(page, debug=options)
+                    PDFDebug.debug_page_properties(page, debug=options)
 
     def test_make_structured_html(self):
         """structures the flat HTML from pdfplumber"""

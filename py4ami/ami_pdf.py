@@ -1143,6 +1143,145 @@ class HtmlTree:
         return result
 
 
+class PDFDebug:
+    @classmethod
+    def debug_page_properties(cls, page, debug=None):
+        """debug print selected DEBUG_OPTIONS
+        :param debug: list of options (from DEBUG_OPTIONS)
+        """
+        if not debug:
+            debug = []
+            print(f"no optiomns given, choose from: {DEBUG_OPTIONS}")
+        if DEBUG_ALL in debug:
+            debug = DEBUG_OPTIONS
+        print(f"\n\n======page: {page.page_number} ===========")
+        if WORDS in debug:
+            cls.print_words(page)
+        if LINES in debug:
+            cls.print_lines(page)
+        if RECTS in debug:
+            cls.print_rects(page, debug=False)
+        if CURVES in debug:
+            cls.print_curves(page)
+        if IMAGES in debug:
+            cls.print_images(page)
+        if TABLES in debug:
+            cls.print_tables(page)
+        if HYPERLINKS in debug:
+            cls.print_hyperlinks(page)
+        if ANNOTS in debug:
+            cls.print_annots(page)
+
+    @classmethod
+    def print_words(cls, page):
+        print(f"words {len(page.extract_words())}", end=" | ")
+
+    @classmethod
+    def print_lines(cls, page):
+        if (n_line := len(page.lines)) > 0:
+            print(f"lines {n_line}", end=" | ")
+
+    @classmethod
+    def print_rects(cls, page, debug=False):
+        if n_rect := len(page.rects) > 0:
+            print(f"rects {n_rect}", end=" | ")
+            if debug:
+                for rect in page.rects[:PDFTest.MAX_RECT]:
+                    print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
+
+    @classmethod
+    def print_curves(cls, page):
+        if n_curve := len(page.curves) > 0:
+            print(f"curves {n_curve}", end=" | ")
+            for curve in page.curves[:PDFTest.MAX_CURVE]:
+                print(f"keys: {curve.keys()}")
+                print(f"curve {curve['points']}")
+
+    @classmethod
+    def print_images(cls, page):
+        write_image = True
+        resolution = 400  # may be better
+        from pdfminer.image import ImageWriter
+        from pdfminer.layout import LTImage
+        if n_image := len(page.images) > 0:
+            print(f"images {n_image}", end=" | ")
+            for i, image in enumerate(page.images[:PDFTest.MAX_IMAGE]):
+                print(f"image: {type(image)}: {image.values()}")
+
+                path = Path(Resources.TEMP_DIR, "images")
+                if not path.exists():
+                    path.mkdir()
+                if isinstance(image, LTImage):
+                    imagewriter = ImageWriter(Path(path, f"image{i}.png"))
+                    imagewriter.export_image(image)
+                page_height = page.height
+                image_bbox = (image['x0'], page_height - image['y1'], image['x1'], page_height - image['y0'])
+                print(f"image: {image_bbox}")
+
+                cropped_page = page.crop(image_bbox)  # crop screen display (may have overwriting text)
+                image_obj = cropped_page.to_image(resolution=resolution)
+                path1 = Path(path, f"image_{page.page_number}_{i}_{format_bbox(image_bbox)}.png")
+                if write_image:
+                    image_obj.save(path1)
+                    print(f" wrote image {path1}")
+                continue
+
+                # for p in pdf.pages:
+                #     for obj in p.layout:
+                #         if isinstance(obj, LTImage):
+                #             imagewriter.export_image(obj)
+
+    # @classmethod
+    # def format_bbox(bbox: tuple):
+    #     return f"{int(bbox[0])}_{int(bbox[2])}_{int(bbox[1])}_{int(bbox[3])}"
+
+    @classmethod
+    def print_hyperlinks(cls, page):
+        if n_hyper := len(page.hyperlinks) > 0:
+            print(f"hyperlinks {n_hyper}", end=" | ")
+            for hyperlink in page.hyperlinks:
+                print(f"hyperlink {hyperlink.values()}")
+
+    @classmethod
+    def print_annots(cls, page):
+        """Prints annots
+
+        Here's the output of one (it's a hyperlink)
+        annot: dict_items(
+    [
+        ('page_number', 4),
+        ('object_type', 'annot'),
+        ('x0', 80.75),
+        ('y0', 698.85),
+        ('x1', 525.05),
+        ('y1', 718.77),
+        ('doctop', 2648.91),
+        ('top', 123.14999999999998),
+        ('bottom', 143.06999999999994),
+        ('width', 444.29999999999995),
+        ('height', 19.91999999999996),
+        ('uri', None),
+        ('title', None),
+        ('contents', None),
+        ('data',
+            {'BS': {'W': 0},
+             'Dest': [<PDFObjRef:7>, /'XYZ', 69, 769, 0],
+             'F': 4,
+             'Rect': [80.75, 698.85, 525.05, 718.77],
+             'StructParent': 3,
+             'Subtype': /'Link'
+             }
+        )
+    ]
+    )
+        and there are 34 (in a TableOfContents) and they work
+
+        """
+        if n_annot := len(page.annots) > 0:
+            print(f"annots {n_annot}", end=" | ")
+            for annot in page.annots:
+                print(f"annot: {annot.items()}")
+
 
 class TextStyle:
     # try to map onto HTML italic/normal
