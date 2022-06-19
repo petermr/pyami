@@ -1198,17 +1198,21 @@ class PDFDebug:
                 print(f"curve {curve['points']}")
 
     @classmethod
-    def print_images(cls, page):
+    def print_images(cls, page, maximage=10, outdir=None):
+        """PDFTest.MAX_IMAGE"""
         write_image = True
         resolution = 400  # may be better
         from pdfminer.image import ImageWriter
         from pdfminer.layout import LTImage
+        if not outdir:
+            print(f"no output dir given")
+            return
         if n_image := len(page.images) > 0:
             print(f"images {n_image}", end=" | ")
-            for i, image in enumerate(page.images[:PDFTest.MAX_IMAGE]):
+            for i, image in enumerate(page.images[:maximage]):
                 print(f"image: {type(image)}: {image.values()}")
 
-                path = Path(Resources.TEMP_DIR, "images")
+                path = Path(outdir, "images")
                 if not path.exists():
                     path.mkdir()
                 if isinstance(image, LTImage):
@@ -1220,7 +1224,7 @@ class PDFDebug:
 
                 cropped_page = page.crop(image_bbox)  # crop screen display (may have overwriting text)
                 image_obj = cropped_page.to_image(resolution=resolution)
-                path1 = Path(path, f"image_{page.page_number}_{i}_{format_bbox(image_bbox)}.png")
+                path1 = Path(path, f"image_{page.page_number}_{i}_{cls.format_bbox(image_bbox)}.png")
                 if write_image:
                     image_obj.save(path1)
                     print(f" wrote image {path1}")
@@ -1231,9 +1235,9 @@ class PDFDebug:
                 #         if isinstance(obj, LTImage):
                 #             imagewriter.export_image(obj)
 
-    # @classmethod
-    # def format_bbox(bbox: tuple):
-    #     return f"{int(bbox[0])}_{int(bbox[2])}_{int(bbox[1])}_{int(bbox[3])}"
+    @classmethod
+    def format_bbox(bbox: tuple):
+        return f"{int(bbox[0])}_{int(bbox[2])}_{int(bbox[1])}_{int(bbox[3])}"
 
     @classmethod
     def print_hyperlinks(cls, page):

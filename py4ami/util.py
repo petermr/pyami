@@ -142,7 +142,7 @@ class Util:
             logger.warning(f"empty args, ignored")
             return
         if len(sys.argv) != 1:
-            raise ValueError(f"can only extend default sys.argv (len=1), found {sys.argv}")
+            print(f"should only extend default sys.argv (len=1), found {sys.argv}")
         sys.argv.extend(args)
 
     @classmethod
