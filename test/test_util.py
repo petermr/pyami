@@ -29,8 +29,8 @@ class TestUtil(unittest.TestCase):
         sys.argv = cls.sys_argv_save
 
     @classmethod
-    @unittest.skip("not working properly")
-    # TODO fix args
+    @unittest.skip("not working properly, I think some tests change the args...")
+    # TODO fix args - some  tests change the args
     def test_add_argstr(cls):
         # this is a hack as normally there is only one element
         sys.argv = sys.argv[1:]
