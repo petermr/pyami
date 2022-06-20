@@ -34,6 +34,7 @@ SORT_YX = "yx"  # for sorting
 SORT_XY = "xy"  # for sorting
 WIDTH = "width"
 
+
 BBOX = "bbox"
 
 # to link up text spans
@@ -84,6 +85,51 @@ HYPERLINKS = "hyperlinks"
 ANNOTS = "annots"
 DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS]
 DEBUG_ALL = "debug_all"
+
+# regular expressions for (sub)sections
+# markers = ["Chapter",
+#            # "Table of Contents",
+#            "Table of",  # one is concatenated (Chapter01) so abbreviate, unweighted Chap16
+#            # "Executive Summary",
+#            "Executive",  # case variation
+#            # "Frequently Asked Questions", # not in Chapter01
+#            "Frequently",  # case variation
+#            "References",
+#            ]
+
+CHAP_TOP = re.compile(""
+                      "(Chapter\\s?\\d\\d?\\s?\\:.*$)|"
+                      "(Table\\s?of Contents.*)|"
+                      "(Executive [Ss]ummary.*)|"
+                      "(Frequently [Aa]sked.*)|"
+                      "(References)"
+                      )
+CHAP_SECTIONS_RE = re.compile("\\d+\\.\\d+$")
+CHAP_SUBSECTS_RE = re.compile("\\d+\\.\\d+\\.\\d+$")
+
+MARKER = "marker"
+
+# HTML
+H_TABLE = "table"
+H_THEAD = "thead"
+H_TBODY = "tbody"
+H_TR = "tr"
+H_TH = "th"
+H_TD = "td"
+
+# Chapter
+TREE_ROOT = "tree_root"
+CLASS = "class"
+PRE_CHAPSEC = "pre_chapsec"
+
+# XPaths
+ALL_DIV_XPATHS = ".//div"
+
+# coordinates
+X0 = 'x0'
+Y1 = 'y1'
+X1 = 'x1'
+Y0 = 'y0'
 
 
 def add_ids(root_elem):
@@ -427,6 +473,7 @@ class AmiParagraph:
                 h_p.append(span)
         return h_p
 
+
 class CSSStyle:
     BOLD = "Bold"
     BOTTOM = "bottom"
@@ -553,7 +600,7 @@ class CSSStyle:
                 rhs = ss[2].strip()
 
                 # print(f"condition: {ss}")
-                if not lhs in self.name_value_dict:
+                if lhs not in self.name_value_dict:
                     return False
                 value1 = self.name_value_dict.get(lhs)
                 if not value1:
@@ -589,7 +636,6 @@ class CSSStyle:
                     # print(f"condition TRUE {condition}")
                     pass
         return result
-
 
 
 class CompositeLine:
@@ -731,6 +777,7 @@ class TextSpan:
     def has_empty_text_content(self) -> bool:
         return len("".join(self.text_content.split())) == 0
 
+
 # arg_dict
 MAXPAGE = "maxpage"
 INDIR = "indir"
@@ -743,6 +790,8 @@ FLOW = "flow"
 IMAGEDIR = "imagedir"
 RESOLUTION = "resolution"
 TEMPLATE = "template"
+
+
 class PDFArgs:
     def __init__(self):
         """arg_dict is set to default"""
@@ -771,7 +820,6 @@ class PDFArgs:
     # class PDFArgs:
     def process_args(self):
         """runs parsed args
-        :param arg_dict: parsed arguments
         :return:
   --maxpage MAXPAGE     maximum number of pages
   --indir INDIR         input directory
@@ -936,7 +984,6 @@ class PDFArgs:
         :param outstem: stem of output file
         :param inpath: input file
         :param flow: remove absolute position so text can flow
-        :param arg_dict: preferred method - extract properties by dict key
         """
         if self.arg_dict:
             maxp = self.arg_dict.get(MAXPAGE)
@@ -965,13 +1012,6 @@ class PDFArgs:
         result = PDFArgs.convert_pdf(path=inpath, fmt=fmt, maxpages=maxpage)
 
         if flow:
-            # with open(Path(inpath), "r") as f:
-            #     pages = PDFPage.get_pages(f)
-            # for page in list(pages):
-            #     page0 = page
-            #     break
-            # print(f"media {page0.mediabox}")
-            # print(f"page0 {page0.media_box}")
             tree = lxml.etree.parse(StringIO(result), lxml.etree.HTMLParser())
             result_elem = tree.getroot()
             add_ids(result_elem)
@@ -1018,6 +1058,7 @@ class PDFArgs:
             self.arg_dict = self.create_arg_dict()
             self.process_args()
 
+
 class HtmlTree:
     """builds a tree from a flat set of Html elemnets"""
 
@@ -1041,20 +1082,16 @@ class HtmlTree:
                 l = len(divs) if divs else 0
                 print(f"Cannot find marker {marker} found {l} markers")
         decimal_divs = cls.get_div_spans_with_decimals(elem, is_bold, font_size_range=font_size_range)
-        etree1 = lxml.etree.ElementTree(decimal_divs)
-        top = lxml.etree.Element("top")
-        next = lxml.etree.SubElement(top, "next")
-        final = lxml.etree.SubElement(next, "bottom")
-        print(f"flat {lxml.etree.tostring(top)}")
-        print("pretty", lxml.etree.tostring(top, pretty_print=True))
-        # print(lxml.etree.tostring(decimal_divs, pretty_print=True).decode())
+        print(f"d_divs {len(decimal_divs)}")
         if output_dir:
             if not output_dir.exists():
                 output_dir.mkdir()
-            for i, child in enumerate(decimal_divs):
-                path = Path(output_dir, f"sect.4.{i + 1}.html")
+            for i, child_div in enumerate(decimal_divs):
+                cls.remove_div(child_div)
+                marker = child_div.attrib["marker"].strip().replace(" ", "_").lower() # name from text content
+                path = Path(output_dir, f"{marker}.html")
                 with open(path, "wb") as f:
-                    f.write(lxml.etree.tostring(child, pretty_print=True))
+                    f.write(lxml.etree.tostring(child_div, pretty_print=True))
             print(f"decimals: {len(decimal_divs)}")
 
     @classmethod
@@ -1096,42 +1133,50 @@ class HtmlTree:
         d.d or d.d.d
         """
         result = None
-        # first add all numbered divs to decimal_div
-        decimal_div = lxml.etree.SubElement(elem, "decimal_root")
-        current_div = decimal_div
-        xpath = f".//div"  # iterate over all divs, only append those with decimal
-        print(f"xpath {xpath}")
-        divs = elem.xpath(xpath)
+        # first add all matching numbered divs to pre_chapsec
+        H_DIV = "div"
+        top_div = lxml.etree.SubElement(elem, H_DIV)
+        top_div.attrib[CLASS] = TREE_ROOT
+        pre_chapsec = lxml.etree.SubElement(top_div, H_DIV)
+        pre_chapsec.attrib[CLASS] = PRE_CHAPSEC
+        current_div = pre_chapsec
+
+        # iterate over all divs, only append those with decimal
+        divs = elem.xpath(ALL_DIV_XPATHS)
         print(f"found divs {len(divs)}")
-        digital = re.compile("\\d+\\.\\d+(\\.\\d+)?$")
         decimal_count = 0
+        texts = [] # just a check at present
+        section_re = CHAP_TOP
+        # section_re = CHAP_SECTIONS_RE
+        # section_re = CHAP_SUBSECTS_RE
         for div in divs:
             spans = div.xpath("./span")
             if not spans:
                 # no spans, concatenate with siblings
                 current_div.append(div)
                 continue
-            span0 = spans[0]
-            css_style = CSSStyle.create_css_style(span0)  # normally comes first
+            css_style = CSSStyle.create_css_style(spans[0])  # normally comes first
             # check weight, if none append to siblings
             if not (is_bold and css_style.is_bold_name()):
                 current_div.append(div)
                 continue
-            # check fon-size, if none append to siblings
+            # check font-size, if none append to siblings
             if not (font_size_range and cls.in_range(css_style.font_size, font_size_range)):
                 current_div.append(div)
                 continue
             # span content
-            text = ''.join(span0.itertext())
-            if digital.match(text):
-                decimal_div.append(div)
-                div.attrib["marker"] = text
+            text = ''.join(spans[0].itertext())
+            matched = False
+            if section_re.match(text):
+                top_div.append(current_div)
+                texts.append(text)
+                div.attrib[MARKER] = text
                 current_div = div
                 decimal_count += 1
             else:
                 current_div.append(div)
-        print(f"decimals: {decimal_count}")
-        return decimal_div
+        print(f"{CHAP_SECTIONS_RE}: {decimal_count} {len(top_div.xpath('./*'))} {texts}")
+        return top_div
 
     @classmethod
     def in_range(cls, num, num_range):
@@ -1141,6 +1186,23 @@ class HtmlTree:
         assert float(num_range[0])
         result = num_range[0] <= num <= num_range[1]
         return result
+
+    @classmethod
+    def remove_div(cls, child_div):
+        text_re = re.compile(""
+            "(Final Government Distribution)|"
+            # "(Chapter\\s*\\d+\\s*)|"
+            # "(Page\s*\d+\s*)|"
+            "(IPCC WGIII AR6)",
+                             )
+        xml = lxml.etree.tostring(child_div)
+        print(f"xml {xml[:100]}")
+        spans = child_div.xpath("./div/span")
+        if len(spans) > 0:
+            text = ''.join(spans[0].itertext()).strip()
+            print(f"text {text}")
+            if text_re.search(text):
+                print(f"{text}")
 
 
 class PDFDebug:
@@ -1186,20 +1248,19 @@ class PDFDebug:
         if n_rect := len(page.rects) > 0:
             print(f"rects {n_rect}", end=" | ")
             if debug:
-                for rect in page.rects[:PDFTest.MAX_RECT]:
+                for rect in page.rects[:PDFDebug.MAX_RECT]:
                     print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
 
     @classmethod
     def print_curves(cls, page):
         if n_curve := len(page.curves) > 0:
             print(f"curves {n_curve}", end=" | ")
-            for curve in page.curves[:PDFTest.MAX_CURVE]:
+            for curve in page.curves[:PDFDebug.MAX_CURVE]:
                 print(f"keys: {curve.keys()}")
                 print(f"curve {curve['points']}")
 
     @classmethod
     def print_images(cls, page, maximage=10, outdir=None):
-        """PDFTest.MAX_IMAGE"""
         write_image = True
         resolution = 400  # may be better
         from pdfminer.image import ImageWriter
@@ -1216,10 +1277,10 @@ class PDFDebug:
                 if not path.exists():
                     path.mkdir()
                 if isinstance(image, LTImage):
-                    imagewriter = ImageWriter(Path(path, f"image{i}.png"))
+                    imagewriter = ImageWriter(str(Path(path, f"image{i}.png")))
                     imagewriter.export_image(image)
                 page_height = page.height
-                image_bbox = (image['x0'], page_height - image['y1'], image['x1'], page_height - image['y0'])
+                image_bbox = (image[X0], page_height - image[Y1], image[X1], page_height - image[Y0])
                 print(f"image: {image_bbox}")
 
                 cropped_page = page.crop(image_bbox)  # crop screen display (may have overwriting text)
@@ -1236,7 +1297,39 @@ class PDFDebug:
                 #             imagewriter.export_image(obj)
 
     @classmethod
-    def format_bbox(bbox: tuple):
+    def print_tables(cls, page, odir=None):
+        tables = page.find_tables()
+
+        if n_table := len(tables) > 0:
+            print(f"tables {n_table}", end=" | ")
+            print(f"table_dir {tables[0].__dir__()}")
+            for i, table in enumerate(tables[:PDFDebug.MAX_TABLE]):
+                h_table = cls.create_table_element(table)
+                table_file = Path(odir, f"table_{i + 1}.html")
+                cls.print_table_element(h_table, table_file)
+
+    @classmethod
+    def print_table_element(cls, h_table, table_file):
+        h_str = lxml.etree.tostring(h_table, encoding='UTF-8', xml_declaration=False)
+        with open(table_file, "wb") as f:
+            f.write(h_str)
+            print(f"wrote {table_file}")
+
+    @classmethod
+    def create_table_element(cls, table):
+        h_table = lxml.etree.Element(H_TABLE)
+        h_thead = lxml.etree.SubElement(h_table, H_THEAD)
+        h_tbody = lxml.etree.SubElement(h_table, H_TBODY)
+        table_lists = table.extract()  # essentially a list of lists
+        for table_row in table_lists:
+            h_row = lxml.etree.SubElement(h_tbody, H_TR)
+            for cell_value in table_row:
+                h_td = lxml.etree.SubElement(h_row, H_TD)
+                h_td.text = str(cell_value)
+        return h_table
+
+    @classmethod
+    def format_bbox(cls, bbox: tuple):
         return f"{int(bbox[0])}_{int(bbox[2])}_{int(bbox[1])}_{int(bbox[3])}"
 
     @classmethod
@@ -1332,6 +1425,7 @@ class TextStyle:
             s = f"{name}: {val1} => {val2}"
         return s
 
+
 class PDFParser:
     def __init__(self):
         self.indir = None
@@ -1349,6 +1443,7 @@ class PDFParser:
         pdf_parser = PDFParser()
         print(f"NYI, create from arg_parse")
         return pdf_parser
+
 
 class PDFUtil:
     """utility routieses which need extracting into classes"""
@@ -1478,7 +1573,6 @@ class PDFUtil:
         if r_sq < 0.98:
             print(f"cannot calculate offset reliably")
         return model.intercept_, model.coef_, np_coords
-
 
 
 class SvgText:

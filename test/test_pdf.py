@@ -17,13 +17,6 @@ from test.resources import Resources
 from py4ami.pyamix import PyAMI
 from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
 
-H_TABLE = "table"
-H_THEAD = "thead"
-H_TBODY = "tbody"
-H_TR = "tr"
-H_TH = "th"
-H_TD = "td"
-
 # class PDFTest:
 
 FINAL_DRAFT_DIR = "/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg"  # PMR only
@@ -84,37 +77,6 @@ def make_html_dir():
         html_dir.mkdir()
     return html_dir
 
-
-def print_tables(page, odir=Resources.TEMP_DIR):
-    tables = page.find_tables()
-
-    if n_table := len(tables) > 0:
-        print(f"tables {n_table}", end=" | ")
-        print(f"table_dir {tables[0].__dir__()}")
-        for i, table in enumerate(tables[:PDFTest.MAX_TABLE]):
-            h_table = create_table_element(table)
-            table_file = Path(odir, f"table_{i + 1}.html")
-            print_table_element(h_table, table_file)
-
-
-def print_table_element(h_table, table_file):
-    h_str = lxml.etree.tostring(h_table, encoding='UTF-8', xml_declaration=False)
-    with open(table_file, "wb") as f:
-        f.write(h_str)
-        print(f"wrote {table_file}")
-
-
-def create_table_element(table):
-    h_table = lxml.etree.Element(H_TABLE)
-    h_thead = lxml.etree.SubElement(h_table, H_THEAD)
-    h_tbody = lxml.etree.SubElement(h_table, H_TBODY)
-    table_lists = table.extract()  # essentially a list of lists
-    for table_row in table_lists:
-        h_row = lxml.etree.SubElement(h_tbody, H_TR)
-        for cell_value in table_row:
-            h_td = lxml.etree.SubElement(h_row, H_TD)
-            h_td.text = str(cell_value)
-    return h_table
 
 
 class PDFTest(unittest.TestCase):
@@ -553,8 +515,12 @@ LTPage
             inpath = Path(chapter, "fulltext.pdf")
             pdf_args.arg_dict[INPATH] = Path(chapter_dir, "fulltext.pdf")
             assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
-            pdf_args.arg_dict[MAXPAGE] = 10
+            pdf_args.arg_dict[MAXPAGE] = 200
             pdf_args.arg_dict[OUTFORM] = "flow.html"
+            outdir = Path(Resources.TEMP_DIR, "ipcc_html")
+            if not outdir.exists():
+                outdir.mkdir()
+            pdf_args.arg_dict[OUTDIR] = outdir
             print(f"arg_dict {pdf_args.arg_dict}")
             pdf_args.convert_write()
 
