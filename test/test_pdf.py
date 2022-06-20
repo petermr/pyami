@@ -522,7 +522,26 @@ LTPage
                 outdir.mkdir()
             pdf_args.arg_dict[OUTDIR] = outdir
             print(f"arg_dict {pdf_args.arg_dict}")
-            pdf_args.convert_write()
+
+            unwanteds = {
+                "chapter": {
+                    "xpath": ".//div/span",
+                    "regex": "^Chapter\\s+\\d+\\s*$"
+                    },
+                "final_gov": {
+                    "xpath": ".//div/span",
+                    "regex": "^\\s*Final Government Distribution\\s*$"
+                    },
+                "page": {
+                    "xpath": ".//div/a",
+                    "regex": "^\\s*Page\\s*\\d+\\s*$",
+                    },
+                "wg3": {
+                    "xpath": ".//div/span",
+                    "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
+                   },
+            }
+            pdf_args.convert_write(unwanteds=unwanteds)
 
     def test_pdfminer_text_html_xml(self):
         # Use `pip3 install pdfminer.six` for python3

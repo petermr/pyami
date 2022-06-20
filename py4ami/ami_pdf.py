@@ -86,16 +86,9 @@ ANNOTS = "annots"
 DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS]
 DEBUG_ALL = "debug_all"
 
-# regular expressions for (sub)sections
-# markers = ["Chapter",
-#            # "Table of Contents",
-#            "Table of",  # one is concatenated (Chapter01) so abbreviate, unweighted Chap16
-#            # "Executive Summary",
-#            "Executive",  # case variation
-#            # "Frequently Asked Questions", # not in Chapter01
-#            "Frequently",  # case variation
-#            "References",
-#            ]
+# Unwanted sections
+U_XPATH = "xpath"
+U_REGEX = "regex"
 
 CHAP_TOP = re.compile(""
                       "(Chapter\\s?\\d\\d?\\s?\\:.*$)|"
@@ -974,7 +967,7 @@ class PDFArgs:
 
     # class PDFArgs:
 
-    def convert_write(self, fmt=None, maxpage=999999, outdir=None, outstem=None, inpath=None, flow=False):
+    def convert_write(self, fmt=None, maxpage=999999, outdir=None, outstem=None, inpath=None, flow=False, unwanteds=None):
         """
         create HTML (absolute or flowing) or XML
         The preferred method is to use arg_dict
@@ -1033,6 +1026,8 @@ class PDFArgs:
             PDFUtil.remove_headers_and_footers(result_elem, pagesize, header_height, footer_height, marker_xpath)
             PDFUtil.remove_style_attribute(result_elem, "top")
             PDFUtil.remove_style(result_elem, ["left", "height"])
+            PDFUtil.remove_unwanteds(result_elem, unwanteds)
+
             HtmlTree.make_tree(result_elem, output_dir=outd)
 
             result = lxml.etree.tostring(result_elem).decode("UTF-8")
@@ -1087,7 +1082,7 @@ class HtmlTree:
             if not output_dir.exists():
                 output_dir.mkdir()
             for i, child_div in enumerate(decimal_divs):
-                cls.remove_div(child_div)
+                # cls.remove_div(child_div)
                 marker = child_div.attrib["marker"].strip().replace(" ", "_").lower() # name from text content
                 path = Path(output_dir, f"{marker}.html")
                 with open(path, "wb") as f:
@@ -1186,23 +1181,6 @@ class HtmlTree:
         assert float(num_range[0])
         result = num_range[0] <= num <= num_range[1]
         return result
-
-    @classmethod
-    def remove_div(cls, child_div):
-        text_re = re.compile(""
-            "(Final Government Distribution)|"
-            # "(Chapter\\s*\\d+\\s*)|"
-            # "(Page\s*\d+\s*)|"
-            "(IPCC WGIII AR6)",
-                             )
-        xml = lxml.etree.tostring(child_div)
-        print(f"xml {xml[:100]}")
-        spans = child_div.xpath("./div/span")
-        if len(spans) > 0:
-            text = ''.join(spans[0].itertext()).strip()
-            print(f"text {text}")
-            if text_re.search(text):
-                print(f"{text}")
 
 
 class PDFDebug:
@@ -1573,6 +1551,25 @@ class PDFUtil:
         if r_sq < 0.98:
             print(f"cannot calculate offset reliably")
         return model.intercept_, model.coef_, np_coords
+
+    @classmethod
+    def remove_unwanteds(cls, top_elem, unwanteds):
+        for key in unwanteds:
+            unwanted = unwanteds[key]
+            xpath = unwanted[U_XPATH]
+            if xpath:
+                regex = unwanted[U_REGEX]
+                regex_comp = re.compile(regex) if regex else None
+                elems = top_elem.xpath(xpath)
+                for elem in elems:
+                    text = ''.join(elem.itertext())
+                    matched = regex_comp.search(text) if regex_comp else True
+                    if matched:
+                        # print(f"deleted {xpath} {text}")
+                        cls.remove_elem_keep_tail(elem)
+
+
+
 
 
 class SvgText:
