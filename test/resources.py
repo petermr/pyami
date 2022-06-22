@@ -26,6 +26,12 @@ class Resources:
     CLIMATE_10_HTML_TEMP_DIR = Path(CLIMATE_10_PROJ_DIR, "climate10", "html")
     TEMP_CLIMATE_10_PROJ_DIR = Path(TEMP_DIR, CLIMATE_10_PROJ)
 
+# ipcc and html
+    IPCC_DIR = Path(TEST_RESOURCES_DIR, "ipcc")
+    CHAP04 = Path(IPCC_DIR, "Chapter04")
+    CHAP06 = Path(IPCC_DIR, "Chapter06")
+    assert CHAP06.exists()
+
     def __init__(self):
         pass
 

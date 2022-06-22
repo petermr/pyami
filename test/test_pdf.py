@@ -52,7 +52,7 @@ TEMPLATE = "template"
 
 # ==============================
 
-def make_full_draft_html(pretty_print, use_lines, rotated_text=False):
+def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=False):
     """
     reads SVG output from ami3/pdfbox and converts to HTML
     used by several tests at present and will be intergrated
@@ -204,10 +204,10 @@ class PDFTest(unittest.TestCase):
             counter += 1
             assert html_path.exists(), f"{html_path} exists"
 
-    def test_create_chapters(self):
+    def test_create_chapters_through_svg(self):
         pretty_print = True
         use_lines = True
-        make_full_draft_html(pretty_print, use_lines)
+        make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
         selection = CURRENT_RANGE
         for page_index in selection:
             html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")

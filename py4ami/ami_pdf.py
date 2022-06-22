@@ -10,6 +10,7 @@ from typing import Container
 from io import BytesIO, StringIO
 import sys
 import re
+from collections  import Counter
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
@@ -91,7 +92,7 @@ U_XPATH = "xpath"
 U_REGEX = "regex"
 
 CHAP_TOP = re.compile(""
-                      "(Chapter\\s?\\d\\d?\\s?\\:.*$)|"
+                      "(Chapter\\s?\\d\\d?\\s?:.*$)|"
                       "(Table\\s?of Contents.*)|"
                       "(Executive [Ss]ummary.*)|"
                       "(Frequently [Aa]sked.*)|"
@@ -109,6 +110,9 @@ H_TBODY = "tbody"
 H_TR = "tr"
 H_TH = "th"
 H_TD = "td"
+H_SPAN = "span"
+H_A = "a"
+H_HREF = "href"
 
 # Chapter
 TREE_ROOT = "tree_root"
@@ -785,12 +789,15 @@ RESOLUTION = "resolution"
 TEMPLATE = "template"
 
 
+
+
 class PDFArgs:
     def __init__(self):
         """arg_dict is set to default"""
         self.parser = None
         self.parsed_args = None
         self.arg_dict = self.create_default_arg_dict()
+        self.ref_counter = Counter();
 
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
@@ -1027,6 +1034,9 @@ class PDFArgs:
             PDFUtil.remove_style_attribute(result_elem, "top")
             PDFUtil.remove_style(result_elem, ["left", "height"])
             PDFUtil.remove_unwanteds(result_elem, unwanteds)
+            PDFUtil.remove_newlines(result_elem)
+            self.markup_parentheses(result_elem)
+            print(f"ref_counter {self.ref_counter}")
 
             HtmlTree.make_tree(result_elem, output_dir=outd)
 
@@ -1052,6 +1062,70 @@ class PDFArgs:
             self.parsed_args = self.parser.parse_args(sys.argv[1:])
             self.arg_dict = self.create_arg_dict()
             self.process_args()
+
+    def markup_parentheses(self, result_elem):
+        """iterate over parenthesised fields
+
+        """
+        xpath = ".//span"
+        spans = result_elem.xpath(xpath)
+        for span in spans:
+            # self.extract_brackets(span)
+            pass
+
+    def extract_brackets(self, span):
+        """extract (...) from text, and add hyperlinks for refs, NYI
+        (IPCC 2018a)
+        (Roy et al. 2018)
+        (UNFCCC 2016a, 2021)
+        (Bertram et al. 2015; Riahi et al. 2015)
+        """
+        text = ''.join(span.itertext())
+        par = span.getparent()
+        # (FooBar& Biff 2012a)
+        refregex = r"(" \
+                   r"[^\(]*" \
+                   r"\(" \
+                   r"(" \
+                   r"[A-Z][^\)]{1,50}(20\d\d|19\d\d)" \
+                   r")" \
+                   r"\s*" \
+                   r"\)" \
+                   r"(.*)" \
+                   r")"
+
+        if result := re.compile(refregex).search(text):
+            # print(f"matched: {result.group(1)} {result.group(2)}, {result.group(3)} {result.groups()}")
+            elem0 = lxml.etree.SubElement(par, H_SPAN)
+            elem0.text = result.group(1)
+            for k, v in elem0.attrib.items():
+                elem0.attrib[k] = v
+            idx = par.index(span)
+            span.addnext(elem0)
+            current = elem0
+            for ref in result.group(2).split(";"): # e.g. in (Foo and Bar, 2018; Plugh 2020)
+                ref = ref.strip()
+                if not self.ref_counter[ref]:
+                    self.ref_counter[ref] == 0
+                self.ref_counter[ref] += 1
+                a = lxml.etree.SubElement(par, H_A)
+                for k,v in elem0.attrib.items():
+                    a.attrib[k] = v
+                a.attrib[H_HREF] = "https://github.com/petermr/discussions"
+                a.text = "([" + ref + "])"
+                current.addnext(a)
+                current = a
+            elem2 = lxml.etree.SubElement(par, H_SPAN)
+            for k, v in elem0.attrib.items():
+                elem2.attrib[k] = v
+            elem2.text = result.group(3)
+
+            par.remove(span)
+
+            # print(f"par {lxml.etree.tostring(par)}")
+
+
+
 
 
 class HtmlTree:
@@ -1568,8 +1642,15 @@ class PDFUtil:
                         # print(f"deleted {xpath} {text}")
                         cls.remove_elem_keep_tail(elem)
 
-
-
+    @classmethod
+    def remove_newlines(cls, elem):
+        """remove \n"""
+        for el in elem.xpath(".//*[not(*)]"):
+            text = ''.join(el.itertext())
+            text1 = text.replace('\n', '')
+            if text1 != text:
+                el.text = text1
+                # print(f"\n[[{text} => {''.join(el.itertext())}]]\n")
 
 
 class SvgText:
