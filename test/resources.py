@@ -28,9 +28,10 @@ class Resources:
 
 # ipcc and html
     IPCC_DIR = Path(TEST_RESOURCES_DIR, "ipcc")
-    CHAP04 = Path(IPCC_DIR, "Chapter04")
-    CHAP06 = Path(IPCC_DIR, "Chapter06")
-    assert CHAP06.exists()
+    IPCC_CHAP04 = Path(IPCC_DIR, "Chapter04")
+    assert IPCC_CHAP04.exists()
+    IPCC_CHAP06 = Path(IPCC_DIR, "Chapter06")
+    assert IPCC_CHAP06.exists()
 
     def __init__(self):
         pass
