@@ -1628,6 +1628,9 @@ class PDFUtil:
 
     @classmethod
     def remove_unwanteds(cls, top_elem, unwanteds):
+        if not unwanteds:
+            print(f"no unwanteds to remove")
+            return
         for key in unwanteds:
             unwanted = unwanteds[key]
             xpath = unwanted[U_XPATH]

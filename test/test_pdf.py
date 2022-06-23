@@ -489,7 +489,7 @@ LTPage
         print(f"arg_dict {pdf_args.arg_dict}")
         pdf_args.convert_write()
 
-    # @unittest.skip("too long")
+    @unittest.skip("too long")
     def test_make_ipcc_html(self):
         """not really a test"""
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
