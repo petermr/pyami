@@ -110,9 +110,12 @@ H_TBODY = "tbody"
 H_TR = "tr"
 H_TH = "th"
 H_TD = "td"
+H_BODY = "body"
 H_SPAN = "span"
 H_A = "a"
+H_P = "p"
 H_HREF = "href"
+A_ID = "id"
 
 # Chapter
 TREE_ROOT = "tree_root"
@@ -135,7 +138,7 @@ def add_ids(root_elem):
     xpath = "//*"
     elems = root_elem.xpath(xpath)
     for i, el in enumerate(elems):
-        el.attrib["id"] = "id" + str(i)
+        el.attrib[A_ID] = A_ID + str(i)
 
 
 # sub/Super
@@ -292,7 +295,6 @@ class AmiPage:
         change = True
         while change:
             change = self.merge_composite_lines()
-        # print(f"merged")
 
         return self.composite_lines
 
@@ -305,11 +307,8 @@ class AmiPage:
         for composite_line in self.composite_lines[1:]:
             overlap_box = last_composite_line.bbox.intersect(composite_line.bbox)
             if overlap_box:
-                # print(f"overlap {overlap_box}")
                 lines_for_deletion.append(last_composite_line)
-                # print(f"composite_line {composite_line} last_composite {last_composite_line} before merge")
                 composite_line.merge(last_composite_line)
-                # print(f"composite_line {composite_line} after merge")
                 composite_line.sort_spans(axis=X)
                 change = True
             last_composite_line = composite_line
@@ -347,11 +346,9 @@ class AmiPage:
         delta_ylist = self.get_inter_composite_spacings()
         if len(delta_ylist) > 0:
             mode = statistics.mode(delta_ylist)
-            # print(f"mode {mode}")
             paragraph = AmiParagraph()
             self.paragraphs.append(paragraph)
             for deltay, composite_line in zip(delta_ylist, self.composite_lines[1:]):
-                # print(f"{deltay} {composite_line}")
                 if deltay > mode * INTERPARA_FACT:
                     paragraph = AmiParagraph()
                     self.paragraphs.append(paragraph)
@@ -376,7 +373,6 @@ class AmiPage:
         """create text spans, including
 
         """
-
         print(f"======== {self.page_path} =========")
         page_element = lxml.etree.parse(str(self.page_path))
         text_elements = page_element.findall(f"//{{{SVG_NS}}}text")
@@ -393,8 +389,6 @@ class AmiPage:
                 offset = 0
                 print(f"{text_index}: ", end='')
                 for text_break in text_break_list:
-                    # print(f"text_break: {text_break}")
-                    print(f"{text_content[current:text_break - offset]}___", end='')
                     current = text_break
                     offset += 1
                     # TODO
@@ -403,7 +397,6 @@ class AmiPage:
             else:
                 # TODO
                 new_text = TextSpan()
-                # new_texts.append(tex)
         return text_breaks_by_line_dict
 
     # AmiPage

@@ -7,7 +7,7 @@ from collections import Counter
 
 # local
 from test.resources import Resources
-from py4ami.ami_pdf import H_A
+from py4ami.ami_pdf import H_A, H_BODY, H_SPAN
 from py4ami.ami_html import AmiHtml
 
 
@@ -213,7 +213,6 @@ class TestHtml(unittest.TestCase):
                 if match:
                     body = match.group('body')
                     bodylist.append(body)
-                    # print(f"span: {span.attrib['id']}|{body}")
         assert len(bodylist) == 114
 
     def test_find_bracketed_multiple_bibliorefs_in_text(self):
@@ -250,7 +249,6 @@ class TestHtml(unittest.TestCase):
         assert counter["IPCC"] == 6
         assert counter['Bindoff'] == 5
         assert counter['de Coninck'] == 2
-
 
     def test_exceptions_biblio_ref_in_span(self):
         assert Reference.SINGLE_REF_REC.match("Foo bar (d'Arcy & other stuff in 2008) not a ref")
@@ -297,7 +295,109 @@ class TestHtml(unittest.TestCase):
         outpath = Path(chap4_dir, "ref_doi.html")
         ref_elem.write(str(outpath))
 
+    def test_split_matched_string_in_span0(self):
+        """split string in span into 3 using regex"""
+        s = "prefix the (bracketed) string postfix"
+        div_elem = lxml.etree.Element("div")
+        span_elem = lxml.etree.SubElement(div_elem, "span")
+        span_elem.attrib["class"] = "foo"
+        span_elem.text = s
+        assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
+               "<div><span class=\"foo\">prefix the (bracketed) string postfix</span></div>"
+        span = div_elem.xpath("./span")[0]
+        text = span.text
+        match = Reference.SINGLE_BRACKET_REC.match(text)
+        assert match
+        assert len(match.groups()) == 3
+        assert match.group(0) == "prefix the (bracketed) string postfix"
+        assert match.group(1) == "prefix the "
+        assert match.group(2) == "bracketed"
+        assert match.group(3) == " string postfix"
+
+        pref_span = self.add_sibling_after(H_SPAN, span, replace=True, copy_atts=True, text=match.group(1))
+        target_span = self.add_sibling_after(H_SPAN, pref_span, copy_atts=True, text=match.group(2))
+        post_span = self.add_sibling_after(H_SPAN, target_span, text=match.group(3))
+
+        assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
+               "<div><span class=\"foo\">prefix the </span><span class=\"foo\">bracketed</span><span> string postfix</span></div>"
+
+    def test_split_matched_string_in_span(self):
+        """split string in span into 3 using regex"""
+        div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed) string postfix</span></div>")
+        span = div_elem.xpath("./span")[0]
+
+        re_compile = Reference.SINGLE_BRACKET_REC
+        spans = self.split_span_at_match(span, re_compile)
+        assert spans[0] is not None
+        assert spans[1] is not None
+        assert spans[2] is not None
+
+        assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
+               "<div><span class=\"foo\">prefix the </span><span class=\"foo\">bracketed</span><span class=\"foo\"> string postfix</span></div>"
+
+        # no leading string
+        div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed) string postfix</span></div>")
+        span = div_elem.xpath("./span")[0]
+        spans = self.split_span_at_match(span, re_compile)
+        assert spans[0] is None
+        assert spans[1] is not None
+        assert spans[2] is not None
+
+        # no trailing string
+        div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed)</span></div>")
+        span = div_elem.xpath("./span")[0]
+        spans = self.split_span_at_match(span, re_compile)
+        assert spans[0] is not None
+        assert spans[1] is not None
+        assert spans[2] is None
+
+        # no leading or trailing string
+        div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed)</span></div>")
+        span = div_elem.xpath("./span")[0]
+        spans = self.split_span_at_match(span, re_compile)
+        assert spans[0] is None
+        assert spans[1] is not None
+        assert spans[2] is None
+
+
+    def test_split_matched_string_in_span_recursively(self):
+        """split string in span into 2n+1 using regex"""
+        div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed) and more (brackets) string postfix </span></div>")
+        span = div_elem.xpath("./span")[0]
+
+        re_compile = Reference.SINGLE_BRACKET_REC
+        self.split_span_at_match(span, re_compile, recurse=True)
+
+        assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
+               "<div><span class=\"foo\">prefix the </span><span class=\"foo\">bracketed</span>" \
+               "<span class=\"foo\"> and more </span><span class=\"foo\">brackets</span>" \
+               "<span class=\"foo\"> string postfix </span></div>"
+
+
     # ========================================
+
+    def split_span_at_match(self, span, re_compile, copy_atts=True, recurse=True):
+        """splits a span into 3 components by regex match
+        :param span: span to split
+        :param re_compile: compiled regex to split span
+        :param copy_atts: if True copy atts from span
+        :param recurse: if True rests span to trailing span and reanlyses until no more match
+        :return: list of 3 spans; if spans[2] is not None it's available for recursion)
+        """
+        assert span is not None and span.text
+        match = re_compile.match(span.text)
+        spans = [None, None, None]
+        if match:
+            assert len(match.groups()) == 3  # some may be empty strings
+            if match.group(1) != "":         # don't add empty string
+                span = self.add_sibling_after(H_SPAN, span, replace=True, copy_atts=copy_atts, text=match.group(1))
+                spans[0] = span
+            spans[1] = self.add_sibling_after(H_SPAN, span, copy_atts=copy_atts, text=match.group(2))
+            if match.group(3) != "":         # don't add empty string
+                spans[2] = self.add_sibling_after(H_SPAN, spans[1], copy_atts=copy_atts, text=match.group(3))
+                if recurse:
+                    self.split_span_at_match(spans[2], re_compile, copy_atts=copy_atts, recurse=recurse)
+        return spans
 
     def make_bibliorefs(self, file):
         chap444_elem = lxml.etree.parse(str(file))
@@ -312,3 +412,32 @@ class TestHtml(unittest.TestCase):
                     for biblioref in bibliorefs:
                         total_bibliorefs.append(biblioref)
         return total_bibliorefs
+
+    def add_sibling_after(self, tag, anchor_elem, replace=False, copy_atts=False, text=None):
+        """adds new trailing sibling of anchor_elem with tag
+        :param tag: tag for new elements
+        :param anchor_elem: reference element, must have a parent
+        :param replace: if True, remove anchor element
+        :param copy_atts: copy attributes from anchor
+        :param text: if not None add text to new element
+        :return: new sibling with optional ayytributes and text
+
+
+
+        """
+
+        assert anchor_elem is not None
+        assert tag
+        parent = anchor_elem.getparent()
+        assert parent, f"No parent for anchor_elem"
+        sibling = lxml.etree.SubElement(parent, tag)
+        if copy_atts:
+            for k,v in anchor_elem.attrib.items():
+                sibling.attrib[k] = v
+        anchor_elem.addnext(sibling)
+        if text:
+            sibling.text = text
+        if replace:
+            parent.remove(anchor_elem)
+        return sibling
+
