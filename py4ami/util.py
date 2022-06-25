@@ -5,6 +5,8 @@ import os
 import shutil
 import sys
 import csv
+import re
+from enum import Enum
 
 logger = logging.getLogger("py4ami.util")
 
@@ -196,7 +198,7 @@ class Util:
         return ss[0], ss[1]
 
     @classmethod
-    def extract_csv_fields(cla, csv_file, name, selector, typex):
+    def extract_csv_fields(cls, csv_file, name, selector, typex):
         """select fields in CSV file by selector value"""
         values = []
         with open(str(csv_file), newline='') as csvfile:
@@ -205,6 +207,16 @@ class Util:
                 if row[selector] == typex:
                     values.append(row[name])
         return values
+
+    SINGLE_BRACKET_REC = re.compile(r"""
+                    (?P<pre>[^(]*)
+                    [(]
+                    (?P<body>
+                    [^)]*
+                    )
+                    [)]
+                    (?P<post>.*)
+                    """, re.VERBOSE)  # finds a bracket pair in running text, crude
 
 
 class AmiLogger:
@@ -258,3 +270,11 @@ class AmiLogger:
         else:
             print(".", end="")
         self.count[level] += 1
+
+
+# sub/Super
+
+class SScript(Enum):
+    SUB = 1
+    SUP = 2
+

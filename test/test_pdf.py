@@ -1,5 +1,4 @@
 import sys
-import re
 import unittest
 from pathlib import Path
 
@@ -9,10 +8,12 @@ import lxml.html
 
 """NOTE REQUIRES LATEST pdfplumber"""
 import pdfplumber
+from py4ami.ami_bib import Publication
 
 # local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
-from py4ami.ami_pdf import STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, HtmlUtil, SORT_XY
+from py4ami.ami_pdf import STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, SORT_XY
+from py4ami.ami_html import HtmlUtil
 from test.resources import Resources
 from py4ami.pyamix import PyAMI
 from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
@@ -76,7 +77,6 @@ def make_html_dir():
     if not html_dir.exists():
         html_dir.mkdir()
     return html_dir
-
 
 
 class PDFTest(unittest.TestCase):
@@ -220,9 +220,9 @@ class PDFTest(unittest.TestCase):
             span = None
             chapter = ""
             # bug in parsing line 0
-            if HtmlUtil.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[0])):
+            if Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[0])):
                 span = spans[0]
-            if span is None and HtmlUtil.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[1])):
+            if span is None and Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[1])):
                 span = spans[1]
             if span is None:
                 print(f"p:{page_index}, {HtmlUtil.get_text_content(spans[0])}, {HtmlUtil.get_text_content(spans[1])}")
@@ -527,19 +527,19 @@ LTPage
                 "chapter": {
                     "xpath": ".//div/span",
                     "regex": "^Chapter\\s+\\d+\\s*$"
-                    },
+                },
                 "final_gov": {
                     "xpath": ".//div/span",
                     "regex": "^\\s*Final Government Distribution\\s*$"
-                    },
+                },
                 "page": {
                     "xpath": ".//div/a",
                     "regex": "^\\s*Page\\s*\\d+\\s*$",
-                    },
+                },
                 "wg3": {
                     "xpath": ".//div/span",
                     "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
-                   },
+                },
             }
             pdf_args.convert_write(unwanteds=unwanteds)
 
@@ -660,7 +660,6 @@ LTPage
     MAX_TABLE = 5
     MAX_ROW = 10
     MAX_IMAGE = 5
-
 
     def find_chapter_title(cls, elem):
         """<div style="" id="id296"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 15px;" id="id297">Chapter 6:</span></div>

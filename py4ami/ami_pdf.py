@@ -21,6 +21,8 @@ from sklearn.linear_model import LinearRegression
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util
+from py4ami.ami_html import HtmlUtil, A_ID, H_SPAN, H_A, H_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
+
 
 # text attributes
 FACT = 2.8
@@ -45,7 +47,7 @@ X_MARGIN = 20
 INTERPARA_FACT = 1.5
 
 # SCRIPTS
-SCRIPT_FACT = 0.9
+SCRIPT_FACT = 0.9 # should this be here
 
 # style bundle
 STYLE = "style"
@@ -71,9 +73,6 @@ STYLES = [
     FILL,
     STROKE,
 ]
-
-CHAPTER = "Chapter"
-TECHNICAL_SUMMARY = "Technical Summary"
 
 # debug
 WORDS = "words"
@@ -103,20 +102,6 @@ CHAP_SUBSECTS_RE = re.compile("\\d+\\.\\d+\\.\\d+$")
 
 MARKER = "marker"
 
-# HTML
-H_TABLE = "table"
-H_THEAD = "thead"
-H_TBODY = "tbody"
-H_TR = "tr"
-H_TH = "th"
-H_TD = "td"
-H_BODY = "body"
-H_SPAN = "span"
-H_A = "a"
-H_P = "p"
-H_HREF = "href"
-A_ID = "id"
-
 # Chapter
 TREE_ROOT = "tree_root"
 CLASS = "class"
@@ -132,20 +117,7 @@ X1 = 'x1'
 Y0 = 'y0'
 
 
-def add_ids(root_elem):
-    """adds IDs to all elements in document order
-    :param root_elem: element defining tree of subelements"""
-    xpath = "//*"
-    elems = root_elem.xpath(xpath)
-    for i, el in enumerate(elems):
-        el.attrib[A_ID] = A_ID + str(i)
 
-
-# sub/Super
-
-class SScript(Enum):
-    SUB = 1
-    SUP = 2
 
 
 class AmiPage:
@@ -1007,7 +979,7 @@ class PDFArgs:
         if flow:
             tree = lxml.etree.parse(StringIO(result), lxml.etree.HTMLParser())
             result_elem = tree.getroot()
-            add_ids(result_elem)
+            HtmlUtil.add_ids(result_elem)
             # this is slightly tacky
             PDFUtil.remove_descendant_elements_by_tag("br", result_elem)
             PDFUtil.remove_style(result_elem, [
@@ -1820,69 +1792,3 @@ class SvgText:
             pass
 
 
-class HtmlUtil:
-    """utilities for Html (lxml)
-    """
-
-    @classmethod
-    def is_subscript(cls, last_span, this_span) -> bool:
-        """is this_span a subscript?
-        uses heuristics in is_script_type
-        :param last_span: preceding span (if None returns False)
-        :param this_span: span to test
-        :return: True if this span is smaller and "lower" than last"""
-        return cls.is_script_type(last_span, this_span, script_type=SScript.SUB)
-
-    @classmethod
-    def is_superscript(cls, last_span, this_span) -> bool:
-        """is this_span a superscript?
-        uses heuristics in is_script_type
-        :param last_span: preceding span (if None returns False)
-        :param this_span: span to test
-        :return: True if this span is smaller and "higher" than last"""
-        return cls.is_script_type(last_span, this_span, script_type=SScript.SUP)
-
-    @classmethod
-    def is_script_type(cls, last_span, this_span, script_type) -> bool:
-        """heuristc to determine whether this_span is a sub/superscript of last_span
-        NOTE: as Y is DOWN the page, a superscript has SMALLER y-value, etc.
-        :param last_span: if None, returns false
-        :param this_span: if not smaller by SCRIPT_FACT return False
-        :param script_type: SUB or SUP
-        :return: True if smaller and moved in right y-direction
-        """
-        if last_span is None:
-            return False
-        last_font_size = last_span.text_style.font_size
-        this_font_size = this_span.text_style.font_size
-        # is it smaller?
-        if this_font_size < SCRIPT_FACT * last_font_size:
-            last_y = last_span.y
-            this_y = this_span.y
-            if script_type == SScript.SUB:
-                # is it lowered? Y DOWN
-                return last_y < this_y
-            elif script_type == SScript.SUP:
-                # is it raised? Y DOWN
-                return last_y > this_y
-            else:
-                raise ValueError("bad script type ", script_type)
-        else:
-            return False
-
-    @classmethod
-    def set_attrib(cls, element, attname, attvalue):
-        """convenience method to set attribute value
-        """
-        if element is None:
-            raise ValueError("element is None")
-        if attname and attvalue:
-            element.set(attname, str(attvalue))
-
-    @classmethod
-    def get_text_content(cls, elem):
-        return ''.join(elem.itertext())
-
-    @classmethod
-    def is_chapter_or_tech_summary(cls, span_text):
-        return span_text.startswith(CHAPTER) or span_text.startswith(TECHNICAL_SUMMARY)
