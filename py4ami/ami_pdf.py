@@ -11,17 +11,18 @@ from io import BytesIO, StringIO
 import sys
 import re
 from collections  import Counter
+import numpy as np
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
-import numpy as np
 from sklearn.linear_model import LinearRegression
 
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util
-from py4ami.ami_html import HtmlUtil, A_ID, H_SPAN, H_A, H_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
+from py4ami.ami_html import HtmlUtil, CSSStyle, A_ID, H_SPAN, H_A, H_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
+
 
 
 # text attributes
@@ -435,169 +436,6 @@ class AmiParagraph:
                 h_p.append(span)
         return h_p
 
-
-class CSSStyle:
-    BOLD = "Bold"
-    BOTTOM = "bottom"
-    DOT_B = ".B"
-    FONT_FAMILY = "font-family"
-    FONT_SIZE = "font-size"
-    LEFT = "left"
-    PX = "px"
-    STYLE = "style"
-    TOP = "top"
-    WIDTH = "width"
-
-    def __init__(self):
-        self.name_value_dict = dict()
-
-    def __str__(self):
-        s = ""
-        for k, v in self.name_value_dict.items():
-            s += f"{k}:{v}; "
-        s = s.strip()
-        return s
-
-    @classmethod
-    def create_css_style(cls, elem):
-        """create CSSStyle object from elem
-        :param elem:
-        """
-        css_style = CSSStyle()
-        style_attval = elem.get(CSSStyle.STYLE)
-        css_style.name_value_dict = cls.create_dict_from_string(style_attval)
-        return css_style
-
-    @classmethod
-    def create_dict_from_string(cls, style_attval):
-        name_value_dict = dict()
-        if style_attval:
-            styles = style_attval.split(";")
-            for style in styles:
-                if len(style.strip()) > 0:
-                    ss = style.split(":")
-                    name = ss[0].strip()
-                    if name in name_value_dict:
-                        raise KeyError(f"{name} duplicated in CSS: {style_attval}")
-                    name_value_dict[name] = ss[1].strip()
-        return name_value_dict
-
-    def remove(self, name):
-        if type(name) is list:
-            for n in name:
-                self.remove(n)
-        elif name in self.name_value_dict:
-            self.name_value_dict.pop(name, None)
-
-    def apply_to(self, elem):
-        css_str = self.generate_css_value()
-        elem.attrib["style"] = css_str
-
-    def generate_css_value(self):
-        s = ""
-        for key in self.name_value_dict:
-            val = self.name_value_dict[key]
-            s += key + ": " + val + "; "
-        return s.strip()
-
-    def attval(self, name):
-        return self.name_value_dict.get(name) if self.name_value_dict else None
-
-    @property
-    def font_family(self):
-        return self.attval(CSSStyle.FONT_FAMILY)
-
-    @property
-    def top(self):
-        return self.get_numeric_attval(CSSStyle.TOP)
-
-    @property
-    def font_size(self):
-        size = self.get_numeric_attval(CSSStyle.FONT_SIZE)
-        return size
-
-    @property
-    def bottom(self):
-        return self.get_numeric_attval(CSSStyle.BOTTOM)
-
-    @property
-    def left(self):
-        return self.get_numeric_attval(CSSStyle.LEFT)
-
-    @property
-    def width(self):
-        return self.get_numeric_attval(CSSStyle.WIDTH)
-
-    def get_numeric_attval(self, name):
-        value = self.attval(name)
-        if not value:
-            return None
-        value = value[:-2] if value.endswith(CSSStyle.PX) else value
-        try:
-            return float(value)
-        except Exception:
-            return None
-
-    def is_bold_name(self):
-        """Heuristic using font-name
-        :return: True if name contains "Bold" or ".B" or .."""
-        fontname = self.font_family
-        result = (self.BOLD in fontname) or (fontname.endswith(self.DOT_B)) if fontname else False
-        return result
-
-    def obeys(self, condition):
-        """test if style obeys a (simple) condition
-        (I'll write a DSL later)
-        :param condition: (name, operator, value), e.g. "font-size>10
-        :return: test of condition
-
-        """
-        result = False
-        if condition:
-            ss = re.split('(>|<|==|!=)', condition)
-            if len(ss) != 3:
-                print(f"Cannot parse as condition {condition}")
-            else:
-                lhs = ss[0].strip()
-                rhs = ss[2].strip()
-
-                # print(f"condition: {ss}")
-                if lhs not in self.name_value_dict:
-                    return False
-                value1 = self.name_value_dict.get(lhs)
-                if not value1:
-                    print(f"{lhs} not in style attribute {self.name_value_dict}")
-                    return False
-                if value1.endswith("px"):
-                    value1 = value1[:-2]
-                try:
-                    value1 = float(value1)
-                except Exception:
-                    print(f"not a number {value1}")
-                    return False
-
-                if rhs.endswith("px"):
-                    rhs = rhs[:-2]
-                try:
-                    value2 = float(rhs)
-                except Exception:
-                    print(f"not a number {rhs}")
-                    return False
-                oper = ss[1]
-                if oper == ">":
-                    result = value1 > value2
-                elif oper == "<":
-                    result = value1 < value2
-                elif oper == "!=":
-                    result = value1 != value2
-                elif oper == "==":
-                    result = (value1 == value2)
-                else:
-                    raise ValueError(f"bad operator: {oper}")
-                if result:
-                    # print(f"condition TRUE {condition}")
-                    pass
-        return result
 
 
 class CompositeLine:

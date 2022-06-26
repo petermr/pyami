@@ -27,6 +27,9 @@ class Reference:
     (?P<date>20\d\d[a-z]*)
     """, re.VERBOSE)
 
+    DOI_PROTOCOL = "doi:"
+    HTTPS_DOI_ORG = "https://doi.org/"
+
     def __init__(self):
         self.spans = []
 
@@ -41,25 +44,21 @@ class Reference:
         ref.spans = div.xpath("./span")
         return ref
 
-    def iterate_spans_until_doi_found(self):
+    def markup_dois_in_spans(self):
         """iterates over contained spans until the doi-containing one is found
         """
-        self.markup_dois_in_spans()
-
-    def markup_dois_in_spans(self):
         for span in self.spans:
             text = span.text
             doi_match = self.DOI_REC.match(text)
             if doi_match:
                 doi_txt = doi_match.group(1)
-                if "doi:" in doi_txt:
+                if self.DOI_PROTOCOL in doi_txt:
                     doi_txt = doi_txt.replace("doi:https", "https")
-                    doi_txt = doi_txt.replace("doi:", "https://doi.org/")
-                    if doi_txt.startswith("doi:"):
+                    doi_txt = doi_txt.replace(self.DOI_PROTOCOL, self.HTTPS_DOI_ORG)
+                    if doi_txt.startswith(self.DOI_PROTOCOL):
                         doi_txt = "https://" + doi_txt
                     print(f"doi: {doi_txt}")
-                    # a = lxml.etree.SubElement(span.getparent(), H_A)
-                    a = lxml.etree.SubElement(span.getparent(), "a") # to avoid circulkar importa
+                    a = lxml.etree.SubElement(span.getparent(), "a")  # to avoid circulkar import of H_A TODO
 
                     a.attrib["href"] = doi_txt
                     a.text = doi_txt
@@ -67,6 +66,16 @@ class Reference:
             else:
                 # print(f"no doi: {text}")
                 pass
+
+    @classmethod
+    def markup_dois_in_div_spans(cls, ref_divs):
+        """creates refs and then marks up the spans
+        May be rather specific to IPCC"""
+        for div in ref_divs:
+            ref = Reference.create_ref_from_div(div)
+            spans = div.xpath("./span")
+            ref.markup_dois_in_spans()
+
 
 
 class Biblioref:

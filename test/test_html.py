@@ -148,7 +148,7 @@ class TestHtml(unittest.TestCase):
 
         for div in ref_divs:
             ref = Reference.create_ref_from_div(div)
-            ref.iterate_spans_until_doi_found()
+            ref.markup_dois_in_spans()
         chap4_dir = Path(Resources.TEMP_DIR, "ipcc_html", "chapter04")
         if not chap4_dir.exists():
             chap4_dir.mkdir()
@@ -165,10 +165,8 @@ class TestHtml(unittest.TestCase):
         ref_divs = ref_elem.xpath("body/div")
         assert len(ref_divs) == 1316
 
-        for div in ref_divs:
-            ref = Reference.create_ref_from_div(div)
-            spans = div.xpath("./span")
-            ref.iterate_spans_until_doi_found()
+        Reference.markup_dois_in_div_spans(ref_divs)
+
         chap4_dir = Path(Resources.TEMP_DIR, "ipcc_html", "chapter04")
         if not chap4_dir.exists():
             chap4_dir.mkdir()
@@ -207,18 +205,18 @@ class TestHtml(unittest.TestCase):
         span = div_elem.xpath("./span")[0]
 
         re_compile = Util.SINGLE_BRACKET_REC
-        spans = HtmlUtil.split_span_at_match(span, re_compile)
+        spans,_ = HtmlUtil.split_span_at_match(span, re_compile)
         assert spans[0] is not None
         assert spans[1] is not None
         assert spans[2] is not None
 
         assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
-               "<div><span class=\"foo\">prefix the </span><span class=\"foo\">bracketed</span><span class=\"foo\"> string postfix</span></div>"
+            """<div><span class="re_pref">prefix the </span><span class="re_match">bracketed</span><span class="re_post"> string postfix</span></div>"""
 
         # no leading string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed) string postfix</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans = HtmlUtil.split_span_at_match(span, re_compile)
+        spans,_ = HtmlUtil.split_span_at_match(span, re_compile)
         assert spans[0] is None
         assert spans[1] is not None
         assert spans[2] is not None
@@ -226,7 +224,7 @@ class TestHtml(unittest.TestCase):
         # no trailing string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed)</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans = HtmlUtil.split_span_at_match(span, re_compile)
+        spans,_ = HtmlUtil.split_span_at_match(span, re_compile)
         assert spans[0] is not None
         assert spans[1] is not None
         assert spans[2] is None
@@ -234,7 +232,7 @@ class TestHtml(unittest.TestCase):
         # no leading or trailing string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed)</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans = HtmlUtil.split_span_at_match(span, re_compile)
+        spans,_ = HtmlUtil.split_span_at_match(span, re_compile)
         assert spans[0] is None
         assert spans[1] is not None
         assert spans[2] is None
@@ -249,22 +247,38 @@ class TestHtml(unittest.TestCase):
         HtmlUtil.split_span_at_match(span, re_compile, recurse=True)
 
         assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
-               "<div><span class=\"foo\">prefix the </span><span class=\"foo\">bracketed</span>" \
-               "<span class=\"foo\"> and more </span><span class=\"foo\">brackets</span>" \
-               "<span class=\"foo\"> string postfix </span></div>"
+               """<div><span class="re_pref">prefix the </span><span class="re_match">bracketed</span><span class="re_pref"> and more </span><span class="re_match">brackets</span><span class="re_post"> string postfix </span></div>"""
 
     def test_split_caption_at_bracketed_panel_refs(self):
         """split at text (a) more (b) etc"""
-        s = """Box 6.2 Figure 1 Retirement of coal-fired power plants to limit warming to 1.5°C and likely 2°C. (a)
-7 Historical facility age at retirement (b) the vintage year of existing units, (c) global coal capacity under
-8 different plant lifetimes, compared to capacity levels consistent with a well-below 2°C (green) and 1.5°C
-9 (blue) pathway assuming no new coal plants, and (d) and assuming plants currently under construction
-10 come online as scheduled, but those in planning or permitting stages are not built. (Source: (Cui et al.
-11 2019))."""
+        s = f"Box 6.2 Figure 1 Retirement of coal-fired power plants to limit warming to 1.5°C and" \
+            f" likely 2°C. (a) Historical facility age at retirement (b) the vintage year of existing" \
+            f" units, (c) global coal capacity under different plant lifetimes, compared to capacity" \
+            f" levels consistent with a well-below 2°C (green) and 1.5°C(blue) pathway assuming no new" \
+            f" coal plants, and (d) and assuming plants currently under construction come online as scheduled," \
+            f" but those in planning or permitting stages are not built. (Cui et al. 2019)"
 
-        div, span = HtmlUtil.create_div_span(s)
+        div, span = HtmlUtil.create_div_span(s, style={"font-size: 12pt; font-weight: bold"})
+        print(f"span: {lxml.etree.tostring(span)}")
+        assert len(div.getchildren()) == 1
         re_compile = Util.SINGLE_BRACKET_REC
-        HtmlUtil.split_span_at_match(span, re_compile, recurse=True)
+        HtmlUtil.split_span_at_match(span, re_compile, recurse=True, id_root="ss", id_counter=0)
+        assert len(div.getchildren()) == 14
+        print(f"span: {lxml.etree.tostring(div.getchildren()[1])}")
+        print(f"div {lxml.etree.tostring(div)}")
+        phrases = []
+
+        for span in div.getchildren():
+            phrases.append(span.text)
+        assert phrases == ['Box 6.2 Figure 1 Retirement of coal-fired power plants to limit warming to '
+                           '1.5°C and likely 2°C. ', 'a', ' Historical facility age at retirement ', 'b',
+                           ' the vintage year of existing units, ','c',
+                           ' global coal capacity under different plant lifetimes, compared to capacity '
+                           'levels consistent with a well-below 2°C ', 'green', ' and 1.5°C', 'blue',
+                           ' pathway assuming no new coal plants, and ', 'd',
+                           ' and assuming plants currently under construction come online as scheduled, '
+                           'but those in planning or permitting stages are not built. ', 'Cui et al. 2019']
+
 
     # ========================================
 

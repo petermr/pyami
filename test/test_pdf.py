@@ -661,13 +661,13 @@ LTPage
     MAX_ROW = 10
     MAX_IMAGE = 5
 
-    def find_chapter_title(cls, elem):
-        """<div style="" id="id296"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 15px;" id="id297">Chapter 6:</span></div>
-<div style="" id="id300"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 15px;" id="id301">Energy Systems
-</span></div>
-        """
-        result = cls.get_div_span_starting_with(elem, "Chapter")
-        return result
+#     def find_chapter_title(cls, elem):
+#         """<div style="" id="id296"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 15px;" id="id297">Chapter 6:</span></div>
+# <div style="" id="id300"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 15px;" id="id301">Energy Systems
+# </span></div>
+#         """
+#         result = cls.get_div_span_starting_with(elem, "Chapter")
+#         return result
 
 
 def main(argv=None):
