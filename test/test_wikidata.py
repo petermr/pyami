@@ -192,7 +192,9 @@ class TestWikidataLookup(unittest.TestCase):
 
     def test_get_description(self):
         desc = WikidataPage("q407418").get_description()
-        assert desc == "chemical compound"
+        # assert desc == "chemical compound"
+        assert "compound" in desc # wikidata changed this!! 'organic compound used as flavouring and for analgesic properties'
+
 
     def test_attval_contains(self):
         """does a concatenated attavle contain a word

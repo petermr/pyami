@@ -1,16 +1,16 @@
+""" Mainly for converting PDF to HTML and SVG """
 import argparse
 import lxml
 import lxml.html
 from lxml import etree
 from lxml.builder import E
 import statistics
-from enum import Enum
 from pathlib import Path
 from typing import Container
 from io import BytesIO, StringIO
 import sys
 import re
-from collections  import Counter
+from collections import Counter
 import numpy as np
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.layout import LAParams
@@ -21,9 +21,10 @@ from sklearn.linear_model import LinearRegression
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util
-from py4ami.ami_html import HtmlUtil, CSSStyle, A_ID, H_SPAN, H_A, H_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
-
-
+from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree
+from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
+    CALIBRI, FONT_FAMILIES
+from py4ami.ami_html import H_SPAN, H_A, H_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
 
 # text attributes
 FACT = 2.8
@@ -38,7 +39,6 @@ SORT_YX = "yx"  # for sorting
 SORT_XY = "xy"  # for sorting
 WIDTH = "width"
 
-
 BBOX = "bbox"
 
 # to link up text spans
@@ -48,32 +48,7 @@ X_MARGIN = 20
 INTERPARA_FACT = 1.5
 
 # SCRIPTS
-SCRIPT_FACT = 0.9 # should this be here
-
-# style bundle
-STYLE = "style"
-ITALIC = "italic"
-BOLD = "bold"
-TIMES = "times"
-CALIBRI = "calibri"
-FONT_FAMILIES = [TIMES, CALIBRI]
-
-# style attributes
-FONT_SIZE = "font-size"
-FONT_STYLE = "font-style"
-FONT_WEIGHT = "font-weight"
-FONT_FAMILY = "font-family"
-FILL = "fill"
-STROKE = "stroke"
-
-STYLES = [
-    FONT_SIZE,
-    FONT_STYLE,
-    FONT_FAMILY,
-    FONT_WEIGHT,
-    FILL,
-    STROKE,
-]
+SCRIPT_FACT = 0.9  # should this be here
 
 # debug
 WORDS = "words"
@@ -91,34 +66,27 @@ DEBUG_ALL = "debug_all"
 U_XPATH = "xpath"
 U_REGEX = "regex"
 
-CHAP_TOP = re.compile(""
-                      "(Chapter\\s?\\d\\d?\\s?:.*$)|"
-                      "(Table\\s?of Contents.*)|"
-                      "(Executive [Ss]ummary.*)|"
-                      "(Frequently [Aa]sked.*)|"
-                      "(References)"
-                      )
-CHAP_SECTIONS_RE = re.compile("\\d+\\.\\d+$")
-CHAP_SUBSECTS_RE = re.compile("\\d+\\.\\d+\\.\\d+$")
+IPCC_CHAP_TOP_REC = re.compile(""
+                               "(Chapter\\s?\\d\\d?\\s?:.*$)|"
+                               "(Table\\s?of Contents.*)|"
+                               "(Executive [Ss]ummary.*)|"
+                               "(Frequently [Aa]sked.*)|"
+                               "(References)"
+                               )
+SECTIONS_DECIMAL_REC = re.compile("\\d+\\.\\d+$")
+SUBSECTS_DECIMAL_REC = re.compile("\\d+\\.\\d+\\.\\d+$")
 
-MARKER = "marker"
-
-# Chapter
-TREE_ROOT = "tree_root"
-CLASS = "class"
-PRE_CHAPSEC = "pre_chapsec"
-
-# XPaths
-ALL_DIV_XPATHS = ".//div"
+RECS_BY_SECTION = {
+    HtmlTree.CHAP_TOP: IPCC_CHAP_TOP_REC,
+    HtmlTree.CHAP_SECTIONS: SECTIONS_DECIMAL_REC,
+    HtmlTree.CHAP_SUBSECTS: SUBSECTS_DECIMAL_REC,
+}
 
 # coordinates
 X0 = 'x0'
 Y1 = 'y1'
 X1 = 'x1'
 Y0 = 'y0'
-
-
-
 
 
 class AmiPage:
@@ -158,7 +126,7 @@ class AmiPage:
 
     # AmiPage
 
-    def create_text_spans(self, sort_axes=None, rotated_text=False) -> list:
+    def create_text_spans(self, sort_axes=None, rotated_text=False, debug=False) -> list:
         """create text spans, from SVG element for page
         :param sort_axes: by X and/or Y
         :param rotated_text: iclude rotated text
@@ -171,12 +139,13 @@ class AmiPage:
             sort_axes = []
         # dot_len = 10 # in case we need dots in output
         if not self.text_spans or self.text_spans is not list:
-            print(f"======== {self.page_path} =========")
+            if debug:
+                print(f"======== {self.page_path} =========")
 
             if self.page_path:
                 self.page_element = lxml.etree.parse(str(self.page_path))
-            elif self.data:
-                self.page_element = lxml.etree.toxml(self.data)
+            elif self.data:  # not sure if this is used
+                self.page_element = lxml.etree.fromstring(self.data)
             else:
                 self.logger.warning("no svg file or data")
                 return
@@ -187,8 +156,8 @@ class AmiPage:
                     self.text_spans = sorted(self.text_spans, key=lambda span: span.start_x)
                 if axis == Y:
                     self.text_spans = sorted(self.text_spans, key=lambda span: span.y)
-
-                print(f"text_spans {axis}: {self.text_spans}")
+                if debug:
+                    print(f"text_spans {axis}: {self.text_spans}")
 
         return self.text_spans
 
@@ -197,7 +166,6 @@ class AmiPage:
         self.text_spans = []
         for text_index, text_element in enumerate(self.text_elements):
             if text_element.attrib.get("rotateDegrees") and not rotated_text:
-                # print(f"rotated text")
                 continue
             svg_text = SvgText(text_element)
             text_span = svg_text.create_text_span()
@@ -206,17 +174,13 @@ class AmiPage:
                 continue
             bbox = text_span.create_bbox()
             if not bbox.intersect(content_box):
-                # print(f"outside content_box")
                 continue
 
             if text_span.has_empty_text_content():
                 # test for whitespace content
-                # print(f"whitespace element skipped")
                 continue
-            # if (len(self.text_spans) % dot_len) == 0:
-            #     print(".", end="")
             self.text_spans.append(text_span)
-        print(f"no. text_spans {len(self.text_spans)}")
+        # print(f"no. text_spans {len(self.text_spans)}")
 
     # AmiPage
 
@@ -437,7 +401,6 @@ class AmiParagraph:
         return h_p
 
 
-
 class CompositeLine:
     """holds text spans which touch or intersect and overall bbox"""
 
@@ -486,8 +449,8 @@ class CompositeLine:
                 content = E.sub(content)
             else:
                 content = E.span(content)
-                HtmlUtil.set_attrib(content, FONT_FAMILY, text_style.font_family)
-                HtmlUtil.set_attrib(content, FONT_SIZE, str(text_style.font_size))
+                HtmlUtil.set_attrib(content, FONT_FAMILY, text_style._font_family)
+                HtmlUtil.set_attrib(content, FONT_SIZE, str(text_style._font_size))
                 HtmlUtil.set_attrib(content, FILL, text_style.fill)
                 HtmlUtil.set_attrib(content, Y, text_span.y)
                 HtmlUtil.set_attrib(content, BBOX, text_span.bbox)
@@ -545,7 +508,7 @@ class TextSpan:
         if last_width is None:
             print(f"No widths???")
             last_width = 0.0
-        font_size = self.text_style.font_size
+        font_size = self.text_style._font_size
         height = font_size
         width = self.end_x + last_width * font_size - self.start_x
         self.bbox = BBox.create_from_xy_w_h((self.start_x, self.y - height), width, height)
@@ -558,7 +521,7 @@ class TextSpan:
 
             """
 
-        family = self.text_style.font_family
+        family = self.text_style._font_family
         if not family:
             print(f"no family: {self}")
             return
@@ -568,11 +531,11 @@ class TextSpan:
         if family.find(BOLD) != -1:
             self.text_style.font_weight = BOLD
         if family.find(TIMES) != -1:
-            self.text_style.font_family = TIMES
+            self.text_style._font_family = TIMES
         if family.find(CALIBRI) != -1:
-            self.text_style.font_family = CALIBRI
-        if self.text_style.font_family not in FONT_FAMILIES:
-            print(f"new font_family {self.text_style.font_family}")
+            self.text_style._font_family = CALIBRI
+        if self.text_style._font_family not in FONT_FAMILIES:
+            print(f"new font_family {self.text_style._font_family}")
 
     def has_empty_text_content(self) -> bool:
         return len("".join(self.text_content.split())) == 0
@@ -592,15 +555,13 @@ RESOLUTION = "resolution"
 TEMPLATE = "template"
 
 
-
-
 class PDFArgs:
     def __init__(self):
         """arg_dict is set to default"""
         self.parser = None
         self.parsed_args = None
         self.arg_dict = self.create_default_arg_dict()
-        self.ref_counter = Counter();
+        self.ref_counter = Counter()
 
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
@@ -765,19 +726,13 @@ class PDFArgs:
         if not converter:
             raise ValueError(f"provide format, {converters.keys()}")
         device = converter(rsrcmgr, retstr, codec=codec, laparams=laparams)
-        # if format == "text":
-        #     device = TextConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
-        # elif format == "html":
-        #     device = HTMLConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
-        # elif format == "xml":
-        #     device = XMLConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
-        # else:
         interpreter = PDFPageInterpreter(rsrcmgr, device)
         return device, interpreter, retstr
 
     # class PDFArgs:
 
-    def convert_write(self, fmt=None, maxpage=999999, outdir=None, outstem=None, inpath=None, flow=False, unwanteds=None):
+    def convert_write(self, fmt=None, maxpage=999999, outdir=None, outstem=None, inpath=None, flow=False,
+                      unwanteds=None):
         """
         create HTML (absolute or flowing) or XML
         The preferred method is to use arg_dict
@@ -841,7 +796,7 @@ class PDFArgs:
             self.markup_parentheses(result_elem)
             print(f"ref_counter {self.ref_counter}")
 
-            HtmlTree.make_tree(result_elem, output_dir=outd)
+            HtmlTree.make_tree(result_elem, output_dir=outd, recs_by_section=RECS_BY_SECTION)
 
             result = lxml.etree.tostring(result_elem).decode("UTF-8")
             fmt = "flow.html"
@@ -906,13 +861,13 @@ class PDFArgs:
             idx = par.index(span)
             span.addnext(elem0)
             current = elem0
-            for ref in result.group(2).split(";"): # e.g. in (Foo and Bar, 2018; Plugh 2020)
+            for ref in result.group(2).split(";"):  # e.g. in (Foo and Bar, 2018; Plugh 2020)
                 ref = ref.strip()
                 if not self.ref_counter[ref]:
                     self.ref_counter[ref] == 0
                 self.ref_counter[ref] += 1
                 a = lxml.etree.SubElement(par, H_A)
-                for k,v in elem0.attrib.items():
+                for k, v in elem0.attrib.items():
                     a.attrib[k] = v
                 a.attrib[H_HREF] = "https://github.com/petermr/discussions"
                 a.text = "([" + ref + "])"
@@ -926,138 +881,6 @@ class PDFArgs:
             par.remove(span)
 
             # print(f"par {lxml.etree.tostring(par)}")
-
-
-
-
-
-class HtmlTree:
-    """builds a tree from a flat set of Html elemnets"""
-
-    @classmethod
-    def make_tree(cls, elem, output_dir):
-        """find decimal number for tree"""
-        markers = ["Chapter",
-                   # "Table of Contents",
-                   "Table of",  # one is concatenated (Chapter01) so abbreviate, unweighted Chap16
-                   # "Executive Summary",
-                   "Executive",  # case variation
-                   # "Frequently Asked Questions", # not in Chapter01
-                   "Frequently",  # case variation
-                   "References",
-                   ]
-        is_bold = True
-        font_size_range = (12, 999)
-        for marker in markers:
-            marked_div, divs = cls.get_div_span_starting_with(elem, marker, is_bold, font_size_range=font_size_range)
-            if not marked_div:
-                l = len(divs) if divs else 0
-                print(f"Cannot find marker {marker} found {l} markers")
-        decimal_divs = cls.get_div_spans_with_decimals(elem, is_bold, font_size_range=font_size_range)
-        print(f"d_divs {len(decimal_divs)}")
-        if output_dir:
-            if not output_dir.exists():
-                output_dir.mkdir()
-            for i, child_div in enumerate(decimal_divs):
-                # cls.remove_div(child_div)
-                marker = child_div.attrib["marker"].strip().replace(" ", "_").lower() # name from text content
-                path = Path(output_dir, f"{marker}.html")
-                with open(path, "wb") as f:
-                    f.write(lxml.etree.tostring(child_div, pretty_print=True))
-            print(f"decimals: {len(decimal_divs)}")
-
-    @classmethod
-    def get_div_span_starting_with(cls, elem, strg, is_bold=False, font_size_range=None):
-        result = None
-        xpath = f".//div[span[starts-with(.,'{strg}')]]"
-        print(f"xpath {xpath}")
-        divs = elem.xpath(xpath)
-        if len(divs) == 0:
-            print(f"No divs with {strg}")
-            return result, None
-        print(f"found divs {len(divs)}")
-        new_divs = []
-        for div in divs:
-            spans = div.xpath("./span")
-            if spans:
-                css_style = CSSStyle.create_css_style(spans[0])
-                if not (is_bold and css_style.is_bold_name()):
-                    continue
-                if not (font_size_range and cls.in_range(css_style.font_size, font_size_range)):
-                    continue
-                new_divs.append(div)
-                pass
-        divs = new_divs
-        # also test font here NYI
-        if len(divs) == 0:
-            print(f"cannot find div: len={len(divs)}")
-        elif len(divs) > 1:
-            print(f"too many divs: len={len(divs)}")
-        else:
-            result = divs[0]
-            print(f"marked with {strg} : {''.join(result.itertext())}")
-            result.attrib["marker"] = strg
-        return (result, divs)
-
-    @classmethod
-    def get_div_spans_with_decimals(cls, elem, is_bold=None, font_size_range=None):
-        """Matches div/span starting with a decimal index
-        d.d or d.d.d
-        """
-        result = None
-        # first add all matching numbered divs to pre_chapsec
-        H_DIV = "div"
-        top_div = lxml.etree.SubElement(elem, H_DIV)
-        top_div.attrib[CLASS] = TREE_ROOT
-        pre_chapsec = lxml.etree.SubElement(top_div, H_DIV)
-        pre_chapsec.attrib[CLASS] = PRE_CHAPSEC
-        current_div = pre_chapsec
-
-        # iterate over all divs, only append those with decimal
-        divs = elem.xpath(ALL_DIV_XPATHS)
-        print(f"found divs {len(divs)}")
-        decimal_count = 0
-        texts = [] # just a check at present
-        section_re = CHAP_TOP
-        # section_re = CHAP_SECTIONS_RE
-        # section_re = CHAP_SUBSECTS_RE
-        for div in divs:
-            spans = div.xpath("./span")
-            if not spans:
-                # no spans, concatenate with siblings
-                current_div.append(div)
-                continue
-            css_style = CSSStyle.create_css_style(spans[0])  # normally comes first
-            # check weight, if none append to siblings
-            if not (is_bold and css_style.is_bold_name()):
-                current_div.append(div)
-                continue
-            # check font-size, if none append to siblings
-            if not (font_size_range and cls.in_range(css_style.font_size, font_size_range)):
-                current_div.append(div)
-                continue
-            # span content
-            text = ''.join(spans[0].itertext())
-            matched = False
-            if section_re.match(text):
-                top_div.append(current_div)
-                texts.append(text)
-                div.attrib[MARKER] = text
-                current_div = div
-                decimal_count += 1
-            else:
-                current_div.append(div)
-        print(f"{CHAP_SECTIONS_RE}: {decimal_count} {len(top_div.xpath('./*'))} {texts}")
-        return top_div
-
-    @classmethod
-    def in_range(cls, num, num_range):
-        """is a number in a numeric range"""
-        assert num_range or len(num_range) == 2, f"range must have 2 elements"
-        assert num_range[0] <= num_range[1], f"font_size_range must be (lower,higher)"
-        assert float(num_range[0])
-        result = num_range[0] <= num <= num_range[1]
-        return result
 
 
 class PDFDebug:
@@ -1241,18 +1064,81 @@ class TextStyle:
         # maybe should be dict
         self.font_style = None
         # height in pixels
-        self.font_size = None
-        self.font_family = None
+        self._font_size = None
+        self._font_family = None
         # try to map onto HTML bold/norma
         self.font_weight = None
         # fill colour of text
-        self.fill = None
+        self._color = None
         # stroke colour of text
         self.stroke = None
 
     def __str__(self) -> str:
-        s = f"size {self.font_size} family {self.font_family}, style {self.font_style} weight {self.font_weight} fill {self.fill} stroke {self.stroke}"
+        s = f"size {self._font_size} family {self._font_family}, style {self.font_style} weight {self.font_weight} fill {self.fill} stroke {self.stroke}"
         return s
+
+    def __eq__(self, other):
+        if isinstance(other, TextStyle):
+            # required attributes
+            if self._font_family != other._font_family or self._font_size != other._font_size:
+                return False
+            # optional
+            if TextStyle._not_equal(self.font_weight, other.font_weight):
+                return False
+            if TextStyle._not_equal(self.fill, other.fill):
+                return False
+            if TextStyle._not_equal(self.stroke, other.stroke):
+                return False
+            return True
+        return False
+
+    def create_css_string(self):
+        """create CSS style from stored values
+        currently font-size, font-family, fill and stroke"""
+        css = ""
+        if self._font_size:
+             css += f"font-size: {self._font_size} px;"
+        if self._font_family:
+            css += f"font-family: {self._font_family};"
+        if self.fill:
+            css += f"fill: {self.fill};"
+        if self.stroke:
+             css += f"stroke: {self.stroke};"
+        return css
+
+
+    def set_font_family(self, name):
+        """trims [A-Z]{6}\+ from start of string"""
+        if name and len(name) > 7 and name[6] == "+":
+            name = name[7:]
+        self._font_family = name
+        if "Bold" in name or ".B" in name:
+            self.font_weight = "bold"
+        if "Italic" in name or ".I" in name:
+            self.font_style = "italic"
+
+    def set_font_size(self, size, ndec=None):
+        """sets size and optionally rounds it
+        :param size: font-size
+        :param ndec: round to ndec places"""
+        if ndec:
+            size = round(size, ndec)
+        self._font_size = size
+
+    @property
+    def font_size(self):
+        return self._font_size
+
+    @property
+    def font_family(self):
+        return self._font_family
+
+    @classmethod
+    def _not_equal(cls, selfx, otherx):
+        """compares objects with None == None"""
+        if not selfx and not otherx:
+            return False
+        return selfx != otherx
 
     def difference(self, other) -> str:
         """difference between two TextStyles (self and other)
@@ -1494,8 +1380,8 @@ class SvgText:
         style = TextStyle()
         # style.y = self.get_y_coord()
         # style.x = self.get_x_coord()
-        style.font_size = self.get_font_size()
-        style.font_family = self.get_font_family()
+        style._font_size = self.get_font_size()
+        style._font_family = self.get_font_family()
         style.font_style = self.get_font_style()
         style.font_weight = self.get_font_weight()
         style.fill = self.get_fill()
@@ -1628,5 +1514,3 @@ class SvgText:
             return float(attval)
         except Exception as e:
             pass
-
-

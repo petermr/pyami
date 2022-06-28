@@ -9,11 +9,13 @@ import lxml.html
 """NOTE REQUIRES LATEST pdfplumber"""
 import pdfplumber
 from py4ami.ami_bib import Publication
+from py4ami.ami_html import AmiSpan
 
 # local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
-from py4ami.ami_pdf import STYLE, AmiPage, X, Y, FILL, STROKE, FONT_FAMILY, FONT_SIZE, SORT_XY
-from py4ami.ami_html import HtmlUtil
+from py4ami.ami_pdf import AmiPage, TextStyle, X, Y, SORT_XY
+from py4ami.ami_html import HtmlUtil, STYLE,FILL, STROKE, FONT_FAMILY, FONT_SIZE
+from py4ami.ami_html import H_DIV, H_SPAN, H_A, H_B, H_BODY, H_P
 from test.resources import Resources
 from py4ami.pyamix import PyAMI
 from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
@@ -214,7 +216,7 @@ class PDFTest(unittest.TestCase):
             with open(html_path, "r") as h:
                 xml = h.read()
             root = lxml.etree.fromstring(xml)
-            spans = root.findall("./body/p/span")
+            spans = root.findall(f"./{H_BODY}/{H_P}/{H_SPAN}")
             assert type(spans[0]) is lxml.etree._Element, f"expected str got {type(spans[0])}"
             assert len(HtmlUtil.get_text_content(spans[0])) > 0
             span = None
@@ -241,9 +243,79 @@ class PDFTest(unittest.TestCase):
         args = f"--proj {proj} --apply page2sect"
         PyAMI().run_command(args)
 
+    def test_make_spans_from_charstream(self):
+        assert PMC1421.exists(), f"{PMC1421} should exist"
+
+        with pdfplumber.open(PMC1421) as pdf:
+            page0 = pdf.pages[0]
+            print(f"crop: {page0.cropbox} media {page0.mediabox}, bbox {page0.bbox}")
+            print(f"rotation: {page0.rotation} doctop {page0.initial_doctop}")
+            print(f"width {page0.width} height {page0.height}")
+            print(f"text {page0.extract_text()[:2]}")
+            print(f"words {page0.extract_words()[:3]}")
+
+            print(f"char {page0.chars[:1]}")
+            span = None
+            span_list = []
+            maxchars = 999999
+            ndec_coord = 3 # decimals for coords
+            ndec_fontsize = 2
+            for ch in page0.chars[:maxchars]:
+                # print(f"ch {ch['fontname']}")
+                text_style = TextStyle()
+                text_style.set_font_family(ch.get("fontname"))
+                text_style.set_font_size(ch.get("height"), ndec=ndec_fontsize)
+                text_style.stroke = ch.get("stroking_color")
+                text_style.fill = ch.get("non_stroking_color")
+
+                x0 = round(ch.get("x0"), ndec_coord)
+                x1 = round(ch.get("x1"), ndec_coord)
+                y0 = round(ch.get("y0"), ndec_coord)
+                # adv = ch.get("adv") # provided by x1 = x0 + adv * fontsize
+                # style or y0 changes
+                if not span or not span.text_style or span.text_style != text_style or span.y0 != y0:
+                    if span:
+                        if span.text_style != text_style:
+                            print(f"{span.text_style.difference(text_style)} \n {span.string}")
+
+                        if span.y0 != y0:
+                            print(f""
+                                  f"Y {y0} != {span.y0}\n {span.string} {span.xx} ")
+                    span = AmiSpan()
+                    span_list.append(span)
+                    span.text_style = text_style
+                    span.y0 = y0
+                    span.x0 = x0 # set left x
+                span.x1 = x1 # update right x, including width
+                span.string += ch.get("text")
+
+            top_div = lxml.etree.Element(H_DIV)
+            top_div.attrib["class"] = "top"
+            div = lxml.etree.SubElement(top_div, H_DIV)
+            last_span = None
+            for span in span_list:
+                if last_span is None or last_span.y0 != span.y0:
+                    div = lxml.etree.SubElement(top_div, H_DIV)
+                last_span = span
+                span.create_and_add_to(div)
+
+        path = Path(Resources.TEMP_DIR, "pdf")
+        if not path.exists():
+            print(f"output {path}")
+            path.mkdir()
+        print(f"div {lxml.etree.tostring(div, encoding='UTF-8')}")
+        with open(Path(path, "span1421.html"), "wb") as f:
+            f.write(lxml.etree.tostring(top_div))
+
+
+
     def test_pdfplumber(self):
         assert PMC1421.exists(), f"{PMC1421} should exist"
 
+        # also ['_text', 'matrix', 'fontname', 'ncs', 'graphicstate', 'adv', 'upright', 'x0', 'y0', 'x1', 'y1',
+        # 'width', 'height', 'bbox', 'size', 'get_text',
+        # 'is_compatible', 'set_bbox', 'is_empty', 'is_hoverlap',
+        # 'hdistance', 'hoverlap', 'is_voverlap', 'vdistance', 'voverlap', 'analyze', ']
         with pdfplumber.open(PMC1421) as pdf:
             first_page = pdf.pages[0]
             # print(type(first_page), first_page.__dir__())
@@ -406,7 +478,7 @@ class PDFTest(unittest.TestCase):
 
     # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
 
-    def test_pdfminer_font(self):
+    def test_pdfminer_font_and_character_output(self):
         """Examines every character and annotates it
         Typical:
 LTPage
@@ -421,17 +493,23 @@ LTPage
 
         from pdfminer.high_level import extract_pages
 
+        # recursive
         def show_ltitem_hierarchy(o: Any, depth=0):
             """Show location and text of LTItem and all its descendants"""
+            debug = False
+            debug = True
             if depth == 0:
                 print('element                        fontname             text')
                 print('------------------------------ -------------------- -----')
 
-            print(
-                f'{get_indented_name(o, depth):<30.30s} '
-                f'{get_optional_fontinfo(o):<20.20s} '
-                f'{get_optional_text(o)}'
-            )
+            name = get_indented_name(o, depth)
+            print(f"name: {name}")
+            if debug or name.strip() == "LTTextLineHorizontal":
+                print(
+                    f'{name :<30.30s} '
+                    f'{get_optional_fontinfo(o):<20.20s} '
+                    f'{get_optional_text(o)}'
+                )
 
             if isinstance(o, Iterable):
                 for i in o:
@@ -443,7 +521,11 @@ LTPage
 
         def get_optional_fontinfo(o: Any) -> str:
             """Font info of LTChar if available, otherwise empty string"""
+            name = o.__class__.__name__
             if hasattr(o, 'fontname') and hasattr(o, 'size'):
+                if name == "LTChar":
+                    ['_text', 'matrix', 'fontname', 'ncs', 'graphicstate', 'adv', 'upright', 'x0', 'y0', 'x1', 'y1', 'width', 'height', 'bbox', 'size', '__module__', '__doc__', '__init__', '__repr__', 'get_text', 'is_compatible', '__lt__', '__le__', '__gt__', '__ge__', 'set_bbox', 'is_empty', 'is_hoverlap', 'hdistance', 'hoverlap', 'is_voverlap', 'vdistance', 'voverlap', 'analyze', '__dict__', '__weakref__', '__hash__', '__str__', '__getattribute__', '__setattr__', '__delattr__', '__eq__', '__ne__', '__new__', '__reduce_ex__', '__reduce__', '__subclasshook__', '__init_subclass__', '__format__', '__sizeof__', '__dir__', '__class__']
+                    print(f"LTChar {o.__dir__()}")
                 return f'{o.fontname} {round(o.size)}pt'
             return ''
 

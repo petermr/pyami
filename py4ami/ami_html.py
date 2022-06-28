@@ -1,12 +1,12 @@
-"""Supports parsing, editing, markup, restructing of HTML"""
+"""Supports parsing, editing, markup, restructing of HTML
+Should have relatively few dependencies"""
 
 import lxml
 import lxml.etree
 import re
+from pathlib import Path
 # local
 from py4ami.util import SScript
-# from py4ami.ami_bib import Reference, Biblioref
-from py4ami.ami_bib import Publication
 
 # HTML
 H_TABLE = "table"
@@ -19,9 +19,54 @@ H_BODY = "body"
 H_DIV = "div"
 H_SPAN = "span"
 H_A = "a"
+H_B = "b"
 H_P = "p"
 H_HREF = "href"
 A_ID = "id"
+
+# style bundle
+STYLE = "style"
+ITALIC = "italic"
+BOLD = "bold"
+TIMES = "times"
+CALIBRI = "calibri"
+FONT_FAMILIES = [TIMES, CALIBRI]
+
+# style attributes
+FONT_SIZE = "font-size"
+FONT_STYLE = "font-style"
+FONT_WEIGHT = "font-weight"
+FONT_FAMILY = "font-family"
+FILL = "fill"
+STROKE = "stroke"
+
+STYLES = [
+    FONT_SIZE,
+    FONT_STYLE,
+    FONT_FAMILY,
+    FONT_WEIGHT,
+    FILL,
+    STROKE,
+]
+
+class AmiSpan:
+    def __init__(self):
+        self.text_style = None
+        self.string = ""
+        self.xx = []
+        self.y0 = None
+        # self.adv = None
+
+    def create_and_add_to(self, div):
+        html_span = None
+        if div is not None:
+            html_span = lxml.etree.SubElement(div, "span")
+            html_span.text = self.string
+            html_span.attrib["style"] = self.text_style.create_css_string()
+            if len(self.xx) > 0:
+                html_span.attrib["x"] = self.xx[0]
+            html_span.attrib["y"] = str(self.y0)
+        return html_span
 
 
 class AmiHtml:
@@ -31,8 +76,8 @@ class AmiHtml:
 
 
 class HtmlUtil:
-
-    SCRIPT_FACT = 0.9 # maybe sholdn't be here; avoid circular
+    SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
+    MARKER = "marker"
 
     @classmethod
     def split_span_at_match(cls, span, re_compile, copy_atts=True, recurse=True, id_root=None, id_counter=0):
@@ -63,7 +108,9 @@ class HtmlUtil:
                 spans[2].attrib["class"] = "re_post"
                 id_counter = cls.add_id_increment_counter(id_counter, id_root, spans[2])
                 if recurse:
-                    _,id_counter = HtmlUtil.split_span_at_match(spans[2], re_compile, copy_atts=copy_atts, recurse=recurse, id_root=id_root, id_counter=id_counter)
+                    _, id_counter = HtmlUtil.split_span_at_match(spans[2], re_compile, copy_atts=copy_atts,
+                                                                 recurse=recurse, id_root=id_root,
+                                                                 id_counter=id_counter)
         return spans, id_counter
 
     @classmethod
@@ -144,8 +191,8 @@ class HtmlUtil:
         """
         if last_span is None:
             return False
-        last_font_size = last_span.text_style.font_size
-        this_font_size = this_span.text_style.font_size
+        last_font_size = last_span.text_style._font_size
+        this_font_size = this_span.text_style._font_size
         # is it smaller?
         if this_font_size < HtmlUtil.SCRIPT_FACT * last_font_size:
             last_y = last_span.y
@@ -182,6 +229,158 @@ class HtmlUtil:
         elems = root_elem.xpath(xpath)
         for i, el in enumerate(elems):
             el.attrib[A_ID] = A_ID + str(i)
+
+
+class HtmlTree:
+    """builds a tree from a flat set of Html elemnets"""
+
+    # for the section_recs
+    CHAP_TOP = "CHAP_TOP"
+    CHAP_SECTIONS = "CHAP_SECTIONS"
+    CHAP_SUBSECTS = "CHAP_SUBSECTS"
+
+    # Chapter
+    TREE_ROOT = "tree_root"
+    CLASS = "class"
+    PRE_CHAPSEC = "pre_chapsec"
+
+    # sections
+    CHAPSEC = "chapsec"
+    TOP_DIV = "top_div"
+
+    # XPaths
+    ALL_DIV_XPATHS = ".//div"
+
+    @classmethod
+    def make_tree(cls, elem, output_dir, recs_by_section=None):
+        """find decimal number for tree"""
+        markers = ["Chapter",
+                   # "Table of Contents",
+                   "Table of",  # one is concatenated (Chapter01) so abbreviate, unweighted Chap16
+                   # "Executive Summary",
+                   "Executive",  # case variation
+                   # "Frequently Asked Questions", # not in Chapter01
+                   "Frequently",  # case variation
+                   "References",
+                   ]
+        is_bold = True
+        font_size_range = (12, 999)
+        for marker in markers:
+            marked_div, divs = cls.get_div_span_starting_with(elem, marker, is_bold, font_size_range=font_size_range)
+            if not marked_div:
+                ld = len(divs) if divs else 0
+                print(f"Cannot find marker {marker} found {ld} markers")
+
+        class_dict = {cls.CHAPSEC: cls.PRE_CHAPSEC,
+                      cls.TOP_DIV: cls.TREE_ROOT, }
+        rec = recs_by_section.get(cls.CHAP_TOP)
+        assert rec, f"wanted {cls.CHAP_TOP} rec"
+        print(f"using rec {rec}")
+        decimal_divs = cls.get_div_spans_with_decimals(elem, is_bold, font_size_range=font_size_range,
+                                                       section_rec=rec, class_dict=class_dict)
+        print(f"d_divs {len(decimal_divs)}")
+        if output_dir:
+            if not output_dir.exists():
+                output_dir.mkdir()
+            for i, child_div in enumerate(decimal_divs):
+                marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ", "_").lower()  # name from text content
+                path = Path(output_dir, f"{marker}.html")
+                with open(path, "wb") as f:
+                    f.write(lxml.etree.tostring(child_div, pretty_print=True))
+            print(f"decimals: {len(decimal_divs)}")
+
+    @classmethod
+    def get_div_span_starting_with(cls, elem, strg, is_bold=False, font_size_range=None):
+        result = None
+        xpath = f".//div[span[starts-with(.,'{strg}')]]"
+        print(f"xpath {xpath}")
+        divs = elem.xpath(xpath)
+        if len(divs) == 0:
+            print(f"No divs with {strg}")
+            return result, None
+        print(f"found divs {len(divs)}")
+        new_divs = []
+        for div in divs:
+            spans = div.xpath("./span")
+            if spans:
+                css_style = CSSStyle.create_css_style(spans[0])
+                if not (is_bold and css_style.is_bold_name()):
+                    continue
+                if not (font_size_range and cls.in_range(css_style.font_size, font_size_range)):
+                    continue
+                new_divs.append(div)
+                pass
+        divs = new_divs
+        # also test font here NYI
+        if len(divs) == 0:
+            print(f"cannot find div: len={len(divs)}")
+        elif len(divs) > 1:
+            print(f"too many divs: len={len(divs)}")
+        else:
+            result = divs[0]
+            print(f"marked with {strg} : {''.join(result.itertext())}")
+            result.attrib["marker"] = strg
+        return result, divs
+
+    @classmethod
+    def get_div_spans_with_decimals(cls, elem, is_bold=None, font_size_range=None, class_dict=None, section_rec=None):
+        """Matches div/span starting with a decimal index
+        d.d or d.d.d
+        """
+        result = None
+        # first add all matching numbered divs to pre_chapsec
+        if not class_dict:
+            raise ValueError(f"missing class_dict")
+        print(f"class_div for annotating sections/divs with @class")
+        # top_div/pre_chapsec collect the relevant divs (I think)
+        top_div = lxml.etree.SubElement(elem, H_DIV)
+        top_div.attrib[cls.CLASS] = class_dict.get(HtmlTree.TOP_DIV)
+        pre_chapsec = lxml.etree.SubElement(top_div, H_DIV)
+        pre_chapsec.attrib[cls.CLASS] = class_dict.get(HtmlTree.CHAPSEC)
+        current_div = pre_chapsec
+
+        # iterate over all divs, only append those with decimal
+        divs = elem.xpath(cls.ALL_DIV_XPATHS)
+        print(f"found divs {len(divs)}")
+        decimal_count = 0
+        texts = []  # just a check at present
+        for div in divs:
+            spans = div.xpath("./span")
+            if not spans:
+                # no spans, concatenate with siblings
+                current_div.append(div)
+                continue
+            css_style = CSSStyle.create_css_style(spans[0])  # normally comes first
+            # check weight, if none append to siblings
+            if not (is_bold and css_style.is_bold_name()):
+                current_div.append(div)
+                continue
+            # check font-size, if none append to siblings
+            if not (font_size_range and cls.in_range(css_style.font_size, font_size_range)):
+                current_div.append(div)
+                continue
+            # span content
+            text = ''.join(spans[0].itertext())
+            matched = False
+            if section_rec.match(text):
+                top_div.append(current_div)
+                texts.append(text)
+                div.attrib[HtmlUtil.MARKER] = text
+                current_div = div
+                decimal_count += 1
+            else:
+                current_div.append(div)
+        return top_div
+
+    @classmethod
+    def in_range(cls, num, num_range):
+        """is a number in a numeric range"""
+        assert num_range or len(num_range) == 2, f"range must have 2 elements"
+        assert num_range[0] <= num_range[1], f"font_size_range must be (lower,higher)"
+        assert float(num_range[0])
+        result = num_range[0] <= num <= num_range[1]
+        return result
+
 
 class CSSStyle:
     BOLD = "Bold"
@@ -354,4 +553,20 @@ class CSSStyle:
                     # print(f"condition TRUE {condition}")
                     pass
         return result
+
+    @classmethod
+    def cmyk_to_rgb(cls, c, m, y, k):
+
+        rgb_scale = 255
+        # cmyk_scale = 100
+        cmyk_scale = 1.0
+        r = rgb_scale*(1.0-(c+k)/float(cmyk_scale))
+        g = rgb_scale*(1.0-(m+k)/float(cmyk_scale))
+        b = rgb_scale*(1.0-(y+k)/float(cmyk_scale))
+
+        return r,g,b
+
+    @classmethod
+    def cmky_to_rgb(cls, c, m, k, y):
+        return cls.cmyk_to_rgb(c, m, y, k)
 
