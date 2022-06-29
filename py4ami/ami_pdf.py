@@ -63,6 +63,17 @@ ANNOTS = "annots"
 DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS]
 DEBUG_ALL = "debug_all"
 
+# character properties
+P_FONTNAME = "fontname"
+P_HEIGHT = "height"
+P_STROKING_COLOR = "stroking_color"
+P_NON_STROKING_COLOR = "non_stroking_color"
+
+P_X0 = "x0"
+P_X1 = "x1"
+P_Y0 = "y0"
+P_TEXT = "text"
+
 # Unwanted sections
 U_XPATH = "xpath"
 U_REGEX = "regex"
@@ -181,7 +192,6 @@ class AmiPage:
                 # test for whitespace content
                 continue
             self.text_spans.append(text_span)
-        # print(f"no. text_spans {len(self.text_spans)}")
 
     # AmiPage
 

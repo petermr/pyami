@@ -14,6 +14,7 @@ from py4ami.ami_html import AmiSpan
 # local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
 from py4ami.ami_pdf import AmiPage, TextStyle, X, Y, SORT_XY
+from py4ami.ami_pdf import P_FONTNAME, P_HEIGHT, P_STROKING_COLOR, P_NON_STROKING_COLOR, P_TEXT, P_X0, P_Y0, P_X1
 from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
 from py4ami.ami_html import HtmlUtil, STYLE,FILL, STROKE, FONT_FAMILY, FONT_SIZE
 from py4ami.ami_html import H_DIV, H_SPAN, H_A, H_B, H_BODY, H_P
@@ -175,11 +176,13 @@ class PDFTest(unittest.TestCase):
         """
         pretty_print = True
         use_lines = True
+        svg_dir = Resources.CLIMATE_10_SVG_DIR
+        html_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
         for page_index in range(1, 9):
-            page_path = Path(Resources.CLIMATE_10_SVG_DIR, f"fulltext-page.{page_index}.svg")
-            html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-            if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
-                Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
+            page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
+            html_path = Path(html_dir, f"page.{page_index}.html")
+            if not html_dir.exists():
+                html_dir.mkdir()
             ami_page = AmiPage.create_page_from_svg(page_path)
             ami_page.write_html(html_path, pretty_print, use_lines)
             assert html_path.exists(), f"{html_path} exists"
@@ -194,13 +197,14 @@ class PDFTest(unittest.TestCase):
         page_selection = range(1, 50)
         counter = 0
         counter_tick = 20
+        html_out_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
         for page_index in page_selection:
             if counter % counter_tick == 0:
                 print(f".", end="")
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-            html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-            if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
-                Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
+            html_path = Path(html_out_dir, f"page.{page_index}.html")
+            if not html_out_dir.exists():
+                html_out_dir.mkdir()
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
             ami_page.write_html(html_path, pretty_print, use_lines)
             counter += 1
@@ -211,8 +215,9 @@ class PDFTest(unittest.TestCase):
         use_lines = True
         make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
         selection = CURRENT_RANGE
+        temp_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
         for page_index in selection:
-            html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+            html_path = Path(temp_dir, f"page.{page_index}.html")
             with open(html_path, "r") as h:
                 xml = h.read()
             root = lxml.etree.fromstring(xml)
@@ -271,17 +276,15 @@ class PDFTest(unittest.TestCase):
             ndec_coord = 3 # decimals for coords
             ndec_fontsize = 2
             for ch in page0.chars[:maxchars]:
-                # print(f"ch {ch['fontname']}")
                 text_style = TextStyle()
-                text_style.set_font_family(ch.get("fontname"))
-                text_style.set_font_size(ch.get("height"), ndec=ndec_fontsize)
-                text_style.stroke = ch.get("stroking_color")
-                text_style.fill = ch.get("non_stroking_color")
+                text_style.set_font_family(ch.get(P_FONTNAME))
+                text_style.set_font_size(ch.get(P_HEIGHT), ndec=ndec_fontsize)
+                text_style.stroke = ch.get(P_STROKING_COLOR)
+                text_style.fill = ch.get(P_NON_STROKING_COLOR)
 
-                x0 = round(ch.get("x0"), ndec_coord)
-                x1 = round(ch.get("x1"), ndec_coord)
-                y0 = round(ch.get("y0"), ndec_coord)
-                # adv = ch.get("adv") # provided by x1 = x0 + adv * fontsize
+                x0 = round(ch.get(P_X0), ndec_coord)
+                x1 = round(ch.get(P_X1), ndec_coord)
+                y0 = round(ch.get(P_Y0), ndec_coord)
                 # style or y0 changes
                 if not span or not span.text_style or span.text_style != text_style or span.y0 != y0:
                     if span:
@@ -297,7 +300,7 @@ class PDFTest(unittest.TestCase):
                     span.y0 = y0
                     span.x0 = x0 # set left x
                 span.x1 = x1 # update right x, including width
-                span.string += ch.get("text")
+                span.string += ch.get(P_TEXT)
 
             top_div = lxml.etree.Element(H_DIV)
             top_div.attrib["class"] = "top"
@@ -743,12 +746,6 @@ LTPage
         except SystemExit:
             pass
 
-    def test_main_help(self):
-        sys.argv.append("--help")
-        try:
-            main()
-        except SystemExit:
-            pass
 
     # =====================================================================================================
     # =====================================================================================================

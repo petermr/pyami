@@ -23,6 +23,7 @@ H_B = "b"
 H_P = "p"
 H_HREF = "href"
 A_ID = "id"
+A_CLASS = "class"
 
 # style bundle
 STYLE = "style"
