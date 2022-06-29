@@ -14,11 +14,11 @@ from py4ami.ami_html import AmiSpan
 # local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
 from py4ami.ami_pdf import AmiPage, TextStyle, X, Y, SORT_XY
+from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
 from py4ami.ami_html import HtmlUtil, STYLE,FILL, STROKE, FONT_FAMILY, FONT_SIZE
 from py4ami.ami_html import H_DIV, H_SPAN, H_A, H_B, H_BODY, H_P
 from test.resources import Resources
 from py4ami.pyamix import PyAMI
-from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
 
 # class PDFTest:
 
@@ -244,10 +244,20 @@ class PDFTest(unittest.TestCase):
         PyAMI().run_command(args)
 
     def test_make_spans_from_charstream(self):
-        assert PMC1421.exists(), f"{PMC1421} should exist"
+        root = "pmc1421"
+        root = "chap6"
+        page_no = 0
+        page_no = 3
+        output_root = root
+        if root == "pmc1421":
+            input_pdf = PMC1421
 
-        with pdfplumber.open(PMC1421) as pdf:
-            page0 = pdf.pages[0]
+        elif root == "chap6":
+            input_pdf = Path(IPCC_CHAP6_PDF)
+        assert input_pdf.exists(), f"{input_pdf} should exist"
+
+        with pdfplumber.open(input_pdf) as pdf:
+            page0 = pdf.pages[page_no]
             print(f"crop: {page0.cropbox} media {page0.mediabox}, bbox {page0.bbox}")
             print(f"rotation: {page0.rotation} doctop {page0.initial_doctop}")
             print(f"width {page0.width} height {page0.height}")
@@ -299,12 +309,18 @@ class PDFTest(unittest.TestCase):
                 last_span = span
                 span.create_and_add_to(div)
 
+        for ch in page0.chars[:60000]:
+            col = ch.get('non_stroking_color')
+            if col:
+                print(f"txt {ch.get('text')} : col {col}")
+            if ch.get("size") > 20:
+                print(f"LARGE {ch}")
         path = Path(Resources.TEMP_DIR, "pdf")
         if not path.exists():
             print(f"output {path}")
             path.mkdir()
         print(f"div {lxml.etree.tostring(div, encoding='UTF-8')}")
-        with open(Path(path, "span1421.html"), "wb") as f:
+        with open(Path(path, f"{output_root}_{page_no}.html"), "wb") as f:
             f.write(lxml.etree.tostring(top_div))
 
 
@@ -755,7 +771,10 @@ LTPage
 def main(argv=None):
     print(f"running PDFArgs main")
     pdf_args = PDFArgs()
-    pdf_args.process1_args()
+    try:
+        pdf_args.process1_args()
+    except Exception as e:
+        print(f"***Cannot run pyami***; see output for errors: {e}")
 
 
 if __name__ == "__main__":

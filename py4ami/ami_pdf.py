@@ -10,6 +10,7 @@ from typing import Container
 from io import BytesIO, StringIO
 import sys
 import re
+import traceback
 from collections import Counter
 import numpy as np
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
@@ -606,7 +607,13 @@ class PDFArgs:
             outdir = self.arg_dict.get(OUTDIR)
             outstem = self.arg_dict.get(OUTSTEM)
             flow = self.arg_dict.get(FLOW) is not None
-            self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
+            if not inpath:
+                print(f"input file not given")
+            else:
+                inpath = Path(inpath)
+                if not inpath.exists():
+                    raise FileNotFoundError(f"input file does not exist: ({inpath}")
+                self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
 
     def create_arg_dict(self):
         print(f"PARSED_ARGS {self.parsed_args}")
@@ -661,8 +668,13 @@ class PDFArgs:
         """
         """from pdfminer/pdfplumber"""
         device, interpreter, retstr = PDFArgs.create_interpreter(fmt)
+        if not path:
+            raise FileNotFoundError("no input file given)")
+        try:
+            fp = open(path, "rb")
+        except FileNotFoundError as fnfe:
+            raise Exception(f"No input file given {fnfe}")
 
-        fp = open(path, "rb")
         print(f"maxpages: {maxpages}")
         for page in PDFPage.get_pages(
                 fp,
@@ -748,8 +760,9 @@ class PDFArgs:
             maxpage = int(maxp) if maxp else maxpage
             outd = self.arg_dict.get(OUTDIR)
             outdir = outd if outd else outdir
-            outs = self.arg_dict.get(OUTSTEM)
-            outdir = outs if outs else outstem
+            if not outdir:
+                outs = self.arg_dict.get(OUTSTEM)
+                outdir = outs if outs else outstem
             inp = self.arg_dict.get(INPATH)
             inpath = inp if inp else inpath
             if fm := self.arg_dict.get(OUTFORM):
@@ -767,6 +780,11 @@ class PDFArgs:
         if fmt == "html.flow":
             fmt = "html"
             flow = True
+        if not inpath:
+            raise ValueError(f"no input file given")
+        inpath = Path(inpath)
+        if not inpath.exists():
+            raise FileNotFoundError(f"input file does not exist: ({inpath})")
         result = PDFArgs.convert_pdf(path=inpath, fmt=fmt, maxpages=maxpage)
 
         if flow:
@@ -804,8 +822,9 @@ class PDFArgs:
             indir = Path(inpath).parent
             outdir = indir
             print(f"no outdir given, taking input {indir}")
+        if not outstem:
             outstem = Path(inpath).stem
-            outfile = Path(outdir, f"{outstem}.{fmt}")
+        outfile = Path(outdir, f"{outstem}.{fmt}")
         print(f"outfile {outfile}")
         with open(str(outfile), "w") as f:
             f.write(result)
@@ -1514,3 +1533,24 @@ class SvgText:
             return float(attval)
         except Exception as e:
             pass
+
+def main(argv=None):
+    """entry point for PDF conversiom
+    typical:
+    python -m py4ami.ami_pdf \
+        --inpath /Users/pm286/workspace/pyami/test/resources/ipcc/Chapter06/fulltext.pdf \
+        --outdir /Users/pm286/workspace/pyami/temp/pdf/chap6/
+    """
+    print(f"running PDFArgs main")
+    pdf_args = PDFArgs()
+    try:
+        pdf_args.process1_args()
+    except Exception as e:
+        print(traceback.format_exc())
+        print(f"***Cannot run pyami***; see output for errors: {e} ")
+
+
+if __name__ == "__main__":
+    main()
+else:
+    pass

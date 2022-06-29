@@ -280,6 +280,7 @@ class HtmlTree:
                                                        section_rec=rec, class_dict=class_dict)
         print(f"d_divs {len(decimal_divs)}")
         if output_dir:
+            output_dir = Path(output_dir)
             if not output_dir.exists():
                 output_dir.mkdir()
             for i, child_div in enumerate(decimal_divs):
