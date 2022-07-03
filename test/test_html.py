@@ -192,9 +192,9 @@ class TestHtml(unittest.TestCase):
         assert match.group(2) == "bracketed"
         assert match.group(3) == " string postfix"
 
-        pref_span = HtmlUtil.add_sibling_after(H_SPAN, span, replace=True, copy_atts=True, text=match.group(1))
-        target_span = HtmlUtil.add_sibling_after(H_SPAN, pref_span, copy_atts=True, text=match.group(2))
-        post_span = HtmlUtil.add_sibling_after(H_SPAN, target_span, text=match.group(3))
+        pref_span = HtmlUtil.add_sibling_after(span, H_SPAN, replace=True, copy_atts=True, text=match.group(1))
+        target_span = HtmlUtil.add_sibling_after(pref_span, H_SPAN, copy_atts=True, text=match.group(2))
+        post_span = HtmlUtil.add_sibling_after(target_span, H_SPAN, text=match.group(3))
 
         assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
                "<div><span class=\"foo\">prefix the </span><span class=\"foo\">bracketed</span><span> string postfix</span></div>"
@@ -279,6 +279,39 @@ class TestHtml(unittest.TestCase):
                            ' and assuming plants currently under construction come online as scheduled, '
                            'but those in planning or permitting stages are not built. ', 'Cui et al. 2019']
 
+    def test_add_href_annotation(self):
+        """Add Href for annotated word"""
+        s = f"We believe the GHG emissions are huge"
+        rec = re.compile(r"(.*?)(\bGHG\b)(.*)")
+        match = rec.search(s)
+        assert match and len(match.groups()) == 3
+        assert match.group(1) == "We believe the "
+        assert match.group(2) == "GHG"
+        assert match.group(3) == " emissions are huge"
 
+    def test_add_href_annotation_in_span(self):
+        """Add Href for annotated word"""
+        s = f"We believe the GHG emissions are huge"
+        div, span = HtmlUtil.create_div_span(s, style={"font-size: 12pt; font-weight: bold"})
+        re_compile = re.compile(r"(.*?)(\bGHG\b)(.*)")
+        HtmlUtil.split_span_at_match(span, re_compile, new_tags=["b", "a", "i"],
+                                     recurse=False, id_root="ss", id_counter=0)
+        assert len(div.getchildren()) == 3
+        print(f"{lxml.etree.tostring(div)}")
+        bb = b'<div><b style="font-size: 12; font-weight: bold;" class="re_pref"' \
+             b' id="ss0">We believe the </b><a style="font-size: 12; font-weight: bold;"' \
+             b' class="re_match" id="ss1">GHG</a><i style="font-size: 12; font-weight: bold;"' \
+             b' class="re_post" id="ss2"> emissions are huge</i></div>'
+        assert lxml.etree.tostring(div) == bb
+        a_elem = div.xpath("./a")[0]
+        a_elem.attrib["href"] = "https://wikidata.org/wiki/Q167336"
+        test_dir = Path(Resources.TEMP_DIR, "html")
+        if not test_dir.exists():
+            test_dir.mkdir()
+        with open(str(Path(test_dir, "add_href.html")), "wb") as f:
+            f.write(lxml.etree.tostring(div))
+
+    def test_markup_chapter_with_dictiomary(self):
+        pass
     # ========================================
 

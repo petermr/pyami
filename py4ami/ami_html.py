@@ -81,38 +81,45 @@ class HtmlUtil:
     MARKER = "marker"
 
     @classmethod
-    def split_span_at_match(cls, span, re_compile, copy_atts=True, recurse=True, id_root=None, id_counter=0):
-        """splits a span into 3 components by regex match
-        :param span: span to split
-        :param re_compile: compiled regex to split span
-        :param copy_atts: if True copy atts from span
-        :param recurse: if True rests span to trailing span and reanlyses until no more match
+    def split_span_at_match(cls, elemx, re_compile, copy_atts=True, recurse=True, id_root=None, id_counter=0,
+                            new_tags=[H_SPAN, H_SPAN, H_SPAN]):
+        """splits an elem (normally span) into 3 components by regex match
+        :param elemx: elem to split (normally has a parent (e.g. div)
+        :param re_compile: compiled regex to split elem (of form (pre)(match)(post)
+        :param copy_atts: if True copy atts from elem
+        :param recurse: if True, resets elem to trailing elem and reanlyses until no more match
         :param id_root: auto-generate ids building on id_root
         :param id_counter: counter for ids
-        :return: list of 3 spans; if spans[2] is not None it's available for recursion)
+        :param new_tags: new_element tags (default span, span, span)
+        :return: list of 3 elems; if new_elems[2] is not None it's available for recursion)
         """
-        assert span is not None and span.text
-        match = re_compile.match(span.text)
-        spans = [None, None, None]
+        assert elemx is not None
+        textx = ''.join(elemx.itertext())
+        match = re_compile.match(textx)
+        new_elems = [None, None, None]
         if match:
             assert len(match.groups()) == 3  # some may be empty strings
-            if match.group(1) != "":  # don't add empty string
-                span = HtmlUtil.add_sibling_after(H_SPAN, span, replace=True, copy_atts=copy_atts, text=match.group(1))
-                spans[0] = span
-                spans[0].attrib["class"] = "re_pref"
-                id_counter = cls.add_id_increment_counter(id_counter, id_root, span)
-            spans[1] = HtmlUtil.add_sibling_after(H_SPAN, span, copy_atts=copy_atts, text=match.group(2))
-            spans[1].attrib["class"] = "re_match"
-            id_counter = cls.add_id_increment_counter(id_counter, id_root, spans[1])
+            group1 = match.group(1)
+            if group1 != "":  # don't add empty string
+                elemx = HtmlUtil.add_sibling_after(elemx, new_tags[0], replace=True, copy_atts=copy_atts,
+                                                   text=group1)
+                new_elems[0] = elemx
+                new_elems[0].attrib["class"] = "re_pref"
+                id_counter = cls.add_id_increment_counter(id_counter, id_root, elemx)
+            new_elems[1] = HtmlUtil.add_sibling_after(elemx, new_tags[1], copy_atts=copy_atts, text=match.group(2))
+            new_elems[1].attrib["class"] = "re_match"
+            id_counter = cls.add_id_increment_counter(id_counter, id_root, new_elems[1])
             if match.group(3) != "":  # don't add empty string
-                spans[2] = HtmlUtil.add_sibling_after(H_SPAN, spans[1], copy_atts=copy_atts, text=match.group(3))
-                spans[2].attrib["class"] = "re_post"
-                id_counter = cls.add_id_increment_counter(id_counter, id_root, spans[2])
+                new_elems[2] = HtmlUtil.add_sibling_after(new_elems[1], new_tags[2], copy_atts=copy_atts,
+                                                          text=match.group(3))
+                new_elems[2].attrib["class"] = "re_post"
+
+                id_counter = cls.add_id_increment_counter(id_counter, id_root, new_elems[2])
                 if recurse:
-                    _, id_counter = HtmlUtil.split_span_at_match(spans[2], re_compile, copy_atts=copy_atts,
+                    _, id_counter = HtmlUtil.split_span_at_match(new_elems[2], re_compile, copy_atts=copy_atts,
                                                                  recurse=recurse, id_root=id_root,
                                                                  id_counter=id_counter)
-        return spans, id_counter
+        return new_elems, id_counter
 
     @classmethod
     def add_id_increment_counter(cls, id_counter, id_root, html_elem):
@@ -122,7 +129,7 @@ class HtmlUtil:
         return id_counter
 
     @classmethod
-    def add_sibling_after(cls, tag, anchor_elem, replace=False, copy_atts=False, text=None):
+    def add_sibling_after(cls, anchor_elem, tag, replace=False, copy_atts=False, text=None):
         """adds new trailing sibling of anchor_elem with tag
         :param tag: tag for new elements
         :param anchor_elem: reference element, must have a parent
