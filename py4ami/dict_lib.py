@@ -1,5 +1,6 @@
 from lxml import etree as ET
 from lxml import etree
+import lxml
 import urllib.request
 import datetime
 import psutil
@@ -17,6 +18,8 @@ from urllib.error import URLError
 from py4ami.wikimedia import WikidataLookup, WikidataPage
 from py4ami.util import Util
 from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
+from py4ami.ami_html import HtmlUtil, CSSStyle
+
 
 logging.debug("loading dict_lib")
 
@@ -338,6 +341,28 @@ class AmiDictionary:
     @classmethod
     def get_wikidata_id(cls, entry):
         return entry.get(WIKIDATA_ID)
+
+    def markup_html_from_dictionary(self, background_value, output_path, target_path):
+        term_set = self.get_or_create_term_set()
+        rec = re.compile(f"(.*?)({'|'.join(term_set)})(.*)")
+        chap_elem = lxml.etree.parse(target_path)
+        div_spans = chap_elem.xpath(".//div/span")
+        for span in div_spans:
+            text = span.text
+            HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
+                                         recurse=True, id_root="ss", id_counter=0)
+        for a_elem in chap_elem.xpath(".//a"):
+            text = a_elem.text
+            entry = self.get_entry(text, ignorecase=True)
+            if entry is not None:
+                href = entry.attrib["wikidataID"]
+                CSSStyle.add_name_value(a_elem, "background-color", background_value)
+                if href:
+                    a_elem.attrib["href"] = WIKIDATA_SITE + href
+                    a_elem.attrib["title"] = entry.attrib["name"]
+        with open(str(output_path), "wb") as f:
+            f.write(lxml.etree.tostring(chap_elem))
+
 
 
 class AmiDictionaries:

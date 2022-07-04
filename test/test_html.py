@@ -319,43 +319,12 @@ class TestHtml(unittest.TestCase):
         assert dictionary_file.exists(), f"file should exist {dictionary_file}"
         ami_dict = AmiDictionary(dictionary_file)
         ami_dict.ignorecase = False
-        term_set = ami_dict.get_or_create_term_set()
-        print(f"terms {term_set}")
-        rec = f"(.*?)({'|'.join(term_set)})(.*)"
-        print(f"regex {rec}")
-        rec = re.compile(rec)
-
-
-        chap_elem = lxml.etree.parse(Path(Resources.IPCC_CHAP06, "fulltext.flow.html"))
-        div_spans = chap_elem.xpath(".//div/span")
-        assert len(div_spans) == 190
-
-        print(f"rec {rec}")
-        for span in div_spans:
-            text = span.text
-            # print(f"text {text}")
-            HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
-                                     recurse=True, id_root="ss", id_counter=0)
-
-        for a_elem in chap_elem.xpath(".//a"):
-            text = a_elem.text
-            print(f"text... {text}")
-            entry = ami_dict.get_entry(text, ignorecase=True)
-            if entry is not None:
-                href = entry.attrib["wikidataID"]
-                name = "background-color"
-                value = "pink"
-                CSSStyle.add_name_value(a_elem, name, value)
-                if href:
-                    a_elem.attrib["href"] = WIKIDATA_SITE + href
-                    a_elem.attrib["title"] = entry.attrib["name"]
-
-        test_dir = Path(Resources.TEMP_DIR, "html")
-        if not test_dir.exists():
-            test_dir.mkdir()
-        with open(str(Path(test_dir, "chap6_index.html")), "wb") as f:
-            f.write(lxml.etree.tostring(chap_elem))
-
+        target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        output_dir = Path(Resources.TEMP_DIR, "html")
+        if not output_dir.exists():
+            output_dir.mkdir()
+        output_path = Path(output_dir, "chap6_index.html")
+        ami_dict.markup_html_from_dictionary("pink", output_path, target_path)
 
     # ========================================
 
