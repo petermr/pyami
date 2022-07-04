@@ -1,0 +1,58 @@
+<dictionary title="abbrev_as">
+  <entry term="APC" name="and Developing Pacific" count="2" wikidataID=""></entry>
+  <entry term="ATB" name="Annual Technoloy Baseline" count="2" wikidataID=""></entry>
+  <entry term="ATR" name="auto-thermal reforming" count="1" wikidataID=""></entry>
+  <entry term="BECCS" name="be produced through biomass gasification with CCS" count="33" wikidataID=""></entry>
+  <entry term="BEVs" name="battery electric vehicles" count="2" wikidataID=""></entry>
+  <entry term="CCS" name="carbon capture and storage" count="127" wikidataID="Q41491"></entry>
+  <entry term="CDR" name="carbon dioxide removal" count="48" wikidataID="Q56298528"></entry>
+  <entry term="CDU" name="carbon dioxide utilisation" count="1" wikidataID=""></entry>
+  <entry term="CIGS" name="copper indium gallium diselenide" count="1" wikidataID=""></entry>
+  <entry term="CROI" name="carbon return on investment" count="1" wikidataID=""></entry>
+  <entry term="CSP" name="Concentrating solar power" count="20" wikidataID=""></entry>
+  <entry term="DACCS" name="direct air carbon capture and storage" count="7" wikidataID=""></entry>
+  <entry term="DALYs" name="disability adjusted life years" count="1" wikidataID=""></entry>
+  <entry term="DDPP" name="Deep Decarbonization Pathways Project" count="1" wikidataID=""></entry>
+  <entry term="DEV" name="Developed Countries" count="2" wikidataID="Q132453"></entry>
+  <entry term="EPCC" name="European Perceptions of Climate Change" count="3" wikidataID=""></entry>
+  <entry term="EROI" name="energy return of investment" count="13" wikidataID=""></entry>
+  <entry term="ETS" name="emission trading schemes" count="9" wikidataID=""></entry>
+  <entry term="EVER" name="Ecological Vehicles and Renewable Energies" count="1" wikidataID=""></entry>
+  <entry term="EVs" name="electric vehicles" count="4" wikidataID="Q13629441"></entry>
+  <entry term="FIT" name="feed-in-tariff" count="3" wikidataID="Q279637"></entry>
+  <entry term="HDI" name="human development index" count="1" wikidataID="Q38994"></entry>
+  <entry term="HTL" name="hydrothermal liquefaction" count="2" wikidataID="Q16878117"></entry>
+  <entry term="HWACT" name="half-wave AC transmission" count="2" wikidataID=""></entry>
+  <entry term="ICCEP" name="International Conference on Clean Electrical Power" count="1" wikidataID=""></entry>
+  <entry term="IEA" name="International Energy Agency" count="87" wikidataID="Q826700"></entry>
+  <entry term="IoT" name="Internet of Things" count="1" wikidataID="Q251212"></entry>
+  <entry term="KEBA" name="Kinetic Energy Budget of the Atmosphere" count="1" wikidataID=""></entry>
+  <entry term="LABs" name="lead-acid batteries" count="2" wikidataID=""></entry>
+  <entry term="LAM" name="Latin America &amp; Caribbean" count="2" wikidataID=""></entry>
+  <entry term="LCA" name="life-cycle analysis" count="7" wikidataID="Q581950"></entry>
+  <entry term="LCOE" name="Levelized costs of electricity" count="17" wikidataID=""></entry>
+  <entry term="LDVs" name="light-duty vehicles" count="2" wikidataID=""></entry>
+  <entry term="LFAC" name="low-frequency AC transmission" count="3" wikidataID=""></entry>
+  <entry term="LIBs" name="LIBs (yellow background" count="16" wikidataID=""></entry>
+  <entry term="LNG" name="liquefied natural gas" count="3" wikidataID="Q358333"></entry>
+  <entry term="LOHC" name="Liquid-Organic Hydrogen Carrier" count="2" wikidataID=""></entry>
+  <entry term="LOHCs" name="liquid organic hydrogen carriers" count="5" wikidataID="Q18624145"></entry>
+  <entry term="LPG" name="liquefied petroleum gas" count="18" wikidataID="Q351609"></entry>
+  <entry term="LTO" name="•Long-term operation" count="1" wikidataID=""></entry>
+  <entry term="MMV" name="Measurement, Monitoring and Verification" count="1" wikidataID=""></entry>
+  <entry term="MTES" name="Motivation Toward the Environment Scale" count="1" wikidataID=""></entry>
+  <entry term="OLEDs" name="organic light emitting diodes" count="1" wikidataID=""></entry>
+  <entry term="OTEC" name="ocean thermal energy conversion" count="1" wikidataID="Q1125947"></entry>
+  <entry term="PERC" name="passivated emitter and rear cell" count="2" wikidataID=""></entry>
+  <entry term="PRIS" name="Power Reactor Information System" count="3" wikidataID="Q72743160"></entry>
+  <entry term="PTES" name="Pumped Thermal Energy Storage" count="1" wikidataID=""></entry>
+  <entry term="PtL" name="Power-to-Liquids" count="1" wikidataID=""></entry>
+  <entry term="PVSC" name="Photovoltaic Specialist Conference" count="1" wikidataID=""></entry>
+  <entry term="RHFCs" name="Reversible hydrogen fuel cells" count="1" wikidataID=""></entry>
+  <entry term="SDGs" name="sustainable development goals" count="10" wikidataID="Q7649586"></entry>
+  <entry term="SMR" name="steam methane reforming" count="8" wikidataID=""></entry>
+  <entry term="SMRs" name="Small Modular Reactors" count="3" wikidataID=""></entry>
+  <entry term="TFC" name="total final energy consumption" count="12" wikidataID=""></entry>
+  <entry term="TPES" name="total primary energy supply" count="8" wikidataID=""></entry>
+  <entry term="VRE" name="Variable Renewable Energy" count="21" wikidataID="Q7915732"></entry>
+</dictionary>

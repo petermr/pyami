@@ -492,6 +492,16 @@ class CSSStyle:
     def width(self):
         return self.get_numeric_attval(CSSStyle.WIDTH)
 
+    @classmethod
+    def add_name_value(cls, elem, css_name, css_value):
+        """updates style on element
+        :param css_name: name of property
+        :param css_value: value of property
+        """
+        css_style = cls.create_css_style(elem)
+        css_style.name_value_dict[css_name] = css_value
+        css_style.apply_to(elem)
+
     def get_numeric_attval(self, name):
         value = self.attval(name)
         if not value:

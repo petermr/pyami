@@ -74,7 +74,8 @@ class AmiDictionary:
             if not os.path.exists(xml_file):
                 raise IOError("cannot find path " + str(xml_file))
             self.read_dictionary_from_xml_file(xml_file)
-            self.name = xml_file.split("/")[-1:][0].split(".")[0]
+            name = Path(xml_file).stem
+            print(f"name {name}")
         elif name is None:
             print("must have name for new dictionary")
         else:
@@ -218,10 +219,25 @@ class AmiDictionary:
                         matched.append(term)
         return matched
 
-    def get_entry(self, term):
+    def get_entry(self, termx, ignorecase=True):
+        """get entry if term attribute == term (case may matter
+        :param termx: term to search for
+        :param ignorecase: if true searches for any case variant
+        :return: the entry or None
+
+        all terms are keyed as lowercase in dictionary and case is checked if there
+        is a lowercase match
+
+        """
+        lcase = termx.lower() # all keys are lowercase
         if self.entry_by_term is None:
             self.create_entry_by_term()
-        entry = self.entry_by_term[term] if term in self.entry_by_term else None
+        print(f"terms {self.entry_by_term.keys()}")
+        entry = self.entry_by_term[lcase] if lcase in self.entry_by_term else None
+        # if case-sensitive check whether term was different case
+        if entry is not None and not ignorecase and lcase != termx:
+            entry = None
+        print(f"entry {entry}")
         if entry is None:
             self.logger.debug(
                 "entry by term", self.entry_by_term)  # very large

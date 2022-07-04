@@ -7,9 +7,11 @@ from collections import Counter
 
 # local
 from test.resources import Resources
-from py4ami.ami_html import AmiHtml,HtmlUtil, H_A, H_BODY, H_DIV, H_SPAN
+from py4ami.ami_html import AmiHtml,HtmlUtil, H_A, H_BODY, H_DIV, H_SPAN, CSSStyle
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.util import Util
+from py4ami.dict_lib import AmiDictionary
+from py4ami.wikimedia import WIKIDATA_SITE
 
 
 
@@ -312,6 +314,48 @@ class TestHtml(unittest.TestCase):
             f.write(lxml.etree.tostring(div))
 
     def test_markup_chapter_with_dictiomary(self):
-        pass
+        """read dictionary file and index a set of spans"""
+        dictionary_file = Path(Resources.IPCC_CHAP06, "abbrev_as.xml")
+        assert dictionary_file.exists(), f"file should exist {dictionary_file}"
+        ami_dict = AmiDictionary(dictionary_file)
+        ami_dict.ignorecase = False
+        term_set = ami_dict.get_or_create_term_set()
+        print(f"terms {term_set}")
+        rec = f"(.*?)({'|'.join(term_set)})(.*)"
+        print(f"regex {rec}")
+        rec = re.compile(rec)
+
+
+        chap_elem = lxml.etree.parse(Path(Resources.IPCC_CHAP06, "fulltext.flow.html"))
+        div_spans = chap_elem.xpath(".//div/span")
+        assert len(div_spans) == 190
+
+        print(f"rec {rec}")
+        for span in div_spans:
+            text = span.text
+            # print(f"text {text}")
+            HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
+                                     recurse=True, id_root="ss", id_counter=0)
+
+        for a_elem in chap_elem.xpath(".//a"):
+            text = a_elem.text
+            print(f"text... {text}")
+            entry = ami_dict.get_entry(text, ignorecase=True)
+            if entry is not None:
+                href = entry.attrib["wikidataID"]
+                name = "background-color"
+                value = "pink"
+                CSSStyle.add_name_value(a_elem, name, value)
+                if href:
+                    a_elem.attrib["href"] = WIKIDATA_SITE + href
+                    a_elem.attrib["title"] = entry.attrib["name"]
+
+        test_dir = Path(Resources.TEMP_DIR, "html")
+        if not test_dir.exists():
+            test_dir.mkdir()
+        with open(str(Path(test_dir, "chap6_index.html")), "wb") as f:
+            f.write(lxml.etree.tostring(chap_elem))
+
+
     # ========================================
 
