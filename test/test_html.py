@@ -47,7 +47,8 @@ class TestHtml(unittest.TestCase):
     def test_find_single_brackets_in_span(self):
         html_span = lxml.etree.fromstring(self.html_single_ref)
         text = html_span.text
-        match = Util.SINGLE_BRACKET_REC.match(text)
+        rec = re.compile(Util.SINGLE_BRACKET_RE)
+        match = rec.match(text)
         assert match
         assert len(match.groups()) == 3
         assert match.group(
@@ -89,9 +90,10 @@ class TestHtml(unittest.TestCase):
         chap444_elem = lxml.etree.parse(str(chap444))
         div_spans = chap444_elem.xpath(".//div[span]")
         bodylist = []
+        rec = re.compile(Util.SINGLE_BRACKET_RE)
         for div in div_spans:
             for span in div.xpath("./span"):
-                match = Util.SINGLE_BRACKET_REC.match(span.text)
+                match = rec.match(span.text)
                 if match:
                     body = match.group('body')
                     bodylist.append(body)
@@ -104,9 +106,10 @@ class TestHtml(unittest.TestCase):
         chap444_elem = lxml.etree.parse(str(chap444))
         div_spans = chap444_elem.xpath(".//div[span]")
         total_bibliorefs = []
+        rec = re.compile(Util.SINGLE_BRACKET_RE)
         for div in div_spans:
             for span in div.xpath("./span"):
-                match = Util.SINGLE_BRACKET_REC.match(span.text)
+                match = rec.match(span.text)
                 if match:
                     body = match.group('body')
                     bibliorefs = Biblioref.create_refs_from_biblioref_string(body)
@@ -186,7 +189,7 @@ class TestHtml(unittest.TestCase):
                "<div><span class=\"foo\">prefix the (bracketed) string postfix</span></div>"
         span = div_elem.xpath("./span")[0]
         text = span.text
-        match = Util.SINGLE_BRACKET_REC.match(text)
+        match = re.compile(Util.SINGLE_BRACKET_RE).match(text)
         assert match
         assert len(match.groups()) == 3
         assert match.group(0) == "prefix the (bracketed) string postfix"
@@ -202,12 +205,13 @@ class TestHtml(unittest.TestCase):
                "<div><span class=\"foo\">prefix the </span><span class=\"foo\">bracketed</span><span> string postfix</span></div>"
 
     def test_split_matched_string_in_span(self):
-        """split string in span into 3 using regex"""
+        """split string in span into 3 using regex
+        Tests: HtmlUtil.split_span_at_match"""
         div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed) string postfix</span></div>")
         span = div_elem.xpath("./span")[0]
 
-        re_compile = Util.SINGLE_BRACKET_REC
-        spans,_ = HtmlUtil.split_span_at_match(span, re_compile)
+        regex = Util.SINGLE_BRACKET_RE
+        spans,_ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is not None
         assert spans[1] is not None
         assert spans[2] is not None
@@ -218,7 +222,7 @@ class TestHtml(unittest.TestCase):
         # no leading string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed) string postfix</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans,_ = HtmlUtil.split_span_at_match(span, re_compile)
+        spans,_ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is None
         assert spans[1] is not None
         assert spans[2] is not None
@@ -226,7 +230,7 @@ class TestHtml(unittest.TestCase):
         # no trailing string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed)</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans,_ = HtmlUtil.split_span_at_match(span, re_compile)
+        spans,_ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is not None
         assert spans[1] is not None
         assert spans[2] is None
@@ -234,25 +238,27 @@ class TestHtml(unittest.TestCase):
         # no leading or trailing string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed)</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans,_ = HtmlUtil.split_span_at_match(span, re_compile)
+        spans,_ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is None
         assert spans[1] is not None
         assert spans[2] is None
 
 
     def test_split_matched_string_in_span_recursively(self):
-        """split string in span into 2n+1 using regex"""
+        """split string in span into 2n+1 using regex
+        Tests: HtmlUtil.split_span_at_match"""
         div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed) and more (brackets) string postfix </span></div>")
         span = div_elem.xpath("./span")[0]
 
-        re_compile = Util.SINGLE_BRACKET_REC
-        HtmlUtil.split_span_at_match(span, re_compile, recurse=True)
+        regex = Util.SINGLE_BRACKET_RE
+        HtmlUtil.split_span_at_match(span, regex, recurse=True)
 
         assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
                """<div><span class="re_pref">prefix the </span><span class="re_match">bracketed</span><span class="re_pref"> and more </span><span class="re_match">brackets</span><span class="re_post"> string postfix </span></div>"""
 
     def test_split_caption_at_bracketed_panel_refs(self):
-        """split at text (a) more (b) etc"""
+        """split at text (a) more (b) etc
+        Test recursive splitting through HtmlUtil.split_span_at_match"""
         s = f"Box 6.2 Figure 1 Retirement of coal-fired power plants to limit warming to 1.5°C and" \
             f" likely 2°C. (a) Historical facility age at retirement (b) the vintage year of existing" \
             f" units, (c) global coal capacity under different plant lifetimes, compared to capacity" \
@@ -261,13 +267,10 @@ class TestHtml(unittest.TestCase):
             f" but those in planning or permitting stages are not built. (Cui et al. 2019)"
 
         div, span = HtmlUtil.create_div_span(s, style={"font-size: 12pt; font-weight: bold"})
-        print(f"span: {lxml.etree.tostring(span)}")
         assert len(div.getchildren()) == 1
-        re_compile = Util.SINGLE_BRACKET_REC
-        HtmlUtil.split_span_at_match(span, re_compile, recurse=True, id_root="ss", id_counter=0)
+        regex = Util.SINGLE_BRACKET_RE
+        HtmlUtil.split_span_at_match(span, regex, recurse=True, id_root="ss", id_counter=0)
         assert len(div.getchildren()) == 14
-        print(f"span: {lxml.etree.tostring(div.getchildren()[1])}")
-        print(f"div {lxml.etree.tostring(div)}")
         phrases = []
 
         for span in div.getchildren():
@@ -292,11 +295,12 @@ class TestHtml(unittest.TestCase):
         assert match.group(3) == " emissions are huge"
 
     def test_add_href_annotation_in_span(self):
-        """Add Href for annotated word"""
+        """Add Href for annotated word
+        Tests HtmlUtil.split_span_at_match"""
         s = f"We believe the GHG emissions are huge"
         div, span = HtmlUtil.create_div_span(s, style={"font-size: 12pt; font-weight: bold"})
-        re_compile = re.compile(r"(.*?)(\bGHG\b)(.*)")
-        HtmlUtil.split_span_at_match(span, re_compile, new_tags=["b", "a", "i"],
+        regex = r"(.*?)(\bGHG\b)(.*)"
+        HtmlUtil.split_span_at_match(span, regex, new_tags=["b", "a", "i"],
                                      recurse=False, id_root="ss", id_counter=0)
         assert len(div.getchildren()) == 3
         print(f"{lxml.etree.tostring(div)}")
@@ -313,8 +317,12 @@ class TestHtml(unittest.TestCase):
         with open(str(Path(test_dir, "add_href.html")), "wb") as f:
             f.write(lxml.etree.tostring(div))
 
-    def test_markup_chapter_with_dictiomary(self):
-        """read dictionary file and index a set of spans"""
+    def test_markup_chapter_with_dictionary_no_css(self):
+        """read dictionary file and index a set of spans
+        Test: ami_dict.markup_html_from_dictionary
+        and add style
+        and write result
+        """
         dictionary_file = Path(Resources.IPCC_CHAP06, "abbrev_as.xml")
         assert dictionary_file.exists(), f"file should exist {dictionary_file}"
         ami_dict = AmiDictionary(dictionary_file)
@@ -324,7 +332,65 @@ class TestHtml(unittest.TestCase):
         if not output_dir.exists():
             output_dir.mkdir()
         output_path = Path(output_dir, "chap6_index.html")
-        ami_dict.markup_html_from_dictionary("pink", output_path, target_path)
+        ami_dict.markup_html_from_dictionary(target_path, output_path, "pink")
+
+    def test_markup_chapter_with_dictionary_css(self):
+        """read dictionary file and index a set of spans
+        Test: ami_dict.markup_html_from_dictionary
+        and add style
+        and write result
+        """
+        ami_dict = AmiDictionary(Path(Resources.IPCC_CHAP06, "abbrev_as.xml"), ignorecase = False)
+        target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        output_dir = Path(Resources.TEMP_DIR, "html")
+        if not output_dir.exists():
+            output_dir.mkdir()
+        output_path = Path(output_dir, "chap6_index.html")
+
+        ami_dict.markup_html_from_dictionary(target_path, output_path, "pink")
+        with open(output_path, "rb") as f:
+            marked_elem = lxml.etree.parse(f)
+        styles = marked_elem.xpath(".//@style")
+        assert len(styles) == 316
+        style_set = set()
+        for style in styles:
+            style_set.add(style)
+
+        assert len(style_set) == 18
+        # for style in style_set:
+        #     print(f"style: {style}")
+
+        sorted_styles = sorted(style_set)
+        assert sorted_styles == ['',
+                                 'font-family: ArialMT; font-size: 10px;',
+                                 'font-family: Calibri-Bold; font-size: 10px;',
+                                 'font-family: Calibri-Bold; font-size: 12px;',
+                                 'font-family: Calibri-Bold; font-size: 13px;',
+                                 'font-family: Calibri; font-size: 10px;',
+                                 'font-family: Calibri; font-size: 10px; background-color: pink;',
+                                 'font-family: TimesNewRomanPS-BoldMT; font-size: 11px;',
+                                 'font-family: TimesNewRomanPS-BoldMT; font-size: 11px; background-color: pink;',
+                                 'font-family: TimesNewRomanPS-BoldMT; font-size: 14px;',
+                                 'font-family: TimesNewRomanPS-BoldMT; font-size: 15px;',
+                                 'font-family: TimesNewRomanPS-BoldMT; font-size: 6px;',
+                                 'font-family: TimesNewRomanPS-BoldMT; font-size: 9px;',
+                                 'font-family: TimesNewRomanPS-ItalicMT; font-size: 11px;',
+                                 'font-family: TimesNewRomanPSMT; font-size: 11px;',
+                                 'font-family: TimesNewRomanPSMT; font-size: 11px; background-color: pink;',
+                                 'font-family: TimesNewRomanPSMT; font-size: 6px;',
+                                 'font-family: TimesNewRomanPSMT; font-size: 9px;'
+                                 ]
+        css_classes = dict()
+        for style in sorted_styles:
+
+            style_s = str(style)
+            css_style = CSSStyle.create_css_style_from_css_string(style_s)
+            if css_style:
+                css_style.extract_bold_italic_from_font_family()
+
+
+
+
 
     # ========================================
 

@@ -81,11 +81,11 @@ class HtmlUtil:
     MARKER = "marker"
 
     @classmethod
-    def split_span_at_match(cls, elemx, re_compile, copy_atts=True, recurse=True, id_root=None, id_counter=0,
+    def split_span_at_match(cls, elemx, regex, copy_atts=True, recurse=True, id_root=None, id_counter=0,
                             new_tags=[H_SPAN, H_SPAN, H_SPAN]):
         """splits an elem (normally span) into 3 components by regex match
         :param elemx: elem to split (normally has a parent (e.g. div)
-        :param re_compile: compiled regex to split elem (of form (pre)(match)(post)
+        :param regex: regex to split elem (of form (pre)(match)(post)
         :param copy_atts: if True copy atts from elem
         :param recurse: if True, resets elem to trailing elem and reanlyses until no more match
         :param id_root: auto-generate ids building on id_root
@@ -95,7 +95,8 @@ class HtmlUtil:
         """
         assert elemx is not None
         textx = ''.join(elemx.itertext())
-        match = re_compile.match(textx)
+        rec = re.compile(regex)
+        match = rec.match(textx)
         new_elems = [None, None, None]
         if match:
             assert len(match.groups()) == 3  # some may be empty strings
@@ -116,7 +117,7 @@ class HtmlUtil:
 
                 id_counter = cls.add_id_increment_counter(id_counter, id_root, new_elems[2])
                 if recurse:
-                    _, id_counter = HtmlUtil.split_span_at_match(new_elems[2], re_compile, copy_atts=copy_atts,
+                    _, id_counter = HtmlUtil.split_span_at_match(new_elems[2], regex, copy_atts=copy_atts,
                                                                  recurse=recurse, id_root=id_root,
                                                                  id_counter=id_counter)
         return new_elems, id_counter
@@ -403,6 +404,9 @@ class CSSStyle:
     TOP = "top"
     WIDTH = "width"
 
+    WEIGHT_RE = "([-.]?Bold|[.][Bb]$)"
+    STYLE_RE = "([-.]?Ital(:?ic)|[-.]?Oblique|[.][Ii]$)"
+
     def __init__(self):
         self.name_value_dict = dict()
 
@@ -589,3 +593,17 @@ class CSSStyle:
     def cmky_to_rgb(cls, c, m, k, y):
         return cls.cmyk_to_rgb(c, m, y, k)
 
+
+    def extract_bold_italic_from_font_family(self, overwrite_bold=False, overwrite_style=False, overwrite_family=True,
+                                             style_regex=STYLE_RE, weight_regex=WEIGHT_RE):
+        """heuristics to find bold and italic in font names and try to normalise
+        e.g.
+        font-family: TimesNewRomanPS-BoldMT; => font-family: TimesNewRomanPSMT; font_weight: bold
+        font-family: TimesNewRomanPS-ItalicMT; => font-family: TimesNewRomanPSMT; font_style: italic
+        the overwrite_* determine whetehr existing components will be overwritten
+        :param overwrite_weight: create font_weight:bold regardless of previous weight
+        :param overwrite_style: create font_style:bold regardless of previous style
+        :param overwrite_family: edit font-family to remove style/weight info (hacky)
+        :param style_regex=
+
+        """

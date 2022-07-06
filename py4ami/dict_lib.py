@@ -55,14 +55,14 @@ class AmiDictionary:
     TERM = "term"
     NOT_FOUND = "NOT_FOUND"
 
-    def __init__(self, xml_file=None, name=None, wikilangs=None, **kwargs):
+    def __init__(self, xml_file=None, name=None, wikilangs=None, ignorecase=True, **kwargs):
         self.logger = logger
         self.amidict = None
         self.entries = []
         self.entry_by_term = {}
         self.entry_by_wikidata_id = {}
         self.file = xml_file
-        self.ignorecase = None
+        self.ignorecase = ignorecase
         self.name = None
         self.root = None
         self.sparql_result_list = None
@@ -235,12 +235,10 @@ class AmiDictionary:
         lcase = termx.lower() # all keys are lowercase
         if self.entry_by_term is None:
             self.create_entry_by_term()
-        print(f"terms {self.entry_by_term.keys()}")
         entry = self.entry_by_term[lcase] if lcase in self.entry_by_term else None
         # if case-sensitive check whether term was different case
         if entry is not None and not ignorecase and lcase != termx:
             entry = None
-        print(f"entry {entry}")
         if entry is None:
             self.logger.debug(
                 "entry by term", self.entry_by_term)  # very large
@@ -342,7 +340,7 @@ class AmiDictionary:
     def get_wikidata_id(cls, entry):
         return entry.get(WIKIDATA_ID)
 
-    def markup_html_from_dictionary(self, background_value, output_path, target_path):
+    def markup_html_from_dictionary(self, target_path, output_path, background_value):
         term_set = self.get_or_create_term_set()
         rec = re.compile(f"(.*?)({'|'.join(term_set)})(.*)")
         chap_elem = lxml.etree.parse(target_path)

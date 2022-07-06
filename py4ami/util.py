@@ -208,7 +208,7 @@ class Util:
                     values.append(row[name])
         return values
 
-    SINGLE_BRACKET_REC = re.compile(r"""
+    SINGLE_BRACKET_RE = re.compile(r"""
                     (?P<pre>[^(]*)
                     [(]
                     (?P<body>

@@ -235,3 +235,19 @@ class TestSearchDictionary:
         wikidata_sparql = WikidataSparql(AmiDictionary(dictionary_file))
         wikidata_sparql.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
+def main(argv=None):
+    print(f"running PDFArgs main")
+    pdf_args = PDFArgs()
+    try:
+        pdf_args.process1_args()
+    except Exception as e:
+        print(f"***Cannot run pyami***; see output for errors: {e}")
+
+
+if __name__ == "__main__":
+    main()
+else:
+    pass
+
+def main():
+    pass

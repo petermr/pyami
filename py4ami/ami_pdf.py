@@ -14,6 +14,7 @@ import sys
 import re
 import traceback
 from collections import Counter
+from abc import abstractmethod
 import numpy as np
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.layout import LAParams
@@ -572,13 +573,42 @@ RESOLUTION = "resolution"
 TEMPLATE = "template"
 
 
-class PDFArgs:
+class AbstractArgs:
+
     def __init__(self):
-        """arg_dict is set to default"""
         self.parser = None
         self.parsed_args = None
-        self.arg_dict = self.create_default_arg_dict()
         self.ref_counter = Counter()
+        self.arg_dict = self.create_default_arg_dict()
+
+    @abstractmethod
+    def create_default_arg_dict(self):
+        pass
+
+    def create_arg_dict(self):
+        print(f"PARSED_ARGS {self.parsed_args}")
+        if not self.parsed_args:
+            return None
+        arg_vars = vars(self.parsed_args)
+        self.arg_dict = dict()
+        for item in arg_vars.items():
+            key = item[0]
+            if item[1] is None:
+                pass
+            elif type(item[1]) is list and len(item[1]) == 1:
+                self.arg_dict[key] = item[1][0]
+            else:
+                self.arg_dict[key] = item[1]
+
+        return self.arg_dict
+
+
+class PDFArgs(AbstractArgs):
+    def __init__(self):
+        """arg_dict is set to default"""
+        super().__init__()
+
+
 
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
@@ -630,23 +660,6 @@ class PDFArgs:
                 if not inpath.exists():
                     raise FileNotFoundError(f"input file does not exist: ({inpath}")
                 self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
-
-    def create_arg_dict(self):
-        print(f"PARSED_ARGS {self.parsed_args}")
-        if not self.parsed_args:
-            return None
-        arg_vars = vars(self.parsed_args)
-        self.arg_dict = dict()
-        for item in arg_vars.items():
-            key = item[0]
-            if item[1] is None:
-                pass
-            elif type(item[1]) is list and len(item[1]) == 1:
-                self.arg_dict[key] = item[1][0]
-            else:
-                self.arg_dict[key] = item[1]
-
-        return self.arg_dict
 
     # class PDFArgs:
     @classmethod
