@@ -36,7 +36,7 @@ class TestSearchDictionary:
     def test_get_property_ids(self):
         """gets properties af a dictionary entry"""
         words = ["limonene"]
-        dictionary = AmiDictionary.create_from_words(words, "test", "created from words", wikilangs=["en", "de"])
+        dictionary = AmiDictionary.create_dictionary_from_words(words, "test", "created from words", wikilangs=["en", "de"])
         dictionary.add_wikidata_from_terms()
         pprint.pprint(ET.tostring(dictionary.root).decode("UTF-8"))
         assert len(dictionary.entries) == 1

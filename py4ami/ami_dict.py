@@ -46,7 +46,16 @@ ANY = "ANY"
 WIKIDATA_HITS = "wikidata_hits"
 WIKIDATA_HIT = "wikidataHit"
 
-INDIR = "indir"
+# commandline
+DELETE = "delete"
+DICT = "dict"
+LANGUAGE = "language"
+METADATA = "metadata"
+REPLACE = "replace"
+SYNONYM = "synonym"
+VALIDATE = "validate"
+WIKIDATA = "wikidata"
+WORDS = "words"
 
 # elements
 
@@ -99,7 +108,7 @@ class AmiDictionary:
         self.split_terms = False
 
     @classmethod
-    def create_from_words(cls, terms, name=None, desc=None, wikilangs=None):
+    def create_dictionary_from_words(cls, terms, name=None, desc=None, wikilangs=None):
         """use raw list of words and lookup each. choosing WD page and using languages """
         if name is None:
             name = "no_name"
@@ -114,6 +123,18 @@ class AmiDictionary:
         return dictionary
 
     @classmethod
+    def create_dictionary_from_wordfile(cls, wordfile=None, name=None, desc=None):
+        if not wordfile:
+            raise ValueError(f"must gove wordfile to create dictionary")
+        with open(wordfile, "r") as f:
+            words = f.readlines()
+        if not name:
+            name = Path(wordfile).stem
+            print(f"creating dictionary title from file stem {name}")
+        dictionary = cls.create_dictionary_from_words(words=words, name=name, desc=desc)
+        return dictionary
+
+    @classmethod
     def create_dictionary_from_wordfile_and_add_wikidata(cls, wordfile=None, name=None, desc=None):
         with open(wordfile, "r") as f:
             words = f.readlines()
@@ -124,7 +145,7 @@ class AmiDictionary:
     @classmethod
     def create_dictionary_from_words_and_add_wikidata(cls, words=None, name=None, desc=None):
         assert desc and name and words
-        dictionary = AmiDictionary.create_from_words(words, name=name, desc=desc, wikilangs=["en", "de"])
+        dictionary = AmiDictionary.create_dictionary_from_words(words, name=name, desc=desc, wikilangs=["en", "de"])
         dictionary.add_wikidata_from_terms()
         pprint.pprint(ET.tostring(dictionary.root).decode("UTF-8"))
         return dictionary
@@ -1266,15 +1287,32 @@ class AmiDictArgs(AbstractArgs):
     def __init__(self):
         """arg_dict is set to default"""
         super().__init__()
+        self.dict = None
+        self.metadata = None
+        self.language = None
+        self.words = None
+        self.delete = None
+        self.replace = None
+        self.synonym = None
+        self.validate = None
+        self.wikidata = None
+        self.wikipedia = None
 
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
 
         """
         self.parser = argparse.ArgumentParser(description='AMI dictionary creation, validation, editing')
-        self.parser.add_argument("--dict", type=str, nargs=1, help="path for dictionary (existing = edit; new = create")
-        self.parser.add_argument("--inwords", type=str, nargs=1, help="path with words to make or edit dictionary")
-        self.parser.add_argument("--validate", type=str, help="validate dictionary")
+        self.parser.add_argument(f"--{DELETE}", type=str, nargs="+", help="list of entries (terms) to delete")
+        self.parser.add_argument(f"--{DICT}", type=str, nargs=1, help="path for dictionary (existing = edit; new = create")
+        self.parser.add_argument(f"--{LANGUAGE}", type=str, nargs="+", help="list of 2-character codes to consider (default = ['en']")
+        self.parser.add_argument(f"--{METADATA}", type=str, nargs="+", help="metadata item/s to add")
+        self.parser.add_argument(f"--{REPLACE}", type=str, help="replace any existing entries/attributes (default preserve)")
+        self.parser.add_argument(f"--{SYNONYM}", type=str, help="add sysnonyms (from Wikidata) for terms")
+        self.parser.add_argument(f"--{VALIDATE}", type=str, nargs="*", help="validate dictionary")
+        self.parser.add_argument(f"--{WIKIDATA}", type=str, nargs="*", help="add WikidataIDs")
+        self.parser.add_argument(f"--{WIKIPEDIA}", type=str, nargs="*", help="add Wikipedia link/s")
+        self.parser.add_argument(f"--{WORDS}", type=str, nargs=1, help="path/file with words to make or edit dictionary")
         return self.parser
 
     # class AmiDictArgs:
@@ -1283,9 +1321,36 @@ class AmiDictArgs(AbstractArgs):
         :return:
         """
 
+        """
+        self.parser.add_argument(f"--dict", type=str, nargs=1, help="path for dictionary (existing = edit; new = create")
+        self.parser.add_argument(f"--metadata", type=str, nargs="+", help="metadata item/s to add")
+        self.parser.add_argument(f"--language", type=str, nargs="+", help="list of 2-character codes to consider (default = ['en']")
+        self.parser.add_argument(f"--words", type=str, nargs=1, help="path/file with words to make or edit dictionary")
+        self.parser.add_argument(f"--delete", type=str, nargs="+", help="list of entries (terms) to delete")
+        self.parser.add_argument(f"--replace", type=str, help="replace any existing entries/attributes (default preserve)")
+        self.parser.add_argument(f"--synonym", type=str, help="add sysnonyms (from Wikidata) for terms")
+        self.parser.add_argument(f"--validate", type=str, nargs="*", help="validate dictionary")
+        self.parser.add_argument(f"--wikidata", type=str, nargs="*", help="add WikidataIDs")
+        self.parser.add_argument(f"--wikipedia", type=str, nargs="*", help="add Wikipedia link/s")
+        """
         if self.arg_dict:
-            indict = self.arg_dict.get(self.INDICT)
-            inwords = self.arg_dict.get(self.INWORDS)
+            self.delete = self.arg_dict.get(DELETE)
+            self.dict = self.arg_dict.get(DICT)
+            self.language = self.arg_dict.get(LANGUAGE)
+            self.metadata = self.arg_dict.get(METADATA)
+            self.replace = self.arg_dict.get(REPLACE)
+            self.synonym = self.arg_dict.get(SYNONYM)
+            self.validate = self.arg_dict.get(VALIDATE)
+            self.wikidata = self.arg_dict.get(WIKIDATA)
+            self.wikipedia = self.arg_dict.get(WIKIPEDIA)
+            self.words = self.arg_dict.get(WORDS)
+
+            if self.dict and self.words:
+                self.build_or_edit_dictionary()
+            if self.wikidata:
+                self.add_wikidata_to_dict()
+            if self.validate:
+                self.validate_dict()
 
     # class AmiDictArgs:
 
@@ -1293,18 +1358,30 @@ class AmiDictArgs(AbstractArgs):
     def create_default_arg_dict(cls):
         """returns a new COPY of the default dictionary"""
         arg_dict = dict()
-        arg_dict[INDIR] = None
+        arg_dict[DICT] = None
+        arg_dict[VALIDATE] = None
+        arg_dict[WIKIDATA] = None
+        arg_dict[WORDS] = None
         return arg_dict
 
     # class AmiDictArgs:
     def process1_args(self):
+        print("")
         self.create_arg_parser()
         if len(sys.argv) == 1:  # no args, print help
             self.parser.print_help()
         else:
+            print(f"args...{sys.argv[1:]}")
             self.parsed_args = self.parser.parse_args(sys.argv[1:])
             self.arg_dict = self.create_arg_dict()
             self.process_args()
+
+    def build_or_edit_dictionary(self):
+        if not self.dict:
+            raise ValueError("No dictionary given")
+        if not self.dict.exists() and self.words:
+            print(f"creating {self.dict} from {self.words}")
+            self.dict = AmiDictionary.create_dictionary_from_words()
 
 
 def main(argv=None):
@@ -1318,17 +1395,24 @@ def main(argv=None):
         print(f"***Cannot run amidict***; see output for errors: {e} ")
 
 
-def process_args():
-    pass
+def test_process_args():
+
     #     tdd = Pyamidict_TDD()
     #     tdd.test_dictionary_exists()
     #     tdd.test_dict_contains_xml_element()
     #     tdd.test_dict_has_root_dictionary()
     #     tdd.test_dict_has_XML_title()
     #     tdd.test_dict_title_matches_filename()
+    sys.argv = ["xxx", "--help"]
+    main()
+    sys.argv = ["xxx", "--validate", "foo"]
+    main()
+    # main(["xxx", "yyy", "--validate"])
+    # main(["xxx", "--plugh"])
+    # main(["xxx", "--help"])
 
 
-process_args()
+test_process_args()
 
 if __name__ == "__main__":
     print("running dict main")
