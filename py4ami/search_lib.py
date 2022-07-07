@@ -21,7 +21,7 @@ from pathlib import Path
 # from py4ami.ami_demos import AmiDemos
 from py4ami.gutil import Gutil, ScrollingCheckboxList
 
-from py4ami.dict_lib import AmiDictionaries
+from py4ami.ami_dict import AmiDictionaries
 from py4ami.projects import AmiProjects
 from py4ami.file_lib import AmiPath, PROJ, FileLib
 from py4ami.text_lib import AmiSection

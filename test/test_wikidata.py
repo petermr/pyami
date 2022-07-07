@@ -8,7 +8,7 @@ from lxml import etree, html
 import requests
 # local
 from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor
-from py4ami.dict_lib import AmiDictionary, WIKIDATA_ID, TERM
+from py4ami.ami_dict import AmiDictionary, WIKIDATA_ID, TERM, AMIDict
 
 """This runs under Pycharm and also
 cd pyami # toplevel checkout
@@ -17,15 +17,15 @@ python3 -m test.test_wikidata
 
 try:
     from py4ami.wikimedia import WikidataLookup
-    from py4ami.dict_lib import AMIDict, AMIDictError, Entry, AmiDictionary
+    from py4ami.ami_dict import AMIDict, AMIDictError, Entry, AmiDictionary
 
-    logging.info(f"loaded py4ami.dict_lib")
+    logging.info(f"loaded py4ami.ami_dict")
 except Exception:
     try:
         from py4ami.wikimedia import WikidataLookup
-        from py4ami.dict_lib import AMIDict, AMIDictError, Entry
+        from py4ami.ami_dict import AMIDict, AMIDictError, Entry
     except Exception as e:
-        logging.error(f"Cannot import from py4ami.dict_lib")
+        logging.error(f"Cannot import from py4ami.ami_dict")
 
 RESOURCES_DIR = Path(Path(__file__).parent.parent, "test", "resources")
 TEMP_DIR = Path(Path(__file__).parent.parent, "temp")

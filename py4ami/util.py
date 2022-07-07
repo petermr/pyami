@@ -7,6 +7,8 @@ import sys
 import csv
 import re
 from enum import Enum
+from abc import ABC, abstractmethod
+from collections import Counter
 
 logger = logging.getLogger("py4ami.util")
 
@@ -217,6 +219,35 @@ class Util:
                     [)]
                     (?P<post>.*)
                     """, re.VERBOSE)  # finds a bracket pair in running text, crude
+
+class AbstractArgs(ABC):
+
+    def __init__(self):
+        self.parser = None
+        self.parsed_args = None
+        self.ref_counter = Counter()
+        self.arg_dict = self.create_default_arg_dict()
+
+    @abstractmethod
+    def create_default_arg_dict(self):
+        pass
+
+    def create_arg_dict(self):
+        print(f"PARSED_ARGS {self.parsed_args}")
+        if not self.parsed_args:
+            return None
+        arg_vars = vars(self.parsed_args)
+        self.arg_dict = dict()
+        for item in arg_vars.items():
+            key = item[0]
+            if item[1] is None:
+                pass
+            elif type(item[1]) is list and len(item[1]) == 1:
+                self.arg_dict[key] = item[1][0]
+            else:
+                self.arg_dict[key] = item[1]
+
+        return self.arg_dict
 
 
 class AmiLogger:

@@ -607,3 +607,23 @@ class CSSStyle:
         :param style_regex=
 
         """
+        family = self.font_family
+        if not family:
+            return
+        family, value1 = self.match_weight_style(family, style_regex, value="I", mark="SS")
+        family, value2 = self.match_weight_style(family, weight_regex, value="B", mark="WW")
+        print(f"{family} {value1} {value2}")
+
+    def match_weight_style(self, family, weight_regex, value=None, mark=None):
+        weight_rec = re.compile(weight_regex) if weight_regex else None
+        match = weight_rec.search(family)
+        if match:
+            value = family[match.start():match.end()]
+            value = value.replace("-", "").replace(".", "")
+            family = family[:match.start()] + family[match.end():]
+        else:
+            value = None
+        return family, value
+
+
+

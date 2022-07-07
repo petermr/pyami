@@ -10,8 +10,7 @@ from test.resources import Resources
 from py4ami.ami_html import AmiHtml,HtmlUtil, H_A, H_BODY, H_DIV, H_SPAN, CSSStyle
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.util import Util
-from py4ami.dict_lib import AmiDictionary
-from py4ami.wikimedia import WIKIDATA_SITE
+from py4ami.ami_dict import AmiDictionary
 
 
 

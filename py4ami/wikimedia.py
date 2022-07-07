@@ -1,12 +1,9 @@
 import logging
 import os
-from shutil import copyfile
 
 from lxml import etree as ET
 
 # local
-
-# from py4ami.dict_lib import AmiDictionary
 
 logging.debug("loading wikimedia.py")
 
@@ -552,36 +549,6 @@ class WikidataSparql:
                 if wikidata_id not in self.sparql_result_by_wikidata_id:
                     self.sparql_result_by_wikidata_id[wikidata_id] = []
                 self.sparql_result_by_wikidata_id[wikidata_id].append(result)
-
-# WikidataSparql
-    @classmethod
-    def apply_dicts_and_sparql(cls, dictionary_file, rename_file, sparql2amidict_dict, sparql_files):
-        """TODO this is a mess"""
-        keystring = ""
-        # svae original path
-        original_name = dictionary_file
-        dictionary_root = os.path.splitext(dictionary_file)[0]
-        save_file = dictionary_root + ".xml.save"
-        copyfile(dictionary_file, save_file)
-        for key in sparql2amidict_dict.keys():
-            sparq2dict = sparql2amidict_dict[key]
-            keystring += f"_{key}"
-            for i, sparql_file in enumerate(sparql_files):
-                dictionary_file = cls.create_and_write_dictionary(dictionary_file, dictionary_root, i, keystring,
-                                                                  sparq2dict, sparql_file)
-        if rename_file:
-            copyfile(dictionary_file, original_name)
-
-    @classmethod
-    def create_and_write_dictionary(cls, dictionary_file, dictionary_root, i, keystring, sparq2dict, sparql_file):
-        from py4ami.dict_lib import AmiDictionary
-        assert (os.path.exists(sparql_file))
-        dictionary = AmiDictionary(dictionary_file)
-        wikidata_sparql = WikidataSparql(dictionary)
-        wikidata_sparql.update_from_sparql(sparql_file, sparq2dict)
-        dictionary_file = f"{dictionary_root}{keystring}_{i + 1}.xml"
-        dictionary.write(dictionary_file)
-        return dictionary_file
 
     # WikidataSparql
 

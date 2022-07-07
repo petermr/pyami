@@ -14,7 +14,7 @@ import sys
 import re
 import traceback
 from collections import Counter
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 import numpy as np
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.layout import LAParams
@@ -28,7 +28,7 @@ from sklearn.linear_model import LinearRegression
 
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
-from py4ami.util import Util
+from py4ami.util import Util, AbstractArgs
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES
@@ -573,34 +573,6 @@ RESOLUTION = "resolution"
 TEMPLATE = "template"
 
 
-class AbstractArgs:
-
-    def __init__(self):
-        self.parser = None
-        self.parsed_args = None
-        self.ref_counter = Counter()
-        self.arg_dict = self.create_default_arg_dict()
-
-    @abstractmethod
-    def create_default_arg_dict(self):
-        pass
-
-    def create_arg_dict(self):
-        print(f"PARSED_ARGS {self.parsed_args}")
-        if not self.parsed_args:
-            return None
-        arg_vars = vars(self.parsed_args)
-        self.arg_dict = dict()
-        for item in arg_vars.items():
-            key = item[0]
-            if item[1] is None:
-                pass
-            elif type(item[1]) is list and len(item[1]) == 1:
-                self.arg_dict[key] = item[1][0]
-            else:
-                self.arg_dict[key] = item[1]
-
-        return self.arg_dict
 
 
 class PDFArgs(AbstractArgs):
