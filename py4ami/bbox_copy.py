@@ -548,6 +548,14 @@ class BBox:
                 new_ami_edges.append(ami_edge)
         return new_ami_edges
 
+    @property
+    def width(self):
+        return self.xy_ranges[0][1] - self.xy_ranges[0][0]
+
+    @property
+    def height(self):
+        return self.xy_ranges[1][1] - self.xy_ranges[1][0]
+
 
 """If you looking for the overlap between two real-valued bounded intervals, then this is quite nice:
 

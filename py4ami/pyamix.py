@@ -11,13 +11,15 @@ import traceback
 from pathlib import Path
 import argparse
 from enum import Enum
+from abc import ABC, abstractmethod
 # local
 from py4ami.ami_convert import ConvType, Converters
 from py4ami.ami_sections import AMIAbsSection
-from py4ami.dict_lib import AmiDictionary
+from py4ami.ami_dict import AmiDictionary
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
-from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, Pdf2SvgConverter
+from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, \
+    Pdf2SvgConverter
 from py4ami.projects import CProject, CTree, CSubDir
 from py4ami.symbol import SymbolIni
 from py4ami.text_lib import TextUtil, DSLParser
@@ -926,7 +928,8 @@ class PyAMI:
     def apply_to_file_content(self, func_tuple, apply_type):
         """applies func to all string content in file_dict
 
-        :param func: 
+        :param func_tuple:
+        :param apply_type:
 
         """
         self.logger.warning(f"func_tuple {len(func_tuple)}: {func_tuple[0]} => {func_tuple[1]}")
@@ -1054,6 +1057,7 @@ class PyAMI:
             return ast.literal_eval(val)
         except Exception:
             return False
+
 
 
 class ContentStore:

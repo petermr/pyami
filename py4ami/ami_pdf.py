@@ -1,5 +1,7 @@
 """ Mainly for converting PDF to HTML and SVG """
 import argparse
+import os.path
+
 import lxml
 import lxml.html
 from lxml import etree
@@ -12,16 +14,21 @@ import sys
 import re
 import traceback
 from collections import Counter
+from abc import abstractmethod, ABC
 import numpy as np
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
+from pdfminer.image import ImageWriter
+from pdfminer.layout import LTImage
+from PIL import Image
+
 from sklearn.linear_model import LinearRegression
 
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
-from py4ami.util import Util
+from py4ami.util import Util, AbstractArgs
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES
@@ -566,13 +573,14 @@ RESOLUTION = "resolution"
 TEMPLATE = "template"
 
 
-class PDFArgs:
+
+
+class PDFArgs(AbstractArgs):
     def __init__(self):
         """arg_dict is set to default"""
-        self.parser = None
-        self.parsed_args = None
-        self.arg_dict = self.create_default_arg_dict()
-        self.ref_counter = Counter()
+        super().__init__()
+
+
 
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
@@ -624,23 +632,6 @@ class PDFArgs:
                 if not inpath.exists():
                     raise FileNotFoundError(f"input file does not exist: ({inpath}")
                 self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
-
-    def create_arg_dict(self):
-        print(f"PARSED_ARGS {self.parsed_args}")
-        if not self.parsed_args:
-            return None
-        arg_vars = vars(self.parsed_args)
-        self.arg_dict = dict()
-        for item in arg_vars.items():
-            key = item[0]
-            if item[1] is None:
-                pass
-            elif type(item[1]) is list and len(item[1]) == 1:
-                self.arg_dict[key] = item[1][0]
-            else:
-                self.arg_dict[key] = item[1]
-
-        return self.arg_dict
 
     # class PDFArgs:
     @classmethod
@@ -913,117 +904,128 @@ class PDFArgs:
 
 
 class PDFDebug:
-    @classmethod
-    def debug_page_properties(cls, page, debug=None):
+    def __init__(self):
+        self.max_table = 10
+        self.max_curve = 10
+        self.max_rect = 10
+        self.image_coords_list = []
+
+    def debug_page_properties(self, page, debug=None, outdir=None):
         """debug print selected DEBUG_OPTIONS
         :param debug: list of options (from DEBUG_OPTIONS)
         """
         if not debug:
             debug = []
-            print(f"no optiomns given, choose from: {DEBUG_OPTIONS}")
+            print(f"no options given, choose from: {DEBUG_OPTIONS}")
         if DEBUG_ALL in debug:
             debug = DEBUG_OPTIONS
         print(f"\n\n======page: {page.page_number} ===========")
         if WORDS in debug:
-            cls.print_words(page)
+            self.print_words(page)
         if LINES in debug:
-            cls.print_lines(page)
+            self.print_lines(page)
         if RECTS in debug:
-            cls.print_rects(page, debug=False)
+            self.print_rects(page, debug=False)
         if CURVES in debug:
-            cls.print_curves(page)
+            self.print_curves(page)
         if IMAGES in debug:
-            cls.print_images(page)
+            self.print_images(page, outdir=outdir)
         if TABLES in debug:
-            cls.print_tables(page)
+            self.print_tables(page)
         if HYPERLINKS in debug:
-            cls.print_hyperlinks(page)
+            self.print_hyperlinks(page)
         if ANNOTS in debug:
-            cls.print_annots(page)
+            self.print_annots(page)
 
-    @classmethod
-    def print_words(cls, page):
+    def write_summary(self, outdir=None):
+        if not outdir:
+            return
+        if not outdir.exists():
+            outdir.mkdir()
+        if self.image_coords_list:
+            coord_file = Path(outdir, "image_coords.txt")
+            with open(coord_file, "w") as f:
+                f.write(f"{self.image_coords_list}")
+            print(f"wrote image coords to {coord_file}")
+
+    def print_words(self, page):
         print(f"words {len(page.extract_words())}", end=" | ")
 
-    @classmethod
-    def print_lines(cls, page):
+    def print_lines(self, page):
         if (n_line := len(page.lines)) > 0:
             print(f"lines {n_line}", end=" | ")
 
-    @classmethod
-    def print_rects(cls, page, debug=False):
+    def print_rects(self, page, debug=False):
         if n_rect := len(page.rects) > 0:
             print(f"rects {n_rect}", end=" | ")
             if debug:
-                for rect in page.rects[:PDFDebug.MAX_RECT]:
+                for rect in page.rects[:self.max_rect]:
                     print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
 
-    @classmethod
-    def print_curves(cls, page):
+    def print_curves(self, page):
         if n_curve := len(page.curves) > 0:
             print(f"curves {n_curve}", end=" | ")
-            for curve in page.curves[:PDFDebug.MAX_CURVE]:
+            for curve in page.curves[:self.max_curve]:
                 print(f"keys: {curve.keys()}")
                 print(f"curve {curve['points']}")
 
-    @classmethod
-    def print_images(cls, page, maximage=10, outdir=None):
-        write_image = True
+    def print_images(self, page, maximage=10, outdir=None):
+        maximage = 999
+
+        write_image = False
         resolution = 400  # may be better
-        from pdfminer.image import ImageWriter
-        from pdfminer.layout import LTImage
-        if not outdir:
-            print(f"no output dir given")
-            return
+            # see https://github.com/euske/pdfminer/blob/master/pdfminer/pdftypes.py
         if n_image := len(page.images) > 0:
             print(f"images {n_image}", end=" | ")
             for i, image in enumerate(page.images[:maximage]):
                 print(f"image: {type(image)}: {image.values()}")
 
-                path = Path(outdir, "images")
-                if not path.exists():
-                    path.mkdir()
-                if isinstance(image, LTImage):
-                    imagewriter = ImageWriter(str(Path(path, f"image{i}.png")))
+
+                if not outdir:
+                    pass
+                elif not outdir.exists():
+                    outdir.mkdir()
+                if outdir and isinstance(image, LTImage):
+                    imagewriter = ImageWriter(str(Path(outdir, f"image{i}.png")))
                     imagewriter.export_image(image)
                 page_height = page.height
                 image_bbox = (image[X0], page_height - image[Y1], image[X1], page_height - image[Y0])
                 print(f"image: {image_bbox}")
 
-                cropped_page = page.crop(image_bbox)  # crop screen display (may have overwriting text)
-                image_obj = cropped_page.to_image(resolution=resolution)
-                path1 = Path(path, f"image_{page.page_number}_{i}_{cls.format_bbox(image_bbox)}.png")
-                if write_image:
-                    image_obj.save(path1)
-                    print(f" wrote image {path1}")
-                continue
+                coord_stem = f"image_{page.page_number}_{i}_{self.format_bbox(image_bbox)}"
+                self.image_coords_list.append(coord_stem)
 
-                # for p in pdf.pages:
-                #     for obj in p.layout:
-                #         if isinstance(obj, LTImage):
-                #             imagewriter.export_image(obj)
+                if outdir and write_image:  # I think this is slow
+                    coord_path = Path(outdir, f"{coord_stem}.png")
+                    cropped_page = page.crop(image_bbox)  # crop screen display (may have overwriting text)
+                    image_obj = cropped_page.to_image(resolution=resolution)
+                    image_obj.save(coord_path)
+                    print(f" wrote image {coord_path}")
+                # continue
 
-    @classmethod
-    def print_tables(cls, page, odir=None):
+            # for p in pdf.pages:
+            #     for obj in p.layout:
+            #         if isinstance(obj, LTImage):
+            #             imagewriter.export_image(obj)
+
+    def print_tables(self, page, odir=None):
         tables = page.find_tables()
 
         if n_table := len(tables) > 0:
             print(f"tables {n_table}", end=" | ")
             print(f"table_dir {tables[0].__dir__()}")
-            for i, table in enumerate(tables[:PDFDebug.MAX_TABLE]):
-                h_table = cls.create_table_element(table)
+            for i, table in enumerate(tables[:self.max_table]):
+                h_table = self.create_table_element(table)
                 table_file = Path(odir, f"table_{i + 1}.html")
-                cls.print_table_element(h_table, table_file)
+                self.print_table_element(h_table, table_file)
 
-    @classmethod
-    def print_table_element(cls, h_table, table_file):
+    def print_table_element(self, h_table, table_file):
         h_str = lxml.etree.tostring(h_table, encoding='UTF-8', xml_declaration=False)
         with open(table_file, "wb") as f:
             f.write(h_str)
             print(f"wrote {table_file}")
 
-    @classmethod
-    def create_table_element(cls, table):
+    def create_table_element(self, table):
         h_table = lxml.etree.Element(H_TABLE)
         h_thead = lxml.etree.SubElement(h_table, H_THEAD)
         h_tbody = lxml.etree.SubElement(h_table, H_TBODY)
@@ -1035,19 +1037,16 @@ class PDFDebug:
                 h_td.text = str(cell_value)
         return h_table
 
-    @classmethod
-    def format_bbox(cls, bbox: tuple):
+    def format_bbox(self, bbox: tuple):
         return f"{int(bbox[0])}_{int(bbox[2])}_{int(bbox[1])}_{int(bbox[3])}"
 
-    @classmethod
-    def print_hyperlinks(cls, page):
+    def print_hyperlinks(self, page):
         if n_hyper := len(page.hyperlinks) > 0:
             print(f"hyperlinks {n_hyper}", end=" | ")
             for hyperlink in page.hyperlinks:
                 print(f"hyperlink {hyperlink.values()}")
 
-    @classmethod
-    def print_annots(cls, page):
+    def print_annots(self, page):
         """Prints annots
 
         Here's the output of one (it's a hyperlink)
@@ -1103,7 +1102,7 @@ class TextStyle:
         self.stroke = None
 
     def __str__(self) -> str:
-        s = f"size {self._font_size} family {self._font_family}, style {self.font_style} weight {self.font_weight} fill {self.fill} stroke {self.stroke}"
+        s = f"size {self._font_size} family {self._font_family}, style {self.font_style} weight {self.font_weight} fill {self._color} stroke {self.stroke}"
         return s
 
     def __eq__(self, other):
@@ -1114,7 +1113,7 @@ class TextStyle:
             # optional
             if TextStyle._not_equal(self.font_weight, other.font_weight):
                 return False
-            if TextStyle._not_equal(self.fill, other.fill):
+            if TextStyle._not_equal(self._color, other._color):
                 return False
             if TextStyle._not_equal(self.stroke, other.stroke):
                 return False
@@ -1126,15 +1125,14 @@ class TextStyle:
         currently font-size, font-family, fill and stroke"""
         css = ""
         if self._font_size:
-             css += f"font-size: {self._font_size} px;"
+            css += f"font-size: {self._font_size} px;"
         if self._font_family:
             css += f"font-family: {self._font_family};"
-        if self.fill:
-            css += f"fill: {self.fill};"
+        if self._color:
+            css += f"color: {self._color};"
         if self.stroke:
-             css += f"stroke: {self.stroke};"
+            css += f"stroke: {self.stroke};"
         return css
-
 
     def set_font_family(self, name):
         """trims [A-Z]{6}\+ from start of string"""
@@ -1182,7 +1180,7 @@ class TextStyle:
         s += self._difference("; font-style", self.font_style, other.font_style)
         s += self._difference("; font-family", self.font_family, other.font_family)
         s += self._difference("; font-weight", self.font_weight, other.font_weight)
-        s += self._difference("; fill", self.fill, other.fill)
+        s += self._difference("; fill", self._color, other._color)
         s += self._difference("; stroke", self.stroke, other.stroke)
         return s
 
@@ -1373,7 +1371,35 @@ class PDFUtil:
                 el.text = text1
                 # print(f"\n[[{text} => {''.join(el.itertext())}]]\n")
 
+class PDFImage:
+    """utility class for tidying images from PDF
+    """
+    def __init__(self):
+        pass
 
+    def convert_all_suffixed_files_to_target(self, indir, suffixes, target_suffix, outdir=None):
+        """convert all files with given suffixes to target_suffix type
+        :param indir: directory with files
+        :param suffixes: list of suffixes (WITH DOT), e.g. ['.bmp', '.jpg']
+        :param target_suffix: target format (WITH DOT), e.g. ['.png']
+        """
+        image_files = os.listdir(indir)
+        if not indir or not indir.exists():
+            return
+        if not suffixes or not '.' in suffixes[0] or not target_suffix or not '.' in target_suffix:
+            return
+        for image_file in image_files:
+            infile = Path(indir, image_file)
+            if infile.suffix in suffixes:
+                # note ADDS suffix
+                self.convert_image_file(infile, Path(f"{infile}{target_suffix}"))
+
+    def convert_image_file(self, infile, outfile):
+        """converts infile to outfile
+        compounded suffixes"""
+        import os
+        print(f"saving to {outfile}")
+        Image.open(infile).save(outfile)
 class SvgText:
     """wrapper for svg_text elemeent.
     creates TextStyle, TextSpan, coordinates, etc.
@@ -1543,6 +1569,7 @@ class SvgText:
             return float(attval)
         except Exception as e:
             pass
+
 
 def main(argv=None):
     """entry point for PDF conversiom

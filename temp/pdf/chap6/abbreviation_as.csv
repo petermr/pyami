@@ -1,0 +1,57 @@
+abbreviation,long_form,count,wiki_search_links
+APC,"and Developing Pacific",2,[]
+ATB,Annual Technoloy Baseline,2,[]
+ATR,"auto-thermal reforming",1,[]
+BECCS,"be produced through biomass gasification with CCS",33,[]
+BEVs,"battery electric vehicles",2,[]
+CCS,"carbon capture and storage",127,"['//www.wikidata.org/wiki/Q41491']"
+CDR,carbon dioxide removal,48,"['//www.wikidata.org/wiki/Q56298528']"
+CDU,carbon dioxide utilisation,1,[]
+CIGS,"copper indium gallium diselenide",1,[]
+CROI,carbon return on investment,1,[]
+CSP,"Concentrating solar power",20,[]
+DACCS,"direct air carbon capture and storage",7,[]
+DALYs,disability adjusted life years,1,[]
+DDPP,"Deep Decarbonization Pathways Project",1,[]
+DEV,Developed Countries,2,"['//www.wikidata.org/wiki/Q132453']"
+EPCC,European Perceptions of Climate Change,3,[]
+EROI,energy return of investment,13,[]
+ETS,emission trading schemes,9,[]
+EVER,"Ecological Vehicles and Renewable Energies",1,[]
+EVs,electric vehicles,4,"['//www.wikidata.org/wiki/Q13629441']"
+FIT,"feed-in-tariff",3,"['//www.wikidata.org/wiki/Q279637']"
+HDI,human development index,1,"['//www.wikidata.org/wiki/Q38994']"
+HTL,hydrothermal liquefaction,2,"['//www.wikidata.org/wiki/Q16878117']"
+HWACT,"half-wave AC transmission",2,[]
+ICCEP,"International Conference on Clean Electrical Power",1,[]
+IEA,International Energy Agency,87,"['//www.wikidata.org/wiki/Q826700']"
+IoT,Internet of Things,1,"['//www.wikidata.org/wiki/Q251212']"
+KEBA,Kinetic Energy Budget of the Atmosphere,1,[]
+LABs,lead-acid batteries,2,[]
+LAM,Latin America & Caribbean,2,[]
+LCA,life-cycle analysis,7,['//www.wikidata.org/wiki/Q581950']
+LCOE,Levelized costs of electricity,17,[]
+LDVs,"light-duty vehicles",2,[]
+LFAC,low-frequency AC transmission,3,[]
+LIBs,LIBs (yellow background,16,[]
+LNG,liquefied natural gas,3,"['//www.wikidata.org/wiki/Q358333']"
+LOHC,"Liquid-Organic Hydrogen Carrier",2,[]
+LOHCs,liquid organic hydrogen carriers,5,"['//www.wikidata.org/wiki/Q18624145']"
+LPG,liquefied petroleum gas,18,"['//www.wikidata.org/wiki/Q351609']"
+LTO,•Long-term operation,1,[]
+MMV,"Measurement, Monitoring and Verification",1,[]
+MTES,Motivation Toward the Environment Scale,1,[]
+OLEDs,organic light emitting diodes,1,"[]"
+OTEC,ocean thermal energy conversion,1,"['//www.wikidata.org/wiki/Q1125947']"
+PERC,passivated emitter and rear cell,2,[]
+PRIS,Power Reactor Information System,3,['//www.wikidata.org/wiki/Q72743160']
+PTES,"Pumped Thermal Energy Storage",1,[]
+PtL,Power-to-Liquids,1,[]
+PVSC,Photovoltaic Specialist Conference,1,[]
+RHFCs,"Reversible hydrogen fuel cells",1,[]
+SDGs,sustainable development goals,10,"['//www.wikidata.org/wiki/Q7649586']"
+SMR,"steam methane reforming",8,[]
+SMRs,"Small Modular Reactors",3,[]
+TFC,total final energy consumption,12,[]
+TPES,"total primary energy supply",8,[]
+VRE,Variable Renewable Energy,21,['//www.wikidata.org/wiki/Q7915732']

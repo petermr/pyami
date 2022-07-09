@@ -136,9 +136,10 @@ class Biblioref:
         chap444_elem = lxml.etree.parse(str(file))
         div_spans = chap444_elem.xpath(".//div[span]")
         total_bibliorefs = []
+        rec = re.compile(Util.SINGLE_BRACKET_RE)
         for div in div_spans:
             for span in div.xpath("./span"):
-                match = Util.SINGLE_BRACKET_REC.match(span.text)
+                match = rec.match(span.text)
                 if match:
                     body = match.group('body')
                     bibliorefs = Biblioref.create_refs_from_biblioref_string(body)

@@ -1,24 +1,33 @@
+import argparse
+import datetime
+import json
+import logging
 from lxml import etree as ET
 from lxml import etree
-import urllib.request
-import datetime
-import psutil
-
-import logging
+import lxml
 import os
+import pprint
+import psutil
 import re
+import sys
+import traceback
+import urllib.request
+
 from abc import ABC
+from collections import Counter
 from pathlib import Path
 from urllib.error import URLError
+from shutil import copyfile
 
 # local
-"""AMI dictionary classes"""
-"""this may have circular import of AmiDictionary"""
-from py4ami.wikimedia import WikidataLookup, WikidataPage
+# from py4ami.wikimedia import WikidataLookup, WikidataPage
 from py4ami.util import Util
 from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
+from py4ami.ami_html import HtmlUtil, CSSStyle
+from py4ami.util import AbstractArgs
+from py4ami.wikimedia import WikidataSparql, WikidataLookup, WikidataPage
+from test.resources import Resources
 
-logging.debug("loading dict_lib")
 
 # elements in amidict
 DICTIONARY = "dictionary"
@@ -40,27 +49,39 @@ ANY = "ANY"
 WIKIDATA_HITS = "wikidata_hits"
 WIKIDATA_HIT = "wikidataHit"
 
+# commandline
+DELETE = "delete"
+DICT = "dict"
+LANGUAGE = "language"
+METADATA = "metadata"
+REPLACE = "replace"
+SYNONYM = "synonym"
+VALIDATE = "validate"
+WIKIDATA = "wikidata"
+WORDS = "words"
+
 # elements
 
-logger = logging.getLogger("dict_lib")
+logger = logging.getLogger("ami_dict")
 
 
 class AmiDictionary:
     """wrapper for an ami dictionary including search flags
 
     """
+    # tries to avoid circular import
     TERM = "term"
     NOT_FOUND = "NOT_FOUND"
 
-    def __init__(self, xml_file=None, name=None, wikilangs=None, **kwargs):
+    def __init__(self, xml_file=None, title=None, wikilangs=None, ignorecase=True, **kwargs):
         self.logger = logger
         self.amidict = None
         self.entries = []
         self.entry_by_term = {}
         self.entry_by_wikidata_id = {}
         self.file = xml_file
-        self.ignorecase = None
-        self.name = None
+        self.ignorecase = ignorecase
+        self.title = None
         self.root = None
         self.sparql_result_list = None
         self.sparql_result_by_wikidata_id = None
@@ -74,11 +95,12 @@ class AmiDictionary:
             if not os.path.exists(xml_file):
                 raise IOError("cannot find path " + str(xml_file))
             self.read_dictionary_from_xml_file(xml_file)
-            self.name = xml_file.split("/")[-1:][0].split(".")[0]
-        elif name is None:
-            print("must have name for new dictionary")
+            title = Path(xml_file).stem
+            print(f"title {title}")
+        elif title is None:
+            print("must have title for new dictionary")
         else:
-            self.name = name
+            self.title = title
 
         self.options = {} if "options" not in kwargs else kwargs["options"]
         if "synonyms" in self.options:
@@ -89,18 +111,53 @@ class AmiDictionary:
         self.split_terms = False
 
     @classmethod
-    def create_from_words(cls, terms, name=None, desc=None, wikilangs=None):
+    def create_dictionary_from_words(cls, terms, title=None, desc=None, wikilangs=None):
         """use raw list of words and lookup each. choosing WD page and using languages """
-        if name is None:
-            name = "no_name"
-        dictionary = AmiDictionary(name=name, wikilangs=wikilangs)
+        if title is None:
+            title = "no_title"
+        dictionary = AmiDictionary(title=title, wikilangs=wikilangs)
         dictionary.root = ET.Element(DICTIONARY)
-        dictionary.root.attrib[TITLE] = name
+        dictionary.root.attrib[TITLE] = title
         if desc:
             dictionary.add_desc_element(desc)
         for term in terms:
             entry = dictionary.add_entry_element(term=term)
             dictionary.entries.append(entry)
+        return dictionary
+
+    @classmethod
+    def create_dictionary_from_wordfile(cls, wordfile=None, title=None, desc=None):
+        """
+        :param title: (should not be used) defaults to stem of file
+        """
+        if not wordfile:
+            raise ValueError(f"must gove wordfile to create dictionary")
+        wordpath = Path(wordfile)
+        with open(wordpath, "r") as f:
+            words = [line.strip() for line in f.readlines()]
+        stem = Path(wordfile).stem
+        if not title:
+            title = stem
+        elif title != stem:
+            print(f"WARNING: dictionary title {title} is not file stem {stem}, dictionary will be invalid")
+        print(f"creating dictionary title = {title}")
+        dictionary = cls.create_dictionary_from_words(terms=words, title=title, desc=desc)
+        return dictionary
+
+    @classmethod
+    def create_dictionary_from_wordfile_and_add_wikidata(cls, wordfile=None, title=None, desc=None):
+        with open(wordfile, "r") as f:
+            words = f.readlines()
+        dictionary = cls.create_dictionary_from_words_and_add_wikidata(
+            words=words, title=title, desc=desc)
+        return dictionary
+
+    @classmethod
+    def create_dictionary_from_words_and_add_wikidata(cls, words=None, title=None, desc=None):
+        assert desc and title and words
+        dictionary = AmiDictionary.create_dictionary_from_words(words, title=title, desc=desc, wikilangs=["en", "de"])
+        dictionary.add_wikidata_from_terms()
+        pprint.pprint(ET.tostring(dictionary.root).decode("UTF-8"))
         return dictionary
 
     def add_entry_element(self, term):
@@ -132,13 +189,13 @@ class AmiDictionary:
         self.amidict = ET.parse(file, parser=ET.XMLParser(encoding="utf-8"))
         self.root = self.amidict.getroot()
         # print("ROOT", ET.tostring(self.root)[:50])
-        self.name = self.root.attrib["title"]
+        self.title = self.root.attrib["title"]
         self.ignorecase = ignorecase
 
         self.entries = list(self.root.findall(ENTRY))
         self.create_entry_by_term()
         self.term_set = set()
-#        print("read dictionary", self.name, "with", len(self.entries), "entries")
+
 
     def get_or_create_term_set(self):
         if len(self.term_set) == 0:
@@ -218,10 +275,23 @@ class AmiDictionary:
                         matched.append(term)
         return matched
 
-    def get_entry(self, term):
+    def get_entry(self, termx, ignorecase=True):
+        """get entry if term attribute == term (case may matter
+        :param termx: term to search for
+        :param ignorecase: if true searches for any case variant
+        :return: the entry or None
+
+        all terms are keyed as lowercase in dictionary and case is checked if there
+        is a lowercase match
+
+        """
+        lcase = termx.lower()  # all keys are lowercase
         if self.entry_by_term is None:
             self.create_entry_by_term()
-        entry = self.entry_by_term[term] if term in self.entry_by_term else None
+        entry = self.entry_by_term[lcase] if lcase in self.entry_by_term else None
+        # if case-sensitive check whether term was different case
+        if entry is not None and not ignorecase and lcase != termx:
+            entry = None
         if entry is None:
             self.logger.debug(
                 "entry by term", self.entry_by_term)  # very large
@@ -323,6 +393,57 @@ class AmiDictionary:
     def get_wikidata_id(cls, entry):
         return entry.get(WIKIDATA_ID)
 
+    def markup_html_from_dictionary(self, target_path, output_path, background_value):
+        term_set = self.get_or_create_term_set()
+        rec = re.compile(f"(.*?)({'|'.join(term_set)})(.*)")
+        chap_elem = lxml.etree.parse(target_path)
+        div_spans = chap_elem.xpath(".//div/span")
+        for span in div_spans:
+            text = span.text
+            HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
+                                         recurse=True, id_root="ss", id_counter=0)
+        for a_elem in chap_elem.xpath(".//a"):
+            text = a_elem.text
+            entry = self.get_entry(text, ignorecase=True)
+            if entry is not None:
+                href = entry.attrib["wikidataID"]
+                CSSStyle.add_name_value(a_elem, "background-color", background_value)
+                if href:
+                    a_elem.attrib["href"] = WIKIDATA_SITE + href
+                    a_elem.attrib["title"] = entry.attrib["name"]
+        with open(str(output_path), "wb") as f:
+            f.write(lxml.etree.tostring(chap_elem))
+
+    @classmethod
+    def create_and_write_dictionary(cls, dictionary_file, dictionary_root, i, keystring, sparq2dict, sparql_file):
+        assert (os.path.exists(sparql_file))
+        dictionary = AmiDictionary(dictionary_file)
+        wikidata_sparql = WikidataSparql(dictionary)
+        wikidata_sparql.update_from_sparql(sparql_file, sparq2dict)
+        dictionary_file = f"{dictionary_root}{keystring}_{i + 1}.xml"
+        dictionary.write(dictionary_file)
+        return dictionary_file
+
+# WikidataSparql
+    @classmethod
+    def apply_dicts_and_sparql(cls, dictionary_file, rename_file, sparql2amidict_dict, sparql_files):
+        """TODO this is a mess"""
+        keystring = ""
+        # svae original path
+        original_name = dictionary_file
+        dictionary_root = os.path.splitext(dictionary_file)[0]
+        save_file = dictionary_root + ".xml.save"
+        copyfile(dictionary_file, save_file)
+        for key in sparql2amidict_dict.keys():
+            sparq2dict = sparql2amidict_dict[key]
+            keystring += f"_{key}"
+            for i, sparql_file in enumerate(sparql_files):
+                dictionary_file = cls.create_and_write_dictionary(dictionary_file, dictionary_root, i, keystring,
+                                                                  sparq2dict, sparql_file)
+        if rename_file:
+            copyfile(dictionary_file, original_name)
+
+
 
 class AmiDictionaries:
     """collection of current and some historic dictionaries"""
@@ -406,7 +527,7 @@ class AmiDictionaries:
 
         self.make_ami3_dictionaries()
 
-#        self.print_dicts()
+        #        self.print_dicts()
         return self.dictionary_dict
 
     def print_dicts(self):
@@ -535,7 +656,6 @@ class AbsDictElem(ABC):
 
 
 class AMIDict(AbsDictElem):
-
     # attributes
     ENCODING_A = "encoding"
     TITLE_A = "title"
@@ -552,6 +672,8 @@ class AMIDict(AbsDictElem):
 
     def __init__(self, element, tree=None):
         """AMIDict always has an XML root element"""
+        # import is here to avoid circular import
+        from py4ami.wikimedia import WikidataLookup
         super().__init__(element, tree)
         self.file = None
         self.url = None
@@ -738,7 +860,8 @@ class AMIDict(AbsDictElem):
         return amidict
 
     @classmethod
-    def create_from_list_of_strings_and_write_to_file(cls, terms, title, directory, wikidata=False, metadata=None, replace=True):
+    def create_from_list_of_strings_and_write_to_file(cls, terms, title, directory, wikidata=False, metadata=None,
+                                                      replace=True):
         """create a minimal dictionary from list of strings
 
         :terms: to add
@@ -783,7 +906,7 @@ class AMIDict(AbsDictElem):
     def create_and_add_base_metadata(self):
         self.add_metadata(self.create_base_metadata())
 
-# find entries
+    # find entries
     def find_entry_with_term(self, term, abort_multiple=True):
         """iterate through entries and return entry with term
 
@@ -856,7 +979,7 @@ class AMIDict(AbsDictElem):
                     terms.append(term)
         return terms, entries_without_terms, duplicate_entries
 
-# data validity
+    # data validity
 
     def check_validity(self):
         """checks dictionary has  valid <dictionary> child, valid attributes and valid child elements (NYI)"""
@@ -1021,6 +1144,7 @@ class AMIDict(AbsDictElem):
 
 class AMIDictError(Exception):
     """Basic exception for errors raised in AMIDict"""
+
     def __init__(self, msg=None):
         if msg is None:
             msg = "An unspecifed error occured"
@@ -1166,21 +1290,227 @@ class Entry(AbsDictElem):
             assert child.tag in self.ELEMENT_CHILD_TAGS
 
 
-def main():
-    AMIDict.debug_tdd()
-#     tdd = Pyamidict_TDD()
-#     tdd.test_dictionary_exists()
-#     tdd.test_dict_contains_xml_element()
-#     tdd.test_dict_has_root_dictionary()
-#     tdd.test_dict_has_XML_title()
-#     tdd.test_dict_title_matches_filename()
+class AmiDictArgs(AbstractArgs):
+    """NYI"""
+
+    def __init__(self):
+        """arg_dict is set to default"""
+        super().__init__()
+        self.dictfile = None
+        self.metadata = None
+        self.language = None
+        self.words = None
+        self.delete = None
+        self.replace = None
+        self.synonym = None
+        self.validate = None
+        self.wikidata = None
+        self.wikipedia = None
+        self.ami_dict = None
+
+    def create_arg_parser(self):
+        """creates adds the arguments for pyami commandline
+
+        """
+        self.parser = argparse.ArgumentParser(description='AMI dictionary creation, validation, editing')
+        self.parser.add_argument(f"--{DELETE}", type=str, nargs="+", help="list of entries (terms) to delete ? duplicates (NYI)")
+        self.parser.add_argument(f"--{DICT}", type=str, nargs=1, help="path for dictionary (existing = edit; new = create")
+        self.parser.add_argument(f"--{LANGUAGE}", type=str, nargs="+", help="list of 2-character codes to consider (default = ['en'] (NYI)")
+        self.parser.add_argument(f"--{METADATA}", type=str, nargs="+", help="metadata item/s to add (NYI)")
+        self.parser.add_argument(f"--{REPLACE}", type=str, nargs="+", help="replace any existing entries/attributes (default preserve) (NYI)")
+        self.parser.add_argument(f"--{SYNONYM}", type=str, nargs="+", help="add sysnonyms (from Wikidata) for terms (NYI)")
+        self.parser.add_argument(f"--{VALIDATE}", action="store_true", help="validate dictionary (NYI)")
+        self.parser.add_argument(f"--{WIKIDATA}", type=str, nargs="*", help="add WikidataIDs (NYI)")
+        self.parser.add_argument(f"--{WIKIPEDIA}", type=str, nargs="*", help="add Wikipedia link/s (forces --{WIKIDATA}) (NYI)")
+        self.parser.add_argument(f"--{WORDS}", type=str, nargs=1, help="path/file with words to make or edit dictionary")
+        # self.parser.add_argument(f"--{SORT}", type=str, nargs=1, help="sort by term, sort synonyms, sort by weight (NYI)")
+        # self.parser.add_argument(f"--{CATEGORY}", type=str, nargs=1, help="annotate by category (NYI)")
+        return self.parser
+
+    # class AmiDictArgs:
+    def process_args(self):
+        """runs parsed args
+        :return:
+        """
+
+        """
+        self.parser.add_argument(f"--dict", type=str, nargs=1, help="path for dictionary (existing = edit; new = create")
+        self.parser.add_argument(f"--metadata", type=str, nargs="+", help="metadata item/s to add")
+        self.parser.add_argument(f"--language", type=str, nargs="+", help="list of 2-character codes to consider (default = ['en']")
+        self.parser.add_argument(f"--words", type=str, nargs=1, help="path/file with words to make or edit dictionary")
+        self.parser.add_argument(f"--delete", type=str, nargs="+", help="list of entries (terms) to delete")
+        self.parser.add_argument(f"--replace", type=str, help="replace any existing entries/attributes (default preserve)")
+        self.parser.add_argument(f"--synonym", type=str, help="add sysnonyms (from Wikidata) for terms")
+        self.parser.add_argument(f"--validate", type=str, nargs="*", help="validate dictionary")
+        self.parser.add_argument(f"--wikidata", type=str, nargs="*", help="add WikidataIDs")
+        self.parser.add_argument(f"--wikipedia", type=str, nargs="*", help="add Wikipedia link/s")
+        """
+        if self.arg_dict:
+            self.delete = self.arg_dict.get(DELETE)
+            self.dictfile = self.arg_dict.get(DICT)
+            self.language = self.arg_dict.get(LANGUAGE)
+            self.metadata = self.arg_dict.get(METADATA)
+            self.replace = self.arg_dict.get(REPLACE)
+            self.synonym = self.arg_dict.get(SYNONYM)
+            self.validate = self.arg_dict.get(VALIDATE)
+            self.wikidata = self.arg_dict.get(WIKIDATA)
+            self.wikipedia = self.arg_dict.get(WIKIPEDIA)
+            self.words = self.arg_dict.get(WORDS)
+
+            status = self.build_or_edit_dictionary()
+            hit_dict = self.add_wikidata_to_dict("(chemical)")
+            status = self.validate_dict()
+
+    # class AmiDictArgs:
+
+    @classmethod
+    def create_default_arg_dict(cls):
+        """returns a new COPY of the default dictionary"""
+        arg_dict = dict()
+        arg_dict[DICT] = None
+        arg_dict[VALIDATE] = None
+        arg_dict[WIKIDATA] = None
+        arg_dict[WORDS] = None
+        return arg_dict
+
+    # class AmiDictArgs:
+    def process1_args(self, argv):
+        print(f"process1 {argv}")
+        self.create_arg_parser()
+        if len(argv) == 1:  # no args, print help
+            self.parser.print_help()
+        else:
+            print(f"args...{argv[1:]}")
+            self.parsed_args = self.parser.parse_args(argv[1:])
+            self.arg_dict = self.create_arg_dict()
+            self.process_args()
+
+    def build_or_edit_dictionary(self):
+        if not self.dictfile:
+            print("No dictionary given")
+            return None
+        if not self.words:
+            print("No input words given")
+            return None
+        if not Path(self.words).exists():
+            raise(f"wordfile {self.words} does not exist.")
+        title = Path(self.words).stem
+        print(f"creating {self.dictfile} from {self.words}")
+        word_path = Path(self.words)
+        self.ami_dict = AmiDictionary.create_dictionary_from_wordfile(wordfile=word_path, title=None, desc=None)
+        if self.dictfile:
+            with open(self.dictfile, "w") as f:
+                self.ami_dict.write(self.dictfile)
+                print(f"wrote dict: {self.dictfile}")
+        return self.ami_dict
+
+
+
+    def add_wikidata_to_dict(self, description_regex=None):
+        desc_counter = Counter()
+        hit_dict = dict()
+        if self.dictfile is not None and self.ami_dict is not None:
+            wikidata_lookup = WikidataLookup()
+            for entry in self.ami_dict.entries:
+                term = entry.attrib["term"]
+                term_dict = dict()
+                hit_dict[term] = term_dict
+                qitem0, desc, qitem_hits = wikidata_lookup.lookup_wikidata(term)
+                for i, qitem_hit in enumerate(qitem_hits):
+                    qitem_hit_dict = self.create_hit_dict_for(i, qitem_hit)
+                    term_dict[qitem_hit] = qitem_hit_dict
+
+                    # if title == term.lower() and re.search(description_regex, description):
+                    #     print(f" >>> page {description} / {page.get_title()}")
+                    #     entry.attrib["wikidataID"] = qitem_hit
+                    #     break
+        else:
+            print(f"requires existing dictionary")
+
+        print(json.dumps(hit_dict, sort_keys=False, indent=2))
+        counter = Counter()
+        """
+{
+  "acetone": {
+    "Q49546": {
+      "title": "acetone",
+      "description": "chemical compound",
+      "score": 0
+    },
+    "Q222936": {
+      "title": "acetone cyanohydrin",
+      "description": "chemical compound",
+      "score": 1
+    },
+  },
+  "benzene": {
+    ...
+    },
+  },
+}
+        """
+        for hit_dict_key in hit_dict.keys():
+            subdict = hit_dict[hit_dict_key]
+            print(f"subdict {hit_dict_key}: {subdict}")
+
+        return hit_dict
+
+    def create_hit_dict_for(self, serial, qitem_hit):
+        qitem_hit_dict = dict()
+        page = WikidataPage(pqitem=qitem_hit)
+        description = page.get_description()
+        title = page.get_title()
+        qitem_hit_dict["title"] = title
+        qitem_hit_dict["description"] = description
+        qitem_hit_dict["score"] = serial
+        return qitem_hit_dict
+
+    def validate_dict(self):
+        if self.dictfile and Path(self.dictfile).exists():
+            print(f"validate {self.validate}")
+        else:
+            print(f"requires existing dictionary")
+
+
+def main(argv=None):
+    # AMIDict.debug_tdd()
+    print(f"running AmiDict main")
+    dict_args = AmiDictArgs()
+    if not argv:
+        print(f"sys.argv {len(sys.argv)}")
+        argv = list(sys.argv)
+        # strip testing framework
+        print(f"argv {argv}")
+        while argv and not argv[0].startswith("ami_dict.py"):
+            argv = argv[1:]
+    try:
+        dict_args.process1_args(argv)
+    except Exception as e:
+        print(traceback.format_exc())
+        print(f"***Cannot run amidict***; see output for errors: {e} ")
+
+
+def test_process_args():
+
+    words0_txt = f"{Path(Resources.TEST_RESOURCES_DIR, 'words0.txt')}"
+    print(f"words {words0_txt}")
+    with open(words0_txt, "r") as f:
+        print(f"words ==> {f.readlines()}")
+
+    words0_xml = f"{Path(Resources.TEMP_DIR, 'words0.xml')}"
+    print(f" s1 {sys.argv}")
+    # sys.argv = ['/Applications/PyCharm CE.app/Contents/plugins/python-ce/helpers/pycharm/_jb_pytest_runner.py', 'ami_dict.py::test_process_args', "--words", f"{words0_txt}", "--dict", f"{words0_xml}", "--validate", "--wikidata", "label"]
+    # print(f" s2 {sys.argv}")
+    argv = ["dummy_prog_name", "--words", f"{words0_txt}", "--dict", f"{words0_xml}", "--validate", "--wikidata", "label"]
+    print(f" s2 {argv}")
+    main(argv=argv)
 
 
 if __name__ == "__main__":
-    print("running search main")
+    print("running dict main")
     main()
 else:
 
-    #    print("running search main anyway")
+    #    print("running dict main anyway")
     #    main()
     pass

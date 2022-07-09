@@ -1,23 +1,26 @@
 import sys
 import unittest
 from pathlib import Path
-
+from collections import Counter
 import lxml
 import lxml.etree
 import lxml.html
 
+import os
 """NOTE REQUIRES LATEST pdfplumber"""
 import pdfplumber
+from PIL import Image
+# local
 from py4ami.ami_bib import Publication
 from py4ami.ami_html import AmiSpan
 
-# local
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
-from py4ami.ami_pdf import AmiPage, TextStyle, X, Y, SORT_XY
+from py4ami.ami_pdf import AmiPage, TextStyle, X, Y, SORT_XY, PDFImage
 from py4ami.ami_pdf import P_FONTNAME, P_HEIGHT, P_STROKING_COLOR, P_NON_STROKING_COLOR, P_TEXT, P_X0, P_Y0, P_X1
 from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
 from py4ami.ami_html import HtmlUtil, STYLE,FILL, STROKE, FONT_FAMILY, FONT_SIZE
 from py4ami.ami_html import H_DIV, H_SPAN, H_A, H_B, H_BODY, H_P
+from py4ami.bbox_copy import BBox
 from test.resources import Resources
 from py4ami.pyamix import PyAMI
 
@@ -467,13 +470,98 @@ class PDFTest(unittest.TestCase):
             for ch in first_page.chars:  # prints all text as a single line
                 print(ch.get("text"), end="")
 
+    def test_debug_page_properties_chap6(self):
+        """debug the PDF objects (crude)"""
+        maxpage = 20 # image is on page 8
+        outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
+        pdf_debug = PDFDebug()
+
+        with pdfplumber.open(IPCC_CHAP6_PDF) as pdf:
+            pages = list(pdf.pages)
+            for page in pages[:maxpage]:
+                pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES], outdir=outdir)
+        pdf_debug.write_summary(outdir=outdir)
+
     def test_debug_page_properties(self):
         """debug the PDF objects (crude)"""
+
+        outdir = Path(Resources.TEMP_DIR, "pdf", "pmc1421")
+        if not outdir.exists():
+            outdir.mkdir()
         with pdfplumber.open(PMC1421) as pdf:
             pages = list(pdf.pages)
             assert len(pages) == 5
+            pdf_debug = PDFDebug()
+            if not outdir:
+                print(f"no output dir given")
+                return
+            path = Path(outdir, "images")
+            if not path.exists():
+                path.mkdir()
+
             for page in pages:
-                PDFDebug.debug_page_properties(page, debug=[WORDS, IMAGES])
+                pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES])
+
+            # coord_list_file = Path(path, "image_coords.txt")
+            # basenames = [os.path.basename(pathx) for pathx in coord_paths]
+            # with open(coord_list_file, "w") as f:
+            #     f.write(f"{basenames}\n")
+            # print(f"wrote list of files based on coords: {coord_list_file}")
+
+    def test_bmp_png_to_png(self):
+        dirx = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
+        outdir = Path(Resources.IPCC_CHAP06, "image")
+        if not dirx.exists():
+            print(f"no directory {dirx}")
+            return
+        pdf_image = PDFImage()
+        pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
+
+    def test_merge_pdf2txt_bmp_jpg_with_coords(self):
+        png_dir = Path(Resources.IPCC_CHAP06, "images")
+        bmp_jpg_dir = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
+        coord_file = Path(Resources.IPCC_CHAP06, "image_coords.txt")
+        print(f"input {coord_file}")
+        outdir = Path(Resources.IPCC_CHAP06, "images_new")
+        if not outdir.exists():
+            outdir.mkdir()
+        with open(coord_file, "r") as f:
+            coord_list = f.readlines()
+        assert len(coord_list) == 14
+
+        coord_list = [c.strip() for c in coord_list]
+        wh_counter = Counter()
+        coords_by_width_height = dict()
+        for coord in coord_list:
+            # image_9_0_80_514_72_298
+            coords = coord.split("_")
+            assert len(coords) == 7
+            bbox = BBox(xy_ranges=[[coords[3], coords[4]], [coords[5], coords[6]]])
+            print(f"coord {coord} {bbox} {bbox.width},{bbox.height}")
+            wh_tuple = bbox.width,bbox.height
+            print(f"wh {wh_tuple}")
+            wh_counter[wh_tuple] += 1
+            if coords_by_width_height.get(wh_tuple) == None:
+                coords_by_width_height[wh_tuple] = [coord]
+            else:
+                coords_by_width_height.get(wh_tuple).append(coord)
+        print(f"counter {wh_counter}")
+        print(f"coords_by_wh {coords_by_width_height}")
+
+        bmp_jpg_images = os.listdir(bmp_jpg_dir)
+        for bmp_jpg_image in bmp_jpg_images:
+            if Path(bmp_jpg_image).suffix == ".png":
+                print(f"png {bmp_jpg_image}")
+                with Image.open(str(Path(bmp_jpg_dir, bmp_jpg_image))) as image:
+                    wh_tuple = image.width,image.height
+                    print(f"wh ... {wh_tuple}")
+                    print(f"coords {coords_by_width_height.get(wh_tuple)}")
+
+
+
+
+
+
 
     # See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
 
@@ -573,12 +661,13 @@ LTPage
             # (IPCC_GLOSSARY, 51),
             (IPCC_CHAP6_PDF, 219)
         ]:
+            pdf_debug = PDFDebug()
             with pdfplumber.open(pdf_file) as pdf:
                 print(f"file {pdf_file}")
                 pages = list(pdf.pages)
                 assert len(pages) == page_count
                 for page in pages[:max_page]:
-                    PDFDebug.debug_page_properties(page, debug=options)
+                    pdf_debug.debug_page_properties(page, debug=options)
 
     def test_make_structured_html(self):
         """structures the flat HTML from pdfplumber"""
