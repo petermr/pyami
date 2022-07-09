@@ -152,8 +152,37 @@ open_diag_ini =     ${DIRS:project_dir}/openDiagram/physchem/resources/config.in
 ##UPDATE `py4ami.ami_dict` and `py4ami.ami_pdf`
 
 These now support `argparse` in their own right (2022-07-09)
+They will each give an argparse of commands 
 
+### `ami_pdf`
 
+(2022-07-09)
+
+```
+python -m py4ami.ami_pdf --help
+running PDFArgs main
+usage: ami_pdf.py [-h] [--maxpage MAXPAGE] [--indir INDIR] [--inpath INPATH] [--outdir OUTDIR]
+                  [--outform OUTFORM] [--flow FLOW] [--imagedir IMAGEDIR] [--resolution RESOLUTION]
+                  [--template TEMPLATE] [--debug {words,lines,rects,curves,images,tables,hyperlinks,annots}]
+
+PDF parsing
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --maxpage MAXPAGE     maximum number of pages
+  --indir INDIR         input directory
+  --inpath INPATH       input file
+  --outdir OUTDIR       output directory
+  --outform OUTFORM     output format
+  --flow FLOW           create flowing HTML (heuristics)
+  --imagedir IMAGEDIR   output images to imagedir
+  --resolution RESOLUTION
+                        resolution of output images (if imagedir)
+  --template TEMPLATE   file to parse specific type of document (NYI)
+  --debug {words,lines,rects,curves,images,tables,hyperlinks,annots}
+                        debug these during parsing (NYI)
+
+```
 
 
 ## Notes for PMR?
