@@ -1,0 +1,6 @@
+acetone
+benzene
+chloroform
+dexamethasone
+ethanol
+fluorine

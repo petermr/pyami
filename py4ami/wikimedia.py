@@ -87,6 +87,7 @@ class WikidataLookup:
 
         self.term = term
         url = WIKIDATA_QUERY_URI + quote(term.encode('utf8'))
+        print(f"url {url}")
         self.root = ParserWrapper.parse_utf8_html_to_root(url)
         body = self.root.find(BODY)
         ul = body.find(".//ul[@class='" + MW_SEARCH_RESULTS + "']")
