@@ -149,6 +149,11 @@ open_diag_ini =     ${DIRS:project_dir}/openDiagram/physchem/resources/config.in
 (base) pm286macbook:pyami pm286$ 
 ````
 
+##UPDATE `py4ami.ami_dict` and `py4ami.ami_pdf`
+
+These now support `argparse` in their own right (2022-07-09)
+
+
 
 
 ## Notes for PMR?
