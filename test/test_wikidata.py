@@ -182,8 +182,8 @@ class TestWikidataLookup(unittest.TestCase):
         page = WikidataPage.create_wikidata_ppage_from_file(Path(EO_COMPOUND_DIR, "q407418.html"))
         property_list = page.get_data_property_list()
         assert len(property_list) == 72
-        property0 = WikidataProperty.create_property_from_element(property_list[0])
-        print(f"propert0 {property0}")
+        assert property_list[0].property_name == "instance of"
+        assert property_list[0].id == "P31"
 
     def test_get_predicate_value_1(self):
         tree = html.parse(str(Path(EO_COMPOUND_DIR, "q407418.html")))
@@ -198,13 +198,13 @@ class TestWikidataLookup(unittest.TestCase):
     @unittest.skip(f"constructor for WikidataPage needs adjusting")
     def test_get_wikidata_predicate_value(self):
         """searches for instance-of (P31) chemical_compound (Q11173) in a wikidata page"""
-        pred = "P31"
-        obj = "Q11173"
+        pred_id = "P31"
+        obj_id = "Q11173"
         file = str(Path(EO_COMPOUND_DIR, "q407418.html"))
-        qval = WikidataPage(file).get_predicate_object(pred, obj)
+        qval = WikidataPage(file).get_predicate_object(pred_id, obj_id)
         assert qval[0].text == 'chemical compound'
 
-    def test_get_title(self):
+    def test_get_title_of_page(self):
         title = WikidataPage("q407418").get_title()
         assert title == "L-menthol"
 
@@ -252,10 +252,12 @@ class TestWikidataLookup(unittest.TestCase):
         """
         lookup = "sroperty"
         lookup = "statement"
+        property_list = []
         if lookup == "property":
             classx = "wikibase-statementgroupview-property-label"
             selector = f"@class='{classx}'"
-            selector = f".//div[@class='{classx}']//a[starts-with(@title,'Property:')]"
+            property_selector = f".//div[@class='{classx}']//a[starts-with(@title,'Property:')]"
+            property_list = WikidataPage("q407418").root.xpath(property_selector)
         if lookup == "statement":
             """wikibase-statementgroupview listview-item"""
             # selector = f".//div[@class='wikibase-statementgroupview listview-item']"
@@ -267,7 +269,6 @@ class TestWikidataLookup(unittest.TestCase):
             # selector = f".//div[contains(@class,'listview-item')]"
         print(f" selector {selector} ")
 
-        property_list = WikidataPage("q407418").root.xpath(selector)
 
         # <!-- property-[statement-list] container TOP LEVEL -->
         # <div class="wikibase-statementgroupview listview-item" id="P31" data-property-id="P31">
@@ -334,7 +335,6 @@ class TestWikidataLookup(unittest.TestCase):
 
         wikidata_page = WikidataPage("q407418")
         property_list = wikidata_page.get_data_property_list()
-#        TODO
         assert 74 > len(property_list) > 70
         assert wikidata_page.get_property_id_list()[:10] == [
             'P31', 'P279', 'P361', 'P117', 'P8224', 'P2067', 'P274', 'P233', 'P2017', 'P2054']
