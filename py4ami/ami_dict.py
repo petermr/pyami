@@ -52,6 +52,7 @@ WIKIDATA_HIT = "wikidataHit"
 # commandline
 DELETE = "delete"
 DICT = "dict"
+FILTER = "filter"
 LANGUAGE = "language"
 METADATA = "metadata"
 REPLACE = "replace"
@@ -1291,7 +1292,7 @@ class Entry(AbsDictElem):
 
 
 class AmiDictArgs(AbstractArgs):
-    """NYI"""
+    """Parse args to build and edit dictionary"""
 
     def __init__(self):
         """arg_dict is set to default"""
@@ -1308,8 +1309,14 @@ class AmiDictArgs(AbstractArgs):
         self.wikipedia = None
         self.ami_dict = None
 
+    @property
+    def module_stem(self):
+        """name of module"""
+        return Path(__file__).stem
+
     def create_arg_parser(self):
-        """creates adds the arguments for pyami commandline
+        """
+        creates adds the arguments for pyami commandline
 
         """
         self.parser = argparse.ArgumentParser(description='AMI dictionary creation, validation, editing')
@@ -1348,6 +1355,7 @@ class AmiDictArgs(AbstractArgs):
         if self.arg_dict:
             self.delete = self.arg_dict.get(DELETE)
             self.dictfile = self.arg_dict.get(DICT)
+            self.filter = self.arg_dict.get(FILTER)
             self.language = self.arg_dict.get(LANGUAGE)
             self.metadata = self.arg_dict.get(METADATA)
             self.replace = self.arg_dict.get(REPLACE)
@@ -1357,8 +1365,13 @@ class AmiDictArgs(AbstractArgs):
             self.wikipedia = self.arg_dict.get(WIKIPEDIA)
             self.words = self.arg_dict.get(WORDS)
 
-            status = self.build_or_edit_dictionary()
-            hit_dict = self.add_wikidata_to_dict("(chemical)")
+            ami_dict = self.build_or_edit_dictionary()
+            if self.dictfile and ami_dict is not None:
+                with open(self.dictfile, "w") as f:
+                    self.ami_dict.write(self.dictfile)
+                    print(f"wrote dict: {self.dictfile}")
+
+            hit_dict = self.add_wikidata_to_dict()
             status = self.validate_dict()
 
     # class AmiDictArgs:
@@ -1373,18 +1386,6 @@ class AmiDictArgs(AbstractArgs):
         arg_dict[WORDS] = None
         return arg_dict
 
-    # class AmiDictArgs:
-    def process1_args(self, argv):
-        print(f"process1 {argv}")
-        self.create_arg_parser()
-        if len(argv) == 1:  # no args, print help
-            self.parser.print_help()
-        else:
-            print(f"args...{argv[1:]}")
-            self.parsed_args = self.parser.parse_args(argv[1:])
-            self.arg_dict = self.create_arg_dict()
-            self.process_args()
-
     def build_or_edit_dictionary(self):
         if not self.dictfile:
             print("No dictionary given")
@@ -1393,15 +1394,11 @@ class AmiDictArgs(AbstractArgs):
             print("No input words given")
             return None
         if not Path(self.words).exists():
-            raise(f"wordfile {self.words} does not exist.")
+            raise FileNotFoundError(f"wordfile {self.words} does not exist.")
         title = Path(self.words).stem
         print(f"creating {self.dictfile} from {self.words}")
         word_path = Path(self.words)
         self.ami_dict = AmiDictionary.create_dictionary_from_wordfile(wordfile=word_path, title=None, desc=None)
-        if self.dictfile:
-            with open(self.dictfile, "w") as f:
-                self.ami_dict.write(self.dictfile)
-                print(f"wrote dict: {self.dictfile}")
         return self.ami_dict
 
 
@@ -1419,11 +1416,6 @@ class AmiDictArgs(AbstractArgs):
                 for i, qitem_hit in enumerate(qitem_hits):
                     qitem_hit_dict = self.create_hit_dict_for(i, qitem_hit)
                     term_dict[qitem_hit] = qitem_hit_dict
-
-                    # if title == term.lower() and re.search(description_regex, description):
-                    #     print(f" >>> page {description} / {page.get_title()}")
-                    #     entry.attrib["wikidataID"] = qitem_hit
-                    #     break
         else:
             print(f"requires existing dictionary")
 
@@ -1451,7 +1443,11 @@ class AmiDictArgs(AbstractArgs):
         """
         for hit_dict_key in hit_dict.keys():
             subdict = hit_dict[hit_dict_key]
-            print(f"subdict {hit_dict_key}: {subdict}")
+            # print(f"subdict {hit_dict_key}: {subdict}")
+            print(f"sub-title {subdict.keys()}")
+            for key,item in subdict.items():
+                print(f".....{key} item_title {item['title']}")
+
 
         return hit_dict
 
@@ -1460,9 +1456,12 @@ class AmiDictArgs(AbstractArgs):
         page = WikidataPage(pqitem=qitem_hit)
         description = page.get_description()
         title = page.get_title()
+        # prop_dict = page.create_property_dict()
+        # print(f" properties {prop_dict}")
         qitem_hit_dict["title"] = title
         qitem_hit_dict["description"] = description
         qitem_hit_dict["score"] = serial
+
         return qitem_hit_dict
 
     def validate_dict(self):
@@ -1476,15 +1475,8 @@ def main(argv=None):
     # AMIDict.debug_tdd()
     print(f"running AmiDict main")
     dict_args = AmiDictArgs()
-    if not argv:
-        print(f"sys.argv {len(sys.argv)}")
-        argv = list(sys.argv)
-        # strip testing framework
-        print(f"argv {argv}")
-        while argv and not argv[0].startswith("ami_dict.py"):
-            argv = argv[1:]
     try:
-        dict_args.process1_args(argv)
+        dict_args.parse_and_process()
     except Exception as e:
         print(traceback.format_exc())
         print(f"***Cannot run amidict***; see output for errors: {e} ")

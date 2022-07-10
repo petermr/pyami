@@ -2,6 +2,8 @@ import logging
 import os
 
 from lxml import etree as ET
+from lxml import etree, html
+import lxml.etree
 
 # local
 
@@ -195,18 +197,44 @@ class WikidataBrowser:
             subelem.getparent().remove(subelem)
 
 
+class WikidataProperty:
+
+    def __init__(self):
+        self.element = None
+
+    def __str__(self):
+        s = "WikidataProperty: "
+        if self.element is not None:
+            s += f"{lxml.etree.tostring(self.element)}"
+        return s
+    @classmethod
+    def create_property_from_element(cls, html_element):
+        """Create from HTML element from wikidata.org page"""
+        property = None
+        if html_element is not None:
+            property = WikidataProperty()
+            property.element = html_element
+        return property
+
+
 class WikidataPage:
     PROPERTY_ID = "id"
 
     def __init__(self, pqitem=None):
         self.root = None
         self.pqitem = pqitem
-        self.root = None if not pqitem else self.get_root_for_item(self.pqitem)
         self.json = None
+        if pqitem:
+            self.root = self.get_root_for_item(self.pqitem)
 
     @classmethod
     def create_wikidata_ppage_from_file(cls, file):
-        pass
+        page = None
+        if file and file.exists():
+            tree = html.parse(str(file))
+            page = WikidataPage()
+            page.root = tree.getroot()
+        return page
 
     @classmethod
     def create_wikidata_page_from_response(cls, response):
@@ -305,7 +333,7 @@ class WikidataPage:
 
     # WikidataPage
 
-    def get_properties(self):
+    def get_property_ids(self):
         pdivs = self.root.findall(".//div[@class='wikibase-statementgroupview']")
         ids = [pdiv.attrib[ID] for pdiv in pdivs]
         return ids
@@ -313,6 +341,7 @@ class WikidataPage:
     def get_data_property_list(self):
         """gets data_properties (the Statements and Identifiers)
         :return: list of properties , may be empty
+        USEFUL
         """
         selector = WikidataPage.get_data_property_xpath()
         property_list = self.root.xpath(selector)
@@ -324,24 +353,49 @@ class WikidataPage:
         return f".//div[@data-property-id]"
 
     def get_property_id_list(self):
+        """get list of ids presenting properties
+        These will be in the left-hand column of the page
+        :return: ids , example ['P31', 'P279', 'P361', 'P117']"""
         property_list = self.get_data_property_list()
         property_id_list = [property.get("id") for property in property_list]
         return property_id_list
 
     def get_property_name_list(self):
+        """get list of property names (left-hand column of page]
+        :return: names, e.g. ['instance of', 'subclass of', 'part of', 'chemical structure']
+         """
         property_list = self.get_data_property_list()
         property_name_list = [WikidataPage.get_property_name(property) for property in property_list]
         return property_name_list
 
     @classmethod
-    def get_property_name(cls, property):
-        """gets property name from property box"""
-        return property.xpath('./div/div/a')[0].text
+    def get_property_name(cls, xml_property):
+        """gets property name from property box
+        :param property: XML sub-element in page tree
+        TODO CONVERT TO PROPERTY OBJECT
+        """
+        return xml_property.xpath('./div/div/a')[0].text
 
     @classmethod
-    def get_id(cls, property):
-        """gets property name from property box"""
-        return property.get(cls.PROPERTY_ID)
+    def get_id(cls, xml_property):
+        """gets property id from property box
+        :param property: PLEASE INDICATE TYPE OF THIS
+        TODO CONVERT TO PROPERTY OBJECT
+        """
+        return xml_property.get(cls.PROPERTY_ID)
+
+    def get_qitems_for_property_id(self, property_id):
+        """get qitem/s for a property
+        USEFUL (but fragile as HTML page may change)
+        :param property_id: id such as 'P31'
+        :return: list of xml_elements representing values
+
+        """
+        qvals = []
+        hdiv_p = self.root.xpath(f".//div[@id='{property_id}']")
+        if len(hdiv_p) >= 1:
+            qvals = hdiv_p[0].xpath(".//div[@class='wikibase-snakview-body']//a[starts-with(@title,'Q')]")
+        return qvals
 
     @classmethod
     def extract_statements(cls, property):
@@ -351,7 +405,9 @@ class WikidataPage:
 
     @classmethod
     def get_properties_dict(cls, property_list):
-        """makes python dict from list of properties"""
+        """makes python dict from list of properties
+        """
+
         properties_dict = {}
         for property in property_list:
             id = WikidataPage.get_id(property)

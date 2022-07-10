@@ -228,9 +228,11 @@ class AbstractArgs(ABC):
         self.ref_counter = Counter()
         self.arg_dict = self.create_default_arg_dict()
 
+    @property
     @abstractmethod
-    def create_default_arg_dict(self):
+    def module_stem(self):
         pass
+
 
     def create_arg_dict(self):
         print(f"PARSED_ARGS {self.parsed_args}")
@@ -248,6 +250,43 @@ class AbstractArgs(ABC):
                 self.arg_dict[key] = item[1]
 
         return self.arg_dict
+
+    def parse_and_process(self):
+        """Parse args after program name.
+        If running in IDE there may be 2 names.
+        All names should contain name of module (e.g. ami_dict)
+
+        '/Applications/PyCharm CE.app/Contents/plugins/python-ce/helpers/pycharm/_jb_pytest_runner.py', 'ami_dict.py::test_process_args']
+        or
+        '/Users/pm286/workspace/pyami/py4ami/ami_dict.py', '--dict', 'foo', '--words', 'bar'
+
+        """
+        # strip all tokens including ".py" (will proably fail on some m/c)
+        while len(sys.argv) > 0 and not self.module_stem in sys.argv[0]:
+            sys.argv = sys.argv[1:]
+        self.create_arg_parser()
+        print(f"argv {sys.argv}")
+        if len(sys.argv) == 1:  # no args, print help
+            self.parser.print_help()
+        else:
+            argv_ = sys.argv[1:]
+            print(f"argv: {argv_}")
+            self.parsed_args = self.parser.parse_args(argv_)
+            self.arg_dict = self.create_arg_dict()
+            self.process_args()
+
+
+    @abstractmethod
+    def create_arg_parser(self):
+        pass
+
+    @abstractmethod
+    def process_args(self):
+        pass
+
+    @abstractmethod
+    def create_default_arg_dict(self):
+        pass
 
 
 class AmiLogger:

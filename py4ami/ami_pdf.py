@@ -10,11 +10,8 @@ import statistics
 from pathlib import Path
 from typing import Container
 from io import BytesIO, StringIO
-import sys
 import re
 import traceback
-from collections import Counter
-from abc import abstractmethod, ABC
 import numpy as np
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.layout import LAParams
@@ -580,7 +577,8 @@ class PDFArgs(AbstractArgs):
         """arg_dict is set to default"""
         super().__init__()
 
-
+    def module_stem(self):
+        return "ami_pdf"
 
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
@@ -668,7 +666,7 @@ class PDFArgs(AbstractArgs):
             Converted pdf file
         """
         """from pdfminer/pdfplumber"""
-        device, interpreter, retstr = PDFArgs.create_interpreter(fmt)
+        device, interpreter, retstr = PDFArgs.create_pdf_interpreter(fmt)
         if not path:
             raise FileNotFoundError("no input file given)")
         try:
@@ -709,7 +707,7 @@ class PDFArgs(AbstractArgs):
         return arg_dict
 
     @classmethod
-    def create_interpreter(cls, fmt, codec: str = "UTF-8"):
+    def create_pdf_interpreter(cls, fmt, codec: str = "UTF-8"):
         """creates a PDFPageInterpreter
         :format: "text, "xml", "html"
         :codec: default UTF-8
@@ -832,14 +830,6 @@ class PDFArgs(AbstractArgs):
             print(f"wrote {f.name}")
 
     # class PDFArgs:
-    def process1_args(self):
-        self.create_arg_parser()
-        if len(sys.argv) == 1:  # no args, print help
-            self.parser.print_help()
-        else:
-            self.parsed_args = self.parser.parse_args(sys.argv[1:])
-            self.arg_dict = self.create_arg_dict()
-            self.process_args()
 
     def markup_parentheses(self, result_elem):
         """iterate over parenthesised fields
@@ -1397,7 +1387,6 @@ class PDFImage:
     def convert_image_file(self, infile, outfile):
         """converts infile to outfile
         compounded suffixes"""
-        import os
         print(f"saving to {outfile}")
         Image.open(infile).save(outfile)
 class SvgText:
@@ -1581,7 +1570,7 @@ def main(argv=None):
     print(f"running PDFArgs main")
     pdf_args = PDFArgs()
     try:
-        pdf_args.process1_args()
+        pdf_args.parse_and_process()
     except Exception as e:
         print(traceback.format_exc())
         print(f"***Cannot run pyami***; see output for errors: {e} ")

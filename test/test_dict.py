@@ -41,7 +41,7 @@ class TestSearchDictionary:
         pprint.pprint(ET.tostring(dictionary.root).decode("UTF-8"))
         assert len(dictionary.entries) == 1
         wikidata_page = dictionary.create_wikidata_page(dictionary.entries[0])
-        property_ids = wikidata_page.get_properties()
+        property_ids = wikidata_page.get_property_ids()
         assert len(property_ids) >= 60
         assert property_ids[:10] == ['P31', 'P279', 'P361', 'P2067', 'P274', 'P233',
                                      'P2054', 'P2101', 'P2128', 'P2199']
@@ -490,7 +490,7 @@ class PDFArgs(AbstractArgs):
             print(f"wrote {f.name}")
 
     # class PDFArgs:
-    def process1_args(self):
+    def parse_and_process(self):
         self.create_arg_parser()
         if len(sys.argv) == 1:  # no args, print help
             self.parser.print_help()
@@ -565,7 +565,7 @@ def main(argv=None):
     print(f"running PDFArgs main")
     pdf_args = AmiDictArgs()
     try:
-        pdf_args.process1_args()
+        pdf_args.parse_and_process()
     except Exception as e:
         print(f"***Cannot run pyami***; see output for errors: {e}")
 

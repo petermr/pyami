@@ -858,7 +858,7 @@ def main(argv=None):
     print(f"running PDFArgs main")
     pdf_args = PDFArgs()
     try:
-        pdf_args.process1_args()
+        pdf_args.parse_and_process()
     except Exception as e:
         print(f"***Cannot run pyami***; see output for errors: {e}")
 

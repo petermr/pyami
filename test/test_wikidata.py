@@ -7,7 +7,7 @@ import logging
 from lxml import etree, html
 import requests
 # local
-from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor
+from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor, WikidataProperty
 from py4ami.ami_dict import AmiDictionary, WIKIDATA_ID, TERM, AMIDict
 
 """This runs under Pycharm and also
@@ -160,10 +160,30 @@ class TestWikidataLookup(unittest.TestCase):
         """tests xpath working of predicate_subject test"""
         tree = html.parse(str(Path(EO_COMPOUND_DIR, "q407418.html")))
         root = tree.getroot()
-        p31 = root.xpath(".//div[@id='P31']")
-        assert len(p31) == 1
-        qvals = p31[0].xpath(".//div[@class='wikibase-snakview-body']//a[starts-with(@title,'Q')]")
+        hdiv_p31 = root.xpath(".//div[@id='P31']")
+        assert len(hdiv_p31) == 1
+        qvals = hdiv_p31[0].xpath(".//div[@class='wikibase-snakview-body']//a[starts-with(@title,'Q')]")
         assert len(qvals) == 5
+
+    def test_page_get_values_for_property_id(self):
+        """test get all values in triples with given property
+        e.g. ?page wdt:P31 ?p31_value
+        USEFUL
+
+        """
+        page = WikidataPage.create_wikidata_ppage_from_file(Path(EO_COMPOUND_DIR, "q407418.html"))
+        qvals = page.get_qitems_for_property_id("P31")
+        assert len(qvals) == 5
+        assert qvals[0].text == "chemical compound"
+
+    def test_get_property_list(self):
+        """gets property list for a page
+        """
+        page = WikidataPage.create_wikidata_ppage_from_file(Path(EO_COMPOUND_DIR, "q407418.html"))
+        property_list = page.get_data_property_list()
+        assert len(property_list) == 72
+        property0 = WikidataProperty.create_property_from_element(property_list[0])
+        print(f"propert0 {property0}")
 
     def test_get_predicate_value_1(self):
         tree = html.parse(str(Path(EO_COMPOUND_DIR, "q407418.html")))
@@ -314,6 +334,7 @@ class TestWikidataLookup(unittest.TestCase):
 
         wikidata_page = WikidataPage("q407418")
         property_list = wikidata_page.get_data_property_list()
+#        TODO
         assert 74 > len(property_list) > 70
         assert wikidata_page.get_property_id_list()[:10] == [
             'P31', 'P279', 'P361', 'P117', 'P8224', 'P2067', 'P274', 'P233', 'P2017', 'P2054']
