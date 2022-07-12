@@ -208,6 +208,7 @@ class WikidataProperty:
             print(f"type self.element {type(self.element)}")
             s += f"{lxml.etree.tostring(self.element)}"
         return s
+
     @classmethod
     def create_property_from_element(cls, html_element):
         """Create from HTML element from wikidata.org page"""
@@ -229,6 +230,49 @@ class WikidataProperty:
         xpath = f"./div[@class='wikibase-statementlistview']/div[@class='wikibase-statementlistview-listview']/div/div[@class='wikibase-statementview-mainsnak-container']/div[@class='wikibase-statementview-mainsnak']/div/div[@class='wikibase-snakview-value-container']/div[@class='wikibase-snakview-body']//div/a"
         statements = self.element.xpath(xpath)
         return statements
+
+    # class WikidataProperty:
+
+    def create_property_dict(self):
+        """creates python dict from wikidata_page
+        Not complete (doesn't do scalar values)"""
+        # id = self.id
+        name = self.property_name
+        property_dict = {
+            "name": name,
+        }
+        statements = self.extract_statements()
+        if len(statements) > 0:
+            statement_dict = {}
+            for statement in statements:
+                title = statement.get('title')
+                value = statement.text
+                if title:
+                    statement_dict[title] = value
+                    # print(f"statement {id} {value}")
+                else:
+                    # print(f"value: {value}")
+                    property_dict["value"] = value
+            if len(statement_dict) > 0:
+                property_dict["statements"] = statement_dict
+        return property_dict
+
+    @classmethod
+    def get_properties_dict(cls, property_list):
+        """makes python dict from list of Wikidata properties
+        """
+
+        properties_dict = {}
+        if not property_list:
+            return properties_dict
+
+        for property in property_list:
+            property_dict = property.create_property_dict()
+            properties_dict[property.id] = property_dict
+        return properties_dict
+
+# class WikidataProperty:
+
 
 class WikidataPage:
     PROPERTY_ID = "id"
@@ -382,22 +426,6 @@ class WikidataPage:
         property_name_list = [property.property_name for property in property_list]
         return property_name_list
 
-    @classmethod
-    def get_property_name(cls, xml_property):
-        """gets property name from property box
-        :param property: XML sub-element in page tree
-        TODO CONVERT TO PROPERTY OBJECT OBSOLETE
-        """
-        return xml_property.xpath('./div/div/a')[0].text
-
-    # @classmethod
-    # def get_id(cls, xml_property):
-    #     """gets property id from property box
-    #     :param property: PLEASE INDICATE TYPE OF THIS
-    #     TODO CONVERT TO PROPERTY OBJECT
-    #     """
-    #     return xml_property.get(cls.PROPERTY_ID)
-
     def get_qitems_for_property_id(self, property_id):
         """get qitem/s for a property
         USEFUL (but fragile as HTML page may change)
@@ -410,52 +438,6 @@ class WikidataPage:
         if len(hdiv_p) >= 1:
             qvals = hdiv_p[0].xpath(".//div[@class='wikibase-snakview-body']//a[starts-with(@title,'Q')]")
         return qvals
-
-    # @classmethod
-    # def extract_statements(cls, property):
-    #     xpath = f"./div[@class='wikibase-statementlistview']/div[@class='wikibase-statementlistview-listview']/div/div[@class='wikibase-statementview-mainsnak-container']/div[@class='wikibase-statementview-mainsnak']/div/div[@class='wikibase-snakview-value-container']/div[@class='wikibase-snakview-body']//div/a"
-    #     statements = property.xpath(xpath)
-    #     return statements
-
-    @classmethod
-    def get_properties_dict(cls, property_list):
-        """makes python dict from list of properties
-        """
-
-        properties_dict = {}
-        if not property_list:
-            return properties_dict
-
-        for property in property_list:
-            property_dict = cls.create_property_dict(property)
-            properties_dict[property.id] = property_dict
-        return properties_dict
-
-    @classmethod
-    def create_property_dict(cls, property):
-        """creates python dict from wikidata_page
-        Not complete (doesn't do scalar values)"""
-        id = property.id
-        name = property.property_name
-        property_dict = {
-            "name": name,
-        }
-        statements = property.extract_statements()
-        if len(statements) > 0:
-            statement_dict = {}
-            for statement in statements:
-                id = statement.get('title')
-                value = statement.text
-                if id:
-                    statement_dict[id] = value
-                    # print(f"statement {id} {value}")
-                else:
-                    # print(f"value: {value}")
-                    property_dict["value"] = value
-            if len(statement_dict) > 0:
-                property_dict["statements"] = statement_dict
-        return property_dict
-
 
 
 
@@ -472,6 +454,11 @@ class WikidataPage:
         return pred_obj_list
 
     def get_predicate_object(self, pred, obj):
+        """get predicate-object from their id pair
+        :param pred: e.g. "P31"
+        :param obj:
+        :return: list of all pairs
+        """
         pred_obj_list = self.root.xpath(
             f".//div[@id='{pred}']//div[@class='wikibase-snakview-body']//a[@title='{obj}']")
         return pred_obj_list

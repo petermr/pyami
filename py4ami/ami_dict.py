@@ -1322,6 +1322,7 @@ class AmiDictArgs(AbstractArgs):
         self.parser = argparse.ArgumentParser(description='AMI dictionary creation, validation, editing')
         self.parser.add_argument(f"--{DELETE}", type=str, nargs="+", help="list of entries (terms) to delete ? duplicates (NYI)")
         self.parser.add_argument(f"--{DICT}", type=str, nargs=1, help="path for dictionary (existing = edit; new = create")
+        self.parser.add_argument(f"--{FILTER}", type=str, nargs=1, help="path for filter py_dictionary")
         self.parser.add_argument(f"--{LANGUAGE}", type=str, nargs="+", help="list of 2-character codes to consider (default = ['en'] (NYI)")
         self.parser.add_argument(f"--{METADATA}", type=str, nargs="+", help="metadata item/s to add (NYI)")
         self.parser.add_argument(f"--{REPLACE}", type=str, nargs="+", help="replace any existing entries/attributes (default preserve) (NYI)")
@@ -1482,7 +1483,7 @@ def main(argv=None):
         print(f"***Cannot run amidict***; see output for errors: {e} ")
 
 
-def test_process_args():
+def test_process_args_build_dictionary():
 
     words0_txt = f"{Path(Resources.TEST_RESOURCES_DIR, 'words0.txt')}"
     print(f"words {words0_txt}")

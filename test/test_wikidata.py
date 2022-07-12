@@ -342,7 +342,7 @@ class TestWikidataLookup(unittest.TestCase):
             'instance of', 'subclass of', 'part of', 'chemical structure', 'molecular model or crystal lattice model',
             'mass', 'chemical formula', 'canonical SMILES', 'isomeric SMILES', 'density']
 
-        properties_dict = WikidataPage.get_properties_dict(property_list)
+        properties_dict = WikidataProperty.get_properties_dict(property_list)
         dict_str = pprint.pformat(properties_dict)
         print(f"\ndict: \n"
               f"{dict_str}")
@@ -387,7 +387,7 @@ class TestWikidataLookup(unittest.TestCase):
 
         dictionary.write(Path(TEMP_DIR, "dict_5.xml"))
 
-    def test_add_wikidata_to_complete_dictionary(self):
+    def test_add_wikidata_to_complete_dictionary_with_filter(self):
         """Takes existing dictionary and looks up Wikidata stuff for entries w/o WikidataID
         Need dictionary in AmiDictionary format"""
         input_dir = EO_COMPOUND_DIR
@@ -399,6 +399,14 @@ class TestWikidataLookup(unittest.TestCase):
         dictionary = AmiDictionary(str(input_path))
         assert len(dictionary.entries) == 2114
         description = "chemical compound"
+        filter = {"filter":
+                      {"description": "(chemical compound|chemical element)",
+                       "property_value":
+                           {"instance of": "chemical compound"},
+                       },
+                  }
+        assert filter['filter']['description'] == "(chemical compound|chemical element)"
+        assert filter['filter']['property_value'] == {'instance of': 'chemical compound'}
         for entry in dictionary.entries[start_entry: end_entry]:
             wikidata_id = AmiDictionary.get_wikidata_id(entry)
             if not AmiDictionary.is_valid_wikidata_id(wikidata_id):
