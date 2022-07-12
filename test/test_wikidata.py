@@ -7,7 +7,7 @@ import logging
 from lxml import etree, html
 import requests
 # local
-from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor, WikidataProperty
+from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor, WikidataProperty, WikidataFilter
 from py4ami.ami_dict import AmiDictionary, WIKIDATA_ID, TERM, AMIDict
 
 """This runs under Pycharm and also
@@ -335,7 +335,7 @@ class TestWikidataLookup(unittest.TestCase):
 
         wikidata_page = WikidataPage("q407418")
         property_list = wikidata_page.get_data_property_list()
-        assert 74 > len(property_list) > 70
+        assert 74 >= len(property_list) >= 70
         assert wikidata_page.get_property_id_list()[:10] == [
             'P31', 'P279', 'P361', 'P117', 'P8224', 'P2067', 'P274', 'P233', 'P2017', 'P2054']
         assert wikidata_page.get_property_name_list()[:10] == [
@@ -399,14 +399,7 @@ class TestWikidataLookup(unittest.TestCase):
         dictionary = AmiDictionary(str(input_path))
         assert len(dictionary.entries) == 2114
         description = "chemical compound"
-        filter = {"filter":
-                      {"description": "(chemical compound|chemical element)",
-                       "property_value":
-                           {"instance of": "chemical compound"},
-                       },
-                  }
-        assert filter['filter']['description'] == "(chemical compound|chemical element)"
-        assert filter['filter']['property_value'] == {'instance of': 'chemical compound'}
+
         for entry in dictionary.entries[start_entry: end_entry]:
             wikidata_id = AmiDictionary.get_wikidata_id(entry)
             if not AmiDictionary.is_valid_wikidata_id(wikidata_id):
@@ -577,6 +570,14 @@ class TestWikidataLookup(unittest.TestCase):
             'descriptions', 'aliases', 'claims']
         assert json_dict['entities']['P117']['labels']['en']['value'] == 'chemical structure'
         assert json_dict['entities']['P31']['labels']['en']['value'] == 'instance of'
+
+    def test_read_wikidata_filter(self):
+        path = Path(RESOURCES_DIR, "filter00.json")
+        filter = WikidataFilter.create_filter(path)
+        assert filter.json['plugh'] == "xyzzy"
+        assert filter.json['filter']['description'] == "chemical"
+        assert filter.json['filter']['regex'] == "(chemical compound|chemical element)", f"found {filter.json['filter']['regex']}"
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -472,7 +472,8 @@ class PDFTest(unittest.TestCase):
 
     def test_debug_page_properties_chap6(self):
         """debug the PDF objects (crude)"""
-        maxpage = 20 # image is on page 8
+        maxpage = 9 # images on page 8, and 9
+        # maxpage = 9999 # image is on page 8
         outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
         pdf_debug = PDFDebug()
 
@@ -481,6 +482,12 @@ class PDFTest(unittest.TestCase):
             for page in pages[:maxpage]:
                 pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES], outdir=outdir)
         pdf_debug.write_summary(outdir=outdir)
+        print(f"pdf_debug {pdf_debug.image_dict}")
+        assert maxpage != 9 or pdf_debug.image_dict == {
+            ((1397, 779), 143448): (8, (72.0, 523.3), (412.99, 664.64)),
+            ((1466, 655), 122016): (8, (72.0, 523.3), (203.73, 405.38)),
+            ((1634, 854), 204349): (9, (80.9, 514.25), (543.43, 769.92))
+        }
 
     def test_debug_page_properties(self):
         """debug the PDF objects (crude)"""
@@ -501,12 +508,7 @@ class PDFTest(unittest.TestCase):
 
             for page in pages:
                 pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES])
-
-            # coord_list_file = Path(path, "image_coords.txt")
-            # basenames = [os.path.basename(pathx) for pathx in coord_paths]
-            # with open(coord_list_file, "w") as f:
-            #     f.write(f"{basenames}\n")
-            # print(f"wrote list of files based on coords: {coord_list_file}")
+            print(f"images: {pdf_debug.image_dict .keys()}")
 
     def test_bmp_png_to_png(self):
         dirx = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")

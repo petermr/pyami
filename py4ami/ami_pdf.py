@@ -899,6 +899,7 @@ class PDFDebug:
         self.max_curve = 10
         self.max_rect = 10
         self.image_coords_list = []
+        self.image_dict = dict()
 
     def debug_page_properties(self, page, debug=None, outdir=None):
         """debug print selected DEBUG_OPTIONS
@@ -965,11 +966,20 @@ class PDFDebug:
         write_image = False
         resolution = 400  # may be better
             # see https://github.com/euske/pdfminer/blob/master/pdfminer/pdftypes.py
-        if n_image := len(page.images) > 0:
-            print(f"images {n_image}", end=" | ")
+        if (n_image := len(page.images)) > 0:
+            print(f"images {n_image}", end=" |\n")
             for i, image in enumerate(page.images[:maximage]):
-                print(f"image: {type(image)}: {image.values()}")
 
+                # print(f"image: {type(image)}: {image.keys()} \n{image.values()}")
+                # print(f"stream {image['stream']}")
+                # print(f"xxyy {(image['x0'],image['x1']),(image['y0'],image['y1']),image['srcsize'],image['name'],image['page_number']}")
+                # stream = image['stream']
+                width_height_bytes = ((image['srcsize']),image['stream']['Length'])
+                page_coords = (image['page_number'], (image['x0'],image['x1']),(image['y0'],image['y1']))
+                print(f"image:  {width_height_bytes} => {page_coords}")
+                if (width_height_bytes) in self.image_dict:
+                    print("clash: {(width_height_bytes)}")
+                self.image_dict[width_height_bytes] = page_coords
 
                 if not outdir:
                     pass
@@ -980,7 +990,7 @@ class PDFDebug:
                     imagewriter.export_image(image)
                 page_height = page.height
                 image_bbox = (image[X0], page_height - image[Y1], image[X1], page_height - image[Y0])
-                print(f"image: {image_bbox}")
+                # print(f"image: {image_bbox}")
 
                 coord_stem = f"image_{page.page_number}_{i}_{self.format_bbox(image_bbox)}"
                 self.image_coords_list.append(coord_stem)
@@ -997,6 +1007,7 @@ class PDFDebug:
             #     for obj in p.layout:
             #         if isinstance(obj, LTImage):
             #             imagewriter.export_image(obj)
+        print(f"image_dict {self.image_dict}")
 
     def print_tables(self, page, odir=None):
         tables = page.find_tables()

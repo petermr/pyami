@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -195,6 +196,24 @@ class WikidataBrowser:
         """
         for subelem in element.xpath(xpath):
             subelem.getparent().remove(subelem)
+
+class WikidataFilter:
+
+    @classmethod
+    def create_filter(cls, file):
+        if not file:
+            return None
+        if not file.exists():
+            print(f"no file {file}")
+            return None
+        filter = WikidataFilter()
+        print(f"file.. {file}")
+        with open(file, "r") as f:
+            text = f.read()
+        filter.json = json.loads(text)
+        print(f"dict {type(filter.json)} {filter.json}")
+        return filter
+
 
 
 class WikidataProperty:

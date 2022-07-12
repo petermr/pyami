@@ -56,7 +56,7 @@ class TestPyami(unittest.TestCase):
         Outputs reason on log
         """
 
-        args = "--apply nonexistent"
+        args = ["foo", "--apply nonexistent"]
         try:
             PyAMI().run_command(args)
             assert False, "should fail before this with 'invalid choice'"
