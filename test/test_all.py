@@ -6,7 +6,8 @@ from glob import glob
 import os
 from pathlib import Path
 from lxml import etree
-
+import sys
+# local
 from py4ami.util import Util
 from py4ami.ami_config import AmiConfig
 from py4ami.wikimedia import WikidataSparql as WS
@@ -19,6 +20,20 @@ skip_config_test = True
 @unittest.skipIf(skip_config_test, "needs local config")
 def tests():
     AmiConfig.test_dicts()
+
+class AmiAnyTest(unittest.TestCase):
+
+    def setUp(self) -> None:
+        print(f"argv {sys.argv}")
+        if len(sys.argv) == 0:
+            sys.argv = ["ami"]
+        self.argv_copy = list(sys.argv)
+
+    def tearDown(self) -> None:
+        print(f"argv_copy {self.argv_copy}")
+        print(f"argv {sys.argv}")
+        self.argv =  list(self.argv_copy)
+
 
 class UtilTests:
     def test_dict_read():

@@ -1,4 +1,5 @@
 import unittest
+import sys
 
 from py4ami.ami_dict import AMIDict
 """Code for VALIDATING specific DICTIONARIES , not the code
@@ -91,6 +92,7 @@ CEVOPEN_DICTS = {
 
 
 def test_check_eo_activity():
+    print(f"sys.argv {sys.argv}")
     _validate_dict(CEVOPEN_DICTS[EO_ACTIVITY])
 
 

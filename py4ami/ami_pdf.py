@@ -970,10 +970,10 @@ class PDFDebug:
             print(f"images {n_image}", end=" |\n")
             for i, image in enumerate(page.images[:maximage]):
 
-                # print(f"image: {type(image)}: {image.keys()} \n{image.values()}")
-                # print(f"stream {image['stream']}")
-                # print(f"xxyy {(image['x0'],image['x1']),(image['y0'],image['y1']),image['srcsize'],image['name'],image['page_number']}")
-                # stream = image['stream']
+                print(f"image: {type(image)}: {image.keys()} \n{image.values()}")
+                print(f"stream {image['stream']}")
+                print(f"xxyy {(image['x0'],image['x1']),(image['y0'],image['y1']),image['srcsize'],image['name'],image['page_number']}")
+                stream = image['stream']
                 width_height_bytes = ((image['srcsize']),image['stream']['Length'])
                 page_coords = (image['page_number'], (image['x0'],image['x1']),(image['y0'],image['y1']))
                 print(f"image:  {width_height_bytes} => {page_coords}")

@@ -7,6 +7,9 @@ import lxml.etree
 import lxml.html
 
 import os
+
+import test.test_all
+
 """NOTE REQUIRES LATEST pdfplumber"""
 import pdfplumber
 from PIL import Image
@@ -85,7 +88,8 @@ def make_html_dir():
     return html_dir
 
 
-class PDFTest(unittest.TestCase):
+class PDFTest(test.test_all.AmiAnyTest):
+
     MAX_PAGE = 5
     MAX_ITER = 20
 
@@ -488,6 +492,35 @@ class PDFTest(unittest.TestCase):
             ((1466, 655), 122016): (8, (72.0, 523.3), (203.73, 405.38)),
             ((1634, 854), 204349): (9, (80.9, 514.25), (543.43, 769.92))
         }
+
+    def test_pdfminer_images(self):
+        import pdfminer
+        from pdfminer.image import ImageWriter
+        from pdfminer.high_level import extract_pages
+
+        path = Path(IPCC_CHAP6_PDF)
+        pages = list(extract_pages(path))
+        page = pages[10]
+
+        def get_image(layout_object):
+            if isinstance(layout_object, pdfminer.layout.LTImage):
+                print(f"LTImage {layout_object.__dir__()}")
+                return layout_object
+            if isinstance(layout_object, pdfminer.layout.LTContainer):
+                for child in layout_object:
+                    return get_image(child)
+            else:
+                return None
+
+        def save_images_from_page(page: pdfminer.layout.LTPage):
+            images = list(filter(bool, map(get_image, page)))
+            outdir = Path(Resources.TEMP_DIR, "pdf", "chap6", "pdf miner")
+            iw = ImageWriter(outdir)
+            for image in images:
+                iw.export_image(image)
+
+        save_images_from_page(page)
+
 
     def test_debug_page_properties(self):
         """debug the PDF objects (crude)"""

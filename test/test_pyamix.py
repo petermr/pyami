@@ -5,8 +5,10 @@ import unittest
 # local
 from py4ami.pyamix import PyAMI
 from py4ami.pyamix import main
+from test.test_all import AmiAnyTest
 
-class TestPyami(unittest.TestCase):
+
+class TestPyami(AmiAnyTest):
 
     """ tests commandline parsing, etc but not detailed methods
     """
