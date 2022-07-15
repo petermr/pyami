@@ -24,7 +24,7 @@ class TestSearchDictionary:
         assert ahref_dict == {'en': 'https://en.wikipedia.org/wiki/Azulene',
                               'de': 'https://de.wikipedia.org/wiki/Azulen'}
 
-    def test_create_dictionary(self):
+    def test_create_dictionary_terpenes(self):
         words = ["limonene", "alpha-pinene", "Lantana camara"]
         description = "created from words"
         name = "test"
