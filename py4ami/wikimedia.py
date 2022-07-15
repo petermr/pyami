@@ -517,9 +517,7 @@ class WikidataPage:
         desc_list = self.get_elements_for_normalized_attrib_val("class", "wikibase-entitytermsview-heading-description")
         # desc_list = self.root.xpath(
         #     f"/html//*[normalize-space(@class)='wikibase-entitytermsview-heading-description']")
-        assert desc_list is not None
-        assert len(desc_list) == 1
-        desc = desc_list[0].text
+        desc = "" if not desc_list else desc_list[0].text
         return desc
 
     def get_elements_for_normalized_attrib_val(self, attname, attval, lead="//*", trail=""):

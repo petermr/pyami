@@ -122,8 +122,10 @@ class AmiDictionary:
         if desc:
             dictionary.add_desc_element(desc)
         for term in terms:
-            entry = dictionary.add_entry_element(term=term)
-            dictionary.entries.append(entry)
+            term = term.strip()
+            if term:
+                entry = dictionary.add_entry_element(term=term)
+                dictionary.entries.append(entry)
         return dictionary
 
     @classmethod

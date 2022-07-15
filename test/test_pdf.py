@@ -249,7 +249,8 @@ class PDFTest(test.test_all.AmiAnyTest):
         args = f"--proj {proj} --apply svg2page"
         PyAMI().run_command(args)
 
-    @unittest.skip("Needs debugging")
+
+    @unittest.skip("page2sect NYI")
     def test_page2chap(self):
         proj = Resources.CLIMATE_10_PROJ_DIR
         args = f"--proj {proj} --apply page2sect"

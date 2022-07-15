@@ -1,19 +1,18 @@
-import unittest
-
-from lxml import etree as ET
 import os
 import pprint
+import unittest
 from pathlib import Path
-from collections import Container
+
+from lxml import etree as ET
+
+from py4ami.ami_dict import AmiDictionary, AmiDictArgs
+from py4ami.wikimedia import WikidataSparql, WikidataPage
 
 # local
 
-from py4ami.wikimedia import WikidataSparql, WikidataPage
-from py4ami.ami_dict import AmiDictionary
-from py4ami.util import AbstractArgs
-
 TEST_DIR = Path(Path(__file__).parent.parent, "test")
 TEST_RESOURCE_DIR = Path(TEST_DIR, "resources")
+
 
 class TestSearchDictionary:
 
@@ -26,7 +25,6 @@ class TestSearchDictionary:
                               'de': 'https://de.wikipedia.org/wiki/Azulen'}
 
     def test_create_dictionary(self):
-
         words = ["limonene", "alpha-pinene", "Lantana camara"]
         description = "created from words"
         name = "test"
@@ -36,7 +34,8 @@ class TestSearchDictionary:
     def test_get_property_ids(self):
         """gets properties af a dictionary entry"""
         words = ["limonene"]
-        dictionary = AmiDictionary.create_dictionary_from_words(words, "test", "created from words", wikilangs=["en", "de"])
+        dictionary = AmiDictionary.create_dictionary_from_words(words, "test", "created from words",
+                                                                wikilangs=["en", "de"])
         dictionary.add_wikidata_from_terms()
         pprint.pprint(ET.tostring(dictionary.root).decode("UTF-8"))
         assert len(dictionary.entries) == 1
@@ -46,7 +45,6 @@ class TestSearchDictionary:
         assert property_ids[:10] == ['P31', 'P279', 'P361', 'P2067', 'P274', 'P233',
                                      'P2054', 'P2101', 'P2128', 'P2199']
 
-    # @unittest.skip(reason="needs debugging")
     def test_create_dictionary_from_sparql(self):
         from py4ami.constants import PHYSCHEM_RESOURCES
         PLANT = os.path.join(PHYSCHEM_RESOURCES, "plant")
@@ -113,7 +111,7 @@ class TestSearchDictionary:
         AmiDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
         # TODO needs assert
 
-    @unittest.skip(reason="circular import AmiDictionary")
+    # LONG
     def test_plant_genus(cls):
         """
         """
@@ -152,7 +150,6 @@ class TestSearchDictionary:
         }
         AmiDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-    @unittest.skip(reason="circular import AmiDictionary")
     def test_compound(cls):
         """
         """
@@ -198,7 +195,6 @@ class TestSearchDictionary:
 
         AmiDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-    # @unittest.skip(reason="circular import AmiDictionary")
     def test_plant_part(cls):
         """
         Takes WD-SPARQL-XML output (sparql.xml) and maps to AMIDictionary (eo_plant_part.xml)
@@ -211,7 +207,7 @@ class TestSearchDictionary:
 
         print(f"***test_plant_part")
         DICT_DIR = os.path.join(CEV_OPEN_DICT_DIR, "eoPlantPart")
-        DICT_DIR = Path(TEST_RESOURCE_DIR,  "eoPlantPart")
+        DICT_DIR = Path(TEST_RESOURCE_DIR, "eoPlantPart")
         assert os.path.exists(DICT_DIR), f"{DICT_DIR} should exist"
         dictionary_file = os.path.join(DICT_DIR, "eoplant_part.xml")
         assert (os.path.exists(dictionary_file))
@@ -232,6 +228,7 @@ class TestSearchDictionary:
         }
 
         AmiDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
+
 
 # class PDFArgs(AbstractArgs):
 #     def __init__(self):
@@ -574,6 +571,7 @@ if __name__ == "__main__":
     main()
 else:
     pass
+
 
 def main():
     pass
