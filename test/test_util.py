@@ -10,32 +10,33 @@ import csv
 # local
 from py4ami.util import Util
 from test.resources import Resources
+from test.test_all import AmiAnyTest
 
 logger = logging.getLogger("py4ami_test_util")
 
 
-class TestUtil(unittest.TestCase):
+class TestUtil(AmiAnyTest):
     # def __init__(self):
     sys_argv_save = None
 
-    @classmethod
-    def setUp(cls):
-        """save args as they will be edited"""
-        cls.sys_argv_save = sys.argv
-
-    @classmethod
-    def tearDown(cls):
-        """restore args"""
-        sys.argv = cls.sys_argv_save
+    # @classmethod
+    # def setUp(cls):
+    #     """save args as they will be edited"""
+    #     cls.sys_argv_save = sys.argv
+    #
+    # @classmethod
+    # def tearDown(cls):
+    #     """restore args"""
+    #     sys.argv = cls.sys_argv_save
 
     @classmethod
     @unittest.skip("not working properly, I think some tests change the args...")
     # TODO fix args - some  tests change the args
     def test_add_argstr(cls):
         # this is a hack as normally there is only one element
-        sys.argv = sys.argv[1:]
+        # sys.argv = sys.argv[1:]
         # assert sys.argv[1:] == []
-        cmd = "foo bar plinge"
+        cmd = "--help foo bar plinge"
         Util.add_sys_argv_str(cmd)
         assert sys.argv[1:] == ["--help", "foo", "bar", "plinge"]
 
@@ -46,7 +47,7 @@ class TestUtil(unittest.TestCase):
         # this is a hack as normally there is only one element
         sys.argv = sys.argv[1:]
         # assert sys.argv[1:] == []
-        args = ["foox", "barx", "plingex"]
+        args = ["--help", "foox", "barx", "plingex"]
         Util.add_sys_argv(args)
         assert sys.argv[1:] == ["--help", "foox", "barx", "plingex"]
 

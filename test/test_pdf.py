@@ -7,6 +7,9 @@ import lxml.etree
 import lxml.html
 
 import os
+
+import test.test_all
+
 """NOTE REQUIRES LATEST pdfplumber"""
 import pdfplumber
 from PIL import Image
@@ -85,7 +88,8 @@ def make_html_dir():
     return html_dir
 
 
-class PDFTest(unittest.TestCase):
+class PDFTest(test.test_all.AmiAnyTest):
+
     MAX_PAGE = 5
     MAX_ITER = 20
 
@@ -245,7 +249,8 @@ class PDFTest(unittest.TestCase):
         args = f"--proj {proj} --apply svg2page"
         PyAMI().run_command(args)
 
-    @unittest.skip("Needs debugging")
+
+    @unittest.skip("page2sect NYI")
     def test_page2chap(self):
         proj = Resources.CLIMATE_10_PROJ_DIR
         args = f"--proj {proj} --apply page2sect"
@@ -472,7 +477,8 @@ class PDFTest(unittest.TestCase):
 
     def test_debug_page_properties_chap6(self):
         """debug the PDF objects (crude)"""
-        maxpage = 20 # image is on page 8
+        maxpage = 9 # images on page 8, and 9
+        # maxpage = 9999 # image is on page 8
         outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
         pdf_debug = PDFDebug()
 
@@ -481,6 +487,42 @@ class PDFTest(unittest.TestCase):
             for page in pages[:maxpage]:
                 pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES], outdir=outdir)
         pdf_debug.write_summary(outdir=outdir)
+        print(f"pdf_debug {pdf_debug.image_dict}")
+        assert maxpage != 9 or pdf_debug.image_dict == {
+            ((1397, 779), 143448): (8, (72.0, 523.3), (412.99, 664.64)),
+            ((1466, 655), 122016): (8, (72.0, 523.3), (203.73, 405.38)),
+            ((1634, 854), 204349): (9, (80.9, 514.25), (543.43, 769.92))
+        }
+
+    @unittest.skip("LONG; other methods may be better")
+    def test_pdfminer_images(self):
+        import pdfminer
+        from pdfminer.image import ImageWriter
+        from pdfminer.high_level import extract_pages
+
+        path = Path(IPCC_CHAP6_PDF)
+        pages = list(extract_pages(path))
+        page = pages[10]
+
+        def get_image(layout_object):
+            if isinstance(layout_object, pdfminer.layout.LTImage):
+                print(f"LTImage {layout_object.__dir__()}")
+                return layout_object
+            if isinstance(layout_object, pdfminer.layout.LTContainer):
+                for child in layout_object:
+                    return get_image(child)
+            else:
+                return None
+
+        def save_images_from_page(page: pdfminer.layout.LTPage):
+            images = list(filter(bool, map(get_image, page)))
+            outdir = Path(Resources.TEMP_DIR, "pdf", "chap6", "pdf miner")
+            iw = ImageWriter(outdir)
+            for image in images:
+                iw.export_image(image)
+
+        save_images_from_page(page)
+
 
     def test_debug_page_properties(self):
         """debug the PDF objects (crude)"""
@@ -501,12 +543,7 @@ class PDFTest(unittest.TestCase):
 
             for page in pages:
                 pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES])
-
-            # coord_list_file = Path(path, "image_coords.txt")
-            # basenames = [os.path.basename(pathx) for pathx in coord_paths]
-            # with open(coord_list_file, "w") as f:
-            #     f.write(f"{basenames}\n")
-            # print(f"wrote list of files based on coords: {coord_list_file}")
+            print(f"images: {pdf_debug.image_dict .keys()}")
 
     def test_bmp_png_to_png(self):
         dirx = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
@@ -858,7 +895,7 @@ def main(argv=None):
     print(f"running PDFArgs main")
     pdf_args = PDFArgs()
     try:
-        pdf_args.process1_args()
+        pdf_args.parse_and_process()
     except Exception as e:
         print(f"***Cannot run pyami***; see output for errors: {e}")
 

@@ -10,11 +10,8 @@ import statistics
 from pathlib import Path
 from typing import Container
 from io import BytesIO, StringIO
-import sys
 import re
 import traceback
-from collections import Counter
-from abc import abstractmethod, ABC
 import numpy as np
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.layout import LAParams
@@ -580,7 +577,8 @@ class PDFArgs(AbstractArgs):
         """arg_dict is set to default"""
         super().__init__()
 
-
+    def module_stem(self):
+        return "ami_pdf"
 
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
@@ -668,7 +666,7 @@ class PDFArgs(AbstractArgs):
             Converted pdf file
         """
         """from pdfminer/pdfplumber"""
-        device, interpreter, retstr = PDFArgs.create_interpreter(fmt)
+        device, interpreter, retstr = PDFArgs.create_pdf_interpreter(fmt)
         if not path:
             raise FileNotFoundError("no input file given)")
         try:
@@ -709,7 +707,7 @@ class PDFArgs(AbstractArgs):
         return arg_dict
 
     @classmethod
-    def create_interpreter(cls, fmt, codec: str = "UTF-8"):
+    def create_pdf_interpreter(cls, fmt, codec: str = "UTF-8"):
         """creates a PDFPageInterpreter
         :format: "text, "xml", "html"
         :codec: default UTF-8
@@ -832,14 +830,6 @@ class PDFArgs(AbstractArgs):
             print(f"wrote {f.name}")
 
     # class PDFArgs:
-    def process1_args(self):
-        self.create_arg_parser()
-        if len(sys.argv) == 1:  # no args, print help
-            self.parser.print_help()
-        else:
-            self.parsed_args = self.parser.parse_args(sys.argv[1:])
-            self.arg_dict = self.create_arg_dict()
-            self.process_args()
 
     def markup_parentheses(self, result_elem):
         """iterate over parenthesised fields
@@ -909,6 +899,7 @@ class PDFDebug:
         self.max_curve = 10
         self.max_rect = 10
         self.image_coords_list = []
+        self.image_dict = dict()
 
     def debug_page_properties(self, page, debug=None, outdir=None):
         """debug print selected DEBUG_OPTIONS
@@ -975,11 +966,20 @@ class PDFDebug:
         write_image = False
         resolution = 400  # may be better
             # see https://github.com/euske/pdfminer/blob/master/pdfminer/pdftypes.py
-        if n_image := len(page.images) > 0:
-            print(f"images {n_image}", end=" | ")
+        if (n_image := len(page.images)) > 0:
+            print(f"images {n_image}", end=" |\n")
             for i, image in enumerate(page.images[:maximage]):
-                print(f"image: {type(image)}: {image.values()}")
 
+                print(f"image: {type(image)}: {image.keys()} \n{image.values()}")
+                print(f"stream {image['stream']}")
+                print(f"xxyy {(image['x0'],image['x1']),(image['y0'],image['y1']),image['srcsize'],image['name'],image['page_number']}")
+                stream = image['stream']
+                width_height_bytes = ((image['srcsize']),image['stream']['Length'])
+                page_coords = (image['page_number'], (image['x0'],image['x1']),(image['y0'],image['y1']))
+                print(f"image:  {width_height_bytes} => {page_coords}")
+                if (width_height_bytes) in self.image_dict:
+                    print("clash: {(width_height_bytes)}")
+                self.image_dict[width_height_bytes] = page_coords
 
                 if not outdir:
                     pass
@@ -990,7 +990,7 @@ class PDFDebug:
                     imagewriter.export_image(image)
                 page_height = page.height
                 image_bbox = (image[X0], page_height - image[Y1], image[X1], page_height - image[Y0])
-                print(f"image: {image_bbox}")
+                # print(f"image: {image_bbox}")
 
                 coord_stem = f"image_{page.page_number}_{i}_{self.format_bbox(image_bbox)}"
                 self.image_coords_list.append(coord_stem)
@@ -1007,6 +1007,7 @@ class PDFDebug:
             #     for obj in p.layout:
             #         if isinstance(obj, LTImage):
             #             imagewriter.export_image(obj)
+        print(f"image_dict {self.image_dict}")
 
     def print_tables(self, page, odir=None):
         tables = page.find_tables()
@@ -1397,7 +1398,6 @@ class PDFImage:
     def convert_image_file(self, infile, outfile):
         """converts infile to outfile
         compounded suffixes"""
-        import os
         print(f"saving to {outfile}")
         Image.open(infile).save(outfile)
 class SvgText:
@@ -1581,7 +1581,7 @@ def main(argv=None):
     print(f"running PDFArgs main")
     pdf_args = PDFArgs()
     try:
-        pdf_args.process1_args()
+        pdf_args.parse_and_process()
     except Exception as e:
         print(traceback.format_exc())
         print(f"***Cannot run pyami***; see output for errors: {e} ")

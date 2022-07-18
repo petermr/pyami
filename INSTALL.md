@@ -18,7 +18,7 @@ See https://pypi.org/project/py4ami/
 ```cd pyami
 rm -rf dist
 # edit version number in setup.py
-
+```
 
 
 
@@ -27,8 +27,13 @@ rm -rf dist
 ```
 cd pyami
 rm -rf dist
+```
 # <edit version in setup.py>
+# buildoutcfg
+
+```
 python setup.py sdist
+
 twine upload dist/*
 # <login is pypi, not github>
 ```
@@ -166,4 +171,27 @@ pipreqs pyami
 ```
  python setup.py bdist_wheel
  twine upload/dist*
+```
+
+# run in virtual environment
+
+```
+python -m venv venv
+
+source venv/bin/activate
+```
+we are now in the venv
+
+
+```
+pip install py4ami --upgrade
+```
+check installed with
+```
+pip freeze
+```
+
+To leave `venv` 
+```
+deactivate
 ```

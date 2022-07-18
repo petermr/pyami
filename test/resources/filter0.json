@@ -1,0 +1,7 @@
+{"foo": "bar",
+  "plugh": "xyzzy",
+  "filter":
+    {"description": "(chemical compound|chemical element)",
+     "property_value": {"instance of": "chemical compound"},
+     }
+}

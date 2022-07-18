@@ -7,7 +7,7 @@ import logging
 from lxml import etree, html
 import requests
 # local
-from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor
+from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor, WikidataProperty, WikidataFilter
 from py4ami.ami_dict import AmiDictionary, WIKIDATA_ID, TERM, AMIDict
 
 """This runs under Pycharm and also
@@ -160,10 +160,30 @@ class TestWikidataLookup(unittest.TestCase):
         """tests xpath working of predicate_subject test"""
         tree = html.parse(str(Path(EO_COMPOUND_DIR, "q407418.html")))
         root = tree.getroot()
-        p31 = root.xpath(".//div[@id='P31']")
-        assert len(p31) == 1
-        qvals = p31[0].xpath(".//div[@class='wikibase-snakview-body']//a[starts-with(@title,'Q')]")
+        hdiv_p31 = root.xpath(".//div[@id='P31']")
+        assert len(hdiv_p31) == 1
+        qvals = hdiv_p31[0].xpath(".//div[@class='wikibase-snakview-body']//a[starts-with(@title,'Q')]")
         assert len(qvals) == 5
+
+    def test_page_get_values_for_property_id(self):
+        """test get all values in triples with given property
+        e.g. ?page wdt:P31 ?p31_value
+        USEFUL
+
+        """
+        page = WikidataPage.create_wikidata_ppage_from_file(Path(EO_COMPOUND_DIR, "q407418.html"))
+        qvals = page.get_qitems_for_property_id("P31")
+        assert len(qvals) == 5
+        assert qvals[0].text == "chemical compound"
+
+    def test_get_property_list(self):
+        """gets property list for a page
+        """
+        page = WikidataPage.create_wikidata_ppage_from_file(Path(EO_COMPOUND_DIR, "q407418.html"))
+        property_list = page.get_data_property_list()
+        assert len(property_list) == 72
+        assert property_list[0].property_name == "instance of"
+        assert property_list[0].id == "P31"
 
     def test_get_predicate_value_1(self):
         tree = html.parse(str(Path(EO_COMPOUND_DIR, "q407418.html")))
@@ -178,13 +198,13 @@ class TestWikidataLookup(unittest.TestCase):
     @unittest.skip(f"constructor for WikidataPage needs adjusting")
     def test_get_wikidata_predicate_value(self):
         """searches for instance-of (P31) chemical_compound (Q11173) in a wikidata page"""
-        pred = "P31"
-        obj = "Q11173"
+        pred_id = "P31"
+        obj_id = "Q11173"
         file = str(Path(EO_COMPOUND_DIR, "q407418.html"))
-        qval = WikidataPage(file).get_predicate_object(pred, obj)
+        qval = WikidataPage(file).get_predicate_object(pred_id, obj_id)
         assert qval[0].text == 'chemical compound'
 
-    def test_get_title(self):
+    def test_get_title_of_page(self):
         title = WikidataPage("q407418").get_title()
         assert title == "L-menthol"
 
@@ -232,10 +252,12 @@ class TestWikidataLookup(unittest.TestCase):
         """
         lookup = "sroperty"
         lookup = "statement"
+        property_list = []
         if lookup == "property":
             classx = "wikibase-statementgroupview-property-label"
             selector = f"@class='{classx}'"
-            selector = f".//div[@class='{classx}']//a[starts-with(@title,'Property:')]"
+            property_selector = f".//div[@class='{classx}']//a[starts-with(@title,'Property:')]"
+            property_list = WikidataPage("q407418").root.xpath(property_selector)
         if lookup == "statement":
             """wikibase-statementgroupview listview-item"""
             # selector = f".//div[@class='wikibase-statementgroupview listview-item']"
@@ -321,7 +343,7 @@ class TestWikidataLookup(unittest.TestCase):
             'instance of', 'subclass of', 'part of', 'chemical structure', 'molecular model or crystal lattice model',
             'mass', 'chemical formula', 'canonical SMILES', 'isomeric SMILES', 'density']
 
-        properties_dict = WikidataPage.get_properties_dict(property_list)
+        properties_dict = WikidataProperty.get_properties_dict(property_list)
         dict_str = pprint.pformat(properties_dict)
         print(f"\ndict: \n"
               f"{dict_str}")
@@ -366,7 +388,7 @@ class TestWikidataLookup(unittest.TestCase):
 
         dictionary.write(Path(TEMP_DIR, "dict_5.xml"))
 
-    def test_add_wikidata_to_complete_dictionary(self):
+    def test_add_wikidata_to_complete_dictionary_with_filter(self):
         """Takes existing dictionary and looks up Wikidata stuff for entries w/o WikidataID
         Need dictionary in AmiDictionary format"""
         input_dir = EO_COMPOUND_DIR
@@ -378,6 +400,7 @@ class TestWikidataLookup(unittest.TestCase):
         dictionary = AmiDictionary(str(input_path))
         assert len(dictionary.entries) == 2114
         description = "chemical compound"
+
         for entry in dictionary.entries[start_entry: end_entry]:
             wikidata_id = AmiDictionary.get_wikidata_id(entry)
             if not AmiDictionary.is_valid_wikidata_id(wikidata_id):
@@ -548,6 +571,14 @@ class TestWikidataLookup(unittest.TestCase):
             'descriptions', 'aliases', 'claims']
         assert json_dict['entities']['P117']['labels']['en']['value'] == 'chemical structure'
         assert json_dict['entities']['P31']['labels']['en']['value'] == 'instance of'
+
+    def test_read_wikidata_filter(self):
+        path = Path(RESOURCES_DIR, "filter00.json")
+        filter = WikidataFilter.create_filter(path)
+        assert filter.json['plugh'] == "xyzzy"
+        assert filter.json['filter']['description'] == "chemical"
+        assert filter.json['filter']['regex'] == "(chemical compound|chemical element)", f"found {filter.json['filter']['regex']}"
+
 
 if __name__ == '__main__':
     unittest.main()
