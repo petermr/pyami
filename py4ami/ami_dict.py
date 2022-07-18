@@ -657,6 +657,39 @@ class AbsDictElem(ABC):
             return None
         return self.element.attrib[attname]
 
+# copied from AMIDict
+    def has_valid_title(self):
+        pass
+    def has_forbidden_attributes(self):
+        pass
+    def has_valid_attributes(self):
+        pass
+    def has_valid_children(self):
+        pass
+    def has_valid_element(self):
+        pass
+
+    def has_valid_encoding(self):
+        """dictionary must have XML declaratiom with encoding of 'utf-8'
+        """
+        encoding = self.get_encoding()
+        return encoding is not None and encoding.lower() == "utf-8"
+
+    # tree = etree.parse('input.xml')
+    # info = tree.docinfo
+    # v, e, d = info.xml_version, info.encoding, info.doctype
+
+    def has_valid_optional_attributes(self):
+        pass
+    def has_valid_required_attributes(self):
+        pass
+    def has_valid_tag(self):
+        pass
+    def has_xml_declaration_with_utf8(self):
+        pass
+    def is_valid_version_string(self):
+        pass
+
 
 class AMIDict(AbsDictElem):
     # attributes
@@ -1476,6 +1509,28 @@ class AmiDictArgs(AbstractArgs):
             print(f"validate {self.validate}")
         else:
             print(f"requires existing dictionary")
+
+class AmiDictValidator:
+    def __init__(self, tree=None, root=None):
+        self.tree = tree
+        self.root = root
+
+    def get_xml_declaration_error_list(self):
+        if not self.tree:
+            logger.warning("No tree to validate")
+            return
+        info = self.tree.docinfo
+        error_list = []
+        if "1.0" != info.xml_version:
+            error_list.append(f"unsupported xml_version: {info.xml_version}")
+        if info.encoding is None or info.encoding.upper() != "UTF-8":
+            error_list.append(f"unsupported encoding: {info.encoding}")
+        if info.doctype is not None and info.doctype != '':
+            error_list.append(f"DOCTYPE unsupported {info.doctype}")
+        return error_list
+
+
+# ====================
 
 
 def main(argv=None):

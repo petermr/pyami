@@ -8,7 +8,7 @@ import logging
 from lxml import etree as ET
 from lxml import etree
 
-from py4ami.ami_dict import AmiDictionary, AmiDictArgs, AMIDict, AMIDictError, Entry
+from py4ami.ami_dict import AmiDictionary, AmiDictArgs, AMIDict, AMIDictError, Entry, AmiDictValidator
 from py4ami.wikimedia import WikidataSparql, WikidataPage
 from test.test_all import AmiAnyTest
 
@@ -182,11 +182,22 @@ class TestAmiDictionary(AmiAnyTest):
         assert root is not None
 
     def test_dictionary_has_xml_declaration_with_encoding(self):
-        tree = etree.parse(str(self.setup()[DICTFILE1]))
-        assert tree.docinfo is not None
-        assert tree.docinfo.xml_version == "1.0"
-        assert tree.docinfo.encoding is not None
-        assert tree.docinfo.encoding.upper() == 'UTF-8', f"dict must have encoding = 'UTF-8'"
+        """Checks dictionary has encoding of 'UTF-8' and XML Version 1.0
+        USEFUL 2022-07"""
+        dicts = [ETHNOBOT_DICT, DICTFILE1]
+        for dikt in dicts:
+            print(f"...{dikt}")
+            tree = etree.parse(str(self.setup()[dikt]))
+            validator = AmiDictValidator(tree)
+            error_list = validator.get_xml_declaration_error_list()
+            assert not error_list
+
+
+    # def validate_encoding(self, tree):
+    #     assert tree.docinfo is not None
+    #     assert tree.docinfo.xml_version == "1.0"
+    #     assert tree.docinfo.encoding is not None
+    #     assert tree.docinfo.encoding.upper() == 'UTF-8', f"dict must have encoding = 'UTF-8'"
 
     def test_dictionary_has_xml_declaration_with_encoding_method(self):
         amidict = AMIDict.create_dict_from_path(self.setup()[DICTFILE1])
