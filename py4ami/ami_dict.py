@@ -985,14 +985,17 @@ class AMIDict(AbsDictElem):
     # data validity
 
     def check_validity(self):
-        """checks dictionary has  valid <dictionary> child, valid attributes and valid child elements (NYI)"""
+        """checks dictionary has  valid <dictionary> child, valid attributes and valid child elements (NYI)
+        """
+        error_list = []
         if not self.has_valid_element():
-            raise AMIDictError(msg="must contain valid element (NYI)")
+            error_list.append(AMIDictError(msg="must contain valid element (NYI)"))
         if not self.has_valid_tag():
-            raise AMIDictError(msg="must have valid tag")
+            error_list.append(AMIDictError(msg="must have valid tag"))
         if not self.has_valid_attributes():
-            raise AMIDictError(msg="must have valid attributes")
-        # assert self.has_valid_children()
+            error_list.append(AMIDictError(msg="must have valid attributes"))
+        if not self.has_valid_children():
+            error_list.append(AMIDictError(msg="must have valid children"))
 
     def has_valid_element(self):
         if self.element is None:
@@ -1004,13 +1007,14 @@ class AMIDict(AbsDictElem):
         return self.element.tag == AMIDict.TAG
 
     def has_valid_attributes(self):
+        error_list = []
         if not self.has_valid_required_attributes():
-            raise AMIDictError(msg="element does not have valid required attributes")
+            error_list.append(AMIDictError(msg="element does not have valid required attributes"))
         if not self.has_valid_optional_attributes():
-            raise AMIDictError(msg="element does not have valid optional attributes")
+            error_list.append(AMIDictError(msg="element does not have valid optional attributes"))
         if self.has_forbidden_attributes():
-            raise AMIDictError(msg="element has_forbidden_attributes")
-        return True
+            error_list.append(AMIDictError(msg="element has_forbidden_attributes"))
+        return error_list
 
     def has_valid_required_attributes(self):
         self.check_version()
@@ -1104,13 +1108,13 @@ class AMIDict(AbsDictElem):
         return encoding is not None and encoding.upper() == AMIDict.UTF_8
 
     def has_valid_optional_attributes(self):
-        return True
+        return False, "not yet written"
 
     def has_forbidden_attributes(self):
-        return False
+        return False, "not yet written"
 
     def has_valid_children(self):
-        assert False, "not yet written"
+        return False, "not yet written"
 
     @classmethod
     def create_amidict_and_lookup_wikidata(cls, terms, title, directory=None):

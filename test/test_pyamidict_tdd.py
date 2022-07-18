@@ -9,6 +9,7 @@ from lxml import etree
 import os
 import re
 import logging
+
 logging.info(f"loading {__file__}")
 
 from py4ami.ami_dict import AMIDict, AMIDictError, Entry
@@ -62,7 +63,7 @@ def setup():
         ONE_ENTRY_DICT: one_entry_dict,
         MINI_PLANT_PART: mini_plant_part_path,
         MINI_MENTHA: Path(AMIDICTS, "mentha_tps.xml"),
-        ETHNOBOT_DICT: Path(AMIDICTS, ETHNOBOT_DICT+".xml"),
+        ETHNOBOT_DICT: Path(AMIDICTS, ETHNOBOT_DICT + ".xml"),
         DUPLICATE_ENTRIES: Path(AMIDICTS, DUPLICATE_ENTRIES + ".xml"),
     }
     return setup_dict
@@ -434,13 +435,14 @@ def test_create_and_overwrite_duplicate_term():
 
 
 # dictionary tests
-def test_dictionary_should_have_version():
+def test_minimal_dictionary():
     amidict = AMIDict.create_minimal_dictionary()
     assert amidict.get_version() is not None
     # amidict.check_validity()
     amidict.remove_attribute(AMIDict.VERSION_A)
     if amidict.get_version() is not None:
         raise AMIDictError("should have removed version")
+
     try:
         amidict.check_validity()
         raise AMIDictError("should fail is_valid()")
@@ -548,7 +550,7 @@ def test_create_dictionary_from_list_of_string_and_save():
     temp_dir = Path(Path(__file__).parent.parent, "temp")
     assert os.path.exists(temp_dir), f"{temp_dir} exists"
     title = "solvents"
-    tempfile = Path(temp_dir, title+".xml")
+    tempfile = Path(temp_dir, title + ".xml")
     dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title=title, directory=temp_dir)
     assert dictfile is not None and os.path.exists(dictfile)
 
@@ -576,6 +578,7 @@ def test_create_dictionary_from_list_of_string_save_and_compare():
     # assert text1 == dict_text, f"{text1} != {dict_text}"
     # TODO remove user from metadata
 
+
 def test_create_dictionary_from_list_of_string_and_add_wikidata():
     terms = ["acetone", "chloroform", "DMSO", "ethanol"]
     amidict = AMIDict.create_amidict_and_lookup_wikidata(terms, "solvents")
@@ -598,12 +601,14 @@ def test_create_dictionary_from_list_of_string_and_add_wikidata():
     # assert text1 == dict_text, f"{text1} != {dict_text}"
     # TODO remove user from metadata
 
+
 # helpers
 def _create_amidict_with_foo_bar_entries():
     amidict = AMIDict.create_minimal_dictionary()
     entry_foo = amidict.create_and_add_entry_with_term("foo")
     entry_bar = amidict.create_and_add_entry_with_term("bar")
     return amidict
+
 
 # test helpers
 

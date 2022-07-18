@@ -494,6 +494,7 @@ class PDFTest(test.test_all.AmiAnyTest):
             ((1634, 854), 204349): (9, (80.9, 514.25), (543.43, 769.92))
         }
 
+    @unittest.skip("LONG; other methods may be better")
     def test_pdfminer_images(self):
         import pdfminer
         from pdfminer.image import ImageWriter
