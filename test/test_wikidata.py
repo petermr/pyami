@@ -376,7 +376,7 @@ class TestWikidataLookup(unittest.TestCase):
     <entry name="alpha-amyrenone" term="alpha-amyrenone"></entry> <!-- not in Wikidata -->
 </dictionary>        """
         path = Path(EO_COMPOUND_DIR, "dict_5.xml")
-        dictionary = AmiDictionary(str(path))
+        dictionary = AmiDictionary.create_from_xml_file(str(path))
         assert len(dictionary.entries) == 5
         entry = dictionary.get_entry("allylhexanoate")
         assert entry.get(WIKIDATA_ID) == "Q3270746"
@@ -397,7 +397,7 @@ class TestWikidataLookup(unittest.TestCase):
         end_entry = 10
         input_path = Path(input_dir, "eoCompound1.xml")
         assert input_path.exists(), f"{input_path} should exist"
-        dictionary = AmiDictionary(str(input_path))
+        dictionary = AmiDictionary.create_from_xml_file(str(input_path))
         assert len(dictionary.entries) == 2114
         description = "chemical compound"
 
@@ -421,13 +421,13 @@ class TestWikidataLookup(unittest.TestCase):
         output_dir = TEMP_DIR
         input_path = Path(input_dir, "disambig.xml")
         assert input_path.exists(), f"{input_path} should exist"
-        dictionary = AmiDictionary(str(input_path))
+        dictionary = AmiDictionary.create_from_xml_file(str(input_path))
         assert len(dictionary.entries) == 9
         allowed_descriptions = {
             "chemical compound": "0.9",
             "group of isomers": "0.7",
         }
-        dictionary = AmiDictionary(str(input_path))
+        dictionary = AmiDictionary.create_from_xml_file(str(input_path))
         for entry in dictionary.entries:
             wikidata_id = AmiDictionary.get_wikidata_id(entry)
             if not AmiDictionary.is_valid_wikidata_id(wikidata_id):

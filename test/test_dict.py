@@ -4,16 +4,19 @@ import re
 from pathlib import Path
 from lxml import etree
 import logging
-
 from lxml import etree as ET
 from lxml import etree
-
+# local
 from py4ami.ami_dict import AmiDictionary, AmiDictArgs, AMIDict, AMIDictError, Entry, AmiDictValidator
 from py4ami.wikimedia import WikidataSparql, WikidataPage
+from py4ami.xml_lib import XmlLib
 from test.test_all import AmiAnyTest
 
-# local
-
+# MUST use RAW content , not HTML
+CEV_OPEN_RAW_DICT_URL = "https://raw.githubusercontent.com/petermr/CEVOpen/master/dictionary/"
+PLANT_PART_RAW_DICT_URL = CEV_OPEN_RAW_DICT_URL + "eoPlantPart/eoplant_part.xml"
+COMPOUND_RAW_DICT_URL = CEV_OPEN_RAW_DICT_URL + "eoCompound/plant_compound.xml"
+ANALYSIS_METHOD_RAW_DICT_URL = CEV_OPEN_RAW_DICT_URL + "eoAnalysisMethod/eoAnalysisMethod.xml"
 TEST_DIR = Path(Path(__file__).parent.parent, "test")
 TEST_RESOURCE_DIR = Path(TEST_DIR, "resources")
 DICTFILE1 = "dictfile1"
@@ -181,23 +184,40 @@ class TestAmiDictionary(AmiAnyTest):
         root = etree.parse(str(self.setup()[DICTFILE1]))
         assert root is not None
 
+    def test_can_read_url(self):
+
+        url = PLANT_PART_RAW_DICT_URL
+        tree = XmlLib.parse_url_to_tree(url)
+        descendants = tree.getroot().xpath('.//*')
+        assert 730 >= len(descendants)  >= 720
+
     def test_dictionary_has_xml_declaration_with_encoding(self):
         """Checks dictionary has encoding of 'UTF-8' and XML Version 1.0
         USEFUL 2022-07"""
-        dicts = [ETHNOBOT_DICT, DICTFILE1]
+        dicts = [ETHNOBOT_DICT, DICTFILE1, ]
+        print()
         for dikt in dicts:
             print(f"...{dikt}")
-            tree = etree.parse(str(self.setup()[dikt]))
-            validator = AmiDictValidator(tree)
+            root = etree.parse(str(self.setup()[dikt]))
+            dictionary = AmiDictionary.create_from_xml_object(root)
+            validator = AmiDictValidator(dictionary)
             error_list = validator.get_xml_declaration_error_list()
             assert not error_list
 
-
-    # def validate_encoding(self, tree):
-    #     assert tree.docinfo is not None
-    #     assert tree.docinfo.xml_version == "1.0"
-    #     assert tree.docinfo.encoding is not None
-    #     assert tree.docinfo.encoding.upper() == 'UTF-8', f"dict must have encoding = 'UTF-8'"
+    def test_validate_url_dict(self):
+        """tests that historic dictionaries read into validator"""
+        urllist = [
+            PLANT_PART_RAW_DICT_URL,
+            ANALYSIS_METHOD_RAW_DICT_URL,
+            COMPOUND_RAW_DICT_URL
+            ]
+        for url in urllist:
+            print(f"url: {url}")
+            tree = XmlLib.parse_url_to_tree(url)
+            dictionary = AmiDictionary.create_from_xml_object(tree)
+            validator = AmiDictValidator(dictionary)
+            error_list = validator.get_error_list()
+            assert not error_list
 
     def test_dictionary_has_xml_declaration_with_encoding_method(self):
         amidict = AMIDict.create_dict_from_path(self.setup()[DICTFILE1])
@@ -638,7 +658,7 @@ class TestSearchDictionary:
             "sparql_name": "image",
             "dict_name": "image",
         }
-        dictionary = AmiDictionary(dictionary_file)
+        dictionary = AmiDictionary.create_from_xml_file(dictionary_file)
         wikidata_sparql = WikidataSparql(dictionary)
         wikidata_sparql.update_from_sparql(sparql_file, sparql_to_dictionary)
         ff = dictionary_file[:-(len(".xml"))] + "_update" + ".xml"

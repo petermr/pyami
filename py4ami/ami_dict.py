@@ -74,15 +74,15 @@ class AmiDictionary:
     TERM = "term"
     NOT_FOUND = "NOT_FOUND"
 
-    def __init__(self, xml_file=None, title=None, wikilangs=None, ignorecase=True, **kwargs):
+    def __init__(self, title=None, wikilangs=None, ignorecase=True, **kwargs):
         self.logger = logger
-        self.amidict = None
+        self.xml_content = None
         self.entries = []
         self.entry_by_term = {}
         self.entry_by_wikidata_id = {}
-        self.file = xml_file
+        self.file = None
         self.ignorecase = ignorecase
-        self.title = None
+        self.title = title
         self.root = None
         self.sparql_result_list = None
         self.sparql_result_by_wikidata_id = None
@@ -92,16 +92,12 @@ class AmiDictionary:
         self.wikilangs = wikilangs
         self.wikidata_lookup = WikidataLookup()
 
-        if xml_file is not None:
-            if not os.path.exists(xml_file):
-                raise IOError("cannot find path " + str(xml_file))
-            self.read_dictionary_from_xml_file(xml_file)
-            title = Path(xml_file).stem
-            print(f"title {title}")
-        elif title is None:
-            print("must have title for new dictionary")
-        else:
-            self.title = title
+        # if xml_file is not None:
+        #     AmiDictionary.create_from_xml_file(title, xml_file)
+        # elif title is None:
+        #     print("must have title for new dictionary")
+        # else:
+        #     self.title = title
 
         self.options = {} if "options" not in kwargs else kwargs["options"]
         if "synonyms" in self.options:
@@ -110,6 +106,17 @@ class AmiDictionary:
             print("use case")
         self.split_terms = True
         self.split_terms = False
+
+    @classmethod
+    def create_from_xml_file(cls, xml_file, title=None, ignorecase=False):
+        if not os.path.exists(xml_file):
+            raise IOError("cannot find path " + str(xml_file))
+        dictionary = cls.read_dictionary_from_xml_file(xml_file, ignorecase=ignorecase)
+        file_title = Path(xml_file).stem
+        if not title:
+            title = file_title
+        print(f"title {file_title}")
+        return dictionary
 
     @classmethod
     def create_dictionary_from_words(cls, terms, title=None, desc=None, wikilangs=None):
@@ -185,20 +192,29 @@ class AmiDictionary:
         """create dictionary from file
         :param file: containing dictionary
         :return: new Dictionary"""
-        return AmiDictionary(xml_file=file) if file is not None else None
+        return AmiDictionary.create_from_xml_file(file) if file is not None else None
 
-    def read_dictionary_from_xml_file(self, file, ignorecase=True):
-        self.file = file
-        self.amidict = ET.parse(file, parser=ET.XMLParser(encoding="utf-8"))
-        self.root = self.amidict.getroot()
-        # print("ROOT", ET.tostring(self.root)[:50])
-        self.title = self.root.attrib["title"]
-        self.ignorecase = ignorecase
+    @classmethod
+    def read_dictionary_from_xml_file(cls, file, ignorecase=True):
+        xml_tree = ET.parse(file, parser=ET.XMLParser(encoding="utf-8"))
+        dictionary = cls.create_from_xml_object(xml_tree, ignorecase=ignorecase)
+        dictionary.xml_content = xml_tree
+        dictionary.file = file
+        dictionary.root = xml_tree.getroot()
+        return dictionary
 
-        self.entries = list(self.root.findall(ENTRY))
-        self.create_entry_by_term()
-        self.term_set = set()
-
+    @classmethod
+    def create_from_xml_object(cls, xml_object, ignorecase=True):
+        if xml_object is None:
+            return None
+        dictionary = AmiDictionary()
+        dictionary.root = xml_object.getroot()
+        dictionary.title = dictionary.root.get("title")
+        dictionary.ignorecase = ignorecase
+        dictionary.entries = list(dictionary.root.findall(ENTRY))
+        dictionary.create_entry_by_term()
+        dictionary.term_set = set()
+        return dictionary
 
     def get_or_create_term_set(self):
         if len(self.term_set) == 0:
@@ -420,7 +436,7 @@ class AmiDictionary:
     @classmethod
     def create_and_write_dictionary(cls, dictionary_file, dictionary_root, i, keystring, sparq2dict, sparql_file):
         assert (os.path.exists(sparql_file))
-        dictionary = AmiDictionary(dictionary_file)
+        dictionary = AmiDictionary.create_from_xml_file(dictionary_file)
         wikidata_sparql = WikidataSparql(dictionary)
         wikidata_sparql.update_from_sparql(sparql_file, sparq2dict)
         dictionary_file = f"{dictionary_root}{keystring}_{i + 1}.xml"
@@ -590,7 +606,7 @@ class AmiDictionaries:
                             key + " in " + str(self.dictionary_dict))
         Util.check_exists(file)
         try:
-            dictionary = AmiDictionary(file)
+            dictionary = AmiDictionary.create_from_xml_file(file)
             self.dictionary_dict[key] = dictionary
         except Exception as ex:
             print("Failed to read dictionary", file, ex)
@@ -1511,9 +1527,21 @@ class AmiDictArgs(AbstractArgs):
             print(f"requires existing dictionary")
 
 class AmiDictValidator:
-    def __init__(self, tree=None, root=None):
-        self.tree = tree
-        self.root = root
+    def __init__(self, dictionary=None, path=None):
+        if not dictionary:
+            raise ValueError("no dictionary")
+        self.dictionary = dictionary
+        self.root = dictionary.root
+        if self.root is None:
+            raise ValueError("no dictionary root")
+        self.tree = lxml.etree.ElementTree(self.root)
+        self.path = path
+
+    def get_error_list(self):
+        """aggregates all errors into single list"""
+        error_list = []
+        error_list.extend(self.get_xml_declaration_error_list())
+        error_list.extend(self.get_title_error_list())
 
     def get_xml_declaration_error_list(self):
         if not self.tree:
@@ -1527,6 +1555,13 @@ class AmiDictValidator:
             error_list.append(f"unsupported encoding: {info.encoding}")
         if info.doctype is not None and info.doctype != '':
             error_list.append(f"DOCTYPE unsupported {info.doctype}")
+        return error_list
+
+    def get_title_error_list(self):
+        error_list = []
+        title = self.dictionary.title
+        if not title:
+            error_list.append(f"Dictionary does not have title")
         return error_list
 
 
