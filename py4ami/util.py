@@ -263,7 +263,7 @@ class AbstractArgs(ABC):
         """
         # strip all tokens including ".py" (will proably fail on some m/c)
         print(f"module_stem {self.module_stem}")
-        while len(sys.argv) > 0 and not self.module_stem in sys.argv[0]:
+        while len(sys.argv) > 0 and not self.module_stem() in sys.argv[0]:
             sys.argv = sys.argv[1:]
         self.create_arg_parser()
         print(f"argv {sys.argv}")

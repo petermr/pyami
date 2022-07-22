@@ -293,10 +293,11 @@ class HtmlTree:
             if not output_dir.exists():
                 output_dir.mkdir()
             for i, child_div in enumerate(decimal_divs):
-                marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ", "_").lower()  # name from text content
-                path = Path(output_dir, f"{marker}.html")
-                with open(path, "wb") as f:
-                    f.write(lxml.etree.tostring(child_div, pretty_print=True))
+                if HtmlUtil.MARKER in child_div.attrib:
+                    marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ", "_").lower()  # name from text content
+                    path = Path(output_dir, f"{marker}.html")
+                    with open(path, "wb") as f:
+                        f.write(lxml.etree.tostring(child_div, pretty_print=True))
             print(f"decimals: {len(decimal_divs)}")
 
     @classmethod
@@ -358,7 +359,10 @@ class HtmlTree:
             spans = div.xpath("./span")
             if not spans:
                 # no spans, concatenate with siblings
-                current_div.append(div)
+                try:
+                    current_div.append(div)
+                except Exception as e:
+                    print(f"BUG skipped")
                 continue
             css_style = CSSStyle.create_css_style(spans[0])  # normally comes first
             # check weight, if none append to siblings
