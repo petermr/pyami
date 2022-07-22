@@ -587,7 +587,7 @@ class PDFArgs(AbstractArgs):
         self.parser = argparse.ArgumentParser(description='PDF parsing')
         self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
         self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
-        self.parser.add_argument("--inpath", type=str, nargs=1, help="input file")
+        self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url")
         self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
         self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
         self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)

@@ -61,6 +61,9 @@ VALIDATE = "validate"
 WIKIDATA = "wikidata"
 WORDS = "words"
 
+# constants
+UTF_8 = "UTF-8"
+
 # elements
 
 logger = logging.getLogger("ami_dict")
@@ -71,6 +74,7 @@ class AmiDictionary:
 
     """
     # tries to avoid circular import
+    TAG = "dictionary"
     TERM = "term"
     NOT_FOUND = "NOT_FOUND"
 
@@ -128,12 +132,28 @@ class AmiDictionary:
         dictionary.root.attrib[TITLE] = title
         if desc:
             dictionary.add_desc_element(desc)
+        dictionary.add_entries_from_words(terms)
+        return dictionary
+
+    def add_entries_from_words(self, terms, duplicates="ignore"):
+        """add list of words as entry's
+        :param terms:   list of terms
+        :param duplicates: action if term is duplicate ("ignore", "replace", "error") NYI
+        """
+        self.entries = self.entries if self.entries else []
         for term in terms:
             term = term.strip()
             if term:
-                entry = dictionary.add_entry_element(term=term)
-                dictionary.entries.append(entry)
-        return dictionary
+                dup_entry = self.get_entry(term)
+                if dup_entry is None:
+                    entry = self.add_entry_element(term=term)
+                    self.entries.append(entry)
+                elif duplicates == "error":
+                    raise AMIDictError("Duplicate entry")
+                elif duplicates == "ignore":
+                    print(f"duplicate term: {term} ignored ")
+                elif duplicates == "replace":
+                    print(f"duplicate term: {term} ; replace NYI ")
 
     @classmethod
     def create_dictionary_from_wordfile(cls, wordfile=None, title=None, desc=None):
@@ -170,6 +190,16 @@ class AmiDictionary:
         pprint.pprint(ET.tostring(dictionary.root).decode("UTF-8"))
         return dictionary
 
+    @classmethod
+    def create_dictionary_from_xml_string(cls, xml_str):
+        """create dictionary from xml string
+        :param xml_str: well-formed XML string
+        :return AMIDictionary or null
+        """
+        xml = lxml.etree.fromstring(xml_str)
+        dictionary = AmiDictionary.create_from_xml_object(xml)
+        return dictionary
+
     def add_entry_element(self, term):
         """create and add antry with term/name
         :param term: term (will also set name attribute
@@ -179,6 +209,7 @@ class AmiDictionary:
         entry = ET.SubElement(self.root, ENTRY)
         entry.attrib[NAME] = term
         entry.attrib[TERM] = term
+        self.entry_by_term[term] = entry
         return entry
 
     def add_desc_element(self, desc):
@@ -207,9 +238,16 @@ class AmiDictionary:
     def create_from_xml_object(cls, xml_object, ignorecase=True):
         if xml_object is None:
             return None
+        if not xml_object.xpath("@title"):
+            raise ValueError("No title given for dictionary")
         dictionary = AmiDictionary()
-        dictionary.root = xml_object.getroot()
-        dictionary.title = dictionary.root.get("title")
+        if isinstance(xml_object, lxml.etree._ElementTree):
+            dictionary.root = xml_object.getroot()
+        elif isinstance(xml_object, lxml.etree._Element):
+            dictionary.root = xml_object
+        else:
+            raise AMIDictError(f"bad object {type(xml_object)}")
+        dictionary.title = dictionary.root.xpath("@title")
         dictionary.ignorecase = ignorecase
         dictionary.entries = list(dictionary.root.findall(ENTRY))
         dictionary.create_entry_by_term()
@@ -317,6 +355,10 @@ class AmiDictionary:
             pass
         return entry
 
+    def get_entry_count(self):
+        assert self.entry_by_term
+        return len(self.entry_by_term)
+
     def create_entry_by_term(self):
         self.entry_by_term = {self.term_from_entry(entry): entry for entry in self.entries}
 
@@ -393,6 +435,10 @@ class AmiDictionary:
             return False
         return True
 
+    # new
+    def has_valid_root_tag(self):
+        return self.root.tag == "dictionary"
+
     def create_wikidata_page(self, entry_element):
         from py4ami.wikimedia import WikidataPage
 
@@ -443,12 +489,34 @@ class AmiDictionary:
         dictionary.write(dictionary_file)
         return dictionary_file
 
-# WikidataSparql
+    @classmethod
+    def create_minimal_dictionary(cls):
+        element = etree.Element(AmiDictionary.TAG)
+        element.attrib["title"] = "minimal"
+        dictionary = AmiDictionary.create_from_xml_object(element)
+        dictionary.set_version()
+        dictionary.set_encoding()
+        return dictionary
+
+    def set_title(self, title):
+        assert self.root is not None
+        self.root.title = title
+
+    def set_encoding(self, encoding=UTF_8):
+        assert self.root is not None
+        # self.root.docinfo.encoding = encoding
+        print(f"cannot yet set encoding")
+
+    def set_version(self, version='0.0.1'):
+        assert self.root is not None
+        self.root.attrib["version"] = version
+
+    # TODO is this in the right place?
     @classmethod
     def apply_dicts_and_sparql(cls, dictionary_file, rename_file, sparql2amidict_dict, sparql_files):
         """TODO this is a mess"""
         keystring = ""
-        # svae original path
+        # save original path
         original_name = dictionary_file
         dictionary_root = os.path.splitext(dictionary_file)[0]
         save_file = dictionary_root + ".xml.save"
@@ -461,7 +529,6 @@ class AmiDictionary:
                                                                   sparq2dict, sparql_file)
         if rename_file:
             copyfile(dictionary_file, original_name)
-
 
 
 class AmiDictionaries:
@@ -1531,10 +1598,12 @@ class AmiDictValidator:
         if not dictionary:
             raise ValueError("no dictionary")
         self.dictionary = dictionary
-        self.root = dictionary.root
-        if self.root is None:
-            raise ValueError("no dictionary root")
-        self.tree = lxml.etree.ElementTree(self.root)
+        assert dictionary.root is not None
+        assert str(type(dictionary.root)) == "<class 'lxml.etree._Element'>", f"found: {type(dictionary.root)}"
+        # self.root = dictionary.root
+        # if self.root is None:
+        #     raise ValueError("no dictionary root")
+        # self.tree = lxml.etree.ElementTree(self.root)
         self.path = path
 
     def get_error_list(self):
@@ -1544,10 +1613,8 @@ class AmiDictValidator:
         error_list.extend(self.get_title_error_list())
 
     def get_xml_declaration_error_list(self):
-        if not self.tree:
-            logger.warning("No tree to validate")
-            return
-        info = self.tree.docinfo
+        tree = lxml.etree.ElementTree(self.dictionary.root)
+        info = tree.docinfo
         error_list = []
         if "1.0" != info.xml_version:
             error_list.append(f"unsupported xml_version: {info.xml_version}")

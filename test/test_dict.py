@@ -1,15 +1,20 @@
+import logging
 import os
 import pprint
 import re
 from pathlib import Path
+
 from lxml import etree
-import logging
 from lxml import etree as ET
-from lxml import etree
+from lxml import XMLSyntaxError
+import glob
+
+
 # local
 from py4ami.ami_dict import AmiDictionary, AmiDictArgs, AMIDict, AMIDictError, Entry, AmiDictValidator
 from py4ami.wikimedia import WikidataSparql, WikidataPage
 from py4ami.xml_lib import XmlLib
+from py4ami.constants import PHYSCHEM_RESOURCES, CEV_OPEN_DICT_DIR
 from test.test_all import AmiAnyTest
 
 # MUST use RAW content , not HTML
@@ -42,21 +47,6 @@ class TestAmiDictionary(AmiAnyTest):
 
     logging.info(f"loading {__file__}")
 
-    from py4ami.ami_dict import AMIDict, AMIDictError, Entry
-
-    # try:
-    #     from py4ami.ami_dict import AMIDict, AMIDictError, Entry
-    #     logging.info(f"loaded py4ami.ami_dict")
-    # except Exception:
-    #     try:
-    #         from py4ami.ami_dict import AMIDict, AMIDictError, Entry
-    #     except Exception as e:
-    #         logging.error(f"Cannot import from py4ami.ami_dict")
-
-    # from py4ami.wikimedia import WikidataLooku
-    # dict1 = None
-    # root = None
-
     DICTFILE1 = "dictfile1"
     ROOT = "root"
     ONE_ENTRY_PATH = "one_entry_file"
@@ -80,8 +70,10 @@ class TestAmiDictionary(AmiAnyTest):
         one_entry_path = Path(AMIDICTS, "dict_one_entry.xml")
         one_entry_path = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts/dict_one_entry.xml")
         one_entry_dict = AMIDict.create_dict_from_path(one_entry_path)
-        mini_plant_part_path = Path(AMIDICTS, "mini_plant_part.xml")
         assert one_entry_dict is not None
+        one_entry_dict_new = AmiDictionary.create_from_xml_file(one_entry_path)
+        assert one_entry_dict_new is not None
+        mini_plant_part_path = Path(AMIDICTS, "mini_plant_part.xml")
 
         # BUG: this should be available through pytest
         setup_dict = {
@@ -101,6 +93,35 @@ class TestAmiDictionary(AmiAnyTest):
         setup_dict = self.setup()
         assert setup_dict[DICTFILE1].exists(), f"file should exist {setup_dict['dict1']}"
         self.teardown()
+
+    def test_read_wellformed_dictionary(self):
+        dict_str = """
+        <dictionary title='foo'>
+        </dictionary>
+        """
+        ami_dict = AmiDictionary.create_dictionary_from_xml_string(dict_str)
+        assert ami_dict is not None
+
+        assert ami_dict.root.tag == "dictionary"
+
+        dict_str = """
+        <diktionary title='foo'>
+        </dictionary>
+        """
+        try:
+            ami_dict = AmiDictionary.create_dictionary_from_xml_string(dict_str)
+        except XMLSyntaxError as e:
+            print(f"xml error {e}")
+
+    def test_dictionary_element(self):
+        dict_str = """
+        <dictionary title='foo'>
+        </dictionary>
+        """
+        ami_dict = AmiDictionary.create_dictionary_from_xml_string(dict_str)
+        assert ami_dict is not None
+        assert ami_dict.root.tag == "dictionary"
+        assert ami_dict.has_valid_root_tag()
 
     def test_one_entry_dict_is_ami_dictionary(self):
         """require the attribute to be present but does not check value"""
@@ -143,7 +164,16 @@ class TestAmiDictionary(AmiAnyTest):
         setup_dict = self.setup()
         one_dict = setup_dict[ONE_ENTRY_DICT]
         version = one_dict.get_version()
-        assert one_dict.is_valid_version_string(version), "invalid version {version}}"
+        assert one_dict.is_valid_version_string(version), f"invalid version {version}"
+
+    def test_catch_invalid_version(self):
+        minimal_dict = AmiDictionary.create_minimal_dictionary()
+        try:
+            minimal_dict.set_version("1.2.a")
+            raise AMIDictError("should catch bad version error")
+        except AMIDictError as e:
+            """should catch bad version"""
+            # print(f"caught expected error")
 
     def test_create_dictionary_from_url(self):
         mentha_url = "https://raw.githubusercontent.com/petermr/pyami/main/py4ami/resources/amidicts/mentha_tps.xml"
@@ -302,55 +332,54 @@ class TestAmiDictionary(AmiAnyTest):
         assert amidict.get_entry_count() == 1
 
     def test_add_two_entry_with_term_to_zero_entry_dict(self):
-        amidict = AMIDict.create_minimal_dictionary()
-        entry_foo = amidict.create_and_add_entry_with_term("foo")
-        entry_bar = amidict.create_and_add_entry_with_term("bar")
-        assert b'<entry term="bar"/>' == etree.tostring(entry_bar.element)
-        assert b'<dictionary version="0.0.1" title="minimal" encoding="UTF-8"><entry term="foo"/><entry term="bar"/>' \
-               b'</dictionary>' == etree.tostring(amidict.element)
+        amidict = AmiDictionary.create_minimal_dictionary()
+        entry_foo = amidict.add_entry_element("foo")
+        entry_bar = amidict.add_entry_element("bar")
+        assert etree.tostring(entry_bar) == b'<entry name="bar" term="bar"/>'
+        assert etree.tostring(amidict.root) == b'<dictionary title="minimal" version="0.0.1"><entry name="foo" term="foo"/><entry name="bar" term="bar"/></dictionary>'
         assert amidict.get_entry_count() == 2
 
     def test_add_list_of_entries_from_list_of_string(self):
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
         term_count = len(terms)
-        amidict = AMIDict.create_minimal_dictionary()
-        amidict.create_and_add_entries_from_str_list(terms)
+        amidict = AmiDictionary.create_minimal_dictionary()
+        amidict.add_entries_from_words(terms)
         assert amidict.get_entry_count() == term_count
 
     def test_find_entry_after_add_list_of_entries_from_list_of_string(self):
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
-        amidict = AMIDict.create_minimal_dictionary()
-        amidict.create_and_add_entries_from_str_list(terms)
-        entry_bar = amidict.find_entry_with_term("bar")
+        amidict = AmiDictionary.create_minimal_dictionary()
+        amidict.add_entries_from_words(terms)
+        entry_bar = amidict.get_entry("bar")
         assert entry_bar is not None
 
     def test_fail_on_missing_entry_after_add_list_of_entries_from_list_of_string(self):
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
-        amidict = AMIDict.create_minimal_dictionary()
-        amidict.create_and_add_entries_from_str_list(terms)
-        entry_zilch = amidict.find_entry_with_term("zilch")
+        amidict = AmiDictionary.create_minimal_dictionary()
+        amidict.add_entries_from_words(terms)
+        entry_zilch = amidict.get_entry("zilch")
         assert entry_zilch is None, f"missing entry returns None"
 
     def test_add_second_list_of_entries_from_list_of_string(self):
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
-        amidict = AMIDict.create_minimal_dictionary()
-        amidict.create_and_add_entries_from_str_list(terms)
+        amidict = AmiDictionary.create_minimal_dictionary()
+        amidict.add_entries_from_words(terms)
         terms1 = ["wibble", "wobble"]
-        amidict.create_and_add_entries_from_str_list(terms1)
+        amidict.add_entries_from_words(terms1)
         assert amidict.get_entry_count() == len(terms) + len(terms1)
 
     def test_add_list_of_entries_from_list_of_string_with_duplicates_and_replace(self):
         terms = ["foo", "bar", "plugh", "xyzzy", "bar"]
-        amidict = AMIDict.create_minimal_dictionary()
-        amidict.create_and_add_entries_from_str_list(terms, replace=True)
+        amidict = AmiDictionary.create_minimal_dictionary()
+        amidict.add_entries_from_words(terms, duplicates="replace")
         assert amidict.get_entry_count() == 4, f"'bar' should be present"
 
     def test_add_list_of_entries_from_list_of_string_with_duplicates_and_no_replace(self):
         """add list of terms which contains duplicate and raise error"""
         terms = ["foo", "bar", "plugh", "xyzzy", "bar"]
-        amidict = AMIDict.create_minimal_dictionary()
+        amidict = AmiDictionary.create_minimal_dictionary()
         try:
-            amidict.create_and_add_entries_from_str_list(terms, replace=False)
+            amidict.add_entries_from_words(terms, duplicates="error")
             assert False, f"AMIDict duplicate error (bar) should have been thrown"
         except AMIDictError:
             assert True, "error should have been throwm"
@@ -639,7 +668,6 @@ class TestSearchDictionary:
                                      'P2054', 'P2101', 'P2128', 'P2199']
 
     def test_create_dictionary_from_sparql(self):
-        from py4ami.constants import PHYSCHEM_RESOURCES
         PLANT = os.path.join(PHYSCHEM_RESOURCES, "plant")
         sparql_file = os.path.join(PLANT, "plant_part_sparql.xml")
         dictionary_file = os.path.join(PLANT, "eoplant_part.xml")
@@ -668,10 +696,6 @@ class TestSearchDictionary:
     def test_invasive(self):
         """
         """
-
-        from py4ami.constants import CEV_OPEN_DICT_DIR
-        import glob
-        # from shutil import copyfile
 
         INVASIVE_DIR = os.path.join(CEV_OPEN_DICT_DIR, "invasive_species")
         assert (os.path.exists(INVASIVE_DIR))
@@ -709,10 +733,6 @@ class TestSearchDictionary:
         """
         """
 
-        from py4ami.constants import CEV_OPEN_DICT_DIR
-        import glob
-        # from shutil import copyfile
-
         DICT_DIR = os.path.join(CEV_OPEN_DICT_DIR, "plant_genus")
         assert (os.path.exists(DICT_DIR))
         dictionary_file = os.path.join(DICT_DIR, "plant_genus.xml")
@@ -746,10 +766,6 @@ class TestSearchDictionary:
     def test_compound(cls):
         """
         """
-
-        from py4ami.constants import CEV_OPEN_DICT_DIR
-        import glob
-        # from shutil import copyfile
 
         DICT_DIR = os.path.join(CEV_OPEN_DICT_DIR, "eoCompound")
         assert (os.path.exists(DICT_DIR))
@@ -794,9 +810,6 @@ class TestSearchDictionary:
 
         """
         # current dictionary does not need updating
-
-        from py4ami.constants import CEV_OPEN_DICT_DIR
-        import glob
 
         print(f"***test_plant_part")
         DICT_DIR = os.path.join(CEV_OPEN_DICT_DIR, "eoPlantPart")
