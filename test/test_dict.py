@@ -11,8 +11,8 @@ import glob
 import unittest
 
 # local
-from py4ami.ami_dict import AmiDictionary, AmiEntry, AmiDictArgs, AMIDict, AMIDictError, Entry, \
-    AmiDictValidator, NAME, TITLE, TERM, LANG_UR, VERSION
+from py4ami.ami_dict import AmiDictionary, AmiEntry, AmiDictArgs, AMIDictError, \
+    AmiDictValidator, NAME, TITLE, TERM, LANG_UR, VERSION, WIKIDATA, WIKIDATA_ID
 from py4ami.wikimedia import WikidataSparql, WikidataPage
 from py4ami.xml_lib import XmlLib
 from py4ami.constants import PHYSCHEM_RESOURCES, CEV_OPEN_DICT_DIR
@@ -289,15 +289,15 @@ class TestAmiDictionary(AmiAnyTest):
 
     def test_get_term_of_first_entry(self):
         amidict = self.setup()[ONE_ENTRY_DICT]
-        assert amidict.get_first_entry().attrib[Entry.TERM_A] == "Douglas Adams"
+        assert amidict.get_first_entry().attrib[TERM] == "Douglas Adams"
 
     def test_get_name_of_first_entry(self):
         amidict = self.setup()[ONE_ENTRY_DICT]
-        assert amidict.get_first_entry().attrib[Entry.NAME_A] == "Douglas Adams"
+        assert amidict.get_first_entry().attrib[NAME] == "Douglas Adams"
 
     def test_get_wikidata_of_first_entry(self):
         amidict = self.setup()[ONE_ENTRY_DICT]
-        assert amidict.get_first_entry().attrib[Entry.WIKIDATA_A] == "Q42"
+        assert amidict.get_first_entry().attrib[WIKIDATA_ID] == "Q42"
 
     def test_get_synonym_count(self):
         amidict = self.setup()[ONE_ENTRY_DICT]

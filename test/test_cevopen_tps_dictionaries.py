@@ -1,7 +1,7 @@
-import unittest
 import sys
+# local
+from py4ami.ami_dict import AmiDictionary
 
-from py4ami.ami_dict import AMIDict
 """Code for VALIDATING specific DICTIONARIES , not the code
 
  These are effectively tests for the dictionaries
@@ -154,5 +154,5 @@ def test_check_binomial_abbreviations():
 
 # helper ----------------
 def _validate_dict(dict_url):
-    amidict = AMIDict.create_dict_from_url(dict_url)
+    amidict = AmiDictionary.create_dictionary_from_url(dict_url)
     amidict.check_validity()

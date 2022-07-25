@@ -8,7 +8,7 @@ from lxml import etree, html
 import requests
 # local
 from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor, WikidataProperty, WikidataFilter
-from py4ami.ami_dict import AmiDictionary, WIKIDATA_ID, TERM, AMIDict
+from py4ami.ami_dict import WIKIDATA_ID
 
 """This runs under Pycharm and also
 cd pyami # toplevel checkout
@@ -17,13 +17,13 @@ python3 -m test.test_wikidata
 
 try:
     from py4ami.wikimedia import WikidataLookup
-    from py4ami.ami_dict import AMIDict, AMIDictError, Entry, AmiDictionary
+    from py4ami.ami_dict import AMIDictError, AmiDictionary
 
     logging.info(f"loaded py4ami.ami_dict")
 except Exception:
     try:
         from py4ami.wikimedia import WikidataLookup
-        from py4ami.ami_dict import AMIDict, AMIDictError, Entry
+        from py4ami.ami_dict import AMIDictError
     except Exception as e:
         logging.error(f"Cannot import from py4ami.ami_dict")
 
@@ -487,8 +487,8 @@ class TestWikidataLookup(unittest.TestCase):
             temp_dir.mkdir()
         # limit = 10000
         limit = 5
-        dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms[:limit], title="compounds",
-                                                                                  wikidata=True, directory=temp_dir)
+        amidict, dictfile = AmiDictionary.create_dictionary_from_words(terms[:limit], title="compounds",
+                                                                                  wikidata=True, outdir=temp_dir)
         print(f"wrote to {dictfile}")
         assert os.path.exists(dictfile)
 
