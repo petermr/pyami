@@ -2,6 +2,8 @@ import argparse
 import datetime
 import json
 import logging
+
+from altair.vega import directionValue
 from lxml import etree as ET
 from lxml import etree
 import lxml
@@ -64,9 +66,145 @@ WORDS = "words"
 # constants
 UTF_8 = "UTF-8"
 
+# languages
+LANG_UR = "ur"
+
 # elements
 
 logger = logging.getLogger("ami_dict")
+
+
+class AmiEntry:
+    TAG = "entry"
+
+    TERM_A = "term"
+    DESCRIPTION_A = "description"
+    NAME_A = "name"
+    WIKIDATA_A = "wikidataID"
+    WIKIPEDIA_A = "wikipediaPage"
+
+    REQUIRED_ATTS = {TERM_A}
+    OPTIONAL_ATTS = {DESCRIPTION_A, NAME_A, WIKIDATA_A, WIKIPEDIA_A}
+    ALLOWED_ATTS = REQUIRED_ATTS.union(OPTIONAL_ATTS)
+    assert len(ALLOWED_ATTS) == 5
+
+    def __init__(self):
+        self.element = None
+
+    @classmethod
+    def create_from_element(cls, entry_element):
+        """create from raw XML element
+        :param entry_element: directly constructed from dictionary files or constructed
+        :return: AmiEntry
+        """
+        ami_entry = AmiEntry()
+        ami_entry.element = entry_element
+        return ami_entry
+
+    @classmethod
+    def create_from_term(cls, term):
+        assert term is not None
+        entry_element = lxml.etree.Element(ENTRY)
+        entry_element.attrib[TERM] = term
+        return entry_element
+
+    @property
+    def name(self):
+        return self.element.get(NAME)
+
+    @property
+    def term(self):
+        return self.element.get(TERM)
+
+    @property
+    def get_wikidata_id(self):
+        return self.element.get(WIKIDATA)
+
+    @property
+    def get_wikipedia_page(self):
+        return self.element.get(WIKIPEDIA)
+
+    def get_synonyms(self):
+        """list of child synonym objects"""
+        synonyms = [] if self.element is None else self.element.xpath("./" + Synonym.TAG)
+        return [Synonym(s) for s in synonyms]
+
+    def get_synonym_by_language(self, lang):
+        synonyms = self.get_synonyms()
+        for synonym in synonyms:
+            if lang == synonym.element.attrib[XML_LANG]:
+                return synonym
+        return None
+
+    def add_term(self, term):
+        self.element.attrib[TERM] = term
+
+    def get_term(self):
+        term = self.element.attrib[TERM]
+        return term
+
+    @classmethod
+    def add_name(cls, entry_element, name):
+        assert entry_element is not None
+        assert entry_element.tag == ENTRY
+        entry_element.attrib[NAME] = name
+
+    @classmethod
+    def get_name(cls, entry):
+        return AmiEntry.get_attribute_value(entry, NAME)
+
+    @classmethod
+    def get_attribute_value(cls, element, attname):
+        if attname not in element.attrib:
+            return None
+        else:
+            return element.attrib[attname]
+
+    def set_wikidata_id(self, idx):
+        """set wikidataID, id must be Pddd... or Q... """
+        if idx is None or not re.match("[PQ]\\d+", idx):
+            raise AMIDictError(f"wikidata id {idx} must be Qddd... or Pddd...")
+        self.set_attribute(Entry.WIKIDATA_A, idx)
+
+    def wikidata_id(self):
+        return self.get_attribute_value(Entry.WIKIDATA_A)
+
+    def set_description(self, desc):
+        """set description attribute, can be anything"""
+        if desc:
+            self.set_attribute(Entry.DESCRIPTION_A, desc)
+
+    def get_description(self):
+        return self.get_attribute_value(Entry.DESCRIPTION_A)
+
+    def check_validity(self):
+        self.check_valid_attributes()
+        self.check_valid_children()
+
+    def check_valid_attributes(self):
+        attributes = list(self.element.attrib)
+        assert attributes is not None
+        # assert str(attributes) == "['name']", f"attributes {attributes}"
+        # assert len(attributes) == 2, f" ATTS {attributes}"
+        for attribut in attributes:
+            # msg = f"ATT {attribut}"
+            assert type(attribut) is str
+            assert attribut in Entry.ALLOWED_ATTS, f"attribute {attribut} is not allowed in <entry>"
+
+    def check_valid_children(self):
+        if False:
+            for child in self.element:
+                assert child.tag in self.ELEMENT_CHILD_TAGS
+
+    def get_synonyms(self):
+        """create AmiSynonyms from <synonym> children
+        :return: list of AmiSynonyms created from children
+        """
+        ami_synonyms = []
+        synonym_elements = self.element.xpath(f"./{SYNONYM}")
+        for synonym_element in synonym_elements:
+            ami_synonyms.append(AmiSynonym.create_from_element(synonym_element))
+        return ami_synonyms
 
 
 class AmiDictionary:
@@ -77,11 +215,24 @@ class AmiDictionary:
     TAG = "dictionary"
     NOT_FOUND = "NOT_FOUND"
 
+    TITLE_A = "title"
+    VERSION_A = "version"
+
+    REQUIRED_ATTS = {TITLE_A, VERSION_A}
+    OPTIONAL_ATTS = {}
+    ALLOWED_ATTS = REQUIRED_ATTS.union(OPTIONAL_ATTS)
+    assert len(ALLOWED_ATTS) == 2
+
+    REQUIRED_CHILDREN = set()
+    OPTIONAL_CHILDREN = {AmiEntry.TAG, "desc"}
+    ALLOWED_CHILDREN = REQUIRED_CHILDREN.union(OPTIONAL_CHILDREN)
+    assert len(ALLOWED_CHILDREN) == 2
+
     def __init__(self, title=None, wikilangs=None, ignorecase=True, **kwargs):
         self.logger = logger
         self.xml_content = None
         self.entries = []
-        self.entry_by_term = {}
+        self.entry_by_term = dict()
         self.entry_by_wikidata_id = {}
         self.file = None
         self.ignorecase = ignorecase
@@ -118,8 +269,16 @@ class AmiDictionary:
         return dictionary
 
     @classmethod
-    def create_dictionary_from_words(cls, terms, title=None, desc=None, wikilangs=None):
-        """use raw list of words and lookup each. choosing WD page and using languages """
+    def create_dictionary_from_words(cls, terms, title=None, desc=None, wikilangs=None, wikidata=False, outdir=None):
+        """use raw list of words and optionally lookup each. choosing WD page and using languages
+        :param terms: list of words/phrases
+        :param title: for dictionary oject and file
+        :param desc: description of dictionary
+        :param wikilangs: languages to use in Wikidata default EN)
+        :param wikidata: if true lookup wikidata
+        :param outdir: if not None write dictionary to outpath=<outdir>/<title>.xml
+        :return dictionary,outpath tuple (outpath may be None)
+        """
         if title is None:
             title = "no_title"
         dictionary = AmiDictionary(title=title, wikilangs=wikilangs)
@@ -128,7 +287,17 @@ class AmiDictionary:
         if desc:
             dictionary.add_desc_element(desc)
         dictionary.add_entries_from_words(terms)
-        return dictionary
+        if wikidata:
+            dictionary.add_wikidata_from_terms()
+        outpath = None
+        if outdir:
+            if not outdir.exists():
+                outdir.mkdir()
+            outpath = Path(outdir, title + ".xml")
+            with open(outpath, "wb") as f:
+                f.write(lxml.etree.tostring(dictionary.root))
+
+        return dictionary, outpath
 
     #    class AmiDictionary:
 
@@ -143,19 +312,30 @@ class AmiDictionary:
             if term:
                 dup_entry = self.get_entry(term)
                 if dup_entry is None:
-                    entry = self.add_entry_element(term=term)
-                    self.entries.append(entry)
+                    self._add_entry(term)
                 elif duplicates == "error":
                     raise AMIDictError("Duplicate entry")
                 elif duplicates == "ignore":
                     print(f"duplicate term: {term} ignored ")
                 elif duplicates == "replace":
-                    print(f"duplicate term: {term} ; replace NYI ")
+                    self.root.remove(dup_entry)
+                    self._add_entry(term)
+
+    def _add_entry(self, term):
+        entry = self.add_entry_element(term=term)
+        self.entries.append(entry)
+        self.entry_by_term[term] = entry
 
     @classmethod
-    def create_dictionary_from_wordfile(cls, wordfile=None, title=None, desc=None):
+    def create_dictionary_from_wordfile(cls, wordfile=None, desc=None, wikidata=False, outdir=None):
         """
-        :param title: (should not be used) defaults to stem of file
+        :param wordfile: contains lists of words and file stem gives title
+        :param desc: description of dictionary
+        :param wikilangs: languages to use in Wikidata default EN)
+        :param wikidata: if true lookup wikidata
+        :param outdir: if not None write dictionary to outpath=<outdir>/<title>.xml
+        :return dictionary,outpath tuple (outpath may be None)
+
         """
         if not wordfile:
             raise ValueError(f"must gove wordfile to create dictionary")
@@ -163,32 +343,30 @@ class AmiDictionary:
         with open(wordpath, "r") as f:
             words = [line.strip() for line in f.readlines()]
         stem = Path(wordfile).stem
-        if not title:
-            title = stem
-        elif title != stem:
-            print(f"WARNING: dictionary title {title} is not file stem {stem}, dictionary will be invalid")
+        title = stem
         print(f"creating dictionary title = {title}")
-        dictionary = cls.create_dictionary_from_words(terms=words, title=title, desc=desc)
-        return dictionary
+        dictionary, outpath = cls.create_dictionary_from_words(terms=words, title=title, desc=desc, wikidata=wikidata,
+                                                               outdir=outdir)
+        return dictionary, outpath
 
     #    class AmiDictionary:
 
-    @classmethod
-    def create_dictionary_from_wordfile_and_add_wikidata(cls, wordfile=None, title=None, desc=None):
-        with open(wordfile, "r") as f:
-            words = f.readlines()
-        dictionary = cls.create_dictionary_from_words_and_add_wikidata(
-            words=words, title=title, desc=desc)
-        return dictionary
+    # @classmethod
+    # def create_dictionary_from_wordfile(cls, wordfile=None, title=None, desc=None, wikidata=False):
+    #     with open(wordfile, "r") as f:
+    #         words = f.readlines()
+    #     dictionary = cls.create_dictionary_from_words(
+    #         words=words, title=title, desc=desc, wikidata=wikidata)
+    #     return dictionary
 
-    @classmethod
-    def create_dictionary_from_words_and_add_wikidata(cls, words=None, title=None, desc=None):
-        assert desc and title and words
-        dictionary = AmiDictionary.create_dictionary_from_words(words, title=title, desc=desc, wikilangs=["en", "de"])
-        dictionary.add_wikidata_from_terms()
-        pprint.pprint(ET.tostring(dictionary.root).decode("UTF-8"))
-        return dictionary
-
+    # @classmethod
+    # def create_dictionary_from_words_and_add_wikidata(cls, words=None, title=None, desc=None):
+    #     assert desc and title and words
+    #     dictionary = AmiDictionary.create_dictionary_from_words(words, title=title, desc=desc, wikilangs=["en", "de"])
+    #     dictionary.add_wikidata_from_terms()
+    #     pprint.pprint(ET.tostring(dictionary.root).decode("UTF-8"))
+    #     return dictionary
+    #
     @classmethod
     def create_dictionary_from_xml_string(cls, xml_str):
         """create dictionary from xml string
@@ -255,7 +433,9 @@ class AmiDictionary:
         dictionary.title = dictionary.root.xpath("@title")
         dictionary.ignorecase = ignorecase
         dictionary.entries = list(dictionary.root.findall(ENTRY))
+        print(f"dictionary.entries {len(dictionary.entries)}")
         dictionary.create_entry_by_term()
+        print(f"entry_by_term {len(dictionary.entry_by_term)}")
         dictionary.term_set = set()
         return dictionary
 
@@ -275,6 +455,7 @@ class AmiDictionary:
         amidict.url = xml_url
         return amidict
 
+    #    class AmiDictionary:
 
     def get_or_create_term_set(self):
         if len(self.term_set) == 0:
@@ -336,6 +517,8 @@ class AmiDictionary:
             term = term.lower()
         self.term_set.add(term)  # single word countries
 
+    #    class AmiDictionary:
+
     def match(self, target_words):
         matched = []
         self.term_set = self.get_or_create_term_set()
@@ -358,6 +541,8 @@ class AmiDictionary:
                         matched.append(term)
         return matched
 
+    #    class AmiDictionary:
+
     def get_entry(self, termx, ignorecase=True):
         """get entry if term attribute == term (case may matter
         :param termx: term to search for
@@ -378,11 +563,20 @@ class AmiDictionary:
         if entry is None:
             self.logger.debug(
                 "entry by term", self.entry_by_term)  # very large
-            pass
         return entry
 
+    #    class AmiDictionary:
+
+    def get_ami_entry(self, term):
+        """creates an AmiEntry object from raw entry
+        :param term: to search for
+        :return: entry wrapped in AmiEntry
+        """
+        entry = self.get_entry(term)
+        return None if entry is None else AmiEntry.create_from_element(entry)
+
     def get_entry_count(self):
-        assert self.entry_by_term
+        assert self.entry_by_term is not None
         return len(self.entry_by_term)
 
     def get_entries(self):
@@ -401,7 +595,36 @@ class AmiDictionary:
         return ami_entry_list
 
     def create_entry_by_term(self):
-        self.entry_by_term = {self.term_from_entry(entry): entry for entry in self.entries}
+        self.entry_by_term = dict()
+        for entry in self.entries:
+            term = self.term_from_entry(entry)
+            if term in self.entry_by_term:
+                print(f"duplicate terms not allowed {term}")
+            else:
+                self.entry_by_term[term] = entry
+
+    def delete_entry_by_term(self, term):
+        """removes an entry with given term"""
+        entry = self.get_entry(term)
+        if entry is not None:
+            self.root.remove(entry)
+            self.entry_by_term.pop(term)
+
+    def create_and_add_entry_with_term(self, term, replace=True):
+        entry_new = AmiEntry.create_from_term(term)
+        entry_exist = self.get_entry(term)
+
+        if entry_exist is not None:
+            if replace:
+                entry_exist.addnext(entry_new)
+                entry_exist.getparent().remove(entry_exist)
+            else:
+                raise AMIDictError("attempt to add duplicate entry with replace=False")
+        else:
+            self.root.append(entry_new)
+        if entry_new is not None:
+            self.entry_by_term[term] = entry_new
+        return entry_new
 
     def check_unique_wikidata_ids(self):
         # print("entries", len(self.entries))
@@ -418,8 +641,22 @@ class AmiDictionary:
 
     #        print("entry by id", self.entry_by_wikidata_id)
 
-    def write(self, file):
+    def write_to_dir(self, directory):
+        """write dictionary to file based on title
+        :param directory: directory which will contain <title>.xml"""
         from lxml import etree
+        if not directory:
+            print(f"None directory")
+        if not directory.exists():
+            directory.mkdir()
+        file = Path(directory, f"self.root.attrib[TITLE]).xml")
+        self.write_to_file(file)
+        return file
+
+    def write_to_file(self, file):
+        """write dictiomary to file
+        :param file: to write to
+        """
         et = etree.ElementTree(self.root)
         with open(file, 'wb') as f:
             et.write(f, encoding="utf-8",
@@ -527,7 +764,7 @@ class AmiDictionary:
         wikidata_sparql = WikidataSparql(dictionary)
         wikidata_sparql.update_from_sparql(sparql_file, sparq2dict)
         dictionary_file = f"{dictionary_root}{keystring}_{i + 1}.xml"
-        dictionary.write(dictionary_file)
+        dictionary.write_to_file(dictionary_file)
         return dictionary_file
 
     @classmethod
@@ -590,114 +827,77 @@ class AmiDictionary:
         if rename_file:
             copyfile(dictionary_file, original_name)
 
-
-class AmiEntry:
-
-    def __init__(self):
-        self.element = None
-
-    @classmethod
-    def create_from_element(cls, entry_element):
-        """create from raw XML element
-        :param entry_element: directly constructed from dictionary files or constructed
-        :return: AmiEntry
-        """
-        ami_entry = AmiEntry()
-        ami_entry.element = entry_element
-        return ami_entry
-
-    @property
-    def name(self):
-        return self.element.get(NAME)
-
-    @property
-    def term(self):
-        return self.element.get(TERM)
-
-    @property
-    def get_wikidata_id(self):
-        return self.element.get(WIKIDATA)
-
-    @property
-    def get_wikipedia_page(self):
-        return self.element.get(WIKIPEDIA)
-
-    def get_synonyms(self):
-        """list of child synonym objects"""
-        synonyms = [] if self.element is None else self.element.xpath("./" + Synonym.TAG)
-        return [Synonym(s) for s in synonyms]
-
-    def get_synonym_by_language(self, lang):
-        synonyms = self.get_synonyms()
-        for synonym in synonyms:
-            if lang == synonym.element.attrib[XML_LANG]:
-                return synonym
-        return None
-
-    def add_term(self, term):
-        self.element.attrib[TERM] = term
-
-    def get_term(self):
-
-        term = self.get_attribute_value(TERM)
-        return term
-
-    def add_name(self, name):
-        self.element.attrib[NAME] = name
-
-    def get_name(self):
-        return self.get_attribute_value(NAME)
+    def remove_attribute(self, attname):
+        if self.get_attribute_value(attname) is not None:
+            self.root.attrib.pop(attname)
 
     def get_attribute_value(self, attname):
-        if attname not in self.element.attrib:
+        if attname not in self.root.attrib:
             return None
         else:
-            return self.element.attrib[attname]
+            return self.root.attrib[attname]
 
-    def set_wikidata_id(self, idx):
-        """set wikidataID, id must be Pddd... or Q... """
-        if idx is None or not re.match("[PQ]\\d+", idx):
-            raise AMIDictError(f"wikidata id {idx} must be Qddd... or Pddd...")
-        self.set_attribute(Entry.WIKIDATA_A, idx)
+    def find_entries_with_term(self, term: str, abort_multiple: bool = False) -> list:
+        """iterates over all entries checking `term` attribute against "term" argument
+        May allow multiple terms
+        :param term: term to match in entry@term
+        :param abort_multiple: if True raise AmiDictError for multiple entries with same term
+        """
+        # print(f"looking for {term} in {len(self.get_entries())}")
+        _entries = []
+        for entry in self.get_entries():
+            _term = AmiEntry.get_attribute_value(entry, TERM)
+            print(f"{type(entry)}  {_term}")
+            if _term == term:
+                if abort_multiple and len(_entries) > 0:
+                    raise AMIDictError(f"multiple entries with term = {_term}")
+                # print(f" matched: {term}")
+                _entries.append(entry)
+        print("================")
+        return _entries
 
-    def wikidata_id(self):
-        return self.get_attribute_value(Entry.WIKIDATA_A)
+    def get_terms(self):
+        assert self.entry_by_term
+        return list(self.entry_by_term.keys())
 
-    def set_description(self, desc):
-        """set description attribute, can be anything"""
-        if desc:
-            self.set_attribute(Entry.DESCRIPTION_A, desc)
+    @classmethod
+    def is_valid_version_string(cls, versionx):
+        """tests validity of version string major.minor.patch
 
-    def get_description(self):
-        return self.get_attribute_value(Entry.DESCRIPTION_A)
+        e.g. version = "1.2.3"
+        """
+        if versionx is None:
+            raise AMIDictError(f"{cls} does not have version attribute ")
+        parts = versionx.split(".")
+        if len(parts) != 3:
+            raise AMIDictError(f"{cls} version attribute {versionx} does not have 3 parts")
+        try:
+            for part in parts:
+                _ = int(part)
+        except Exception:
+            raise AMIDictError(f"{cls} version attribute {versionx} parts must be integers")
+        return True
 
     def check_validity(self):
         self.check_valid_attributes()
         self.check_valid_children()
 
     def check_valid_attributes(self):
-        attributes = list(self.element.attrib)
+        attributes = list(self.root.attrib)
         assert attributes is not None
         # assert str(attributes) == "['name']", f"attributes {attributes}"
         # assert len(attributes) == 2, f" ATTS {attributes}"
         for attribut in attributes:
             # msg = f"ATT {attribut}"
             assert type(attribut) is str
-            assert attribut in self.ALLOWED_ATTS, f"attribute {attribut} is not allowed in <entry>"
+            assert attribut in AmiDictionary.ALLOWED_ATTS, f"attribute {attribut} is not allowed in <entry>"
 
     def check_valid_children(self):
-        for child in self.element:
-            assert child.tag in self.ELEMENT_CHILD_TAGS
-
-    def get_synonyms(self):
-        """create AmiSynonyms from <synonym> children
-        :return: list of AmiSynonyms created from children
-        """
-        ami_synonyms = []
-        synonym_elements = self.element.xpath(f"./{SYNONYM}")
-        for synonym_element in synonym_elements:
-            ami_synonyms.append(AmiSynonym.create_from_element(synonym_element))
-        return ami_synonyms
+        for child in self.root:
+            if child.tag in AmiDictionary.ALLOWED_CHILDREN:
+                pass
+            else:
+                print(f"forbidden child {child.tag} in {AmiDictionary.ALLOWED_CHILDREN}")
 
 
 class AmiSynonym:
@@ -1608,7 +1808,7 @@ class Entry(AbsDictElem):
 
     def check_valid_children(self):
         for child in self.element:
-            assert child.tag in self.ELEMENT_CHILD_TAGS
+            assert child.tag in Entry.ELEMENT_CHILD_TAGS
 
 
 class AmiDictArgs(AbstractArgs):
@@ -1726,7 +1926,7 @@ class AmiDictArgs(AbstractArgs):
         title = Path(self.words).stem
         print(f"creating {self.dictfile} from {self.words}")
         word_path = Path(self.words)
-        self.ami_dict = AmiDictionary.create_dictionary_from_wordfile(wordfile=word_path, title=None, desc=None)
+        self.ami_dict, _ = AmiDictionary.create_dictionary_from_wordfile(wordfile=word_path, title=None, desc=None)
         return self.ami_dict
 
     def add_wikidata_to_dict(self, description_regex=None):

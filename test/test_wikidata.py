@@ -215,8 +215,7 @@ class TestWikidataLookup(unittest.TestCase):
     def test_get_description(self):
         desc = WikidataPage("q407418").get_description()
         # assert desc == "chemical compound"
-        assert "compound" in desc # wikidata changed this!! 'organic compound used as flavouring and for analgesic properties'
-
+        assert "compound" in desc  # wikidata changed this!! 'organic compound used as flavouring and for analgesic properties'
 
     def test_attval_contains(self):
         """does a concatenated attavle contain a word
@@ -386,7 +385,7 @@ class TestWikidataLookup(unittest.TestCase):
         dictionary.lookup_and_add_wikidata_to_entry(entry)
         assert entry.get(WIKIDATA_ID) == "Q27155908"
 
-        dictionary.write(Path(TEMP_DIR, "dict_5.xml"))
+        dictionary.write_to_file(Path(TEMP_DIR, "dict_5.xml"))
 
     def test_add_wikidata_to_complete_dictionary_with_filter(self):
         """Takes existing dictionary and looks up Wikidata stuff for entries w/o WikidataID
@@ -413,7 +412,7 @@ class TestWikidataLookup(unittest.TestCase):
                     entry.attrib[WIKIDATA_ID] = AmiDictionary.NOT_FOUND
                 else:
                     print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
-        dictionary.write(Path(output_dir, "eoCompound", "eoCompound1.xml"))
+        dictionary.write_to_file(Path(output_dir, "eoCompound", "eoCompound1.xml"))
 
     def test_disambiguation(self):
         """attempts to disambiguate the result of PMR-wikidata lookup"""
@@ -440,7 +439,7 @@ class TestWikidataLookup(unittest.TestCase):
                     entry.attrib[WIKIDATA_ID] = AmiDictionary.NOT_FOUND
                 else:
                     print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
-        dictionary.write(Path(output_dir, "eoCompound", "disambig.xml"))
+        dictionary.write_to_file(Path(output_dir, "eoCompound", "disambig.xml"))
 
     def test_get_instances(self):
         """<div class="wikibase-statementview-mainsnak-container">
@@ -506,7 +505,6 @@ class TestWikidataLookup(unittest.TestCase):
         id_dict = extractor.load(id)
         print(id_dict)
 
-
     def test_simple_wikidata_query(self):
         """get ID list for query results
         see https://www.wikidata.org/w/api.php for options
@@ -524,7 +522,7 @@ class TestWikidataLookup(unittest.TestCase):
     def test_wikidata_id_lookup(self):
         """test query wikidata by ID
         """
-        ids = "Q11966262" # "Dyschirius politus" a species of insect
+        ids = "Q11966262"  # "Dyschirius politus" a species of insect
         url_str = f"https://www.wikidata.org/w/api.php?" \
                   f"action=wbgetentities" \
                   f"&ids={ids}" \
@@ -533,7 +531,8 @@ class TestWikidataLookup(unittest.TestCase):
         response = requests.get(url_str)
         response_js = response.json()["entities"][ids]
         # print(f"pages for {ids}\n", pprint.pformat(response_js))
-        assert list(response_js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'id', 'labels', 'descriptions', 'aliases', 'claims','sitelinks']
+        assert list(response_js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'id', 'labels',
+                                            'descriptions', 'aliases', 'claims', 'sitelinks']
         assert response_js["id"] == ids
         assert response_js["title"] == "Q11966262"
         assert response_js["labels"]["en"]["value"] == "Dyschirius politus"
@@ -541,9 +540,9 @@ class TestWikidataLookup(unittest.TestCase):
         assert list(response_js["claims"].keys()) == [
             'P225', 'P105', 'P171', 'P31', 'P685', 'P846', 'P1939', 'P373', 'P815', 'P3151', 'P3186',
             'P3405', 'P2464', 'P1843', 'P7202', 'P7552', 'P6105', 'P6864', 'P8915', 'P3240', 'P2671',
-            'P3606','P8707','P10243'
+            'P3606', 'P8707', 'P10243'
         ]
-        ids = "P117" # chemical compound
+        ids = "P117"  # chemical compound
         url_str = f"https://www.wikidata.org/w/api.php?" \
                   f"action=wbgetentities" \
                   f"&ids={ids}" \
@@ -552,13 +551,17 @@ class TestWikidataLookup(unittest.TestCase):
         response = requests.get(url_str)
         response_js = response.json()["entities"][ids]
         # print(f"pages for {ids}\n", pprint.pformat(response_js))
-        assert list(response_js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'datatype', 'id', 'labels', 'descriptions', 'aliases', 'claims']
+        assert list(response_js.keys()) == ['pageid', 'ns', 'title', 'lastrevid', 'modified', 'type', 'datatype', 'id',
+                                            'labels', 'descriptions', 'aliases', 'claims']
         assert response_js["id"] == "P117"
         assert response_js["title"] == "Property:P117"
         assert response_js["labels"]["en"]["value"] == "chemical structure"
-        assert response_js["descriptions"]["en"]["value"] == "image of a representation of the structure for a chemical compound"
-        assert list(response_js["claims"].keys()) == ['P31', 'P1855', 'P3254', 'P2302', 'P1629', 'P1647', 'P2875', 'P1659']
-#        wikidata_page = WikidataPage.create_from_response(response)
+        assert response_js["descriptions"]["en"][
+                   "value"] == "image of a representation of the structure for a chemical compound"
+        assert list(response_js["claims"].keys()) == ['P31', 'P1855', 'P3254', 'P2302', 'P1629', 'P1647', 'P2875',
+                                                      'P1659']
+
+    #        wikidata_page = WikidataPage.create_from_response(response)
 
     def test_multiple_ids(self):
         ids = "P31|P117"
@@ -577,7 +580,8 @@ class TestWikidataLookup(unittest.TestCase):
         filter = WikidataFilter.create_filter(path)
         assert filter.json['plugh'] == "xyzzy"
         assert filter.json['filter']['description'] == "chemical"
-        assert filter.json['filter']['regex'] == "(chemical compound|chemical element)", f"found {filter.json['filter']['regex']}"
+        assert filter.json['filter'][
+                   'regex'] == "(chemical compound|chemical element)", f"found {filter.json['filter']['regex']}"
 
 
 if __name__ == '__main__':
