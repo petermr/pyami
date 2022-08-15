@@ -22,7 +22,7 @@ from pathlib import Path
 from py4ami.gutil import Gutil, ScrollingCheckboxList
 
 from py4ami.ami_dict import AmiDictionaries
-from py4ami.projects import AmiProjects
+from py4ami.ami_project import AmiProjects
 from py4ami.file_lib import AmiPath, PROJ, FileLib
 from py4ami.text_lib import AmiSection
 from py4ami.xml_lib import XmlLib, H_TD, RESULTS, DataTable

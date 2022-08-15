@@ -10,7 +10,7 @@ from pathlib import Path
 # local
 from py4ami.ami_gui import Gutil
 from py4ami.ami_pdf import AmiPage
-from py4ami.projects import CProject
+from py4ami.ami_project import CProject
 
 logger = logging.getLogger(os.path.basename(__file__))
 

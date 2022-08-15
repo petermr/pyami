@@ -492,11 +492,7 @@ class TestWikidataLookup(unittest.TestCase):
         print(f"wrote to {dictfile}")
         assert os.path.exists(dictfile)
 
-    def test_json_wikidata_download(self):
-        """Test json/php api for downloadin wikidata
-        see https://github.com/sedthh/awena-wikidata-crawler
-        """
-        query = "Einstein"
+
 
     def test_wikidata_extractor(self):
         query = '2-fluorobenzoic acid'

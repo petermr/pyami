@@ -1,6 +1,7 @@
 """ Mainly for converting PDF to HTML and SVG """
 import argparse
 import os.path
+import sys
 
 import lxml
 import lxml.html
@@ -577,6 +578,7 @@ class PDFArgs(AbstractArgs):
         """arg_dict is set to default"""
         super().__init__()
 
+    @property
     def module_stem(self):
         return "ami_pdf"
 
@@ -584,6 +586,7 @@ class PDFArgs(AbstractArgs):
         """creates adds the arguments for pyami commandline
 
         """
+        print(f"sys.argv {sys.argv}")
         self.parser = argparse.ArgumentParser(description='PDF parsing')
         self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
         self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
@@ -813,7 +816,7 @@ class PDFArgs(AbstractArgs):
             self.markup_parentheses(result_elem)
             print(f"ref_counter {self.ref_counter}")
 
-            HtmlTree.make_tree(result_elem, output_dir=outd, recs_by_section=RECS_BY_SECTION)
+            HtmlTree.make_sections_and_output(result_elem, output_dir=outd, recs_by_section=RECS_BY_SECTION)
 
             result = lxml.etree.tostring(result_elem).decode("UTF-8")
             fmt = "flow.html"

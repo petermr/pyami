@@ -622,6 +622,7 @@ class PDFTest(test.test_all.AmiAnyTest):
 
     # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
 
+    @unittest.skip("too much output")
     def test_pdfminer_font_and_character_output(self):
         """Examines every character and annotates it
         Typical:
@@ -866,6 +867,7 @@ LTPage
             print(f"wrote {f}")
 
     def test_main_help(self):
+        sys.argv=[]
         sys.argv.append("--help")
         try:
             main()

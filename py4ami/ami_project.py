@@ -1,13 +1,23 @@
+import argparse
+import sys
 from pathlib import Path
 import os
 import logging
 from abc import ABC, abstractmethod
 import re
-
+import glob
+import traceback
+import requests
+from lxml import html
+import time
 # local
 
 from py4ami.util import Util
 from py4ami.ami_sections import AMIFigure, AMIAbsSection
+from py4ami.util import Util, AbstractArgs
+from py4ami.ami_pdf import PDFArgs, INPATH, OUTDIR
+
+FULLTEXT = "fulltext"
 
 
 class AmiProjects:
@@ -170,6 +180,7 @@ class CProject(CContainer):
         self.ctrees = None
         self.ctree_dict = None
         self.name = None
+        self.max_ctree_name_len = 24
 
     def __repr__(self):
         r = super().__repr__()
@@ -180,12 +191,13 @@ class CProject(CContainer):
         return self.__repr__()
 
     def get_ctrees(self):
-        """get of create list of CTrees"""
+        """get or create list of CTrees"""
         if not self.ctrees:
             self.ctrees = [CTree(f) for f in self.get_child_dirs() if self.has_ctree_child_markers(f)]
         return self.ctrees
 
     def get_ctree_dict(self):
+        """dict of ctrees indexed by file"""
         if not self.ctree_dict:
             self.ctree_dict = {t.get_name(): t for t in self.get_ctrees()}
         return self.ctree_dict
@@ -227,6 +239,77 @@ class CProject(CContainer):
     def get_name(self):
         self.name = None if not self.dirx else self.dirx.name
         return self.name
+
+    @classmethod
+    def make_cproject_from_hrefs_in_url(cls, weburl=None, target_dir=None, suffix="pdf", maxsave=100, sleep=5, skip_exists=True):
+        """Extracts href targets from a webpage/html, downloads them to given """
+
+        page = requests.get(weburl)
+        tree = html.fromstring(page.content)
+        ahrefs = tree.xpath(".//a[@href]")
+        urls = [ahref.attrib["href"] for ahref in ahrefs if ahref.attrib["href"].endswith(suffix)]
+        for url in urls[:maxsave]:
+            stem = url.split("/")[-1]
+            if not target_dir.exists():
+                target_dir.mkdir()
+            path = Path(target_dir, stem)
+            if skip_exists and path.exists():
+                print(f"file exists, skipped {path}")
+            else:
+                content = requests.get(url).content
+                with open(path, "wb") as f:
+                    print(f"wrote url: {path}")
+                    f.write(content)
+                time.sleep(sleep)
+        project = CProject(target_dir)
+        return project
+
+    @classmethod
+    def make_cproject_and_fulltexts_from_hrefs_in_url(cls, weburl=None, target_dir=None, suffix="pdf", maxsave=100, sleep=5,
+                                                      keep=True, max_ctree_len=50, max_flag=20, skip_exists=True):
+        cproject = CProject.make_cproject_from_hrefs_in_url(weburl=weburl, target_dir=target_dir, suffix=suffix, maxsave=maxsave, sleep=sleep,
+                                        skip_exists=skip_exists)
+        cproject.make_cproject_from_pdfs(keep=keep, max_ctree_len=max_ctree_len, max_flag=max_flag)
+
+        cproject.pdf2htmlx()
+
+    def make_cproject_from_pdfs(self, keep=True, max_ctree_len=24, max_flag=50):
+        """makes directory for each PDF with safe names
+        was 'make_project' in ami3
+        for project dir with
+        a.pdf
+        b.pdf
+        c.pdf
+        makes
+        a/fulltext.pdf
+        b/fulltext.pdf
+        c/fulltext.pdf
+        If b/ and b.pdf exist, skip
+        flattens punct and spaces to _, then
+        truncates filename to `max_ctree_name_len`
+        lowercases all filenames
+        if collisions, adds _1, _2, etc to filenames
+        :param keep: keep original PDFs
+        :param max_ctree_len: max length of filenames
+        :param max_flag:maximum number of collision flags
+
+
+
+        """
+        files = glob.glob(f"{self.dirx}/*.pdf", recursive=False)
+        for file in files:
+            stem = Path(file).stem
+            stem_dir = CTree.flatten_filename(stem, max_len=max_ctree_len)
+            ctree_dir = Path(self.dirx, stem_dir)
+            if ctree_dir.exists():
+                for flag in range(1, max_flag):
+                    ctree_dir1 = Path(self.dirx, f"{stem_dir}_{flag}")
+                    if not ctree_dir1.exists():
+                        ctree_dir = ctree_dir1
+                        break
+            if not ctree_dir.exists():
+                ctree_dir.mkdir()
+                Util.copyanything(file, Path(ctree_dir, FULLTEXT + ".pdf"))
 
     def get_ctree(self, name: str):
         self.get_ctree_dict()
@@ -275,6 +358,27 @@ class CProject(CContainer):
         cls.logger.warning(f"failed CTree {f}")
         return False
 
+    def pdf2htmlx(self, maxtree=9999, maxpage=9999):
+        """converts PDF to HTML
+        NOTE: based on IPCC reports. Needs generalising
+        """
+        """ does the same as:
+        python3 -m py4ami.ami_pdf --inpath ../pt195/PMC6747965/fulltext.pdf --outdir ../pt195/PMC6747965/out/ 
+        """
+
+        for i, ctree in enumerate(self.get_ctrees()):
+            if i > maxtree:
+                print(f"maximum number of CTress {i}")
+                break
+            pdf_args = PDFArgs()
+            inpath = f"{Path(ctree.dirx, 'fulltext.pdf')}"
+            outdir = Path(ctree.dirx, "html")
+            if not outdir.exists():
+                outdir.mkdir()
+            outstem = "fulltext"
+            fmt="HTML"
+            pdf_args.convert_write(outdir=outdir, outstem=outstem, inpath=inpath, flow=True, maxpage=maxpage)
+
 
 class CTree(CContainer):
     logger = logging.getLogger("ctree")
@@ -290,6 +394,8 @@ class CTree(CContainer):
     RESULTS_DIR = "results"
     SECTIONS_DIR = "sections"
     SVG_DIR = "svg"
+
+    NON_PUNCT = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_'
 
     def __init__(self, dirx):
         self.logger.debug("CTree ctr")
@@ -358,7 +464,6 @@ class CTree(CContainer):
             self.logger.warning(f"no section_glob: {section_glob} in {CProjectTests.glob_dict.keys()}")
         else:
             glob_ = CProjectTests.glob_dict[section_glob]
-            print(f"glob_ {glob_}")
             self.logger.debug(f"glob {glob_}")
             sections = self.get_descendants(glob_)
         return sections
@@ -397,17 +502,28 @@ class CTree(CContainer):
         ps = ctree.get_descendants("**/*_p.xml")
         ctree.write_filenames(ps, "paras.csv")
         proj_sections = project.get_descendants("sections")
-        print(proj_sections)
+        print(f"proj sections {proj_sections}")
 
     @classmethod
-    def make_assert(cls, ctree, title, glob, ll):
-        ps = ctree.get_descendants(glob)
+    def make_assert(cls, ctree, title, glob_str, ll):
+        ps = ctree.get_descendants(glob_str)
         assert len(ps) == ll, f"{title} ({len(ps)}) != {ll}"
         return ps
 
     def get_fulltext_xml(self):
         self.fulltext_xml = Path(self.dirx, self.FULLTEXT_XML)
         return self.fulltext_xml
+
+    @classmethod
+    def flatten_filename(cls, filename, max_len=24):
+        # needs converting to comprehension
+        chars = []
+        for x in filename:
+            if x not in CTree.NON_PUNCT:
+                x = '_'
+            chars.append(x)
+        text = ''.join(x for x in chars)[:max_len]
+        return text
 
 
 class CSubDir(CContainer):
@@ -444,6 +560,76 @@ class CSubDir(CContainer):
             p = re.compile(regex)
             files = [f for f in files if p.match(os.path.basename(f))]
         return files
+
+
+class ProjectArgs(AbstractArgs):
+    FORMATS = "formats"
+    KEEP = "keep"
+    MAKE = "make"
+    MAXLEN = "max_len"
+    MAXFLAG = "max_flag"
+    PROJECT = "project"
+
+    def __init__(self):
+        """arg_dict is set to default"""
+        super().__init__()
+
+    @property
+    def module_stem(self):
+        return "ami_project"
+
+    def create_arg_parser(self):
+        """creates adds the arguments for pyami commandline
+
+        """
+        self.parser = argparse.ArgumentParser(description='Project parsing')
+        # make_project requires --project <proj>
+        self.parser.add_argument(f"--{ProjectArgs.PROJECT}", type=str, nargs=1, help="project directory")
+        self.parser.add_argument(f"--{ProjectArgs.MAKE}", action='store_true', help="make project from list of filetypes")
+        self.parser.add_argument(f"--{ProjectArgs.FORMATS}", type=str, nargs='+', help="input formats", default=['PDF'])
+        self.parser.add_argument(f"--{ProjectArgs.KEEP}", action='store_true', help="keep original PDFs")
+        self.parser.add_argument(f"--{ProjectArgs.MAXLEN}", type=int, nargs=1, help="max length of project name",
+                                 # default=self.create_arg_dict()[ProjectArgs.MAXLEN]
+                                 default=40
+                                 )
+
+        self.parser.add_argument(f"--{ProjectArgs.MAXFLAG}", type=int, nargs=1, default=20, help="max number of disambiguation flags '_")
+        return self.parser
+
+    # class ProjectArgs:
+    def process_args(self):
+        """runs parsed args
+        :return:
+
+        """
+
+        if self.arg_dict:
+            formats = self.arg_dict.get(ProjectArgs.FORMATS)
+            project_name = self.arg_dict.get(ProjectArgs.PROJECT)
+            make_project = self.arg_dict.get(ProjectArgs.MAKE)
+            maxlen = self.arg_dict.get(ProjectArgs.MAXLEN)
+            maxflag = self.arg_dict.get(ProjectArgs.MAXFLAG)
+            keep = self.arg_dict.get(ProjectArgs.KEEP)
+
+            if not project_name:
+                raise ValueError("no --project given")
+            project_path = Path(project_name)
+            if not project_path.exists():
+                raise ValueError(f"project does not exist {project_path}")
+            project = CProject(project_name)
+            if make_project:
+                project.make_cproject_from_pdfs(max_ctree_len=maxlen, max_flag=maxflag, keep=keep)
+
+    # class ProjectArgs:
+
+    @classmethod
+    def create_default_arg_dict(cls):
+        """returns a new COPY of the default dictionary"""
+        arg_dict = dict()
+        arg_dict[ProjectArgs.FORMATS] = ['PDF']
+        arg_dict[ProjectArgs.MAXLEN] = 40
+        arg_dict[ProjectArgs.MAXFLAG] = 20
+        return arg_dict
 
 
 class CProjectTests:
@@ -570,8 +756,16 @@ def main():
     # CTree.SectionGlob.tests_proj()
     # print(f"====captions====")
     # CTree.CProjectTests.tests_captions_liion4()
-    print(f"====sections====")
-    CProjectTests.tests_sections_liion4()
+    print(f"running ProjectArgs main")
+    pdf_args = ProjectArgs()
+    try:
+        pdf_args.parse_and_process()
+    except Exception as e:
+        print(traceback.format_exc())
+        print(f"***Cannot run pyami***; see output for errors: {e} ")
+
+    # print(f"====sections====")
+    # CProjectTests.tests_sections_liion4()
 
 
 if __name__ == "__main__":

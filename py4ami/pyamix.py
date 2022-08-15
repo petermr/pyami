@@ -20,7 +20,7 @@ from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, \
     Pdf2SvgConverter
-from py4ami.projects import CProject, CTree, CSubDir
+from py4ami.ami_project import CProject, CTree, CSubDir
 from py4ami.symbol import SymbolIni
 from py4ami.text_lib import TextUtil, DSLParser
 from py4ami.util import AmiLogger, Util

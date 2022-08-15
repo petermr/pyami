@@ -385,6 +385,26 @@ class TestHtml(unittest.TestCase):
                 css_style.extract_bold_italic_from_font_family()
 
 
+    def test_join_spans(self):
+        """join sibling spans with the same styles
+        """
+        html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow.html")
+        html_element = lxml.etree.parse(html_path)
+        divs = html_element.xpath(".//div")
+        assert len(divs) == 3221
+        last_div = None
+        last_style = None
+        for div in divs:
+            spans = div.xpath("./span")
+            print(f"spans {len(spans)}")
+            for span in spans:
+                style = CSSStyle.create_css_style(span)
+                print(f"{style}")
+                if style == last_style:
+                    print(f"styles match")
+                last_span = span
+                last_style = style
+
 
 
 
