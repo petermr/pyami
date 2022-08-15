@@ -279,9 +279,6 @@ As github API has rate limit of 5000 requests / hour, this might not be good for
             self.main_url = f"https://api.github.com/repos/{self.owner}/{self.repo}/git/trees/master"
         return self.main_url
 
-    # def download_github_pages(cls):
-    #     pass
-
     def load_page(self, url, level=1, page=None, last_path=None):
         if level >= self.max_level:
             print(f"maximum tree levels exceeded {level} >= {self.max_level}\n")
