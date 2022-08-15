@@ -1,0 +1,10 @@
+{
+  "introduction": {
+    "_DESC": "introduction or background; looks for these words anywhere in file titles",
+    "SUFFIX": "xml"
+  },
+  "jrnl_title": {
+    "_DESC": "journal title (may contain alternatives)",
+    "PROJ": "_REQD",
+  }
+}

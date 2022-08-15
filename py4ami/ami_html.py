@@ -76,6 +76,8 @@ class AmiHtml:
         pass
 
 
+
+
 class HtmlUtil:
     SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
     MARKER = "marker"
@@ -160,7 +162,7 @@ class HtmlUtil:
 
     @classmethod
     def create_div_span(cls, text, style=None):
-        """utilitymethodto create a div/span@text (probably mainly for testing)
+        """utility method to create a div/span@text (probably mainly for testing)
         :param text: to add
         :return: the div"""
         div = lxml.etree.Element(H_DIV)
@@ -239,6 +241,14 @@ class HtmlUtil:
         for i, el in enumerate(elems):
             el.attrib[A_ID] = A_ID + str(i)
 
+    def join_spans_in_div(self, html):
+        """joint <span>...</span><span>...</span> into <span>...</span> recursively
+        this structure arises when PDF or images is parsed and spans have the same styles (size/style/weight) and can be merged
+        :param div: contains the sibling spans
+        """
+        print(f" NYI")
+
+
 
 class HtmlTree:
     """builds a tree from a flat set of Html elemnets"""
@@ -261,8 +271,10 @@ class HtmlTree:
     ALL_DIV_XPATHS = ".//div"
 
     @classmethod
-    def make_tree(cls, elem, output_dir, recs_by_section=None):
-        """find decimal number for tree"""
+    def make_sections_and_output(cls, elem, output_dir, recs_by_section=None):
+        """find decimal number for tree
+        ThiS is HEAVILY based on IPCC
+        """
         markers = ["Chapter",
                    # "Table of Contents",
                    "Table of",  # one is concatenated (Chapter01) so abbreviate, unweighted Chap16
@@ -358,7 +370,13 @@ class HtmlTree:
             spans = div.xpath("./span")
             if not spans:
                 # no spans, concatenate with siblings
-                current_div.append(div)
+                if div == current_div:
+                    print("f cannot append div {div} to itself")
+                else:
+                    try:
+                        current_div.append(div)
+                    except ValueError as ve:
+                        print(f"Error {ve}")
                 continue
             css_style = CSSStyle.create_css_style(spans[0])  # normally comes first
             # check weight, if none append to siblings

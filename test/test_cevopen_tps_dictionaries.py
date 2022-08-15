@@ -1,4 +1,5 @@
 import sys
+import unittest
 # local
 from py4ami.ami_dict import AmiDictionary
 
@@ -92,10 +93,11 @@ CEVOPEN_DICTS = {
 
 
 def test_check_eo_activity():
-    print(f"sys.argv {sys.argv}")
+    # print(f"sys.argv {sys.argv}")
     _validate_dict(CEVOPEN_DICTS[EO_ACTIVITY])
 
 
+@unittest.skip("testing multiple dictiomaries")
 def test_check_eo_compound():
     _validate_dict(CEVOPEN_DICTS[EO_COMPOUND])
 

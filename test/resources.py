@@ -32,5 +32,12 @@ class Resources:
     IPCC_CHAP06 = Path(IPCC_DIR, "Chapter06")
     assert IPCC_CHAP06.exists()
 
+    #pdfs
+    PDFS_DIR = Path(TEST_RESOURCES_DIR, "pdfs")
+    assert PDFS_DIR.exists()
+    TEMP_PDFS_DIR = Path(TEMP_DIR, "pdfs")
+    if not TEMP_PDFS_DIR.exists():
+        TEMP_PDFS_DIR.mkdir()
+
     def __init__(self):
         pass
