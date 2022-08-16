@@ -387,6 +387,7 @@ class TestWikidataLookup(unittest.TestCase):
 
         dictionary.write_to_file(Path(TEMP_DIR, "dict_5.xml"))
 
+    @unittest.skip("LONG DOWNLOAD")
     def test_add_wikidata_to_complete_dictionary_with_filter(self):
         """Takes existing dictionary and looks up Wikidata stuff for entries w/o WikidataID
         Need dictionary in AmiDictionary format"""
@@ -459,6 +460,7 @@ class TestWikidataLookup(unittest.TestCase):
 </div>"""
         pass
 
+    @unittest.skip("LONG DOWNLOAD")
     def test_add_wikidata_to_imageanalysis_output(self):
         """creates dictionary from list of terms and looks up Wikidata"""
         terms = [

@@ -591,8 +591,13 @@ class TestAmiDictionary(AmiAnyTest):
         # assert text1 == dict_text, f"{text1} != {dict_text}"
         # TODO remove user from metadata
 
+    # @unittest.skip("LONG")
     def test_create_dictionary_from_list_of_string_and_add_wikidata(self):
-        terms = ["acetone", "chloroform", "DMSO", "ethanol"]
+        terms = ["acetone",
+                 "chloroform",
+                 # "DMSO",
+                 # "ethanol"
+                 ]
         amidict,_ = AmiDictionary.create_dictionary_from_words(terms, title="solvents", wikidata=True)
         temp_dir = Path(Path(__file__).parent.parent, "temp")
         dictfile = amidict.write_to_dir(temp_dir)
@@ -606,8 +611,6 @@ class TestAmiDictionary(AmiAnyTest):
       <metadata user="pm286" date="TODAY"/>
       <entry term="acetone" wikidataID="Q49546" description="chemical compound"/>
       <entry term="chloroform" wikidataID="Q172275" description="chemical compound"/>
-      <entry term="DMSO" wikidataID="Q407927" description="organosulfur chemical compound used as a solvent"/>
-      <entry term="ethanol" wikidataID="Q153" description="chemical compound"/>
     </dictionary>
     """
         # assert text1 == dict_text, f"{text1} != {dict_text}"
@@ -636,6 +639,7 @@ class TestSearchDictionary:
         assert ahref_dict == {'en': 'https://en.wikipedia.org/wiki/Azulene',
                               'de': 'https://de.wikipedia.org/wiki/Azulen'}
 
+    @unittest.skip("LONG DOWNLOAD")
     def test_create_dictionary_terpenes(self):
         words = ["limonene", "alpha-pinene", "Lantana camara"]
         description = "created from words"
