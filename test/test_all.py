@@ -24,14 +24,13 @@ def tests():
 class AmiAnyTest(unittest.TestCase):
 
     def setUp(self) -> None:
-        print(f"argv {sys.argv}")
         if len(sys.argv) == 0:
             sys.argv = ["ami"]
         self.argv_copy = list(sys.argv)
 
     def tearDown(self) -> None:
-        print(f"argv_copy {self.argv_copy}")
-        print(f"argv {sys.argv}")
+        # print(f"argv_copy {self.argv_copy}")
+        # print(f"argv {sys.argv}")
         self.argv =  list(self.argv_copy)
 
 

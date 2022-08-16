@@ -1,6 +1,8 @@
 from pathlib import Path
 import os
 from lxml import etree as LXET
+from urllib.request import urlopen
+import lxml
 import logging
 
 from py4ami.file_lib import FileLib
@@ -159,6 +161,16 @@ class XmlLib:
         from io import StringIO
         tree = LXET.parse(StringIO(xml), LXET.XMLParser(ns_clean=True))
         return tree.getroot()
+
+    @classmethod
+    def parse_url_to_tree(cls, url):
+        """parses URL to lxml tree
+        :param url: to parse
+        :return: lxml tree"""
+        with urlopen(url) as f:
+            tree = lxml.etree.parse(f)
+        return tree
+
 
     def make_sections_path(self, section_dir):
         self.section_path = os.path.join(self.parent_path, section_dir)

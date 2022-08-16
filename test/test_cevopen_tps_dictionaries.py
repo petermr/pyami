@@ -1,7 +1,8 @@
-import unittest
 import sys
+import unittest
+# local
+from py4ami.ami_dict import AmiDictionary
 
-from py4ami.ami_dict import AMIDict
 """Code for VALIDATING specific DICTIONARIES , not the code
 
  These are effectively tests for the dictionaries
@@ -92,10 +93,11 @@ CEVOPEN_DICTS = {
 
 
 def test_check_eo_activity():
-    print(f"sys.argv {sys.argv}")
+    # print(f"sys.argv {sys.argv}")
     _validate_dict(CEVOPEN_DICTS[EO_ACTIVITY])
 
 
+@unittest.skip("testing multiple dictiomaries")
 def test_check_eo_compound():
     _validate_dict(CEVOPEN_DICTS[EO_COMPOUND])
 
@@ -154,5 +156,5 @@ def test_check_binomial_abbreviations():
 
 # helper ----------------
 def _validate_dict(dict_url):
-    amidict = AMIDict.create_dict_from_url(dict_url)
+    amidict = AmiDictionary.create_dictionary_from_url(dict_url)
     amidict.check_validity()

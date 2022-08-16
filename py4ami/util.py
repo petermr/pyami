@@ -9,6 +9,11 @@ import re
 from enum import Enum
 from abc import ABC, abstractmethod
 from collections import Counter
+from pathlib import Path
+import time
+import requests
+import json
+import base64
 
 logger = logging.getLogger("py4ami.util")
 
@@ -165,6 +170,14 @@ class Util:
                 raise
 
     @classmethod
+    def delete_directory_contents(cls, dirx):
+        for path in Path(dirx).glob("**/*"):
+            if path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                shutil.rmtree(path)
+
+    @classmethod
     def create_name_value(cls, arg: str, delim: str = "=") -> tuple:
         """create name-value from argument
         if arg is simple string, set value to True
@@ -220,6 +233,87 @@ class Util:
                     (?P<post>.*)
                     """, re.VERBOSE)  # finds a bracket pair in running text, crude
 
+
+class GithubDownloader:
+    """Note: Github uses the old 'master' name but we have changed it to 'main'"""
+
+    def __init__(self, owner=None, repo=None, sleep=3, max_level=1):
+        """if sleep is too small, Github semds 403"""
+        self.owner = owner
+        self.repo = repo
+        self.main_url = None
+        self.sleep = sleep
+        self.max_level = max_level
+
+        """
+        7
+https://stackoverflow.com/questions/50601081/github-how-to-get-file-list-under-directory-on-github-pages
+
+Inspired by octotree (a chrome plugin for github),
+send API GET https://api.github.com/repos/{owner}/{repo}/git/trees/master to get root folder structure and recursively visit children of "type": "tree".
+
+As github API has rate limit of 5000 requests / hour, this might not be good for deep and wide tree.
+{
+  "sha": "8b991099652468e1c3c801f5600d37ec483be07f",
+  "url": "https://api.github.com/repos/petermr/CEVOpen/git/trees/8b991099652468e1c3c801f5600d37ec483be07f",
+  "tree": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "22c4e9d412e97ebbeceb6d7b922970ba115db9ac",
+      "size": 323,
+      "url": "https://api.github.com/repos/petermr/CEVOpen/git/blobs/22c4e9d412e97ebbeceb6d7b922970ba115db9ac"
+    },
+    {
+      "path": "BJOC",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "68866e1c37b63e4699b75cae8dc6923ef04fb898",
+      "url": "https://api.github.com/repos/petermr/CEVOpen/git/trees/68866e1c37b63e4699b75cae8dc6923ef04fb898"
+    },
+        """
+
+    def make_get_main_url(self):
+        if not self.main_url and self.owner and self.repo:
+            self.main_url = f"https://api.github.com/repos/{self.owner}/{self.repo}/git/trees/master"
+        return self.main_url
+
+    def load_page(self, url, level=1, page=None, last_path=None):
+        if level >= self.max_level:
+            print(f"maximum tree levels exceeded {level} >= {self.max_level}\n")
+            return
+        time.sleep(self.sleep)
+        response = requests.get(url)
+        if str(response.status_code) != '200':
+            print(f"page response {response} {response.status_code} {response.content}")
+            return None
+        page_dict_str = response.content.decode("UTF-8")
+        json_page = json.loads(page_dict_str)
+        print(f"json page {json_page.keys()}")
+        path = json_page["path"] if "path" in json_page else last_path
+        if "tree" in json_page:
+            links = json_page['tree']
+            for link in links:
+                print(f"link: {link.items()} ")
+                typex = link["type"]
+                path = link["path"]  # relative (child) pathname
+                child_url = link["url"]
+                if typex == 'blob':
+                    self.load_page(child_url, level=level, last_path=path)
+                elif typex == 'tree':
+                    print(f"\n============={path}===========")
+                    self.load_page(child_url, level=level + 1)
+        elif "content" in json_page:
+            content_str = json_page["content"]
+            encoding = json_page["encoding"]
+            if encoding == "base64":
+                content = base64.b64decode(content_str).decode("UTF-8")
+                print(f"\n===={path}====\n{content[:100]} ...\n")
+        else:
+            print(f"unknown type {json_page.keys()}")
+
+
 class AbstractArgs(ABC):
 
     def __init__(self):
@@ -262,20 +356,19 @@ class AbstractArgs(ABC):
 
         """
         # strip all tokens including ".py" (will proably fail on some m/c)
-        print(f"module_stem {self.module_stem}")
-        while len(sys.argv) > 0 and not self.module_stem() in sys.argv[0]:
+        print(f"module_stem {self.module_stem}\n sys.argv {sys.argv}")
+        while len(sys.argv) > 0 and self.module_stem not in str(sys.argv[0]):
             sys.argv = sys.argv[1:]
         self.create_arg_parser()
-        print(f"argv {sys.argv}")
+        # print(f"argv {sys.argv}")
         if len(sys.argv) == 1:  # no args, print help
             self.parser.print_help()
         else:
             argv_ = sys.argv[1:]
-            print(f"argv: {argv_}")
+            # print(f"argv: {argv_}")
             self.parsed_args = self.parser.parse_args(argv_)
             self.arg_dict = self.create_arg_dict()
             self.process_args()
-
 
     @abstractmethod
     def create_arg_parser(self):
@@ -348,4 +441,3 @@ class AmiLogger:
 class SScript(Enum):
     SUB = 1
     SUP = 2
-

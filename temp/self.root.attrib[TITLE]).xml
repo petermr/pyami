@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<dictionary title="solvents">
+  <entry name="acetone" term="acetone" wikidataID="Q49546" wikidataURL="https://www.wikidata.org/entity/Q49546" desc="chemical compound">
+    <wikidataHit type="wikidata_hits">Q222936</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q329022</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q63986955</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q4673277</wikidataHit>
+  </entry>
+  <entry name="chloroform" term="chloroform" wikidataID="Q172275" wikidataURL="https://www.wikidata.org/entity/Q172275" desc="chemical compound">
+    <wikidataHit type="wikidata_hits">Q1032539</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q21173565</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q26379274</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q26372730</wikidataHit>
+  </entry>
+  <entry name="DMSO" term="DMSO" wikidataID="Q407927" wikidataURL="https://www.wikidata.org/entity/Q407927" desc="organosulfur chemical compound used as a solvent">
+    <wikidataHit type="wikidata_hits">Q1100816</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q23559992</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q66045595</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q23251467</wikidataHit>
+  </entry>
+  <entry name="ethanol" term="ethanol" wikidataID="Q153" wikidataURL="https://www.wikidata.org/entity/Q153" desc="chemical compound">
+    <wikidataHit type="wikidata_hits">Q402607</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q154</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q421094</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q205972</wikidataHit>
+  </entry>
+</dictionary>

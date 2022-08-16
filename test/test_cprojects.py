@@ -1,14 +1,16 @@
+import shutil
+import sys
 import unittest
 import logging
 from pathlib import Path
 # local
-from py4ami.projects import CProject, CTree, AmiProjects, CProjectTests, CSubDir
+from py4ami.ami_project import CProject, CTree, AmiProjects, CProjectTests, CSubDir, ProjectArgs
 from py4ami.pyamix import PyAMI
+from py4ami.util import Util
 from test.resources import Resources
 
 
 class TestCProjTree(unittest.TestCase):
-
     logger = logging.getLogger("section_glob")
     logger.setLevel(logging.INFO)
     SECTIONS = f"sections"
@@ -164,5 +166,85 @@ class TestCProjTree(unittest.TestCase):
         cproj = CProject(Resources.CLIMATE_10_PROJ_DIR)
         svg_dir = cproj.get_ctree("climate10").get_existing_reserved_directory(CTree.SVG_DIR)
 
-        svg_child_files = CSubDir(svg_dir).get_child_files_by_name("fulltext-page\.[2-5]\.svg")
+        svg_child_files = CSubDir(svg_dir).get_child_files_by_name(r"fulltext-page\.[2-5]\.svg")
         assert len(svg_child_files) == 4
+
+    def test_make_cproject_from_pdfs(self):
+        """makes a CProject from pdf files
+        shows the adjustment of filenames to be unique"""
+        assert Resources.PDFS_DIR.exists()
+        dst = Resources.TEMP_PDFS_DIR
+        src = Resources.PDFS_DIR
+        cproject = CProject(Resources.TEMP_PDFS_DIR)
+        # names are short enough and uniue
+        self.clean_directories(src, dst)
+        cproject.make_cproject_from_pdfs()
+        self.assert_exists(cproject.dirx, ['1758_2946_3_38', '1758_2946_3_44', '1758_2946_4_15'])
+        self.clean_directories(src, dst)
+        cproject.make_cproject_from_pdfs(max_ctree_len=11)
+        self.assert_exists(cproject.dirx, ['1758_2946_3', '1758_2946_3_1', '1758_2946_4'])
+        self.clean_directories(src, dst)
+        cproject.make_cproject_from_pdfs(max_ctree_len=9)
+        self.assert_exists(cproject.dirx, ['1758_2946', '1758_2946_1', '1758_2946_2'])
+
+    @unittest.skip("VERY LONG, DOWNLOADS")
+    def test_make_cproject_from_webpage(self):
+        CProject.make_cproject_from_hrefs_in_url(weburl="https://www.ipcc.ch/report/ar6/wg3/",
+                                                 target_dir=Path(Resources.TEMP_DIR, "wg3"), skip_exists=True)
+
+
+    @unittest.skip("VERY LONG, DOWNLOADS")
+    def test_make_cproject_and_fulltexts_from_webpage_wg3(self):
+        project = CProject.make_cproject_and_fulltexts_from_hrefs_in_url(weburl="https://www.ipcc.ch/report/ar6/wg3/",
+                                                 target_dir=Path(Resources.TEMP_DIR, "wg3"), skip_exists=True)
+
+
+    @unittest.skip("VERY LONG")
+    def test_cproject_pdf2html(self):
+        sect = "wg3"
+        sect = "wg2"
+        wg_path = Path(Resources.TEMP_DIR, sect)
+        if not wg_path.exists():
+            project = CProject.make_cproject_and_fulltexts_from_hrefs_in_url(weburl=f"https://www.ipcc.ch/report/ar6/{sect}/",
+                                                 target_dir=Path(Resources.TEMP_DIR, f"{sect}"), skip_exists=True)
+        wg_project = CProject(wg_path)
+        # wg3_project.pdf2htmlx(maxpage=999, maxtree=2)
+        wg_project.pdf2htmlx()
+
+    def test_main_help(self):
+        sys.argv.append("--help")
+        try:
+            main()
+        except SystemExit:
+            pass
+
+
+    # ================================
+    @classmethod
+    def clean_directories(cls, src, dst):
+        if dst.exists():
+            shutil.rmtree(dst)
+            # Util.delete_directory_contents(Resources.TEMP_PDFS_DIR)
+        Util.copyanything(src, dst)
+
+    @classmethod
+    def assert_exists(cls, cproj_dir, file_list):
+        assert cproj_dir.exists(), f"cproj {cproj_dir} should exists"
+        for file in file_list:
+            f = Path(cproj_dir, file)
+            assert f.exists() and f.is_dir(), f"{f} should be existing dir"
+
+
+def main(argv=None):
+    print(f"running PDFArgs main")
+    pdf_args = ProjectArgs()
+    try:
+        pdf_args.parse_and_process()
+    except Exception as e:
+        print(f"***Cannot run pyami***; see output for errors: {e}")
+
+
+if __name__ == "__main__":
+    main()
+else:
+    pass

@@ -6,14 +6,19 @@ import unittest
 from pathlib import Path
 import shutil
 import csv
+import json
+import base64
+import time
 
 # local
-from py4ami.util import Util
+import requests
+
+from py4ami.util import Util, GithubDownloader
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
-logger = logging.getLogger("py4ami_test_util")
 
+logger = logging.getLogger("py4ami_test_util")
 
 class TestUtil(AmiAnyTest):
     # def __init__(self):
@@ -127,3 +132,25 @@ class TestUtil(AmiAnyTest):
         values = Util.extract_csv_fields(csv_file, column_with_values, selector_column, selector_value)
         assert len(values) == 92
         assert values[:3] == ['isomerase', 'GPP synthase', 'FPP synthase']
+
+class TestGithubDownloader(AmiAnyTest):
+    # def __init__(self):
+    #     pass
+
+    @unittest.skip("VERY LONG, DOWNLOADS")
+    def test_explore_main_page(self):
+        owner = "petermr"
+        repo = "CEVOpen"
+        downloader = GithubDownloader(owner=owner, repo=repo, max_level=1)
+        page = None
+        downloader.make_get_main_url()
+        print(f"main page {downloader.main_url}")
+        url = downloader.main_url
+        if not url:
+            print(f"no page {owner}/{repo}")
+            return None
+
+        downloader.load_page(url, level=0)
+
+
+
