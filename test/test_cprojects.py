@@ -187,18 +187,19 @@ class TestCProjTree(unittest.TestCase):
         cproject.make_cproject_from_pdfs(max_ctree_len=9)
         self.assert_exists(cproject.dirx, ['1758_2946', '1758_2946_1', '1758_2946_2'])
 
+    @unittest.skip("VERY LONG, DOWNLOADS")
     def test_make_cproject_from_webpage(self):
         CProject.make_cproject_from_hrefs_in_url(weburl="https://www.ipcc.ch/report/ar6/wg3/",
                                                  target_dir=Path(Resources.TEMP_DIR, "wg3"), skip_exists=True)
 
+
+    @unittest.skip("VERY LONG, DOWNLOADS")
     def test_make_cproject_and_fulltexts_from_webpage_wg3(self):
         project = CProject.make_cproject_and_fulltexts_from_hrefs_in_url(weburl="https://www.ipcc.ch/report/ar6/wg3/",
                                                  target_dir=Path(Resources.TEMP_DIR, "wg3"), skip_exists=True)
 
-    def test_make_cproject_and_fulltexts_from_webpage_wg3(self):
-        project = CProject.make_cproject_and_fulltexts_from_hrefs_in_url(weburl="https://www.ipcc.ch/report/ar6/wg3/",
-                                                 target_dir=Path(Resources.TEMP_DIR, "wg3"), skip_exists=True)
 
+    @unittest.skip("VERY LONG")
     def test_cproject_pdf2html(self):
         sect = "wg3"
         sect = "wg2"

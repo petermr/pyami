@@ -389,7 +389,7 @@ class TestHtml(unittest.TestCase):
         """join sibling spans with the same styles
         """
         html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow.html")
-        html_element = lxml.etree.parse(html_path)
+        html_element = lxml.etree.parse(str(html_path))
         divs = html_element.xpath(".//div")
         assert len(divs) == 3221
         last_div = None

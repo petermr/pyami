@@ -405,7 +405,7 @@ class AmiDictionary:
 
     @classmethod
     def read_dictionary_from_xml_file(cls, file, ignorecase=True):
-        xml_tree = ET.parse(file, parser=ET.XMLParser(encoding="utf-8"))
+        xml_tree = ET.parse(str(file), parser=ET.XMLParser(encoding="utf-8"))
         dictionary = cls.create_from_xml_object(xml_tree, ignorecase=ignorecase)
         dictionary.xml_content = xml_tree
         dictionary.file = file
@@ -738,7 +738,7 @@ class AmiDictionary:
     def markup_html_from_dictionary(self, target_path, output_path, background_value):
         term_set = self.get_or_create_term_set()
         rec = re.compile(f"(.*?)({'|'.join(term_set)})(.*)")
-        chap_elem = lxml.etree.parse(target_path)
+        chap_elem = lxml.etree.parse(str(target_path))
         div_spans = chap_elem.xpath(".//div/span")
         for span in div_spans:
             text = span.text

@@ -137,6 +137,7 @@ class TestGithubDownloader(AmiAnyTest):
     # def __init__(self):
     #     pass
 
+    @unittest.skip("VERY LONG, DOWNLOADS")
     def test_explore_main_page(self):
         owner = "petermr"
         repo = "CEVOpen"

@@ -722,6 +722,7 @@ class TestSearchDictionary:
         # TODO needs assert
 
     # LONG
+    @unittest.skip("VERY LONG, SPARQL")
     def test_plant_genus(cls):
         """
         """

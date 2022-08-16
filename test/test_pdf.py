@@ -848,23 +848,35 @@ LTPage
         assert "width" in css_style
         assert css_style.get("width") == "34"
 
-    def test_pdfminer_html(self):
+    def test_convert_pdf_to_html_and_save(self):
+        """Uses PDFArgs.convert_pdf to convert PDF to HTML and save
+        to temp
+        """
         # Use `pip3 install pdfminer.six` for python3
 
+        """reading py4ami/resources/projects/liion4/PMC4391421/fulltext.pdf"""
         pathx = Path(PMC1421)
 
+        # convert PDF to html
         result = PDFArgs.convert_pdf(
             path=pathx,
             fmt="html",
             caching=True,
         )
-        # print(f"result {result}")
+        # output dir
         html_dir = Path(Resources.TEMP_DIR, "html")
         if not html_dir.exists():
             html_dir.mkdir()
-        with open(Path(html_dir, "pmc4121.xml"), "w") as f:
+        # ouytput file
+        path = Path(html_dir, "pmc4121.xml")
+        # clean because text requires new file
+        if path.exists():
+            os.remove(path)
+        with open(path, "w") as f:
             f.write(result)
             print(f"wrote {f}")
+        assert path.exists(), f"should output html to {path}"
+        assert 76000 < os.path.getsize(path) < 77000, f"size should be in range , was {os.path.getsize(path)}"
 
     def test_main_help(self):
         sys.argv=[]
