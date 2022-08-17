@@ -99,6 +99,8 @@ class HtmlUtil:
         match = rec.match(textx)
         new_elems = [None, None, None]
         if match:
+            parent = elemx.getparent()
+            # print(f"children {len(parent.xpath('./*'))}")
             assert len(match.groups()) == 3  # some may be empty strings
             group1 = match.group(1)
             if group1 != "":  # don't add empty string
@@ -120,6 +122,8 @@ class HtmlUtil:
                     _, id_counter = HtmlUtil.split_span_at_match(new_elems[2], regex, copy_atts=copy_atts,
                                                                  recurse=recurse, id_root=id_root,
                                                                  id_counter=id_counter)
+            # print(f"children after {len(parent.xpath('./*'))}")
+            # print(f"new elems {new_elems[1].text}")
         return new_elems, id_counter
 
     @classmethod
@@ -132,7 +136,7 @@ class HtmlUtil:
     @classmethod
     def add_sibling_after(cls, anchor_elem, tag, replace=False, copy_atts=False, text=None):
         """adds new trailing sibling of anchor_elem with tag
-        :param tag: tag for new elements
+        :param tag: tag for new element
         :param anchor_elem: reference element, must have a parent
         :param replace: if True, remove anchor element
         :param copy_atts: copy attributes from anchor

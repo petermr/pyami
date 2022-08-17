@@ -551,8 +551,9 @@ class AmiDictionary:
 
         """
         lcase = termx.lower()  # all keys are lowercase
-        if self.entry_by_term is None:
+        if self.entry_by_term is None or len(self.entry_by_term) == 0:
             self.create_entry_by_term()
+            print(f"made entry keys {self.entry_by_term.keys()}")
         entry = self.entry_by_term[lcase] if lcase in self.entry_by_term else None
         # if case-sensitive check whether term was different case
         if entry is not None and not ignorecase and lcase != termx:
@@ -591,10 +592,12 @@ class AmiDictionary:
             ami_entry_list.append(ami_entry)
         return ami_entry_list
 
-    def create_entry_by_term(self):
+    def create_entry_by_term(self, lower=True):
         self.entry_by_term = dict()
         for entry in self.entries:
             term = self.term_from_entry(entry)
+            if lower:
+                term = term.lower()
             if term in self.entry_by_term:
                 print(f"duplicate terms not allowed {term}")
             else:
@@ -742,17 +745,25 @@ class AmiDictionary:
         div_spans = chap_elem.xpath(".//div/span")
         for span in div_spans:
             text = span.text
-            HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
+
+            new_elems = HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
                                          recurse=True, id_root="ss", id_counter=0)
-        for a_elem in chap_elem.xpath(".//a"):
+            # if new_elems[1] :
+            #     print(f"span {span.text} || {new_elems[0][0].text}")
+        a_elems = chap_elem.xpath(".//a")
+        print(f"a elems {len(a_elems)}")
+        for a_elem in a_elems:
             text = a_elem.text
-            entry = self.get_entry(text, ignorecase=True)
+            print(f"text: {text}")
+            entry = self.get_entry(text, ignorecase=True) # lookup in dictionary
             if entry is not None:
                 href = entry.attrib["wikidataID"]
                 CSSStyle.add_name_value(a_elem, "background-color", background_value)
                 if href:
                     a_elem.attrib["href"] = WIKIDATA_SITE + href
                     a_elem.attrib["title"] = entry.attrib["name"]
+            else:
+                print(f" BUG cannot find text: {text}")
         with open(str(output_path), "wb") as f:
             f.write(lxml.etree.tostring(chap_elem))
 

@@ -326,38 +326,54 @@ class TestHtml(unittest.TestCase):
         assert dictionary_file.exists(), f"file should exist {dictionary_file}"
         ami_dict = AmiDictionary.create_from_xml_file(dictionary_file)
         ami_dict.ignorecase = False
-        target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        inpath = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
         if not output_dir.exists():
             output_dir.mkdir()
         output_path = Path(output_dir, "chap6_index.html")
-        ami_dict.markup_html_from_dictionary(target_path, output_path, "pink")
+        ami_dict.markup_html_from_dictionary(inpath, output_path, "pink")
 
-    def test_markup_chapter_with_dictionary_css(self):
+    def test_markup_chapter_with_dictionary(self):
         """read dictionary file and index a set of spans
         Test: ami_dict.markup_html_from_dictionary
         and add style
         and write result
         """
-        ami_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP06, "abbrev_as.xml"), ignorecase = False)
+        abb_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP06, "abbrev_as.xml"), ignorecase = False)
+        input_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        html_output_dir = Path(Resources.TEMP_DIR, "html")
+        if not html_output_dir.exists():
+            html_output_dir.mkdir()
+        chap6_marked_path = Path(html_output_dir, "chap6_marked.html")
+
+        abb_dict.markup_html_from_dictionary(input_path, chap6_marked_path, "pink")
+        assert chap6_marked_path.exists(), f"marked-up html in {chap6_marked_path}"
+        with open(chap6_marked_path, "rb") as f:
+            marked_elem = lxml.etree.parse(f)
+
+
+
+    def test_extract_styles_as_css(self):
+        """read dictionary file and index a set of spans
+        Test: ami_dict.markup_html_from_dictionary
+        and add style
+        and write result
+        """
         target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
         if not output_dir.exists():
             output_dir.mkdir()
-        output_path = Path(output_dir, "chap6_index.html")
+        output_path = Path(output_dir, "chap6_styled.html")
 
-        ami_dict.markup_html_from_dictionary(target_path, output_path, "pink")
-        with open(output_path, "rb") as f:
-            marked_elem = lxml.etree.parse(f)
-        styles = marked_elem.xpath(".//@style")
+        with open(target_path, "rb") as f:
+            elem = lxml.etree.parse(f)
+        styles = elem.xpath(".//@style")
         assert 350>= len(styles) >= 316
         style_set = set()
         for style in styles:
             style_set.add(style)
 
         assert 20 >= len(style_set) >= 12
-        # for style in style_set:
-        #     print(f"style: {style}")
 
         sorted_styles = sorted(style_set)
         assert sorted_styles == ['',
