@@ -100,7 +100,6 @@ class HtmlUtil:
         new_elems = [None, None, None]
         if match:
             parent = elemx.getparent()
-            # print(f"children {len(parent.xpath('./*'))}")
             assert len(match.groups()) == 3  # some may be empty strings
             group1 = match.group(1)
             if group1 != "":  # don't add empty string
@@ -110,6 +109,7 @@ class HtmlUtil:
                 new_elems[0].attrib["class"] = "re_pref"
                 id_counter = cls.add_id_increment_counter(id_counter, id_root, elemx)
             new_elems[1] = HtmlUtil.add_sibling_after(elemx, new_tags[1], copy_atts=copy_atts, text=match.group(2))
+            # print(f" match 2 {match.group(2)}")
             new_elems[1].attrib["class"] = "re_match"
             id_counter = cls.add_id_increment_counter(id_counter, id_root, new_elems[1])
             if match.group(3) != "":  # don't add empty string
@@ -122,8 +122,6 @@ class HtmlUtil:
                     _, id_counter = HtmlUtil.split_span_at_match(new_elems[2], regex, copy_atts=copy_atts,
                                                                  recurse=recurse, id_root=id_root,
                                                                  id_counter=id_counter)
-            # print(f"children after {len(parent.xpath('./*'))}")
-            # print(f"new elems {new_elems[1].text}")
         return new_elems, id_counter
 
     @classmethod

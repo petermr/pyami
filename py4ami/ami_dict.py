@@ -553,14 +553,13 @@ class AmiDictionary:
         lcase = termx.lower()  # all keys are lowercase
         if self.entry_by_term is None or len(self.entry_by_term) == 0:
             self.create_entry_by_term()
-            print(f"made entry keys {self.entry_by_term.keys()}")
         entry = self.entry_by_term[lcase] if lcase in self.entry_by_term else None
         # if case-sensitive check whether term was different case
-        if entry is not None and not ignorecase and lcase != termx:
-            entry = None
-        # if entry is None:
-        #     self.logger.debug(
-        #         "entry by term", self.entry_by_term)  # very large
+        if entry is not None:
+            entry_term = entry.attrib[TERM]
+            # if the term is case sensitive, compare them
+            if not ignorecase and entry_term != termx:
+                entry = None
         return entry
 
     #    class AmiDictionary:
@@ -596,6 +595,7 @@ class AmiDictionary:
         self.entry_by_term = dict()
         for entry in self.entries:
             term = self.term_from_entry(entry)
+            # index by lowercase?
             if lower:
                 term = term.lower()
             if term in self.entry_by_term:
@@ -745,16 +745,13 @@ class AmiDictionary:
         div_spans = chap_elem.xpath(".//div/span")
         for span in div_spans:
             text = span.text
-
             new_elems = HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
                                          recurse=True, id_root="ss", id_counter=0)
-            # if new_elems[1] :
-            #     print(f"span {span.text} || {new_elems[0][0].text}")
+        self.convert_matched_spans_to_a(chap_elem)
+
         a_elems = chap_elem.xpath(".//a")
-        print(f"a elems {len(a_elems)}")
         for a_elem in a_elems:
             text = a_elem.text
-            print(f"text: {text}")
             entry = self.get_entry(text, ignorecase=True) # lookup in dictionary
             if entry is not None:
                 href = entry.attrib["wikidataID"]
@@ -766,6 +763,13 @@ class AmiDictionary:
                 print(f" BUG cannot find text: {text}")
         with open(str(output_path), "wb") as f:
             f.write(lxml.etree.tostring(chap_elem))
+
+    def convert_matched_spans_to_a(self, chap_elem):
+        """some matches are complete spane and need converting to <a>
+        """
+        re_spans = chap_elem.xpath(".//span[@class='re_match']")
+        for re_span in re_spans:
+            re_span.tag = "a"
 
     @classmethod
     def create_and_write_dictionary(cls, dictionary_file, dictionary_root, i, keystring, sparq2dict, sparql_file):
