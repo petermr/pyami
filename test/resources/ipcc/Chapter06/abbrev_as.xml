@@ -55,4 +55,5 @@
   <entry term="TFC" name="total final energy consumption" count="12" wikidataID=""></entry>
   <entry term="TPES" name="total primary energy supply" count="8" wikidataID=""></entry>
   <entry term="VRE" name="Variable Renewable Energy" count="21" wikidataID="Q7915732"></entry>
+  <entry term="green infrastructure" name="Green Infrastructure" count="0" wikidataID="Q3427027"></entry>
 </dictionary>
