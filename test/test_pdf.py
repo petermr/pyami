@@ -15,11 +15,10 @@ import pdfplumber
 from PIL import Image
 # local
 from py4ami.ami_bib import Publication
-from py4ami.ami_html import AmiSpan
 
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
 from py4ami.ami_pdf import AmiPage, TextStyle, X, Y, SORT_XY, PDFImage
-from py4ami.ami_pdf import P_FONTNAME, P_HEIGHT, P_STROKING_COLOR, P_NON_STROKING_COLOR, P_TEXT, P_X0, P_Y0, P_X1
+from py4ami.ami_pdf import P_FONTNAME, P_HEIGHT, P_STROKING_COLOR, P_NON_STROKING_COLOR, P_TEXT, P_X0, P_Y0, P_X1, P_Y1
 from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
 from py4ami.ami_html import HtmlUtil, STYLE,FILL, STROKE, FONT_FAMILY, FONT_SIZE
 from py4ami.ami_html import H_DIV, H_SPAN, H_A, H_B, H_BODY, H_P
@@ -256,87 +255,35 @@ class PDFTest(test.test_all.AmiAnyTest):
         args = f"--proj {proj} --apply page2sect"
         PyAMI().run_command(args)
 
-    def test_make_spans_from_charstream(self):
-        root = "pmc1421"
+    def test_make_ami_spans_from_charstream_ipcc_chap6(self):
+        """The central AMI method to make HTML from PDF characters
+        TODO DEVELOP THIS
+        """
         root = "chap6"
         page_no = 0
-        page_no = 3
+        page_nos = range(3, 13)
         output_root = root
-        if root == "pmc1421":
-            input_pdf = PMC1421
-
-        elif root == "chap6":
-            input_pdf = Path(IPCC_CHAP6_PDF)
+        input_pdf = Path(IPCC_CHAP6_PDF)
         assert input_pdf.exists(), f"{input_pdf} should exist"
+        """y="793.815">Final Government Distribution  Chapter 6 IPCC WGIII AR6 </span></div>
+<div><span style="font-size: 11.04 px;font-family: TimesNewRomanPS-BoldMT;" y="55.719">D"""
+        bbox = BBox(xy_ranges=[[60, 999], [60, 790]])
 
-        with pdfplumber.open(input_pdf) as pdf:
-            page0 = pdf.pages[page_no]
-            print(f"crop: {page0.cropbox} media {page0.mediabox}, bbox {page0.bbox}")
-            print(f"rotation: {page0.rotation} doctop {page0.initial_doctop}")
-            print(f"width {page0.width} height {page0.height}")
-            print(f"text {page0.extract_text()[:2]}")
-            print(f"words {page0.extract_words()[:3]}")
+        output_dir = Path(Resources.TEMP_DIR, "pdf")
+        if not output_dir.exists():
+            print(f"output {output_dir}")
+            output_dir.mkdir()
+        for page_no in page_nos:
+            top_div = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
 
-            print(f"char {page0.chars[:1]}")
-            span = None
-            span_list = []
-            maxchars = 999999
-            ndec_coord = 3 # decimals for coords
-            ndec_fontsize = 2
-            for ch in page0.chars[:maxchars]:
-                text_style = TextStyle()
-                text_style.set_font_family(ch.get(P_FONTNAME))
-                text_style.set_font_size(ch.get(P_HEIGHT), ndec=ndec_fontsize)
-                text_style.stroke = ch.get(P_STROKING_COLOR)
-                text_style.fill = ch.get(P_NON_STROKING_COLOR)
+            output_html = Path(output_dir, f"{output_root}_{page_no}.html")
+            with open(output_html, "wb") as f:
+                f.write(lxml.etree.tostring(top_div))
+                print(f" wrote html {output_html}")
+                assert output_html.exists()
 
-                x0 = round(ch.get(P_X0), ndec_coord)
-                x1 = round(ch.get(P_X1), ndec_coord)
-                y0 = round(ch.get(P_Y0), ndec_coord)
-                # style or y0 changes
-                if not span or not span.text_style or span.text_style != text_style or span.y0 != y0:
-                    if span:
-                        if span.text_style != text_style:
-                            print(f"{span.text_style.difference(text_style)} \n {span.string}")
-
-                        if span.y0 != y0:
-                            print(f""
-                                  f"Y {y0} != {span.y0}\n {span.string} {span.xx} ")
-                    span = AmiSpan()
-                    span_list.append(span)
-                    span.text_style = text_style
-                    span.y0 = y0
-                    span.x0 = x0 # set left x
-                span.x1 = x1 # update right x, including width
-                span.string += ch.get(P_TEXT)
-
-            top_div = lxml.etree.Element(H_DIV)
-            top_div.attrib["class"] = "top"
-            div = lxml.etree.SubElement(top_div, H_DIV)
-            last_span = None
-            for span in span_list:
-                if last_span is None or last_span.y0 != span.y0:
-                    div = lxml.etree.SubElement(top_div, H_DIV)
-                last_span = span
-                span.create_and_add_to(div)
-
-        for ch in page0.chars[:60000]:
-            col = ch.get('non_stroking_color')
-            if col:
-                print(f"txt {ch.get('text')} : col {col}")
-            if ch.get("size") > 20:
-                print(f"LARGE {ch}")
-        path = Path(Resources.TEMP_DIR, "pdf")
-        if not path.exists():
-            print(f"output {path}")
-            path.mkdir()
-        print(f"div {lxml.etree.tostring(div, encoding='UTF-8')}")
-        with open(Path(path, f"{output_root}_{page_no}.html"), "wb") as f:
-            f.write(lxml.etree.tostring(top_div))
-
-
-
-    def test_pdfplumber(self):
+    def test_pdfplumber_full_page_info(self):
+        """The definitive catalog of all objects on a page"""
         assert PMC1421.exists(), f"{PMC1421} should exist"
 
         # also ['_text', 'matrix', 'fontname', 'ncs', 'graphicstate', 'adv', 'upright', 'x0', 'y0', 'x1', 'y1',
@@ -362,8 +309,6 @@ class PDFTest(test.test_all.AmiAnyTest):
             assert first_page.cropbox == [0, 0, 595.22, 842]
             assert first_page.mediabox == [0, 0, 595.22, 842]
             assert first_page.bbox == (0, 0, 595.22, 842)
-            assert first_page.rotation == 0
-            assert first_page.initial_doctop == 0
             assert first_page.cached_properties == ['_rect_edges', '_edges', '_objects', '_layout']
             assert first_page.is_original
             assert first_page.pages is None
@@ -374,6 +319,49 @@ class PDFTest(test.test_all.AmiAnyTest):
             # rotate = 0 >
             assert first_page.annots == []
             assert first_page.hyperlinks == []
+            assert len(first_page.objects) == 2
+            assert type(first_page.objects) is dict
+            assert list(first_page.objects.keys()) == ['char', 'line']
+            assert len(first_page.objects['char']) == 4411
+            assert first_page.objects['char'][:2] == [
+                {'matrix': (9, 0, 0, 9, 319.74, 797.4203),
+                 'fontname': 'KAAHHD+Calibri,Italic',
+                 'adv': 0.319,
+                 'upright': True,
+                 'x0': 319.74, 'y0': 795.1703, 'x1': 322.611, 'y1': 804.1703,
+                 'width': 2.870999999999981, 'height': 9.0, 'size': 9.0,
+                 'object_type': 'char', 'page_number': 1,
+                 'text': 'J', 'stroking_color': None, 'non_stroking_color': (0.86667, 0.26667, 1, 0.15294),
+                 'top': 37.8297, 'bottom': 46.8297, 'doctop': 37.8297
+                 },
+                {'matrix': (9, 0, 0, 9, 322.6092, 797.4203), 'fontname': 'KAAHHD+Calibri,Italic', 'adv': 0.513, 'upright': True,
+                 'x0': 322.6092, 'y0': 795.1703, 'x1': 327.2262, 'y1': 804.1703, 'width': 4.617000000000019, 'height': 9.0, 'size': 9.0,
+                 'object_type': 'char', 'page_number': 1, 'text': 'o', 'stroking_color': None, 'non_stroking_color': (0.86667, 0.26667, 1, 0.15294),
+                 'top': 37.8297, 'bottom': 46.8297, 'doctop': 37.8297},
+                ],  f"first_page.objects['char'][0]  {first_page.objects['char'][0] }"
+            assert len(first_page.objects['line']) == 1, f" len(first_page.objects['line'])"
+            assert first_page.objects['line'][0] == {
+                 'bottom': 48.24000000000001,
+                 'doctop': 48.24000000000001,
+                 'evenodd': False,
+                 'fill': False,
+                 'height': 0.0,
+                 'linewidth': 1,
+                 'non_stroking_color': 0,
+                 'object_type': 'line',
+                 'page_number': 1,
+                 'pts': [(56.7, 793.76), (542.76, 793.76)],
+                 'stroke': True,
+                 'stroking_color': (0.3098, 0.24706, 0.2549, 0),
+                 'top': 48.24000000000001,
+                 'width': 486.06,
+                 'x0': 56.7,
+                 'x1': 542.76,
+                 'y0': 793.76,
+                 'y1': 793.76
+                                                     }, f"first_page.objects['line'][0]  {first_page.objects['line'][0] }"
+            # assert first_page.process_object(obj) == [], f"process_object (LTItem) {first_page.process_object()}"
+
             assert first_page.find_tables() == []
             assert first_page.extract_tables() == []
             assert first_page.extract_text()[:20] == "Journal of Medicine "
@@ -394,6 +382,7 @@ class PDFTest(test.test_all.AmiAnyTest):
 
             assert first_page.curves == []
             assert first_page.images == []
+            assert len(first_page.chars) == 4411 # same as first_page.objects['char'] I think
             assert first_page.chars[:1] == [
                 {'adv': 0.319,
                  'bottom': 46.8297,
@@ -416,6 +405,7 @@ class PDFTest(test.test_all.AmiAnyTest):
                  'y1': 804.1703
                  },
             ]
+            """first_page.objects['char']"""
             assert first_page.chars[0] == {'matrix': (9, 0, 0, 9, 319.74, 797.4203),
                                            'fontname': 'KAAHHD+Calibri,Italic', 'adv': 0.319,
                                            'upright': True, 'x0': 319.74, 'y0': 795.1703, 'x1': 322.611, 'y1': 804.1703,
@@ -476,7 +466,9 @@ class PDFTest(test.test_all.AmiAnyTest):
                 print(ch.get("text"), end="")
 
     def test_debug_page_properties_chap6(self):
-        """debug the PDF objects (crude)"""
+        """debug the PDF objects (crude)
+        outputs wordcount for page, and any image data.
+        Would ber better if we knew hoe to read PDFStream"""
         maxpage = 9 # images on page 8, and 9
         # maxpage = 9999 # image is on page 8
         outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
@@ -520,12 +512,15 @@ class PDFTest(test.test_all.AmiAnyTest):
             iw = ImageWriter(outdir)
             for image in images:
                 iw.export_image(image)
+                print(f" image {image}")
 
         save_images_from_page(page)
 
 
     def test_debug_page_properties(self):
-        """debug the PDF objects (crude)"""
+        """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
+        finds WORDS (count) and IMAGE details
+        """
 
         outdir = Path(Resources.TEMP_DIR, "pdf", "pmc1421")
         if not outdir.exists():
@@ -546,6 +541,8 @@ class PDFTest(test.test_all.AmiAnyTest):
             print(f"images: {pdf_debug.image_dict .keys()}")
 
     def test_bmp_png_to_png(self):
+        """convert bmp, jpgs, etc to PNG
+        """
         dirx = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
         outdir = Path(Resources.IPCC_CHAP06, "image")
         if not dirx.exists():
@@ -555,6 +552,8 @@ class PDFTest(test.test_all.AmiAnyTest):
         pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
 
     def test_merge_pdf2txt_bmp_jpg_with_coords(self):
+        """creates coordinate data for images (20 pp doc) and also reads existing coord data from file
+        (? from AMI3-java or previous run) and tries to match them"""
         png_dir = Path(Resources.IPCC_CHAP06, "images")
         bmp_jpg_dir = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
         coord_file = Path(Resources.IPCC_CHAP06, "image_coords.txt")
@@ -604,7 +603,9 @@ class PDFTest(test.test_all.AmiAnyTest):
 
     # https://towardsdatascience.com/pdf-text-extraction-in-python-5b6ab9e92dd
 
-    def test_pdfminer_layout(self):
+    def test_pdfminer_debug_LTTextLine_LTTextBox_PMC1421(self):
+        """read PDF and chunk into text_lines and text_boxes
+        Keeps box coordinates but loses style"""
         from pdfminer.layout import LTTextLineHorizontal, LTTextBoxHorizontal
         # need to pass in laparams, otherwise pdfplumber page would not
         # have high level pdfminer layout objects, only LTChars.
@@ -612,12 +613,14 @@ class PDFTest(test.test_all.AmiAnyTest):
         page = pdf.pages[0].layout
         for element in page:
             if isinstance(element, LTTextLineHorizontal):
-                print(f"textlinehorizontal: ({element.bbox}): {element.get_text()}", end="")
+                # currently only seems to detect newline
+                print(f"textlinehorizontal: ({element.bbox}):{element.get_text()}:", end="")
             if isinstance(element, LTTextBoxHorizontal):
                 print(f">>start_text_box")
                 for text_line in element:
-                    print(f"dir: {text_line.__dir__()}")
-                    print(f"....textboxhorizontal: ({text_line.bbox}): {text_line.get_text()}", end="")
+                    # print(f"dir: {text_line.__dir__()}")
+                    # print(f"....textboxhorizontal: ({text_line.bbox}): {text_line.get_text()}", end="")
+                    pass
                 print(f"<<end_text_box")
 
     # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
@@ -708,14 +711,63 @@ LTPage
                     pdf_debug.debug_page_properties(page, debug=options)
 
     def test_make_structured_html(self):
-        """structures the flat HTML from pdfplumber"""
+        """structures the flat HTML from pdfplumber, but no coordinates"""
         file = IPCC_CHAP6_PDF
+        print(f" converting {file}")
         assert file.exists(), f"chap6 {IPCC_CHAP6_PDF}"
         pdf_args = PDFArgs()
         pdf_args.arg_dict[INPATH] = file
         pdf_args.arg_dict[MAXPAGE] = 10
         print(f"arg_dict {pdf_args.arg_dict}")
         pdf_args.convert_write()
+        outfile = Path(Path(file).parent, "fulltext.flow.html")
+        print(f"wrote {outfile}")
+        assert outfile.exists()
+
+    def test_make_ipcc_html_spans(self):
+        """uses PDFMiner library (no coordinates I think)"""
+        sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
+        if not sem_clim_dir.exists():
+            print(f"no ipcc dir {sem_clim_dir}, so skipping")
+            return
+        ipcc_dir = Path(sem_clim_dir, "ipcc", "ar6", "wg3")
+        assert ipcc_dir.exists(), f"ipcc_dir {ipcc_dir} does not exist"
+        chapter = "Chapter04"
+        print(f"Converting chapter: {chapter}")
+        pdf_args = PDFArgs()
+        chapter_dir = Path(ipcc_dir, chapter)
+        pdf_args.arg_dict[INDIR] = chapter_dir
+        assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
+        inpath = Path(chapter, "fulltext.pdf")
+        pdf_args.arg_dict[INPATH] = Path(chapter_dir, "fulltext.pdf")
+        assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
+        pdf_args.arg_dict[MAXPAGE] = 20
+        pdf_args.arg_dict[OUTFORM] = "flow.html"
+        outdir = Path(Resources.TEMP_DIR, "ipcc_html")
+        if not outdir.exists():
+            outdir.mkdir()
+        pdf_args.arg_dict[OUTDIR] = outdir
+        print(f"arg_dict {pdf_args.arg_dict}")
+
+        unwanteds = {
+            "chapter": {
+                "xpath": ".//div/span",
+                "regex": "^Chapter\\s+\\d+\\s*$"
+            },
+            "final_gov": {
+                "xpath": ".//div/span",
+                "regex": "^\\s*Final Government Distribution\\s*$"
+            },
+            "page": {
+                "xpath": ".//div/a",
+                "regex": "^\\s*Page\\s*\\d+\\s*$",
+            },
+            "wg3": {
+                "xpath": ".//div/span",
+                "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
+            },
+        }
+        pdf_args.convert_write(unwanteds=unwanteds)
 
     @unittest.skip("too long")
     def test_make_ipcc_html(self):
@@ -770,6 +822,7 @@ LTPage
                 },
             }
             pdf_args.convert_write(unwanteds=unwanteds)
+
 
     def test_pdfminer_text_html_xml(self):
         # Use `pip3 install pdfminer.six` for python3

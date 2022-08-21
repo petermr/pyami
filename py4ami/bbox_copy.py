@@ -446,7 +446,7 @@ class BBox:
 
     def contains_point(self, point):
         """does point lie within xy_ranges inclusive
-        :param point: 2D numeric array [x, y]
+        :param point: 2D numeric array [x, y] or 2-tuple
         :return: False if point is None or self is invalid or point lies outside
         """
         if not BBox.validate_point(point) or not self.is_valid():

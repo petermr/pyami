@@ -2,6 +2,7 @@
 import argparse
 import os.path
 import sys
+import copy
 
 import lxml
 import lxml.html
@@ -20,6 +21,7 @@ from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 from pdfminer.image import ImageWriter
 from pdfminer.layout import LTImage
+import pdfplumber
 from PIL import Image
 
 from sklearn.linear_model import LinearRegression
@@ -27,9 +29,9 @@ from sklearn.linear_model import LinearRegression
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util, AbstractArgs
-from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree
+from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
-    CALIBRI, FONT_FAMILIES
+    CALIBRI, FONT_FAMILIES, H_DIV
 from py4ami.ami_html import H_SPAN, H_A, H_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
 
 # text attributes
@@ -77,6 +79,7 @@ P_NON_STROKING_COLOR = "non_stroking_color"
 P_X0 = "x0"
 P_X1 = "x1"
 P_Y0 = "y0"
+P_Y1 = "y1"
 P_TEXT = "text"
 
 # Unwanted sections
@@ -111,17 +114,21 @@ class AmiPage:
     consists of paragraphs, divs, textlines, etc.
     Used as a working container, utimately being merged with
     neighbouring documents into complete HTML document
+
+    Now including HTML divs and spans from PDF
+    MESSY (because PDF is horrible)
     """
     CONTENT_RANGES = [[56, 999], [45, 780]]
 
     def __init__(self):
+        # a mess because it started with SVG and new we are adding PDF
         # path of SVG page
         self.page_path = None
         # raw parsed SVG
         self.page_element = None
         # child elements of type <climate10_:text>
         self.text_elements = None
-        # spans created from tex_elements
+        # spans created from text_elements
         self.text_spans = []
         # bboxes of the spans
         self.bboxes = []
@@ -129,6 +136,24 @@ class AmiPage:
         self.composite_lines = []
         # paragraphs from inter-composite spacing
         self.paragraphs = []
+        # AmiSpans built from characters from pdf
+        self.ami_spans = []
+
+    @classmethod
+    def create_page_from_ami_spans_from_pdf(cls, ami_spans, bboxes=None):
+        """
+        create from raw AmiSpans (probably created from PDF)
+        Tidying into divs, etc is done elsewhere
+        :param ami_spans: list of AmiSpans possibly in document order
+        :param bboxes: boxes within which spans must fit (if None accept everything)
+        :return: AmiPage (containing AmiSpans) or None
+        """
+        ami_page = None
+        if ami_spans:
+            ami_page = AmiPage()
+            for ami_span in ami_spans:
+                ami_page.ami_spans.append(copy.deepcopy(ami_span))
+
 
     @classmethod
     def create_page_from_svg(cls, svg_path, rotated_text=False):
@@ -391,6 +416,90 @@ class AmiPage:
             et = lxml.etree.ElementTree(html)
             et.write(f, pretty_print=pretty_print)
 
+    # AmiPage
+
+    @classmethod
+    # TODO should be new class
+    def chars_to_spans(cls, bbox, input_pdf, page_no):
+        with pdfplumber.open(input_pdf) as pdf:
+            page0 = pdf.pages[page_no]
+            ami_page = AmiPage()
+            # print(f"crop: {page0.cropbox} media {page0.mediabox}, bbox {page0.bbox}")
+            # print(f"rotation: {page0.rotation} doctop {page0.initial_doctop}")
+            # print(f"width {page0.width} height {page0.height}")
+            # print(f"text {page0.extract_text()[:2]}")
+            # print(f"words {page0.extract_words()[:3]}")
+            #
+            # print(f"char {page0.chars[:1]}")
+            span = None
+            span_list = []
+            maxchars = 999999
+            ndec_coord = 3  # decimals for coords
+            ndec_fontsize = 2
+            for ch in page0.chars[:maxchars]:
+                if cls.skip_rotated_text(ch):
+                    continue
+                x0, x1, y0, y1 = cls.get_xy_tuple(ch, ndec_coord)
+                if bbox and not bbox.contains_point((x0, y0)):
+                    # print(f" outside box: {x0, y0}")
+                    continue
+
+                text_style = TextStyle()
+                text_style.set_font_family(ch.get(P_FONTNAME))
+                text_style.set_font_size(ch.get(P_HEIGHT), ndec=ndec_fontsize)
+                text_style.stroke = ch.get(P_STROKING_COLOR)
+                text_style.fill = ch.get(P_NON_STROKING_COLOR)
+
+                # style or y0 changes
+                if not span or not span.text_style or span.text_style != text_style or span.y0 != y0:
+                    # cls.debug_span_changed(span, text_style, y0)
+                    span = AmiSpan()
+                    span_list.append(span)
+                    span.text_style = text_style
+                    span.y0 = y0
+                    span.x0 = x0  # set left x
+                span.x1 = x1  # update right x, including width
+                span.string += ch.get(P_TEXT)
+
+            top_div = lxml.etree.Element(H_DIV)
+            top_div.attrib["class"] = "top"
+            div = lxml.etree.SubElement(top_div, H_DIV)
+            last_span = None
+            for span in span_list:
+                if last_span is None or last_span.y0 != span.y0:
+                    div = lxml.etree.SubElement(top_div, H_DIV)
+                last_span = span
+                span.create_and_add_to(div)
+        for ch in page0.chars[:60000]:
+            col = ch.get('non_stroking_color')
+            if col:
+                print(f"txt {ch.get('text')} : col {col}")
+        return top_div
+
+    @classmethod
+    def debug_span_changed(cls, span, text_style, y0):
+        if span:
+            if span.text_style != text_style:
+                print(f"{span.text_style.difference(text_style)} \n {span.string}")
+
+            if span.y0 != y0:
+                print(f""
+                      f"Y {y0} != {span.y0}\n {span.string} {span.xx} ")
+
+    @classmethod
+    def get_xy_tuple(cls, ch, ndec_coord):
+        x0 = round(ch.get(P_X0), ndec_coord)
+        x1 = round(ch.get(P_X1), ndec_coord)
+        y0 = round(ch.get(P_Y0), ndec_coord)
+        y1 = round(ch.get(P_Y1), ndec_coord)
+        return x0, x1, y0, y1
+
+    @classmethod
+    def skip_rotated_text(cls, ch):
+        """is text rotated? uses matrix"""
+        matrix = ch.get("matrix")
+        return matrix and matrix[0:4] != (1, 0, 0, 1)
+
 
 class AmiSect:
     """Transformation of an Html Page to sections
@@ -645,6 +754,7 @@ class PDFArgs(AbstractArgs):
                     caching: bool = True,
                     pagenos: Container[int] = set(),
                     ) -> str:
+        """Uses PDFMiner library (I think) which omits coordinates"""
         """Summary
         Parameters
         ----------
@@ -711,6 +821,7 @@ class PDFArgs(AbstractArgs):
 
     @classmethod
     def create_pdf_interpreter(cls, fmt, codec: str = "UTF-8"):
+        """Based on PDFMiner I think"""
         """creates a PDFPageInterpreter
         :format: "text, "xml", "html"
         :codec: default UTF-8

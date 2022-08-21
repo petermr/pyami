@@ -422,7 +422,5 @@ class TestHtml(unittest.TestCase):
                 last_style = style
 
 
-
-
     # ========================================
 

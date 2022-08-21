@@ -55,6 +55,8 @@ class AmiSpan:
         self.text_style = None
         self.string = ""
         self.xx = []
+        self.x0 = None
+        self.x1 = None
         self.y0 = None
         # self.adv = None
 
@@ -66,6 +68,11 @@ class AmiSpan:
             html_span.attrib["style"] = self.text_style.create_css_string()
             if len(self.xx) > 0:
                 html_span.attrib["x"] = self.xx[0]
+            if self.x0:
+                # print(f"x0 {self.x0}")
+                html_span.attrib["x0"] = str(self.x0)
+            if self.x1:
+                html_span.attrib["x1"] = str(self.x1)
             html_span.attrib["y"] = str(self.y0)
         return html_span
 
