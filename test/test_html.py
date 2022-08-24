@@ -337,16 +337,24 @@ class TestHtml(unittest.TestCase):
         """read dictionary file and index a set of spans
         Test: ami_dict.markup_html_from_dictionary
         and add style
-        and write result
+        and write result]
+        TODO USE THIS!
         """
-        abb_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP06, "abbrev_as.xml"), ignorecase = False)
+
+        dict_path = Path(Resources.IPCC_CHAP06, "abbrev_as.xml")
+        dict_path = Path(Resources.IPCC_CHAP06, "ipcc_ch6_rake.xml")
+        output_file = "chap6_marked.html"
+        output_file = "chap6_raked.html"
+        ami_dict = AmiDictionary.create_from_xml_file(dict_path, ignorecase = False)
         input_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        # input_path = Path(Resources.IPCC_CHAP06, "chap6.flow.html")
+        print(f"reading pdf_html {input_path}")
         html_output_dir = Path(Resources.TEMP_DIR, "html")
         if not html_output_dir.exists():
             html_output_dir.mkdir()
-        chap6_marked_path = Path(html_output_dir, "chap6_marked.html")
+        chap6_marked_path = Path(html_output_dir, output_file)
 
-        abb_dict.markup_html_from_dictionary(input_path, chap6_marked_path, "pink")
+        ami_dict.markup_html_from_dictionary(input_path, chap6_marked_path, "pink")
         assert chap6_marked_path.exists(), f"marked-up html in {chap6_marked_path}"
         with open(chap6_marked_path, "rb") as f:
             marked_elem = lxml.etree.parse(f)

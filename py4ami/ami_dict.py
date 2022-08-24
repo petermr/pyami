@@ -20,7 +20,7 @@ from shutil import copyfile
 # from py4ami.wikimedia import WikidataLookup, WikidataPage
 from py4ami.util import Util
 from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
-from py4ami.ami_html import HtmlUtil, CSSStyle
+from py4ami.ami_html import HtmlUtil, CSSStyle, H_A
 from py4ami.util import AbstractArgs
 from py4ami.wikimedia import WikidataSparql, WikidataLookup, WikidataPage
 from test.resources import Resources
@@ -740,32 +740,101 @@ class AmiDictionary:
 
     def markup_html_from_dictionary(self, target_path, output_path, background_value):
         term_set = self.get_or_create_term_set()
-        rec = re.compile(f"(.*?)({'|'.join(term_set)})(.*)")
+        # print(f"terms {len(term_set)}")
+        # print(f"  terms {term_set}")
+        re_join = '|'.join(term_set)
+        # re_join = re_join.replace(" ", "|") # This is a hack, remove it
+        # print(f" re set {re_join}")
+        rec = re.compile(f"(.*?)({re_join})(.*)")
+        # print(f" re from terms {rec}")
         chap_elem = lxml.etree.parse(str(target_path))
         div_spans = chap_elem.xpath(".//div/span")
         for span in div_spans:
             text = span.text
             new_elems = HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
-                                         recurse=True, id_root="ss", id_counter=0)
+                                         recurse=True, id_root=f"{span.attrib['id']}_", id_counter=0)
+            elems_tuple3 = new_elems[0]
+            if elems_tuple3 == [None, None, None]:
+                # print(f"NONW {new_elems}")
+                pass
+            else:
+                """could be
+                 ([<Element span at 0x7f80ede80f40>, <Element a at 0x7f80ede80d40>, <Element span at 0x7f80ede80e40>], 3) <Element a at 0x7f80ede80d40>)
+                 or
+                 ([None, <Element a at 0x7f80ede80fc0>, <Element span at 0x7f80ede80e40>], 2) <Element a at 0x7f80ede80fc0>)
+                 or probably 
+                 ([<Element span at 0x7f80ede80aaaa>, <Element a at 0x7f80ede80fc0>, None], 2) <Element a at 0x7f80ede80fc0>)
+                 
+                 """
+
+                elem_0 = elems_tuple3[0]
+                elem_1 = elems_tuple3[1]
+                elem_2 = elems_tuple3[2]
+                # print(f" t3 {elem_1} {elem_1.tag} {H_A}")
+                if elem_0 is not None:
+                    # print(f" elem_0 {lxml.etree.tostring(elem_0)} {elem_0.attrib['id']}")
+                    pass
+                if elem_1.tag == H_A:
+                    # print(f"a text: {elem_1.text}")
+                    pass
+                if elem_2 is not None:
+                    # print(f" elem_2 {elem_2.attrib['id']}")
+                    pass
+                # print(f"new elems {new_elems} {elem_1})")
         self.convert_matched_spans_to_a(chap_elem)
 
         a_elems = chap_elem.xpath(".//a")
-        for a_elem in a_elems:
-            text = a_elem.text
+        print(f" a_elems {len(a_elems)}")
+        multidict = dict()
+        match_counter = Counter()
+        for elem1 in a_elems:
+            text = elem1.text
+            # print(f"a text: {text}")
             entry = self.get_entry(text, ignorecase=True) # lookup in dictionary
             if entry is not None:
-                href = entry.attrib["wikidataID"]
-                CSSStyle.add_name_value(a_elem, "background-color", background_value)
-                if href:
-                    a_elem.attrib["href"] = WIKIDATA_SITE + href
-                    a_elem.attrib["title"] = entry.attrib["name"]
+                if not text in multidict:
+                    multidict[text] = []
+                multidict[text].append(elem1.attrib['id'])
+                match_counter[text] += 1
+                CSSStyle.add_name_value(elem1, "background-color", background_value)
+                if "wikidataID" in entry.attrib:
+                    href = entry.attrib["wikidataID"]
+                    if href:
+                        elem1.attrib["href"] = WIKIDATA_SITE + href
+                        elem1.attrib["title"] = entry.attrib["name"]
+                else:
+                    # print(f" {text} has no wikidataIO")
+                    pass
             else:
-                print(f" BUG cannot find text: {text}")
+                # print(f" BUG {text}") # this seemed to catch "Page n"
+                pass
+        print(f"match_counter {match_counter}")
+        print(f"multidict {multidict}")
         with open(str(output_path), "wb") as f:
             f.write(lxml.etree.tostring(chap_elem))
+            print(f"wrote {output_path}")
+        html = HtmlUtil.create_skeleton_html()
+        body = html.xpath(".//body")[0]
+        ul = lxml.etree.SubElement(body, "ul")
+        for key in multidict:
+            id_list = multidict[key]
+            li = lxml.etree.SubElement(ul, "li")
+            li.text = key
+            ul2 = lxml.etree.SubElement(li, "ul")
+            for id in id_list:
+                li2 = lxml.etree.SubElement(ul2, "li")
+                a = lxml.etree.SubElement(li2, "a")
+                a.text = id
+                a.attrib["href"] = f"{output_path}#{id}"
+        list_path = Path(output_path.parent, "links.html")
+        with open(str(list_path), "wb") as f:
+            f.write(lxml.etree.tostring(html))
+            print(f"wrote {list_path}")
+
+
 
     def convert_matched_spans_to_a(self, chap_elem):
-        """some matches are complete spane and need converting to <a>
+        """some matches are complete span and need converting to <a>
         """
         re_spans = chap_elem.xpath(".//span[@class='re_match']")
         for re_span in re_spans:

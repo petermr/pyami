@@ -31,7 +31,7 @@ from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util, AbstractArgs
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
-    CALIBRI, FONT_FAMILIES, H_DIV
+    CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
 from py4ami.ami_html import H_SPAN, H_A, H_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
 
 # text attributes
@@ -243,6 +243,8 @@ class AmiPage:
                 self.bboxes.append(bbox)
         return self.bboxes
 
+    # AmiPage
+
     def create_composite_lines(self) -> list:
         """overlaps textspans such as subscripts
         uses the bboxes
@@ -251,12 +253,15 @@ class AmiPage:
         self.composite_lines = []
         self.create_text_spans(sort_axes=SORT_XY)
         if not self.text_spans:
-            return []
+            return self.composite_lines
+
+        return self.create_composite_lines_from_text_spans()
+
+    def create_composite_lines_from_text_spans(self):
         span0 = self.text_spans[0]
         composite_line = CompositeLine(bbox=span0.bbox)
         composite_line.text_spans.append(span0)
         self.composite_lines.append(composite_line)
-
         for text_span in self.text_spans[1:]:
             bbox = text_span.create_bbox().copy()
             bbox.expand_by_margin([X_MARGIN, 0])
@@ -269,11 +274,9 @@ class AmiPage:
                 composite_line.bbox = bbox.copy()
 
             composite_line.text_spans.append(text_span)
-
         change = True
         while change:
             change = self.merge_composite_lines()
-
         return self.composite_lines
 
     def merge_composite_lines(self):
@@ -422,7 +425,7 @@ class AmiPage:
     # TODO should be new class
     def chars_to_spans(cls, bbox, input_pdf, page_no):
         with pdfplumber.open(input_pdf) as pdf:
-            page0 = pdf.pages[page_no]
+            pdf_page = pdf.pages[page_no]
             ami_page = AmiPage()
             # print(f"crop: {page0.cropbox} media {page0.mediabox}, bbox {page0.bbox}")
             # print(f"rotation: {page0.rotation} doctop {page0.initial_doctop}")
@@ -436,7 +439,10 @@ class AmiPage:
             maxchars = 999999
             ndec_coord = 3  # decimals for coords
             ndec_fontsize = 2
-            for ch in page0.chars[:maxchars]:
+            html = HtmlUtil.create_skeleton_html()
+            top_div = lxml.etree.SubElement(html.xpath(H_BODY)[0], H_DIV)
+            top_div.attrib["class"] = "top"
+            for ch in pdf_page.chars[:maxchars]:
                 if cls.skip_rotated_text(ch):
                     continue
                 x0, x1, y0, y1 = cls.get_xy_tuple(ch, ndec_coord)
@@ -461,8 +467,7 @@ class AmiPage:
                 span.x1 = x1  # update right x, including width
                 span.string += ch.get(P_TEXT)
 
-            top_div = lxml.etree.Element(H_DIV)
-            top_div.attrib["class"] = "top"
+            # top_div = lxml.etree.Element(H_DIV)
             div = lxml.etree.SubElement(top_div, H_DIV)
             last_span = None
             for span in span_list:
@@ -470,11 +475,12 @@ class AmiPage:
                     div = lxml.etree.SubElement(top_div, H_DIV)
                 last_span = span
                 span.create_and_add_to(div)
-        for ch in page0.chars[:60000]:
+        for ch in pdf_page.chars[:maxchars]:
             col = ch.get('non_stroking_color')
             if col:
                 print(f"txt {ch.get('text')} : col {col}")
-        return top_div
+        # print(f"HTML {html}")
+        return html
 
     @classmethod
     def debug_span_changed(cls, span, text_style, y0):

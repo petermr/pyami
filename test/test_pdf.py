@@ -255,7 +255,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         args = f"--proj {proj} --apply page2sect"
         PyAMI().run_command(args)
 
-    def test_make_ami_spans_from_charstream_ipcc_chap6(self):
+    def test_make_ami_pages_with_spans_from_charstream_ipcc_chap6(self):
         """The central AMI method to make HTML from PDF characters
         TODO DEVELOP THIS
         """
@@ -274,11 +274,11 @@ class PDFTest(test.test_all.AmiAnyTest):
             print(f"output {output_dir}")
             output_dir.mkdir()
         for page_no in page_nos:
-            top_div = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
+            html = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
 
             output_html = Path(output_dir, f"{output_root}_{page_no}.html")
             with open(output_html, "wb") as f:
-                f.write(lxml.etree.tostring(top_div))
+                f.write(lxml.etree.tostring(html))
                 print(f" wrote html {output_html}")
                 assert output_html.exists()
 
@@ -930,6 +930,11 @@ LTPage
             print(f"wrote {f}")
         assert path.exists(), f"should output html to {path}"
         assert 76000 < os.path.getsize(path) < 77000, f"size should be in range , was {os.path.getsize(path)}"
+
+    def test_make_composite_lines_from_pdf_chap_6_3_toc(self):
+        path = Path(Resources.IPCC_CHAP06, "html", "chap6_3.html")
+        assert path.exists(), f"path exists {path}"
+        AmiPage.create_page_from_pdf_html(path)
 
     def test_main_help(self):
         sys.argv=[]

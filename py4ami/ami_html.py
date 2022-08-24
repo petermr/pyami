@@ -9,13 +9,17 @@ from pathlib import Path
 from py4ami.util import SScript
 
 # HTML
+H_HTML = "html"
+H_HEAD = "head"
+H_META = "meta"
+H_STYLE= "style"
+H_BODY = "body"
 H_TABLE = "table"
 H_THEAD = "thead"
 H_TBODY = "tbody"
 H_TR = "tr"
 H_TH = "th"
 H_TD = "td"
-H_BODY = "body"
 H_DIV = "div"
 H_SPAN = "span"
 H_A = "a"
@@ -199,12 +203,13 @@ class HtmlUtil:
         return cls.is_script_type(last_span, this_span, script_type=SScript.SUP)
 
     @classmethod
-    def is_script_type(cls, last_span, this_span, script_type) -> bool:
+    def is_script_type(cls, last_span, this_span, script_type, ydown=True) -> bool:
         """heuristc to determine whether this_span is a sub/superscript of last_span
-        NOTE: as Y is DOWN the page, a superscript has SMALLER y-value, etc.
+        NOTE: IF Y is DOWN the page, a superscript has SMALLER y-value, etc. (logic reversed if not ydown)
         :param last_span: if None, returns false
         :param this_span: if not smaller by SCRIPT_FACT return False
-        :param script_type: SUB or SUP
+        :param script_type: SScript.SUB or SScript.SUP
+        :param ydown: True if y increases down thr page (e.g. SVG) (DEFAULT) else False
         :return: True if smaller and moved in right y-direction
         """
         if last_span is None:
@@ -217,10 +222,10 @@ class HtmlUtil:
             this_y = this_span.y
             if script_type == SScript.SUB:
                 # is it lowered? Y DOWN
-                return last_y < this_y
+                return ydown and (last_y < this_y)
             elif script_type == SScript.SUP:
                 # is it raised? Y DOWN
-                return last_y > this_y
+                return ydown and (last_y > this_y)
             else:
                 raise ValueError("bad script type ", script_type)
         else:
@@ -255,6 +260,28 @@ class HtmlUtil:
         """
         print(f" NYI")
 
+    @classmethod
+    def create_skeleton_html(cls):
+        """create empty html tree
+        html
+            head
+                meta
+                style
+            body
+
+        :return: this html
+        """
+
+        html = lxml.etree.Element(H_HTML)
+        head = lxml.etree.Element(H_HEAD)
+        html.append(head)
+        meta = lxml.etree.Element(H_META)
+        head.append(meta)
+        style= lxml.etree.Element(H_STYLE)
+        head.append(style)
+        body = lxml.etree.Element(H_BODY)
+        html.append(body)
+        return html
 
 
 class HtmlTree:
