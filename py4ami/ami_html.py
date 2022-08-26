@@ -12,7 +12,7 @@ from py4ami.util import SScript
 H_HTML = "html"
 H_HEAD = "head"
 H_META = "meta"
-H_STYLE= "style"
+H_STYLE = "style"
 H_BODY = "body"
 H_TABLE = "table"
 H_THEAD = "thead"
@@ -22,10 +22,15 @@ H_TH = "th"
 H_TD = "td"
 H_DIV = "div"
 H_SPAN = "span"
+H_UL = "ul"
+H_LI = "li"
 H_A = "a"
 H_B = "b"
 H_P = "p"
-H_HREF = "href"
+
+A_HREF = "href"
+A_NAME = "name"
+A_TITLE = "title"
 A_ID = "id"
 A_CLASS = "class"
 
@@ -53,6 +58,7 @@ STYLES = [
     FILL,
     STROKE,
 ]
+
 
 class AmiSpan:
     def __init__(self):
@@ -93,7 +99,7 @@ class HtmlUtil:
 
     @classmethod
     def split_span_at_match(cls, elemx, regex, copy_atts=True, recurse=True, id_root=None, id_counter=0,
-                            new_tags=[H_SPAN, H_SPAN, H_SPAN]):
+                            new_tags=None):
         """splits an elem (normally span) into 3 components by regex match
         :param elemx: elem to split (normally has a parent (e.g. div)
         :param regex: regex to split elem (of form (pre)(match)(post)
@@ -104,6 +110,8 @@ class HtmlUtil:
         :param new_tags: new_element tags (default span, span, span)
         :return: list of 3 elems; if new_elems[2] is not None it's available for recursion)
         """
+        if not new_tags:
+            new_tags = [H_SPAN, H_SPAN, H_SPAN]
         assert elemx is not None
         textx = ''.join(elemx.itertext())
         rec = re.compile(regex)
@@ -266,7 +274,7 @@ class HtmlUtil:
         html
             head
                 meta
-                style
+                # style
             body
 
         :return: this html
@@ -277,8 +285,8 @@ class HtmlUtil:
         html.append(head)
         meta = lxml.etree.Element(H_META)
         head.append(meta)
-        style= lxml.etree.Element(H_STYLE)
-        head.append(style)
+        style = lxml.etree.Element(H_STYLE)  # empty <style> means no display
+        # head.append(style)
         body = lxml.etree.Element(H_BODY)
         html.append(body)
         return html
@@ -340,7 +348,8 @@ class HtmlTree:
                 output_dir.mkdir()
             for i, child_div in enumerate(decimal_divs):
                 if HtmlUtil.MARKER in child_div.attrib:
-                    marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ", "_").lower()  # name from text content
+                    marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ",
+                                                                               "_").lower()  # name from text content
                     path = Path(output_dir, f"{marker}.html")
                     with open(path, "wb") as f:
                         f.write(lxml.etree.tostring(child_div, pretty_print=True))
@@ -640,16 +649,15 @@ class CSSStyle:
         rgb_scale = 255
         # cmyk_scale = 100
         cmyk_scale = 1.0
-        r = rgb_scale*(1.0-(c+k)/float(cmyk_scale))
-        g = rgb_scale*(1.0-(m+k)/float(cmyk_scale))
-        b = rgb_scale*(1.0-(y+k)/float(cmyk_scale))
+        r = rgb_scale * (1.0 - (c + k) / float(cmyk_scale))
+        g = rgb_scale * (1.0 - (m + k) / float(cmyk_scale))
+        b = rgb_scale * (1.0 - (y + k) / float(cmyk_scale))
 
-        return r,g,b
+        return r, g, b
 
     @classmethod
     def cmky_to_rgb(cls, c, m, k, y):
         return cls.cmyk_to_rgb(c, m, y, k)
-
 
     def extract_bold_italic_from_font_family(self, overwrite_bold=False, overwrite_style=False, overwrite_family=True,
                                              style_regex=STYLE_RE, weight_regex=WEIGHT_RE):
@@ -681,6 +689,3 @@ class CSSStyle:
         else:
             value = None
         return family, value
-
-
-

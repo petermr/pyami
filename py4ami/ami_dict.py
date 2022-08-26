@@ -20,7 +20,7 @@ from shutil import copyfile
 # from py4ami.wikimedia import WikidataLookup, WikidataPage
 from py4ami.util import Util
 from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
-from py4ami.ami_html import HtmlUtil, CSSStyle, H_A
+from py4ami.ami_html import HtmlUtil, CSSStyle, H_A, H_SPAN, H_BODY, H_DIV, H_UL, H_LI, A_ID, A_HREF
 from py4ami.util import AbstractArgs
 from py4ami.wikimedia import WikidataSparql, WikidataLookup, WikidataPage
 from test.resources import Resources
@@ -57,7 +57,6 @@ METADATA = "metadata"
 REPLACE = "replace"
 SYNONYM = "synonym"
 VALIDATE = "validate"
-WIKIDATA = "wikidata"
 WORDS = "words"
 
 # constants
@@ -738,94 +737,72 @@ class AmiDictionary:
     def get_wikidata_id(cls, entry):
         return entry.get(WIKIDATA_ID)
 
-    def markup_html_from_dictionary(self, target_path, output_path, background_value):
+    def markup_html_from_dictionary(self, target_path, output_path, background_color):
         term_set = self.get_or_create_term_set()
-        # print(f"terms {len(term_set)}")
-        # print(f"  terms {term_set}")
         re_join = '|'.join(term_set)
-        # re_join = re_join.replace(" ", "|") # This is a hack, remove it
-        # print(f" re set {re_join}")
         rec = re.compile(f"(.*?)({re_join})(.*)")
-        # print(f" re from terms {rec}")
-        chap_elem = lxml.etree.parse(str(target_path))
-        div_spans = chap_elem.xpath(".//div/span")
+        target_elem = lxml.etree.parse(str(target_path))
+        div_spans = target_elem.xpath(f".//{H_DIV}/{H_SPAN}")
         for span in div_spans:
             text = span.text
-            new_elems = HtmlUtil.split_span_at_match(span, rec, new_tags=["span", "a", "span"],
+            new_elems = HtmlUtil.split_span_at_match(span, rec, new_tags=[H_SPAN, H_A, H_SPAN],
                                          recurse=True, id_root=f"{span.attrib['id']}_", id_counter=0)
-            elems_tuple3 = new_elems[0]
-            if elems_tuple3 == [None, None, None]:
-                # print(f"NONW {new_elems}")
-                pass
-            else:
-                """could be
-                 ([<Element span at 0x7f80ede80f40>, <Element a at 0x7f80ede80d40>, <Element span at 0x7f80ede80e40>], 3) <Element a at 0x7f80ede80d40>)
-                 or
-                 ([None, <Element a at 0x7f80ede80fc0>, <Element span at 0x7f80ede80e40>], 2) <Element a at 0x7f80ede80fc0>)
-                 or probably 
-                 ([<Element span at 0x7f80ede80aaaa>, <Element a at 0x7f80ede80fc0>, None], 2) <Element a at 0x7f80ede80fc0>)
-                 
-                 """
+        self.convert_matched_spans_to_a(target_elem)
 
-                elem_0 = elems_tuple3[0]
-                elem_1 = elems_tuple3[1]
-                elem_2 = elems_tuple3[2]
-                # print(f" t3 {elem_1} {elem_1.tag} {H_A}")
-                if elem_0 is not None:
-                    # print(f" elem_0 {lxml.etree.tostring(elem_0)} {elem_0.attrib['id']}")
-                    pass
-                if elem_1.tag == H_A:
-                    # print(f"a text: {elem_1.text}")
-                    pass
-                if elem_2 is not None:
-                    # print(f" elem_2 {elem_2.attrib['id']}")
-                    pass
-                # print(f"new elems {new_elems} {elem_1})")
-        self.convert_matched_spans_to_a(chap_elem)
-
-        a_elems = chap_elem.xpath(".//a")
+        a_elems = target_elem.xpath(f".//{H_A}")
         print(f" a_elems {len(a_elems)}")
         multidict = dict()
         match_counter = Counter()
-        for elem1 in a_elems:
-            text = elem1.text
-            # print(f"a text: {text}")
-            entry = self.get_entry(text, ignorecase=True) # lookup in dictionary
-            if entry is not None:
-                if not text in multidict:
-                    multidict[text] = []
-                multidict[text].append(elem1.attrib['id'])
-                match_counter[text] += 1
-                CSSStyle.add_name_value(elem1, "background-color", background_value)
-                if "wikidataID" in entry.attrib:
-                    href = entry.attrib["wikidataID"]
-                    if href:
-                        elem1.attrib["href"] = WIKIDATA_SITE + href
-                        elem1.attrib["title"] = entry.attrib["name"]
-                else:
-                    # print(f" {text} has no wikidataIO")
-                    pass
-            else:
+        id_dict = dict()
+        for a_elem in a_elems:
+            entry = self.get_entry(a_elem.text, ignorecase=True)  # lookup in dictionary
+            if entry is None:
                 # print(f" BUG {text}") # this seemed to catch "Page n"
+                continue
+            preceding = a_elem.xpath("preceding-sibling::*[1]")
+            preceding_text = preceding[0].text if len(preceding) > 0 else None
+            following = a_elem.xpath("following-sibling::*[1]")
+            following_text = following[0].text if len(following) > 0 else None
+            id_dict[a_elem.attrib[A_ID]] = preceding_text, (a_elem.text), following_text
+            # add to multidict
+            if not a_elem.text in multidict:
+                multidict[a_elem.text] = []
+            multidict[a_elem.text].append(a_elem.attrib[A_ID])
+            match_counter[a_elem.text] += 1
+            CSSStyle.add_name_value(a_elem, "background-color", background_color)
+            if "wikidataID" in entry.attrib:
+                href = entry.attrib["wikidataID"]
+                if href:
+                    a_elem.attrib[A_HREF] = WIKIDATA_SITE + href
+                    a_elem.attrib[A_TITLE] = entry.attrib[A_NAME]
+            else:
+                # print(f" {text} has no wikidataIO")
                 pass
         print(f"match_counter {match_counter}")
         print(f"multidict {multidict}")
         with open(str(output_path), "wb") as f:
-            f.write(lxml.etree.tostring(chap_elem))
+            f.write(lxml.etree.tostring(target_elem))
             print(f"wrote {output_path}")
         html = HtmlUtil.create_skeleton_html()
-        body = html.xpath(".//body")[0]
-        ul = lxml.etree.SubElement(body, "ul")
+        body = html.xpath(f".//{H_BODY}")[0]
+        ul = lxml.etree.SubElement(body, H_UL)
         for key in multidict:
             id_list = multidict[key]
-            li = lxml.etree.SubElement(ul, "li")
+            li = lxml.etree.SubElement(ul, H_LI)
             li.text = key
-            ul2 = lxml.etree.SubElement(li, "ul")
+            ul2 = lxml.etree.SubElement(li, H_UL)
             for id in id_list:
-                li2 = lxml.etree.SubElement(ul2, "li")
-                a = lxml.etree.SubElement(li2, "a")
-                a.text = id
-                a.attrib["href"] = f"{output_path}#{id}"
+                li2 = lxml.etree.SubElement(ul2, H_LI)
+                prec_follow = id_dict[id]
+                if prec_follow[0]:
+                    span = lxml.etree.SubElement(li2, H_SPAN)
+                    span.text = prec_follow[0]
+                a = lxml.etree.SubElement(li2, H_A)
+                a.text = prec_follow[1]
+                a.attrib[A_HREF] = f"{Path(output_path).stem}.html#{id}"
+                if prec_follow[2]:
+                    span = lxml.etree.SubElement(li2, H_SPAN)
+                    span.text = prec_follow[2]
         list_path = Path(output_path.parent, "links.html")
         with open(str(list_path), "wb") as f:
             f.write(lxml.etree.tostring(html))

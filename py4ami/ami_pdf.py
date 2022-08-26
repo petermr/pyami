@@ -32,7 +32,7 @@ from py4ami.util import Util, AbstractArgs
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
-from py4ami.ami_html import H_SPAN, H_A, H_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
+from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
 
 # text attributes
 FACT = 2.8
@@ -999,7 +999,7 @@ class PDFArgs(AbstractArgs):
                 a = lxml.etree.SubElement(par, H_A)
                 for k, v in elem0.attrib.items():
                     a.attrib[k] = v
-                a.attrib[H_HREF] = "https://github.com/petermr/discussions"
+                a.attrib[A_HREF] = "https://github.com/petermr/discussions"
                 a.text = "([" + ref + "])"
                 current.addnext(a)
                 current = a
