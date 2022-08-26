@@ -1,5 +1,6 @@
 """ Mainly for converting PDF to HTML and SVG """
 import argparse
+import logging
 import os.path
 import sys
 import copy
@@ -505,6 +506,10 @@ class AmiPage:
         """is text rotated? uses matrix"""
         matrix = ch.get("matrix")
         return matrix and matrix[0:4] != (1, 0, 0, 1)
+
+    @classmethod
+    def create_page_from_pdf_html(cls, path):
+        logging.error("NOT YET WRITTEN")
 
 
 class AmiSect:

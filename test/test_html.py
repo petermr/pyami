@@ -376,12 +376,12 @@ class TestHtml(unittest.TestCase):
         with open(target_path, "rb") as f:
             elem = lxml.etree.parse(f)
         styles = elem.xpath(".//@style")
-        assert 350>= len(styles) >= 316
+        assert 400>= len(styles) >= 200
         style_set = set()
         for style in styles:
             style_set.add(style)
 
-        assert 20 >= len(style_set) >= 12
+        assert 20 >= len(style_set) >= 10
 
         sorted_styles = sorted(style_set)
         assert sorted_styles == ['',
