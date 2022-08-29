@@ -678,13 +678,20 @@ class TextSpan:
 
 
 # arg_dict
-MAXPAGE = "maxpage"
+DEFAULT_MAXPAGES = 100
+DEFAULT_CONVERT = "html"
+
+CONVERT = "convert"
+FLOW = "flow"
+FOOTER = "footer"
+HEADER = "header"
 INDIR = "indir"
 INPATH = "inpath"
+MAXPAGE = "maxpage"
 OUTDIR = "outdir"
 OUTFORM = "outform"
 OUTSTEM = "outstem"
-FLOW = "flow"
+
 # FORMAT = "fmt"
 IMAGEDIR = "imagedir"
 RESOLUTION = "resolution"
@@ -697,6 +704,18 @@ class PDFArgs(AbstractArgs):
     def __init__(self):
         """arg_dict is set to default"""
         super().__init__()
+        self.convert = DEFAULT_CONVERT
+        self.out_fmt = DEFAULT_CONVERT
+        self.html = None
+        self.indir = None
+        self.inpath = None
+        self.maxpage = DEFAULT_MAXPAGES
+        self.outdir = None
+        self.outpath = None
+        self.outstem = None
+        self.raw_html = None
+        self.flow = None
+        self.unwanteds = None
 
     @property
     def module_stem(self):
@@ -708,17 +727,21 @@ class PDFArgs(AbstractArgs):
         """
         print(f"sys.argv {sys.argv}")
         self.parser = argparse.ArgumentParser(description='PDF parsing')
-        self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
+        self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
+        self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
+        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
+        self.parser.add_argument("--footer", type=float, nargs=1, help="top margin", default=80)
+        self.parser.add_argument("--header", type=float, nargs=1, help="bottom margin", default=80)
+        self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
         self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
         self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url")
+        self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
         self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
+        self.parser.add_argument("--outstem", type=str, nargs=1, help="output file", default="fulltext.flow")
         self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
-        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
-        self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
         self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)",
                                  default=400)
         self.parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
-        self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         return self.parser
 
     # class PDFArgs:
@@ -738,21 +761,60 @@ class PDFArgs(AbstractArgs):
   --template TEMPLATE   file to parse specific type of document"""
 
         if self.arg_dict:
-            fmt = self.arg_dict.get(OUTFORM)
-            print(f"fmt: {fmt}")
-            maxpage = self.arg_dict.get(MAXPAGE)
-            indir = self.arg_dict.get(INDIR)
-            inpath = self.arg_dict.get(INPATH)
-            outdir = self.arg_dict.get(OUTDIR)
-            outstem = self.arg_dict.get(OUTSTEM)
-            flow = self.arg_dict.get(FLOW) is not None
-            if not inpath:
-                print(f"input file not given")
+            self.read_arg_dict()
+
+        self.check_input()
+        self.check_output()
+        self.calculate_headers_footers()
+
+        # self.convert_write()
+
+    def check_input(self):
+        if not self.inpath:
+            raise FileNotFoundError(f"input file not given")
+        if not Path(self.inpath).exists():
+            raise FileNotFoundError(f"input file does not exist: ({self.inpath}")
+        self.indir = Path(self.inpath).parent
+
+    def check_output(self):
+        if self.outpath:
+            self.outdir = Path(self.outpath).parent
+        elif not self.outdir:
+            if self.inpath:
+                self.outdir = Path(self.inpath).parent
             else:
-                inpath = Path(inpath)
-                if not inpath.exists():
-                    raise FileNotFoundError(f"input file does not exist: ({inpath}")
-                self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
+                raise FileNotFoundError(f"output dir not given and cannot be generated")
+            self.outstem = self.arg_dict.get(OUTSTEM)
+            if not self.outstem:
+                raise FileNotFoundError(f"output file not given and cannot be generated")
+            if not self.out_fmt:
+                raise FileNotFoundError(f"no output format given")
+            self.outpath = Path(self.outdir, f"{self.outstem}.{self.out_fmt}")
+        if not Path(self.outdir).exists():
+            Path(self.outdir).mkdir()
+        elif not Path(self.outdir).is_dir():
+            raise ValueError(f"output dir {self.outdir} is not a directory")
+
+
+
+
+    def read_arg_dict(self):
+        self.flow = self.arg_dict.get(FLOW) is not None
+        self.footer = self.arg_dict.get(FOOTER)
+        if not self.footer:
+            self.footer = 80
+        self.header = self.arg_dict.get(HEADER)
+        if not self.header:
+            self.header = 80
+        self.indir = self.arg_dict.get(INDIR)
+        self.inpath = self.arg_dict.get(INPATH)
+        self.maxpage = self.arg_dict.get(MAXPAGE)
+        self.outdir = self.arg_dict.get(OUTDIR)
+        self.out_fmt = self.arg_dict.get(OUTFORM)
+        self.outstem = self.arg_dict.get(OUTSTEM)
+        self.convert = self.arg_dict.get(CONVERT)
+
+            # self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
 
     # class PDFArgs:
     @classmethod
@@ -821,13 +883,16 @@ class PDFArgs(AbstractArgs):
     def create_default_arg_dict(cls):
         """returns a new COPY of the default dictionary"""
         arg_dict = dict()
-        arg_dict[OUTFORM] = "html.flow"
-        arg_dict[MAXPAGE] = 5
+        arg_dict[CONVERT] = "html"
+        arg_dict[FLOW] = True
+        arg_dict[FOOTER] = 80
+        arg_dict[HEADER] = 80
         arg_dict[INDIR] = None
         arg_dict[INPATH] = None
+        arg_dict[MAXPAGE] = 5
         arg_dict[OUTDIR] = None
+        arg_dict[OUTFORM] = "html"
         arg_dict[OUTSTEM] = None
-        arg_dict[FLOW] = True
         return arg_dict
 
     @classmethod
@@ -860,99 +925,60 @@ class PDFArgs(AbstractArgs):
         converters = {"text": TextConverter, "html": HTMLConverter, "flow.html": HTMLConverter, "xml": XMLConverter}
         converter = converters.get(fmt)
         if not converter:
-            raise ValueError(f"provide format, {converters.keys()}")
+            raise ValueError(f"format ({fmt}) is invalid, {converters.keys()}")
         device = converter(rsrcmgr, retstr, codec=codec, laparams=laparams)
         interpreter = PDFPageInterpreter(rsrcmgr, device)
         return device, interpreter, retstr
 
     # class PDFArgs:
 
-    def convert_write(self, fmt=None, maxpage=999999, outdir=None, outstem=None, inpath=None, flow=False,
-                      unwanteds=None):
-        """
-        create HTML (absolute or flowing) or XML
-        The preferred method is to use arg_dict
-        :param fmt: format html/xml/text
-        :param maxpage: if 0, writes all else staops at maxpages
-        :param outdir: output dir
-        :param outstem: stem of output file
-        :param inpath: input file
-        :param flow: remove absolute position so text can flow
-        """
-        if self.arg_dict:
-            maxp = self.arg_dict.get(MAXPAGE)
-            maxpage = int(maxp) if maxp else maxpage
-            outd = self.arg_dict.get(OUTDIR)
-            outdir = outd if outd else outdir
-            if not outdir:
-                outs = self.arg_dict.get(OUTSTEM)
-                outdir = outs if outs else outstem
-            inp = self.arg_dict.get(INPATH)
-            inpath = inp if inp else inpath
-            if fm := self.arg_dict.get(OUTFORM):
-                fmt = fm
-            if fl := self.arg_dict.get(FLOW):
-                flow = fl
+    def calculate_headers_footers(self):
+        # header_offset = -50
+        self.header = 90
+        # page_height = 892
+        # page_height_cm = 29.7
+        self.footer = 90
 
-            # header_offset = -50
-            header_height = 90
-            # page_height = 892
-            # page_height_cm = 29.7
-            footer_height = 90
-
+    def convert_write(self):
         print(f"==============CONVERT================")
-        if fmt == "html.flow":
-            fmt = "html"
-            flow = True
-        if not inpath:
-            raise ValueError(f"no input file given")
-        inpath = Path(inpath)
-        if not inpath.exists():
-            raise FileNotFoundError(f"input file does not exist: ({inpath})")
-        result = PDFArgs.convert_pdf(path=inpath, fmt=fmt, maxpages=maxpage)
+        self.process_args()
+        self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.out_fmt, maxpages=self.maxpage)
 
-        if flow:
-            tree = lxml.etree.parse(StringIO(result), lxml.etree.HTMLParser())
-            result_elem = tree.getroot()
-            HtmlUtil.add_ids(result_elem)
-            # this is slightly tacky
-            PDFUtil.remove_descendant_elements_by_tag("br", result_elem)
-            PDFUtil.remove_style(result_elem, [
-                "position",
-                # "left",
-                "border",
-                "writing-mode",
-                "width",  # this disables flowing text
-            ])
-            PDFUtil.remove_empty_elements(result_elem, ["span"])
-            PDFUtil.remove_empty_elements(result_elem, ["div"])
-            PDFUtil.remove_lh_line_numbers(result_elem)
-            PDFUtil.remove_large_fonted_elements(result_elem)
-            marker_xpath = ".//div[a[@name]]"
-            offset, pagesize, page_coords = PDFUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
-            PDFUtil.remove_headers_and_footers(result_elem, pagesize, header_height, footer_height, marker_xpath)
-            PDFUtil.remove_style_attribute(result_elem, "top")
-            PDFUtil.remove_style(result_elem, ["left", "height"])
-            PDFUtil.remove_unwanteds(result_elem, unwanteds)
-            PDFUtil.remove_newlines(result_elem)
-            self.markup_parentheses(result_elem)
-            print(f"ref_counter {self.ref_counter}")
-
-            HtmlTree.make_sections_and_output(result_elem, output_dir=outd, recs_by_section=RECS_BY_SECTION)
-
-            result = lxml.etree.tostring(result_elem).decode("UTF-8")
-            fmt = "flow.html"
-        if not outdir:
-            indir = Path(inpath).parent
-            outdir = indir
-            print(f"no outdir given, taking input {indir}")
-        if not outstem:
-            outstem = Path(inpath).stem
-        outfile = Path(outdir, f"{outstem}.{fmt}")
-        print(f"outfile {outfile}")
-        with open(str(outfile), "w") as f:
-            f.write(result)
+        if self.flow:
+            self.tidy_flow()
+        with open(str(self.outpath), "w") as f:
+            f.write(self.html)
             print(f"wrote {f.name}")
+        return self.outpath
+
+    def tidy_flow(self):
+        tree = lxml.etree.parse(StringIO(self.raw_html), lxml.etree.HTMLParser())
+        result_elem = tree.getroot()
+        HtmlUtil.add_ids(result_elem)
+        # this is slightly tacky
+        PDFUtil.remove_descendant_elements_by_tag("br", result_elem)
+        PDFUtil.remove_style(result_elem, [
+            "position",
+            # "left",
+            "border",
+            "writing-mode",
+            "width",  # this disables flowing text
+        ])
+        PDFUtil.remove_empty_elements(result_elem, ["span"])
+        PDFUtil.remove_empty_elements(result_elem, ["div"])
+        PDFUtil.remove_lh_line_numbers(result_elem)
+        PDFUtil.remove_large_fonted_elements(result_elem)
+        marker_xpath = ".//div[a[@name]]"
+        offset, pagesize, page_coords = PDFUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
+        PDFUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
+        PDFUtil.remove_style_attribute(result_elem, "top")
+        PDFUtil.remove_style(result_elem, ["left", "height"])
+        PDFUtil.remove_unwanteds(result_elem, self.unwanteds)
+        PDFUtil.remove_newlines(result_elem)
+        self.markup_parentheses(result_elem)
+        print(f"ref_counter {self.ref_counter}")
+        HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
+        self.html = lxml.etree.tostring(result_elem).decode("UTF-8")
 
     # class PDFArgs:
 
@@ -1702,11 +1728,14 @@ def main(argv=None):
     python -m py4ami.ami_pdf \
         --inpath /Users/pm286/workspace/pyami/test/resources/ipcc/Chapter06/fulltext.pdf \
         --outdir /Users/pm286/workspace/pyami/temp/pdf/chap6/
+        --maxpage 100
+
     """
     print(f"running PDFArgs main")
     pdf_args = PDFArgs()
     try:
         pdf_args.parse_and_process()
+        pdf_args.convert_write()
     except Exception as e:
         print(traceback.format_exc())
         print(f"***Cannot run pyami***; see output for errors: {e} ")

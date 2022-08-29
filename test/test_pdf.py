@@ -46,10 +46,11 @@ IPCC_CHAP6_DIR = Path(IPCC_DIR, "Chapter06")
 IPCC_CHAP6_PDF = Path(IPCC_CHAP6_DIR, "fulltext.pdf")
 
 # arg_dict
-MAXPAGE = "maxpage"
 INDIR = "indir"
 INPATH = "inpath"
+MAXPAGE = "maxpage"
 OUTDIR = "outdir"
+# OUTFILE = "outfile"
 OUTFORM = "outform"
 OUTSTEM = "outstem"
 FLOW = "flow"
@@ -710,19 +711,22 @@ LTPage
                 for page in pages[:max_page]:
                     pdf_debug.debug_page_properties(page, debug=options)
 
-    def test_make_structured_html(self):
-        """structures the flat HTML from pdfplumber, but no coordinates"""
-        file = IPCC_CHAP6_PDF
-        print(f" converting {file}")
-        assert file.exists(), f"chap6 {IPCC_CHAP6_PDF}"
+    def test_make_structured_html_MAIN(self):
+        """structures the flat HTML from pdfplumber, but no coordinates
+        Can still be used for word frequency, etc."""
+
+        print(f" converting {IPCC_CHAP6_PDF}")
+        assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
         pdf_args = PDFArgs()
-        pdf_args.arg_dict[INPATH] = file
+        pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
         pdf_args.arg_dict[MAXPAGE] = 10
+        pdf_args.arg_dict[OUTSTEM] = Path(f"{IPCC_CHAP6_PDF}").stem
         print(f"arg_dict {pdf_args.arg_dict}")
         pdf_args.convert_write()
-        outfile = Path(Path(file).parent, "fulltext.flow.html")
+        outfile = Path(Path(IPCC_CHAP6_PDF).parent, f"{pdf_args.arg_dict[OUTSTEM]}.{pdf_args.arg_dict[OUTFORM]}")
         print(f"wrote {outfile}")
         assert outfile.exists()
+
 
     def test_make_ipcc_html_spans(self):
         """uses PDFMiner library (no coordinates I think)"""
@@ -749,7 +753,7 @@ LTPage
         pdf_args.arg_dict[OUTDIR] = outdir
         print(f"arg_dict {pdf_args.arg_dict}")
 
-        unwanteds = {
+        pdf_args.unwanteds = {
             "chapter": {
                 "xpath": ".//div/span",
                 "regex": "^Chapter\\s+\\d+\\s*$"
@@ -767,7 +771,7 @@ LTPage
                 "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
             },
         }
-        pdf_args.convert_write(unwanteds=unwanteds)
+        pdf_args.convert_write()
 
     @unittest.skip("too long")
     def test_make_ipcc_html(self):
