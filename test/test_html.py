@@ -354,6 +354,7 @@ class TestHtml(unittest.TestCase):
             html_output_dir.mkdir()
         chap6_marked_path = Path(html_output_dir, output_file)
 
+
         ami_dict.markup_html_from_dictionary(input_path, chap6_marked_path, "pink")
         assert chap6_marked_path.exists(), f"marked-up html in {chap6_marked_path}"
         with open(chap6_marked_path, "rb") as f:

@@ -708,17 +708,18 @@ class PDFArgs(AbstractArgs):
         """
         print(f"sys.argv {sys.argv}")
         self.parser = argparse.ArgumentParser(description='PDF parsing')
-        self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
-        self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
-        self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url")
-        self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
-        self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
+        self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
         self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
+        self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
+        self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url")
+        self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
+        self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
+        self.parser.add_argument("--outstem", type=str, nargs=1, help="output file", default="fullext.flow")
+        self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
         self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)",
                                  default=400)
         self.parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
-        self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         return self.parser
 
     # class PDFArgs:
@@ -912,36 +913,7 @@ class PDFArgs(AbstractArgs):
         result = PDFArgs.convert_pdf(path=inpath, fmt=fmt, maxpages=maxpage)
 
         if flow:
-            tree = lxml.etree.parse(StringIO(result), lxml.etree.HTMLParser())
-            result_elem = tree.getroot()
-            HtmlUtil.add_ids(result_elem)
-            # this is slightly tacky
-            PDFUtil.remove_descendant_elements_by_tag("br", result_elem)
-            PDFUtil.remove_style(result_elem, [
-                "position",
-                # "left",
-                "border",
-                "writing-mode",
-                "width",  # this disables flowing text
-            ])
-            PDFUtil.remove_empty_elements(result_elem, ["span"])
-            PDFUtil.remove_empty_elements(result_elem, ["div"])
-            PDFUtil.remove_lh_line_numbers(result_elem)
-            PDFUtil.remove_large_fonted_elements(result_elem)
-            marker_xpath = ".//div[a[@name]]"
-            offset, pagesize, page_coords = PDFUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
-            PDFUtil.remove_headers_and_footers(result_elem, pagesize, header_height, footer_height, marker_xpath)
-            PDFUtil.remove_style_attribute(result_elem, "top")
-            PDFUtil.remove_style(result_elem, ["left", "height"])
-            PDFUtil.remove_unwanteds(result_elem, unwanteds)
-            PDFUtil.remove_newlines(result_elem)
-            self.markup_parentheses(result_elem)
-            print(f"ref_counter {self.ref_counter}")
-
-            HtmlTree.make_sections_and_output(result_elem, output_dir=outd, recs_by_section=RECS_BY_SECTION)
-
-            result = lxml.etree.tostring(result_elem).decode("UTF-8")
-            fmt = "flow.html"
+            result = self.tidy_flow(fmt, footer_height, header_height, outd, result, unwanteds)
         if not outdir:
             indir = Path(inpath).parent
             outdir = indir
@@ -953,6 +925,37 @@ class PDFArgs(AbstractArgs):
         with open(str(outfile), "w") as f:
             f.write(result)
             print(f"wrote {f.name}")
+        return outfile
+
+    def tidy_flow(self, footer_height, header_height, outd, result, unwanteds):
+        tree = lxml.etree.parse(StringIO(result), lxml.etree.HTMLParser())
+        result_elem = tree.getroot()
+        HtmlUtil.add_ids(result_elem)
+        # this is slightly tacky
+        PDFUtil.remove_descendant_elements_by_tag("br", result_elem)
+        PDFUtil.remove_style(result_elem, [
+            "position",
+            # "left",
+            "border",
+            "writing-mode",
+            "width",  # this disables flowing text
+        ])
+        PDFUtil.remove_empty_elements(result_elem, ["span"])
+        PDFUtil.remove_empty_elements(result_elem, ["div"])
+        PDFUtil.remove_lh_line_numbers(result_elem)
+        PDFUtil.remove_large_fonted_elements(result_elem)
+        marker_xpath = ".//div[a[@name]]"
+        offset, pagesize, page_coords = PDFUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
+        PDFUtil.remove_headers_and_footers(result_elem, pagesize, header_height, footer_height, marker_xpath)
+        PDFUtil.remove_style_attribute(result_elem, "top")
+        PDFUtil.remove_style(result_elem, ["left", "height"])
+        PDFUtil.remove_unwanteds(result_elem, unwanteds)
+        PDFUtil.remove_newlines(result_elem)
+        self.markup_parentheses(result_elem)
+        print(f"ref_counter {self.ref_counter}")
+        HtmlTree.make_sections_and_output(result_elem, output_dir=outd, recs_by_section=RECS_BY_SECTION)
+        result = lxml.etree.tostring(result_elem).decode("UTF-8")
+        return result
 
     # class PDFArgs:
 
