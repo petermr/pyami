@@ -739,9 +739,12 @@ class PDFArgs(AbstractArgs):
         self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
         self.parser.add_argument("--outstem", type=str, nargs=1, help="output file", default="fulltext.flow")
         self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
+        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
+        self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
         self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)",
                                  default=400)
         self.parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
+        self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         return self.parser
 
     # class PDFArgs:
@@ -893,6 +896,7 @@ class PDFArgs(AbstractArgs):
         arg_dict[OUTDIR] = None
         arg_dict[OUTFORM] = "html"
         arg_dict[OUTSTEM] = None
+        arg_dict[FLOW] = True
         return arg_dict
 
     @classmethod

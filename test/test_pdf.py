@@ -46,11 +46,11 @@ IPCC_CHAP6_DIR = Path(IPCC_DIR, "Chapter06")
 IPCC_CHAP6_PDF = Path(IPCC_CHAP6_DIR, "fulltext.pdf")
 
 # arg_dict
+
 INDIR = "indir"
 INPATH = "inpath"
 MAXPAGE = "maxpage"
 OUTDIR = "outdir"
-# OUTFILE = "outfile"
 OUTFORM = "outform"
 OUTSTEM = "outstem"
 FLOW = "flow"
@@ -726,7 +726,6 @@ LTPage
         outfile = Path(Path(IPCC_CHAP6_PDF).parent, f"{pdf_args.arg_dict[OUTSTEM]}.{pdf_args.arg_dict[OUTFORM]}")
         print(f"wrote {outfile}")
         assert outfile.exists()
-
 
     def test_make_ipcc_html_spans(self):
         """uses PDFMiner library (no coordinates I think)"""
