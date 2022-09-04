@@ -15,6 +15,7 @@ See https://pypi.org/project/py4ami/
 # ====================================
 
 ## quick instructions for experienced users
+EDIT VERSION NUMBER
 ```cd pyami
 rm -rf dist
 # edit version number in setup.py

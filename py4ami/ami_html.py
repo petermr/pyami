@@ -330,7 +330,7 @@ class HtmlTree:
         font_size_range = (12, 999)
         for marker in markers:
             marked_div, divs = cls.get_div_span_starting_with(elem, marker, is_bold, font_size_range=font_size_range)
-            if not marked_div:
+            if marked_div is not None:
                 ld = len(divs) if divs else 0
                 print(f"Cannot find marker {marker} found {ld} markers")
 
@@ -350,6 +350,7 @@ class HtmlTree:
                 if HtmlUtil.MARKER in child_div.attrib:
                     marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ",
                                                                                "_").lower()  # name from text content
+                    marker.replace(":", "") # BUG, extend this to all punctuation
                     path = Path(output_dir, f"{marker}.html")
                     with open(path, "wb") as f:
                         f.write(lxml.etree.tostring(child_div, pretty_print=True))

@@ -689,6 +689,7 @@ INDIR = "indir"
 INPATH = "inpath"
 MAXPAGE = "maxpage"
 OUTDIR = "outdir"
+OUTPATH = "outpath"
 OUTFORM = "outform"
 OUTSTEM = "outstem"
 
@@ -730,21 +731,19 @@ class PDFArgs(AbstractArgs):
         self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
         self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
-        self.parser.add_argument("--footer", type=float, nargs=1, help="top margin", default=80)
-        self.parser.add_argument("--header", type=float, nargs=1, help="bottom margin", default=80)
+        self.parser.add_argument("--footer", type=float, nargs=1, help="top margin (clip everythimg above)", default=80)
+        self.parser.add_argument("--header", type=float, nargs=1, help="bottom margin (clip everything below", default=80)
         self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
         self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
         self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url")
-        self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages", default=10)
+        self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages (will be deprecated, use 'pages')", default=self.arg_dict.get(MAXPAGE))
+        self.parser.add_argument("--pages", type=tuple, nargs="+", help="NYI (reads (1,3) or [(1, 3), (5, 10)]", default=[])
         self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
         self.parser.add_argument("--outstem", type=str, nargs=1, help="output file", default="fulltext.flow")
         self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
-        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
-        self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
         self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)",
                                  default=400)
         self.parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
-        self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         return self.parser
 
     # class PDFArgs:
@@ -766,7 +765,9 @@ class PDFArgs(AbstractArgs):
         if self.arg_dict:
             self.read_arg_dict()
 
-        self.check_input()
+        if not self.check_input():
+            print(f"no input given")
+            return
         self.check_output()
         self.calculate_headers_footers()
 
@@ -774,12 +775,21 @@ class PDFArgs(AbstractArgs):
 
     def check_input(self):
         if not self.inpath:
-            raise FileNotFoundError(f"input file not given")
+            print(f"No input file, no action taken")
+            return False
+            # raise FileNotFoundError(f"input file not given")
         if not Path(self.inpath).exists():
             raise FileNotFoundError(f"input file does not exist: ({self.inpath}")
         self.indir = Path(self.inpath).parent
+        return True
 
     def check_output(self):
+        print(f" check_output {self.arg_dict}")
+        self.arg_dict[OUTSTEM] = Path(f"{self.inpath}").stem
+        self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
+
+        if not self.outpath:
+            self.outpath = self.arg_dict.get(OUTPATH)
         if self.outpath:
             self.outdir = Path(self.outpath).parent
         elif not self.outdir:
@@ -793,10 +803,16 @@ class PDFArgs(AbstractArgs):
             if not self.out_fmt:
                 raise FileNotFoundError(f"no output format given")
             self.outpath = Path(self.outdir, f"{self.outstem}.{self.out_fmt}")
+            print(f"outpath {self.outpath}")
+        else:
+            print(f"outdir {self.outdir}")
         if not Path(self.outdir).exists():
             Path(self.outdir).mkdir()
         elif not Path(self.outdir).is_dir():
             raise ValueError(f"output dir {self.outdir} is not a directory")
+        else:
+            print(f"output dir {self.outdir}")
+        return True
 
 
 
@@ -949,10 +965,15 @@ class PDFArgs(AbstractArgs):
         self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.out_fmt, maxpages=self.maxpage)
 
         if self.flow:
-            self.tidy_flow()
+            self.html = self.tidy_flow()
+            assert len(self.html) > 0
+            print(f"flow {len(self.raw_html)}")
+        if self.outpath is None:
+            print(f"no outpath given")
+            return None
         with open(str(self.outpath), "w") as f:
             f.write(self.html)
-            print(f"wrote {f.name}")
+            print(f"wrote outpath {self.outpath}")
         return self.outpath
 
     def tidy_flow(self):
@@ -983,6 +1004,7 @@ class PDFArgs(AbstractArgs):
         print(f"ref_counter {self.ref_counter}")
         HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
         self.html = lxml.etree.tostring(result_elem).decode("UTF-8")
+        return self.html
 
     # class PDFArgs:
 
@@ -1737,6 +1759,10 @@ def main(argv=None):
     """
     print(f"running PDFArgs main")
     pdf_args = PDFArgs()
+    parse_and_process_1(pdf_args)
+
+
+def parse_and_process_1(pdf_args):
     try:
         pdf_args.parse_and_process()
         pdf_args.convert_write()
