@@ -50,8 +50,10 @@ IPCC_CHAP6_PDF = Path(IPCC_CHAP6_DIR, "fulltext.pdf")
 INDIR = "indir"
 INPATH = "inpath"
 MAXPAGE = "maxpage"
+PAGES = "pages"
 OUTDIR = "outdir"
 OUTFORM = "outform"
+OUTPATH = "outpath"
 OUTSTEM = "outstem"
 FLOW = "flow"
 # FORMAT = "fmt"
@@ -720,12 +722,54 @@ LTPage
         pdf_args = PDFArgs()
         pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
         pdf_args.arg_dict[MAXPAGE] = 10
-        pdf_args.arg_dict[OUTSTEM] = Path(f"{IPCC_CHAP6_PDF}").stem
+
         print(f"arg_dict {pdf_args.arg_dict}")
-        pdf_args.convert_write()
-        outfile = Path(Path(IPCC_CHAP6_PDF).parent, f"{pdf_args.arg_dict[OUTSTEM]}.{pdf_args.arg_dict[OUTFORM]}")
-        print(f"wrote {outfile}")
-        assert outfile.exists()
+        outfile = pdf_args.convert_write()
+        if not outfile:
+            print(f"no file written")
+        else:
+            print(f"check {outfile} exists")
+            assert outfile.exists(), f"outfile {outfile} should exist"
+
+
+    def test_make_structured_html_pages_MAIN(self):
+        """structures the flat HTML from pdfplumber, but no coordinates
+        Can still be used for word frequency, etc."""
+
+        print(f" converting {IPCC_CHAP6_PDF}")
+        assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
+        pdf_args = PDFArgs()
+        pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
+        # pdf_args.arg_dict[PAGES] = [(1,3), (5,10)]
+
+        print(f"arg_dict {pdf_args.arg_dict}")
+        outfile = pdf_args.convert_write()
+        if not outfile:
+            print(f"no file written")
+        else:
+            print(f"check {outfile} exists")
+            assert outfile.exists(), f"outfile {outfile} should exist"
+
+    @unittest.skip("not implemented - just to remind us")
+    def test_make_structured_html_cmdline_DEBUG(self):
+        """
+        Previous one gives:
+        arg_dict {'convert': 'html', 'flow': True, 'footer': 80, 'header': 80, 'indir': None,
+        'inpath': PosixPath('/Users/pm286/workspace/pyami/test/resources/ipcc/Chapter06/fulltext.pdf'),
+        'maxpage': 10, 'outdir': None, 'outform': 'html', 'outstem': 'fulltext'}
+
+        Tried to run:
+        python -m py4ami.ami_pdf
+        --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/fulltext.pdf
+        --maxpage 88 --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/
+
+        which didn't give flow html, but sections.
+        Its debug
+
+        Namespace(convert=None, debug=None, flow=True, footer=80, header=80, imagedir=None,
+        indir=None, inpath=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/fulltext.pdf'],
+         maxpage=[88], outdir=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/'],
+         outform='html', outstem='fulltext.flow', resolution=400, template=None)"""
 
     def test_make_ipcc_html_spans(self):
         """uses PDFMiner library (no coordinates I think)"""

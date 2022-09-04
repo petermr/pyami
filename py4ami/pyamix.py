@@ -213,6 +213,23 @@ class PyAMI:
         #                     choices=TestFile.OPTIONS,  # tests and/or setup/teardown
         #                     help='run tests for modules; no selection runs all')
         # TODO should tests be run from this menu
+
+        subparsers = parser.add_subparsers(help='subcommands')
+        parser.add_argument("--args1", help="help_1")
+
+        dict_parser = subparsers.add_parser("DICT")
+
+        pdf_parser = subparsers.add_parser("PDF")
+
+        pdf_parser.add_argument("--infile", type=str, )
+        pdf_parser.add_argument("--outdir", type=str)
+        pdf_parser.add_argument("--maxpage", type=int)
+
+        project_parser = subparsers.add_parser("PROJECT")
+
+
+        parser.epilog = "other entry points run as 'python -m py4ami.ami_dict args' also ami_pdf, ami_project"
+
         return parser
 
     def commandline(self, commandline: str) -> None:
