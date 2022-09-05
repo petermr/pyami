@@ -29,7 +29,7 @@ rm -rf dist
 cd pyami
 rm -rf dist
 ```
-# <edit version in setup.py>
+# <EDIT VERSION in setup.py>
 # buildoutcfg
 
 ```
