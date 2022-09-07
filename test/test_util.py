@@ -10,12 +10,13 @@ import json
 import base64
 import time
 
-# local
 import requests
+# local
 
-from py4ami.util import Util, GithubDownloader
+from py4ami.util import Util, GithubDownloader, ArgParseBuilder
 from test.resources import Resources
 from test.test_all import AmiAnyTest
+
 
 
 logger = logging.getLogger("py4ami_test_util")
@@ -132,6 +133,12 @@ class TestUtil(AmiAnyTest):
         values = Util.extract_csv_fields(csv_file, column_with_values, selector_column, selector_value)
         assert len(values) == 92
         assert values[:3] == ['isomerase', 'GPP synthase', 'FPP synthase']
+
+    def test_create_arg_parse(self):
+        arg_parse_file = Path(Resources.TEST_RESOURCES_DIR, "arg_parse.json")
+        arg_parse_builder = ArgParseBuilder()
+        arg_dict = arg_parse_builder.create_arg_parse(arg_dict_file=arg_parse_file)
+
 
 class TestGithubDownloader(AmiAnyTest):
     # def __init__(self):

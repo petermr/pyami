@@ -1,0 +1,15 @@
+{
+  "description": "pdf parser",
+  "arg_list": [
+    {
+      "project": {
+        "type": "str",
+        "help": "this is help"
+      },
+      "maxpage": {
+        "type": "int",
+        "help": "max number of pages"
+      }
+    }
+  ]
+}

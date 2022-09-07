@@ -187,7 +187,8 @@ class TestAmiDictionary(AmiAnyTest):
         assert mentha_dict.get_version() == "0.0.3"
 
     def test_dict_has_xml_title(self):
-        """has dictionary got title?"""
+        """has root dictionary element got title attribute?
+        e.g. <dictionary title='dict1'> ..."""
         setup_dict = self.setup()
         root = setup_dict[ROOT]
         assert root.attrib[TITLE] == "dict1"

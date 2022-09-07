@@ -1179,7 +1179,7 @@ class AmiDictArgs(AbstractArgs):
                                  help="replace any existing entries/attributes (default preserve) (NYI)")
         self.parser.add_argument(f"--{SYNONYM}", type=str, nargs="+",
                                  help="add sysnonyms (from Wikidata) for terms (NYI)")
-        self.parser.add_argument(f"--{VALIDATE}", action="store_true", help="validate dictionary (NYI)")
+        self.parser.add_argument(f"--{VALIDATE}", action="store_true", help="validate dictionary")
         self.parser.add_argument(f"--{WIKIDATA}", type=str, nargs="*", help="add WikidataIDs (NYI)")
         self.parser.add_argument(f"--{WIKIPEDIA}", type=str, nargs="*",
                                  help="add Wikipedia link/s (forces --{WIKIDATA}) (NYI)")
@@ -1207,25 +1207,31 @@ class AmiDictArgs(AbstractArgs):
         self.parser.add_argument(f"--wikidata", type=str, nargs="*", help="add WikidataIDs")
         self.parser.add_argument(f"--wikipedia", type=str, nargs="*", help="add Wikipedia link/s")
         """
-        if self.arg_dict:
-            self.delete = self.arg_dict.get(DELETE)
-            self.dictfile = self.arg_dict.get(DICT)
-            self.filter = self.arg_dict.get(FILTER)
-            self.language = self.arg_dict.get(LANGUAGE)
-            self.metadata = self.arg_dict.get(METADATA)
-            self.replace = self.arg_dict.get(REPLACE)
-            self.synonym = self.arg_dict.get(SYNONYM)
-            self.validate = self.arg_dict.get(VALIDATE)
-            self.wikidata = self.arg_dict.get(WIKIDATA)
-            self.wikipedia = self.arg_dict.get(WIKIPEDIA)
-            self.words = self.arg_dict.get(WORDS)
+        if not self.arg_dict:
+            print(f"no arg_dict given, no actiom")
 
-            ami_dict = self.build_or_edit_dictionary()
-            if self.dictfile and ami_dict is not None:
-                with open(self.dictfile, "w") as f:
-                    self.ami_dict.write(self.dictfile)
-                    print(f"wrote dict: {self.dictfile}")
+        self.delete = self.arg_dict.get(DELETE)
+        self.dictfile = self.arg_dict.get(DICT)
+        self.filter = self.arg_dict.get(FILTER)
+        self.language = self.arg_dict.get(LANGUAGE)
+        self.metadata = self.arg_dict.get(METADATA)
+        self.replace = self.arg_dict.get(REPLACE)
+        self.synonym = self.arg_dict.get(SYNONYM)
+        self.validate = self.arg_dict.get(VALIDATE)
+        self.wikidata = self.arg_dict.get(WIKIDATA)
+        self.wikipedia = self.arg_dict.get(WIKIPEDIA)
+        self.words = self.arg_dict.get(WORDS)
 
+        ami_dict = self.build_or_edit_dictionary()
+        if self.dictfile and ami_dict is not None:
+            with open(self.dictfile, "w") as f:
+                self.ami_dict.write(self.dictfile)
+                print(f"wrote dict: {self.dictfile}")
+
+        if self.validate:
+            status = self.validate_dict()
+
+        if self.wikidata:
             self.add_wikidata_to_dict()
             status = self.validate_dict()
 

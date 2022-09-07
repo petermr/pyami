@@ -1,3 +1,4 @@
+import argparse
 import ast
 import errno
 import logging
@@ -381,6 +382,45 @@ class AbstractArgs(ABC):
     @abstractmethod
     def create_default_arg_dict(self):
         pass
+
+
+class ArgParseBuilder:
+
+    ARG_LIST = "arg_list"
+    DESCRIPTION = "description"
+
+    def __init__(self):
+        self.parser = None
+
+    def create_arg_parse(self, arg_dict=None, arg_dict_file=None):
+        # arg_dict_file takes precedence
+        if arg_dict_file and arg_dict_file.exists():
+            with open(arg_dict_file, 'r') as f:
+                data = f.read()
+                arg_dict = json.loads(data)
+                print(f"arg_dict {arg_dict}")
+
+        if arg_dict is not None:
+            desc = f'{arg_dict.get(self.DESCRIPTION)}'
+            print(f"\ndesc: '{desc}'")
+            self.parser = argparse.ArgumentParser(description=desc)
+            arg_list = arg_dict.get(self.ARG_LIST)
+            if arg_list is None:
+                raise ValueError(f"must give arg_list to ArgParseBuilder")
+            for arg_dict in arg_list:
+                if not type(arg_dict) is dict:
+                    raise ValueError(f"arg_list_dict {arg_dict} is not a dict")
+                args = arg_dict.keys()
+                for arg in args:
+                    print(f"\n{arg}:")
+                    param_dict = arg_dict.get(arg)
+                    self.process_params(param_dict)
+                # self.parser.add_argument(f"--{ProjectArgs.PROJECT}", type=str, nargs=1, help="project directory")
+
+    """https://stackoverflow.com/questions/28348117/using-argparse-and-json-together"""
+    def process_params(self, param_dict):
+        for param, param_val in param_dict.items():
+            print(f"  {param}='{param_val}'")
 
 
 class AmiLogger:
