@@ -699,10 +699,8 @@ RESOLUTION = "resolution"
 TEMPLATE = "template"
 
 
-
-
 class PDFArgs(AbstractArgs):
-    def __init__(self):
+    def __init__(self, parser=None):
         """arg_dict is set to default"""
         super().__init__()
         self.convert = DEFAULT_CONVERT
@@ -714,6 +712,7 @@ class PDFArgs(AbstractArgs):
         self.outdir = None
         self.outpath = None
         self.outstem = None
+        self.parser = parser
         self.raw_html = None
         self.flow = None
         self.unwanteds = None
@@ -722,12 +721,13 @@ class PDFArgs(AbstractArgs):
     def module_stem(self):
         return "ami_pdf"
 
-    def create_arg_parser(self):
+    def add_arguments(self):
         """creates adds the arguments for pyami commandline
 
         """
-        print(f"sys.argv {sys.argv}")
-        self.parser = argparse.ArgumentParser(description='PDF parsing')
+        if self.parser is None:
+            self.parser = argparse.ArgumentParser()
+        self.parser.description='PDF parsing'
         self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
         self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)

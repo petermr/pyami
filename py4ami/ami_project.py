@@ -570,19 +570,22 @@ class ProjectArgs(AbstractArgs):
     MAXFLAG = "max_flag"
     PROJECT = "project"
 
-    def __init__(self):
+    def __init__(self, parser=None):
         """arg_dict is set to default"""
         super().__init__()
+        self.parser = parser
 
     @property
     def module_stem(self):
         return "ami_project"
 
-    def create_arg_parser(self):
+    def add_arguments(self):
         """creates adds the arguments for pyami commandline
 
         """
-        self.parser = argparse.ArgumentParser(description='Project parsing')
+        if self.parser is None:
+            self.parser = argparse.ArgumentParser()
+        self.parser.description='Project parsing'
         # make_project requires --project <proj>
         self.parser.add_argument(f"--{ProjectArgs.PROJECT}", type=str, nargs=1, help="project directory")
         self.parser.add_argument(f"--{ProjectArgs.MAKE}", action='store_true', help="make project from list of filetypes")
@@ -691,9 +694,9 @@ class CProjectTests:
         REF: f"{REF_LIST_D}/*_ref.xml",
 
     }
-    print("INTRO_D", INTRO_D)
+    logger.debug("INTRO_D", INTRO_D)
     for k in glob_dict:
-        print(k, "=>", glob_dict[k])
+        logger.debug(k, "=>", glob_dict[k])
 
     def __init__(self, name: str, glob_str: str) -> None:
         self.name = name

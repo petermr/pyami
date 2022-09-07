@@ -317,8 +317,8 @@ As github API has rate limit of 5000 requests / hour, this might not be good for
 
 class AbstractArgs(ABC):
 
-    def __init__(self):
-        self.parser = None
+    def __init__(self, parser=None):
+        self.parser = parser
         self.parsed_args = None
         self.ref_counter = Counter()
         self.arg_dict = self.create_default_arg_dict()
@@ -360,7 +360,7 @@ class AbstractArgs(ABC):
         print(f"module_stem {self.module_stem}\n sys.argv {sys.argv}")
         while len(sys.argv) > 0 and self.module_stem not in str(sys.argv[0]):
             sys.argv = sys.argv[1:]
-        self.create_arg_parser()
+        self.add_arguments()
         # print(f"argv {sys.argv}")
         if len(sys.argv) == 1:  # no args, print help
             self.parser.print_help()
@@ -372,8 +372,9 @@ class AbstractArgs(ABC):
             self.process_args()
 
     @abstractmethod
-    def create_arg_parser(self):
+    def add_arguments(self):
         pass
+
 
     @abstractmethod
     def process_args(self):

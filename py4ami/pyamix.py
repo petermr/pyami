@@ -15,12 +15,13 @@ from abc import ABC, abstractmethod
 # local
 from py4ami.ami_convert import ConvType, Converters
 from py4ami.ami_sections import AMIAbsSection
-from py4ami.ami_dict import AmiDictionary
+from py4ami.ami_dict import AmiDictionary, AmiDictArgs
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, \
     Pdf2SvgConverter
-from py4ami.ami_project import CProject, CTree, CSubDir
+from py4ami.ami_pdf import PDFArgs
+from py4ami.ami_project import CProject, CTree, CSubDir, ProjectArgs
 from py4ami.symbol import SymbolIni
 from py4ami.text_lib import TextUtil, DSLParser
 from py4ami.util import AmiLogger, Util
@@ -218,19 +219,23 @@ class PyAMI:
         parser.add_argument("--args1", help="help_1")
 
         dict_parser = subparsers.add_parser("DICT")
+        dict_args = AmiDictArgs(parser=dict_parser)
+        dict_args.add_arguments()
 
         pdf_parser = subparsers.add_parser("PDF")
-
-        pdf_parser.add_argument("--infile", type=str, )
-        pdf_parser.add_argument("--outdir", type=str)
-        pdf_parser.add_argument("--maxpage", type=int)
+        pdf_args = PDFArgs(parser=pdf_parser)
+        pdf_args.add_arguments()
 
         project_parser = subparsers.add_parser("PROJECT")
+        project_args = ProjectArgs(parser=project_parser)
+        project_args.add_arguments()
+
 
 
         parser.epilog = "other entry points run as 'python -m py4ami.ami_dict args' also ami_pdf, ami_project"
 
         return parser
+
 
     def commandline(self, commandline: str) -> None:
         """runs a commandline as a single string
@@ -327,8 +332,8 @@ class PyAMI:
          """
         # path workflow
         self.wikipedia_lookup = WikidataLookup()
-        self.logger.warning(f"commandline args {self.args}")
-        self.logger.warning(f"args: {self.args}")
+        self.logger.debug(f"commandline args {self.args}")
+        self.logger.debug(f"args: {self.args}")
 
         if self.FLAGS in self.args and self.args[self.FLAGS] is not None:
             self.add_flags()

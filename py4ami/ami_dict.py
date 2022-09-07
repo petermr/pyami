@@ -644,7 +644,6 @@ class AmiDictionary:
     def write_to_dir(self, directory):
         """write dictionary to file based on title
         :param directory: directory which will contain <title>.xml"""
-        from lxml import etree
         if not directory:
             print(f"None directory")
         if not directory.exists():
@@ -1141,7 +1140,7 @@ class AMIDictError(Exception):
 class AmiDictArgs(AbstractArgs):
     """Parse args to build and edit dictionary"""
 
-    def __init__(self):
+    def __init__(self, parser=None):
         """arg_dict is set to default"""
         super().__init__()
         self.dictfile = None
@@ -1150,6 +1149,7 @@ class AmiDictArgs(AbstractArgs):
         self.words = None
         self.delete = None
         self.replace = None
+        self.parser = parser
         self.synonym = None
         self.validate = None
         self.wikidata = None
@@ -1161,12 +1161,15 @@ class AmiDictArgs(AbstractArgs):
         """name of module"""
         return Path(__file__).stem
 
-    def create_arg_parser(self):
-        """
-        creates adds the arguments for pyami commandline
+    # @classmethod
+    # def add_args(cls, dict_parser):
+    #     cls.add_arguments(dict_parser)
 
-        """
-        self.parser = argparse.ArgumentParser(description='AMI dictionary creation, validation, editing')
+    def add_arguments(self):
+        if self.parser is None:
+            self.parser = argparse.ArgumentParser()
+        """adds arguments to a parser or subparser"""
+        self.parser.description = 'AMI dictionary creation, validation, editing'
         self.parser.add_argument(f"--{DELETE}", type=str, nargs="+",
                                  help="list of entries (terms) to delete ? duplicates (NYI)")
         self.parser.add_argument(f"--{DICT}", type=str, nargs=1,
@@ -1185,9 +1188,8 @@ class AmiDictArgs(AbstractArgs):
                                  help="add Wikipedia link/s (forces --{WIKIDATA}) (NYI)")
         self.parser.add_argument(f"--{WORDS}", type=str, nargs=1,
                                  help="path/file with words to make or edit dictionary")
-        # self.parser.add_argument(f"--{SORT}", type=str, nargs=1, help="sort by term, sort synonyms, sort by weight (NYI)")
-        # self.parser.add_argument(f"--{CATEGORY}", type=str, nargs=1, help="annotate by category (NYI)")
-        return self.parser
+        # parser.add_argument(f"--{SORT}", type=str, nargs=1, help="sort by term, sort synonyms, sort by weight (NYI)")
+        # parser.add_argument(f"--{CATEGORY}", type=str, nargs=1, help="annotate by category (NYI)")
 
     # class AmiDictArgs:
     def process_args(self):
@@ -1222,14 +1224,23 @@ class AmiDictArgs(AbstractArgs):
         self.wikipedia = self.arg_dict.get(WIKIPEDIA)
         self.words = self.arg_dict.get(WORDS)
 
-        ami_dict = self.build_or_edit_dictionary()
-        if self.dictfile and ami_dict is not None:
-            with open(self.dictfile, "w") as f:
-                self.ami_dict.write(self.dictfile)
-                print(f"wrote dict: {self.dictfile}")
+        if self.dictfile:
+            if self.ami_dict is not None:
+                with open(self.dictfile, "w") as f:
+                    self.ami_dict.write(self.dictfile)
+                    print(f"wrote dict: {self.dictfile}")
+            else:
+                print(f"reading dictionary {self.dictfile}")
+                self.ami_dict = self.build_or_edit_dictionary()
+                if self.ami_dict is None:
+                    print(f"failed to read/compile dictionaty {self.dictfile}")
 
         if self.validate:
-            status = self.validate_dict()
+            if self.ami_dict is None:
+                print(f"no dictionary givem")
+            else:
+                print(f"VALIDATING {self.ami_dict}")
+                status = self.validate_dict()
 
         if self.wikidata:
             self.add_wikidata_to_dict()
@@ -1249,17 +1260,19 @@ class AmiDictArgs(AbstractArgs):
 
     def build_or_edit_dictionary(self):
         if not self.dictfile:
-            print("No dictionary given")
+            print("No dictionary file given")
             return None
+
         if not self.words:
-            print("No input words given")
-            return None
-        if not Path(self.words).exists():
-            raise FileNotFoundError(f"wordfile {self.words} does not exist.")
-        title = Path(self.words).stem
-        print(f"creating {self.dictfile} from {self.words}")
-        word_path = Path(self.words)
-        self.ami_dict, _ = AmiDictionary.create_dictionary_from_wordfile(wordfile=word_path, title=None, desc=None)
+            print(f"reading {self.dictfile} as dictionary")
+            self.ami_dict = AmiDictionary.create_from_xml_file(self.dictfile)
+        else:
+            if not Path(self.words).exists():
+                raise FileNotFoundError(f"wordfile {self.words} does not exist.")
+            title = Path(self.words).stem
+            print(f"creating {self.dictfile} from {self.words}")
+            word_path = Path(self.words)
+            self.ami_dict, _ = AmiDictionary.create_dictionary_from_wordfile(wordfile=word_path, title=None, desc=None)
         return self.ami_dict
 
     def add_wikidata_to_dict(self, description_regex=None):
@@ -1322,6 +1335,7 @@ class AmiDictArgs(AbstractArgs):
     def validate_dict(self):
         status = False
         if self.dictfile and Path(self.dictfile).exists():
+            self.ami_dict.check_validity()
             print(f"validate {self.validate}")
         else:
             print(f"requires existing dictionary")

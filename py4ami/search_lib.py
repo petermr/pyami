@@ -850,8 +850,8 @@ def create_arg_parser():
     return parser
 
 
-def copy_args_to_ami_search(args, ami_search):
-    print_args(args)
+def copy_args_to_ami_search(args, ami_search):#
+    # print_args(args)
     # TODO dict on keywords
     ami_search.use_sections(args.sect)
     ami_search.use_dictionaries(args.dict)

@@ -57,7 +57,7 @@ class SymbolIni:
             sys.exit(1)
 
         self.pyami.args[self.CONFIG] = config_ini  # "/Users/pm286/pyami/config.ini.master"
-        self.logger.warning(f"config path in args: {config_ini}")
+        self.logger.debug(f"config path in args: {config_ini}")
         config_files_str = self.pyami.args.get(self.CONFIG)
         config_files = [] if config_files_str is None else config_files_str.split(",")
         self.symbols = {}
@@ -66,7 +66,7 @@ class SymbolIni:
         for config_file in config_files:
             self.logger.info(f"****processing config: {config_file}")
             self.process_config_file(config_file)
-        self.logger.warning(f"symbols after config {self.symbols}")
+        self.logger.debug(f"symbols after config {self.symbols}")
 
     def process_config_file(self, config_file):
         """
@@ -75,8 +75,8 @@ class SymbolIni:
 
         """
         # this is the config path pointed to by PYAMI
-        self.logger.warning(f"config path {config_file}")
-        self.logger.warning(f"package {__package__}, path {__file__}, parent.parent {Path(__file__).parent.parent}", )
+        self.logger.info(f"config path {config_file}")
+        self.logger.info(f"package {__package__}, path {__file__}, parent.parent {Path(__file__).parent.parent}", )
         if config_file.startswith("${") and config_file.endswith("}"):  # python config path
             file = os.environ[config_file[2:-1]]
         elif "/" not in config_file:
@@ -131,7 +131,7 @@ class SymbolIni:
         files_read = self.config.read(file)
         sections = self.config.sections()
         for section in sections:
-            self.logger.warning(f"SECTION [{section}] in config path: {file}")
+            self.logger.debug(f"SECTION [{section}] in config path: {file}")
             self.convert_section_into_symbols_dict(file, section)
 
         # self.print_symbols()

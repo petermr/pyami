@@ -532,6 +532,7 @@ class TestAmiDictionary(AmiAnyTest):
         # assert ethnobot_dict.get_version() == "0.0.1"
 
     def test_ethnobot_dict_is_valid(self):
+        print(f" validating {ETHNOBOT_DICT}")
         ethnobot_dict = AmiDictionary.create_from_xml_file(self.setup()[ETHNOBOT_DICT])
         ethnobot_dict.check_validity()
         # assert ethnobot_dict.get_version() == "0.0.1"
