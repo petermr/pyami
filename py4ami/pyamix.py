@@ -84,6 +84,11 @@ class PyAMI:
     SPECIAL_SYMBOLS = ["_proj"]
     LOGLEVEL = "loglevel"
 
+# parsers
+    DICT_PARSER = "DICT"
+    PDF_PARSER = "PDF"
+    PROJECT_PARSER = "PROJECT"
+
     logger = logging.getLogger("pyami")
     symbol_ini = None
 
@@ -153,6 +158,16 @@ class PyAMI:
     def create_arg_parser(self):
         """creates adds the arguments for pyami commandline
         """
+
+        def run_dict(self):
+            print(f"run dict")
+
+        def run_pdf(args):
+            print(f"run pdf")
+
+        def run_project():
+            print(f"run project {self.args}")
+
         parser = argparse.ArgumentParser(
             description='Search sections with dictionaries and patterns')
         # apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
@@ -215,22 +230,11 @@ class PyAMI:
         #                     help='run tests for modules; no selection runs all')
         # TODO should tests be run from this menu
 
-        subparsers = parser.add_subparsers(help='subcommands')
-        parser.add_argument("--args1", help="help_1")
+        subparsers = parser.add_subparsers(help='subcommands', dest="command")
 
-        dict_parser = subparsers.add_parser("DICT")
-        dict_args = AmiDictArgs(parser=dict_parser)
-        dict_args.add_arguments()
-
-        pdf_parser = subparsers.add_parser("PDF")
-        pdf_args = PDFArgs(parser=pdf_parser)
-        pdf_args.add_arguments()
-
-        project_parser = subparsers.add_parser("PROJECT")
-        project_args = ProjectArgs(parser=project_parser)
-        project_args.add_arguments()
-
-
+        dict_parser = AmiDictArgs().make_sub_parser(subparsers)
+        pdf_parser = PDFArgs().make_sub_parser(subparsers)
+        project_parser = ProjectArgs().make_sub_parser(subparsers)
 
         parser.epilog = "other entry points run as 'python -m py4ami.ami_dict args' also ami_pdf, ami_project"
 
@@ -330,10 +334,16 @@ class PyAMI:
         There will be more here
 
          """
+        print("RUN ARGUMENTS")
         # path workflow
         self.wikipedia_lookup = WikidataLookup()
         self.logger.debug(f"commandline args {self.args}")
-        self.logger.debug(f"args: {self.args}")
+        self.logger.debug(f"run_arguments: {self.args}")
+
+        if "func" in self.args:
+            f_func = self.args["func"]
+            print(f"FUNC {f_func}")
+            aa = f_func()
 
         if self.FLAGS in self.args and self.args[self.FLAGS] is not None:
             self.add_flags()
@@ -413,7 +423,8 @@ class PyAMI:
             #     new_val = old_val
             # new_items[key] = new_val
         else:
-            self.logger.error(f"{old_val} unknown arg type {type(old_val)}")
+            if type(old_val) is str:
+                self.logger.error(f"substitution: {old_val} unknown arg type {type(old_val)}")
             new_val = old_val
 
         # special symbols such as "_proj"

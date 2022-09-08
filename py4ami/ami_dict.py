@@ -1140,7 +1140,7 @@ class AMIDictError(Exception):
 class AmiDictArgs(AbstractArgs):
     """Parse args to build and edit dictionary"""
 
-    def __init__(self, parser=None):
+    def __init__(self):
         """arg_dict is set to default"""
         super().__init__()
         self.dictfile = None
@@ -1149,21 +1149,11 @@ class AmiDictArgs(AbstractArgs):
         self.words = None
         self.delete = None
         self.replace = None
-        self.parser = parser
         self.synonym = None
         self.validate = None
         self.wikidata = None
         self.wikipedia = None
         self.ami_dict = None
-
-    @property
-    def module_stem(self):
-        """name of module"""
-        return Path(__file__).stem
-
-    # @classmethod
-    # def add_args(cls, dict_parser):
-    #     cls.add_arguments(dict_parser)
 
     def add_arguments(self):
         if self.parser is None:
@@ -1340,6 +1330,11 @@ class AmiDictArgs(AbstractArgs):
         else:
             print(f"requires existing dictionary")
         return status
+
+    @property
+    def module_stem(self):
+        """name of module"""
+        return Path(__file__).stem
 
 
 class AmiDictValidator:

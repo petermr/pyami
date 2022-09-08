@@ -317,17 +317,11 @@ As github API has rate limit of 5000 requests / hour, this might not be good for
 
 class AbstractArgs(ABC):
 
-    def __init__(self, parser=None):
-        self.parser = parser
+    def __init__(self):
+        self.parser = None
         self.parsed_args = None
         self.ref_counter = Counter()
         self.arg_dict = self.create_default_arg_dict()
-
-    @property
-    @abstractmethod
-    def module_stem(self):
-        pass
-
 
     def create_arg_dict(self):
         print(f"PARSED_ARGS {self.parsed_args}")
@@ -371,10 +365,14 @@ class AbstractArgs(ABC):
             self.arg_dict = self.create_arg_dict()
             self.process_args()
 
-    @abstractmethod
-    def add_arguments(self):
+    @property
+    # @abstractmethod  # I don't know why this doesn't work
+    def subparser_name(self):
         pass
 
+    # @abstractmethod
+    def add_argumants(self):
+        pass
 
     @abstractmethod
     def process_args(self):
@@ -383,6 +381,20 @@ class AbstractArgs(ABC):
     @abstractmethod
     def create_default_arg_dict(self):
         pass
+
+    @property
+    def submodule_name(self):
+        return self.module_stem.replace("ami_", "").upper()
+
+    def run_func(self):
+        return self.submodule_name.replace("ami_", "run_")
+
+    def make_sub_parser(self, subparsers):
+        self.parser = subparsers.add_parser(self.submodule_name)
+        print(f"parser: {self.parser.prog.split()[1]}")
+        self.add_arguments()
+        self.parser.set_defaults(func=self.run_func)
+        return self.parser
 
 
 class ArgParseBuilder:

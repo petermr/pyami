@@ -700,7 +700,7 @@ TEMPLATE = "template"
 
 
 class PDFArgs(AbstractArgs):
-    def __init__(self, parser=None):
+    def __init__(self):
         """arg_dict is set to default"""
         super().__init__()
         self.convert = DEFAULT_CONVERT
@@ -712,14 +712,9 @@ class PDFArgs(AbstractArgs):
         self.outdir = None
         self.outpath = None
         self.outstem = None
-        self.parser = parser
         self.raw_html = None
         self.flow = None
         self.unwanteds = None
-
-    @property
-    def module_stem(self):
-        return "ami_pdf"
 
     def add_arguments(self):
         """creates adds the arguments for pyami commandline
@@ -1068,6 +1063,11 @@ class PDFArgs(AbstractArgs):
             par.remove(span)
 
             # print(f"par {lxml.etree.tostring(par)}")
+
+    @property
+    def module_stem(self):
+        """name of module"""
+        return Path(__file__).stem
 
 
 class PDFDebug:

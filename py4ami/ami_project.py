@@ -570,14 +570,9 @@ class ProjectArgs(AbstractArgs):
     MAXFLAG = "max_flag"
     PROJECT = "project"
 
-    def __init__(self, parser=None):
+    def __init__(self):
         """arg_dict is set to default"""
         super().__init__()
-        self.parser = parser
-
-    @property
-    def module_stem(self):
-        return "ami_project"
 
     def add_arguments(self):
         """creates adds the arguments for pyami commandline
@@ -633,6 +628,11 @@ class ProjectArgs(AbstractArgs):
         arg_dict[ProjectArgs.MAXLEN] = 40
         arg_dict[ProjectArgs.MAXFLAG] = 20
         return arg_dict
+
+    @property
+    def module_stem(self):
+        """name of module"""
+        return Path(__file__).stem
 
 
 class CProjectTests:
