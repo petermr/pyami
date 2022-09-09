@@ -6,7 +6,7 @@ import subprocess
 import os
 import time
 
-logging.warning("load gutil.py")
+# logging.warning("load gutil.py")
 
 HLBG = "highlightbackground"
 HLTHICK = "highlightthickness"

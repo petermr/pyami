@@ -27,7 +27,7 @@ from py4ami.file_lib import AmiPath, PROJ, FileLib
 from py4ami.text_lib import AmiSection
 from py4ami.xml_lib import XmlLib, H_TD, RESULTS, DataTable
 
-logging.warning("loading search_lib.py")
+# logging.warning("loading search_lib.py")
 
 # entry
 

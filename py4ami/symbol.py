@@ -62,7 +62,7 @@ class SymbolIni:
         config_files = [] if config_files_str is None else config_files_str.split(",")
         self.symbols = {}
         self.fileset = set()
-        self.logger.warning(f"config files {config_files_str}")
+        self.logger.debug(f"config files {config_files_str}")
         for config_file in config_files:
             self.logger.info(f"****processing config: {config_file}")
             self.process_config_file(config_file)

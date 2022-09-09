@@ -28,8 +28,8 @@ from py4ami.util import AmiLogger, Util
 from py4ami.wikimedia import WikidataLookup
 from py4ami.xml_lib import XmlLib
 
-logging.debug("loading pyamix.py")
-logging.warning(Path(__file__))
+# logging.debug("loading pyamix.py")
+# logging.warning(Path(__file__))
 
 
 class PyAMI:
@@ -334,13 +334,12 @@ class PyAMI:
         There will be more here
 
          """
-        print(f"RUN ARGUMENTS on {self} {self.args}")
+        # print(f"RUN ARGUMENTS on {self} {self.args}")
         # path workflow
         self.wikipedia_lookup = WikidataLookup()
         self.logger.debug(f"commandline args {self.args}")
-        print(f"run_arguments: {self.args}")
-        command = self.args["command"]
-        print(f" COMMAND: {command}")
+        subparser_type = self.args.get("command")
+        print(f" COMMAND: {subparser_type}")
 
         # if "func" in self.args:
         #     f_func = self.args["func"]
@@ -348,17 +347,17 @@ class PyAMI:
         #     aa = f_func()
         #     print(f"aa {aa}")
         # messy - we need to use polymorphism
-        abstract_args = None
-        if command == "DICT":
+        if not subparser_type:
+            abstract_args = None
+        elif subparser_type == "DICT":
             abstract_args = AmiDictArgs()
-        elif command == "PDF":
+        elif subparser_type == "PDF":
             abstract_args = PDFArgs()
-        elif command == "PROJECT":
+        elif subparser_type == "PROJECT":
             abstract_args = ProjectArgs()
 
         if abstract_args:
-            # abstract_args.create_arg_dict(self.args)
-            abstract_args.process_args1(self.args)
+            abstract_args.parse_and_process1(self.args)
         else:
             self.run_core_mathods()
 
@@ -1156,7 +1155,7 @@ def main():
     """ main entry point for cmdline
 
     """
-    print(f"PYAMI")
+    # print(f"PYAMI")
     run_dsl = False
     run_tests = False  # needs re-implementing
     run_commands = True

@@ -955,7 +955,7 @@ class AmiDictionary:
             if child.tag in AmiDictionary.ALLOWED_CHILDREN:
                 pass
             else:
-                print(f"forbidden child {child.tag} in {AmiDictionary.ALLOWED_CHILDREN}")
+                print(f"forbidden child {child.tag} ; allowed = {AmiDictionary.ALLOWED_CHILDREN}")
 
 
 class AmiSynonym:
@@ -1219,7 +1219,7 @@ class AmiDictArgs(AbstractArgs):
                     self.ami_dict.write(self.dictfile)
                     print(f"wrote dict: {self.dictfile}")
             else:
-                print(f"reading dictionary {self.dictfile}")
+                # print(f"reading dictionary {self.dictfile}")
                 self.ami_dict = self.build_or_edit_dictionary()
                 if self.ami_dict is None:
                     print(f"failed to read/compile dictionaty {self.dictfile}")
@@ -1325,7 +1325,6 @@ class AmiDictArgs(AbstractArgs):
         status = False
         if self.dictfile and Path(self.dictfile).exists():
             self.ami_dict.check_validity()
-            print(f"validate {self.validate}")
         else:
             print(f"requires existing dictionary")
         return status

@@ -261,7 +261,7 @@ class AmiSection:
     logging.debug("text_lib: reading section_templates")
     logging.debug("SECTION LIST", SECTION_LIST1)
 
-    logging.warning("loading templates.json")
+    logging.debug("loading templates.json")
     with open(templates_json, 'r') as json_file:
         TEMPLATES = json.load(json_file)
 

@@ -326,10 +326,14 @@ class AbstractArgs(ABC):
     def create_arg_dict(self, args=None):
         if args:
             self.parsed_args = args
-        print(f"PARSED_ARGS {self.parsed_args}")
+        # print(f"PARSED_ARGS {type(self.parsed_args)} {self.parsed_args}")
         if not self.parsed_args:
             return None
-        arg_vars = vars(self.parsed_args)
+        try:
+            arg_vars = vars(self.parsed_args)
+        except TypeError:
+            # print(f" type args {type(self.parsed_args)} {self.parsed_args}")
+            arg_vars = self.parsed_args
         self.arg_dict = dict()
         for item in arg_vars.items():
             key = item[0]
@@ -340,6 +344,7 @@ class AbstractArgs(ABC):
             else:
                 self.arg_dict[key] = item[1]
 
+        # print(f"ARG_DICT {self.arg_dict}")
         return self.arg_dict
 
     def parse_and_process(self):
@@ -366,7 +371,7 @@ class AbstractArgs(ABC):
             self.parse_and_process1(argv_)
 
     def parse_and_process1(self, argv_):
-        self.parsed_args = self.parser.parse_args(argv_)
+        self.parsed_args = argv_ if self.parser is None else self.parser.parse_args(argv_)
         self.arg_dict = self.create_arg_dict()
         self.process_args()
 
@@ -402,7 +407,7 @@ class AbstractArgs(ABC):
     def make_sub_parser(self, subparsers):
         self.parser = subparsers.add_parser(self.subparser_arg)
         subparser_arg = self.parser.prog.split()[1]
-        print(f" made subparser {subparser_arg}")
+        # print(f" made subparser {subparser_arg}")
         self.add_arguments()
         # self.parser.set_defaults(func=self.make_run_func)
         return self.parser
