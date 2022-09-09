@@ -1,39 +1,37 @@
 """ Mainly for converting PDF to HTML and SVG """
 import argparse
+import copy
 import logging
 import os.path
-import sys
-import copy
+import re
+import statistics
+import traceback
+from io import BytesIO, StringIO
+from pathlib import Path
+from typing import Container
 
 import lxml
 import lxml.html
-from lxml import etree
-from lxml.builder import E
-import statistics
-from pathlib import Path
-from typing import Container
-from io import BytesIO, StringIO
-import re
-import traceback
 import numpy as np
-from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
-from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
-from pdfminer.pdfpage import PDFPage
-from pdfminer.image import ImageWriter
-from pdfminer.layout import LTImage
 import pdfplumber
 from PIL import Image
-
+from lxml import etree
+from lxml.builder import E
+from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
+from pdfminer.image import ImageWriter
+from pdfminer.layout import LAParams
+from pdfminer.layout import LTImage
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.pdfpage import PDFPage
 from sklearn.linear_model import LinearRegression
 
-# local
-from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
-from py4ami.util import Util, AbstractArgs
+from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
-from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
+# local
+from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
+from py4ami.util import Util, AbstractArgs
 
 # text attributes
 FACT = 2.8

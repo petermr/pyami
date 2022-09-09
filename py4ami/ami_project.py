@@ -1,21 +1,21 @@
 import argparse
-import sys
-from pathlib import Path
-import os
-import logging
-from abc import ABC, abstractmethod
-import re
 import glob
+import logging
+import os
+import re
+import time
 import traceback
+from abc import ABC, abstractmethod
+from pathlib import Path
+
 import requests
 from lxml import html
-import time
-# local
 
-from py4ami.util import Util
+from py4ami.ami_pdf import PDFArgs
 from py4ami.ami_sections import AMIFigure, AMIAbsSection
 from py4ami.util import Util, AbstractArgs
-from py4ami.ami_pdf import PDFArgs, INPATH, OUTDIR
+
+# local
 
 FULLTEXT = "fulltext"
 
@@ -241,7 +241,8 @@ class CProject(CContainer):
         return self.name
 
     @classmethod
-    def make_cproject_from_hrefs_in_url(cls, weburl=None, target_dir=None, suffix="pdf", maxsave=100, sleep=5, skip_exists=True):
+    def make_cproject_from_hrefs_in_url(cls, weburl=None, target_dir=None, suffix="pdf", maxsave=100, sleep=5,
+                                        skip_exists=True):
         """Extracts href targets from a webpage/html, downloads them to given """
 
         page = requests.get(weburl)
@@ -265,10 +266,12 @@ class CProject(CContainer):
         return project
 
     @classmethod
-    def make_cproject_and_fulltexts_from_hrefs_in_url(cls, weburl=None, target_dir=None, suffix="pdf", maxsave=100, sleep=5,
+    def make_cproject_and_fulltexts_from_hrefs_in_url(cls, weburl=None, target_dir=None, suffix="pdf", maxsave=100,
+                                                      sleep=5,
                                                       keep=True, max_ctree_len=50, max_flag=20, skip_exists=True):
-        cproject = CProject.make_cproject_from_hrefs_in_url(weburl=weburl, target_dir=target_dir, suffix=suffix, maxsave=maxsave, sleep=sleep,
-                                        skip_exists=skip_exists)
+        cproject = CProject.make_cproject_from_hrefs_in_url(weburl=weburl, target_dir=target_dir, suffix=suffix,
+                                                            maxsave=maxsave, sleep=sleep,
+                                                            skip_exists=skip_exists)
         cproject.make_cproject_from_pdfs(keep=keep, max_ctree_len=max_ctree_len, max_flag=max_flag)
 
         cproject.pdf2htmlx()
@@ -376,7 +379,7 @@ class CProject(CContainer):
             if not outdir.exists():
                 outdir.mkdir()
             outstem = "fulltext"
-            fmt="HTML"
+            fmt = "HTML"
             pdf_args.convert_write(outdir=outdir, outstem=outstem, inpath=inpath, flow=True, maxpage=maxpage)
 
 
@@ -580,10 +583,11 @@ class ProjectArgs(AbstractArgs):
         """
         if self.parser is None:
             self.parser = argparse.ArgumentParser()
-        self.parser.description='Project parsing'
+        self.parser.description = 'Project parsing'
         # make_project requires --project <proj>
         self.parser.add_argument(f"--{ProjectArgs.PROJECT}", type=str, nargs=1, help="project directory")
-        self.parser.add_argument(f"--{ProjectArgs.MAKE}", action='store_true', help="make project from list of filetypes")
+        self.parser.add_argument(f"--{ProjectArgs.MAKE}", action='store_true',
+                                 help="make project from list of filetypes")
         self.parser.add_argument(f"--{ProjectArgs.FORMATS}", type=str, nargs='+', help="input formats", default=['PDF'])
         self.parser.add_argument(f"--{ProjectArgs.KEEP}", action='store_true', help="keep original PDFs")
         self.parser.add_argument(f"--{ProjectArgs.MAXLEN}", type=int, nargs=1, help="max length of project name",
@@ -591,7 +595,8 @@ class ProjectArgs(AbstractArgs):
                                  default=40
                                  )
 
-        self.parser.add_argument(f"--{ProjectArgs.MAXFLAG}", type=int, nargs=1, default=20, help="max number of disambiguation flags '_")
+        self.parser.add_argument(f"--{ProjectArgs.MAXFLAG}", type=int, nargs=1, default=20,
+                                 help="max number of disambiguation flags '_")
         return self.parser
 
     # class ProjectArgs:

@@ -746,7 +746,7 @@ class AmiDictionary:
         for span in div_spans:
             text = span.text
             new_elems = HtmlUtil.split_span_at_match(span, rec, new_tags=[H_SPAN, H_A, H_SPAN],
-                                         recurse=True, id_root=f"{span.attrib['id']}_", id_counter=0)
+                                                     recurse=True, id_root=f"{span.attrib['id']}_", id_counter=0)
         self.convert_matched_spans_to_a(target_elem)
 
         a_elems = target_elem.xpath(f".//{H_A}")
@@ -765,7 +765,7 @@ class AmiDictionary:
             following_text = following[0].text if len(following) > 0 else None
             id_dict[a_elem.attrib[A_ID]] = preceding_text, (a_elem.text), following_text
             # add to multidict
-            if not a_elem.text in multidict:
+            if a_elem.text not in multidict:
                 multidict[a_elem.text] = []
             multidict[a_elem.text].append(a_elem.attrib[A_ID])
             match_counter[a_elem.text] += 1
@@ -807,8 +807,6 @@ class AmiDictionary:
         with open(str(list_path), "wb") as f:
             f.write(lxml.etree.tostring(html))
             print(f"wrote {list_path}")
-
-
 
     def convert_matched_spans_to_a(self, chap_elem):
         """some matches are complete span and need converting to <a>
@@ -1127,6 +1125,7 @@ class AmiDictionaries:
 # ==========please split into TDDDict==============
 # this should not be here but I can't load it from an outside file
 XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
+
 
 class AMIDictError(Exception):
     """Basic exception for errors raised in AMIDict"""
