@@ -160,7 +160,7 @@ class PyAMI:
         """
 
         def run_dict(self):
-            print(f"run dict")
+            print(f"run dict pyamix")
 
         def run_pdf(args):
             print(f"run pdf")
@@ -334,37 +334,51 @@ class PyAMI:
         There will be more here
 
          """
-        print("RUN ARGUMENTS")
+        print(f"RUN ARGUMENTS on {self} {self.args}")
         # path workflow
         self.wikipedia_lookup = WikidataLookup()
         self.logger.debug(f"commandline args {self.args}")
-        self.logger.debug(f"run_arguments: {self.args}")
+        print(f"run_arguments: {self.args}")
+        command = self.args["command"]
+        print(f" COMMAND: {command}")
 
-        if "func" in self.args:
-            f_func = self.args["func"]
-            print(f"FUNC {f_func}")
-            aa = f_func()
+        # if "func" in self.args:
+        #     f_func = self.args["func"]
+        #     print(f"FUNC {f_func}")
+        #     aa = f_func()
+        #     print(f"aa {aa}")
+        # messy - we need to use polymorphism
+        abstract_args = None
+        if command == "DICT":
+            abstract_args = AmiDictArgs()
+        elif command == "PDF":
+            abstract_args = PDFArgs()
+        elif command == "PROJECT":
+            abstract_args = ProjectArgs()
 
+        if abstract_args:
+            # abstract_args.create_arg_dict(self.args)
+            abstract_args.process_args1(self.args)
+        else:
+            self.run_core_mathods()
+
+    def run_core_mathods(self):
+        print(f"run_core")
         if self.FLAGS in self.args and self.args[self.FLAGS] is not None:
             self.add_flags()
-
         if self.CONFIG in self.args and self.args[self.CONFIG] is not None:
             self.apply_config()
-
         if self.EXAMPLES in self.args:
             example_args = self.args[self.EXAMPLES]
             if example_args is not None:
                 self.logger.debug(f" examples args: {example_args}")
                 Examples(self).run_examples(example_args)
-
         if self.COPY in self.args and not self.args[self.COPY] is None:
             self.logger.warning(f"COPY {self.args[self.COPY]}")
             self.copy_files()
-
         if self.PROJ in self.args:
             if self.SECT in self.args or self.GLOB in self.args or self.SPLIT in self.args:
                 self.run_project_workflow()
-
         # elif TestFile.TEST in self.args:
         #     self.logger.warning(f"TEST in **args {self.args}")
         #     TestFile.run_arg_tests(self.args)

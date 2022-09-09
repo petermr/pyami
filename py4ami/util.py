@@ -323,7 +323,9 @@ class AbstractArgs(ABC):
         self.ref_counter = Counter()
         self.arg_dict = self.create_default_arg_dict()
 
-    def create_arg_dict(self):
+    def create_arg_dict(self, args=None):
+        if args:
+            self.parsed_args = args
         print(f"PARSED_ARGS {self.parsed_args}")
         if not self.parsed_args:
             return None
@@ -360,10 +362,13 @@ class AbstractArgs(ABC):
             self.parser.print_help()
         else:
             argv_ = sys.argv[1:]
-            # print(f"argv: {argv_}")
-            self.parsed_args = self.parser.parse_args(argv_)
-            self.arg_dict = self.create_arg_dict()
-            self.process_args()
+            print(f"argv: {argv_}")
+            self.parse_and_process1(argv_)
+
+    def parse_and_process1(self, argv_):
+        self.parsed_args = self.parser.parse_args(argv_)
+        self.arg_dict = self.create_arg_dict()
+        self.process_args()
 
     @property
     # @abstractmethod  # I don't know why this doesn't work
@@ -383,17 +388,23 @@ class AbstractArgs(ABC):
         pass
 
     @property
-    def submodule_name(self):
-        return self.module_stem.replace("ami_", "").upper()
+    def subparser_arg(self):
+        """extracts suparser arg (e.g. 'DICT', """
+        stem = self.module_stem.replace("ami_", "")
+        return stem.upper()
 
-    def run_func(self):
-        return self.submodule_name.replace("ami_", "run_")
+
+    def make_run_func(self):
+        func_name = self.module_stem.replace("ami_", "run_")
+        print(f"run_func_name {func_name}")
+        return func_name
 
     def make_sub_parser(self, subparsers):
-        self.parser = subparsers.add_parser(self.submodule_name)
-        print(f"parser: {self.parser.prog.split()[1]}")
+        self.parser = subparsers.add_parser(self.subparser_arg)
+        subparser_arg = self.parser.prog.split()[1]
+        print(f" made subparser {subparser_arg}")
         self.add_arguments()
-        self.parser.set_defaults(func=self.run_func)
+        # self.parser.set_defaults(func=self.make_run_func)
         return self.parser
 
 
