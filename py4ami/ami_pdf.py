@@ -118,6 +118,7 @@ class AmiPage:
     MESSY (because PDF is horrible)
     """
     CONTENT_RANGES = [[56, 999], [45, 780]]
+    DEFAULT_BBOX = BBox(xy_ranges=[[0, 9999], [0, 9999]])
 
     def __init__(self):
         # a mess because it started with SVG and new we are adding PDF
@@ -509,6 +510,34 @@ class AmiPage:
     def create_page_from_pdf_html(cls, path):
         logging.error("NOT YET WRITTEN")
 
+    @classmethod
+    def create_html_pages(cls,
+                          bbox=DEFAULT_BBOX,
+                          input_pdf=None,
+                          output_dir=None,
+                          output_stem=None,
+                          page_nos=range(1,9999999)):
+        """create HTML pages from PDF
+        uses pdfminer routines (AmiPage.chars_to_spans)
+        will need further tuning to generate structured HTML
+        :param bbox: clip page (default is none)
+        :param inout_pdf: required PDF
+        """
+        if not input_pdf or not input_pdf.exists():
+            logging.logger.error(f"must have not-null, existing pdf {input_pdf} ")
+
+        if not output_dir.exists():
+            output_dir.mkdir()
+        for page_no in page_nos:
+            html = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
+
+            output_html = Path(output_dir, f"{output_stem}_{page_no}.html")
+            with open(output_html, "wb") as f:
+                f.write(lxml.etree.tostring(html))
+                # print(f" wrote html {output_html}")
+                # assert output_html.exists()
+
+
 
 class AmiSect:
     """Transformation of an Html Page to sections
@@ -690,6 +719,7 @@ OUTDIR = "outdir"
 OUTPATH = "outpath"
 OUTFORM = "outform"
 OUTSTEM = "outstem"
+PDF2HTML = "pdf2html"
 
 # FORMAT = "fmt"
 IMAGEDIR = "imagedir"
@@ -710,6 +740,7 @@ class PDFArgs(AbstractArgs):
         self.outdir = None
         self.outpath = None
         self.outstem = None
+        self.pdf2html = None
         self.raw_html = None
         self.flow = None
         self.unwanteds = None
@@ -721,7 +752,7 @@ class PDFArgs(AbstractArgs):
         if self.parser is None:
             self.parser = argparse.ArgumentParser()
         self.parser.description='PDF parsing'
-        self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
+        # self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
         self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
         self.parser.add_argument("--footer", type=float, nargs=1, help="top margin (clip everythimg above)", default=80)
@@ -730,7 +761,8 @@ class PDFArgs(AbstractArgs):
         self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
         self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url")
         self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages (will be deprecated, use 'pages')", default=self.arg_dict.get(MAXPAGE))
-        self.parser.add_argument("--pages", type=tuple, nargs="+", help="NYI (reads (1,3) or [(1, 3), (5, 10)]", default=[])
+        self.parser.add_argument("--pdf2html", type=bool, help="convert PDF to html (may need qualifiers")
+        self.parser.add_argument("--pages", type=tuple, nargs="+", help="(reads (1,3) or [(1, 3), (5, 10)] inclusive", default=[])
         self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
         self.parser.add_argument("--outstem", type=str, nargs=1, help="output file", default="fulltext.flow")
         self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
@@ -763,6 +795,16 @@ class PDFArgs(AbstractArgs):
             return
         self.check_output()
         self.calculate_headers_footers()
+
+        if self.pdf2html:
+            self.ensure_out()
+            AmiPage.create_html_pages(
+                          bbox=self.DEFAULT_BBOX,
+                          input_pdf=self.inpath,
+                          output_dir=self.output,
+                          output_stem=self.outstem,
+                          page_nos=range(1, 9999999)
+            )
 
         # self.convert_write()
 
@@ -807,9 +849,6 @@ class PDFArgs(AbstractArgs):
             print(f"output dir {self.outdir}")
         return True
 
-
-
-
     def read_arg_dict(self):
         self.flow = self.arg_dict.get(FLOW) is not None
         self.footer = self.arg_dict.get(FOOTER)
@@ -821,6 +860,7 @@ class PDFArgs(AbstractArgs):
         self.indir = self.arg_dict.get(INDIR)
         self.inpath = self.arg_dict.get(INPATH)
         self.maxpage = self.arg_dict.get(MAXPAGE)
+        self.pdf2html = self.arg_dict.get(PDF2HTML)
         self.outdir = self.arg_dict.get(OUTDIR)
         self.out_fmt = self.arg_dict.get(OUTFORM)
         self.outstem = self.arg_dict.get(OUTSTEM)
@@ -905,6 +945,7 @@ class PDFArgs(AbstractArgs):
         arg_dict[OUTDIR] = None
         arg_dict[OUTFORM] = "html"
         arg_dict[OUTSTEM] = None
+        arg_dict[PDF2HTML] = None
         arg_dict[FLOW] = True
         return arg_dict
 

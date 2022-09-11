@@ -1,4 +1,5 @@
 # test pyami
+import argparse
 import ast
 import sys
 import unittest
@@ -117,6 +118,19 @@ class TestPyami(AmiAnyTest):
         pyami.run_command(args)
         assert pyami.flag_dict.get(PyAMI.PRINT_SYMBOLS)
         assert pyami.flag_dict.get("foo") == "bar"
+
+    def test_argparse_from_strings(self):
+        """running commandline tests without sys.atgv"""
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--foo')
+        args = parser.parse_args(['--foo', 'BAR'])
+        var_dict = vars(args)
+        assert var_dict == {'foo': 'BAR'}
+
+        parser.add_argument('--plugh')
+        args = parser.parse_args('--plugh XYZZY'.split())
+        var_dict = vars(args)
+        assert var_dict == {'foo': None, 'plugh': 'XYZZY'}
 
 
 

@@ -39,7 +39,6 @@ class Util:
         :rtype logger:
 
         """
-        print("pyami: setting logger")
         _logger = logging.getLogger(module)
         _logger.setLevel(logger_level)
         # create path handler
@@ -394,22 +393,43 @@ class AbstractArgs(ABC):
 
     @property
     def subparser_arg(self):
-        """extracts suparser arg (e.g. 'DICT', """
+        """extracts suparser arg (e.g. 'DICT',(base) pm286macbook:pyami pm286$ python -m py4ami.pyamix DICT --dict /Users/pm286/projects/semanticClimate/ipcc//ar6/wg3/Chapter02/dict/emissions.xml --valid
+===========LOGGING 30 .. 10
+WARNING:pyami:
+============== running pyami main ===============
+['DICT', '--dict', '/Users/pm286/projects/semanticClimate/ipcc//ar6/wg3/Chapter02/dict/emissions.xml', '--valid']
+ COMMAND: DICT
+reading /Users/pm286/projects/semanticClimate/ipcc//ar6/wg3/Chapter02/dict/emissions.xml as dictionary
+dictionary.entries 33
+entry_by_term 33
+title emissions
+VALIDATING <py4ami.ami_dict.AmiDictionary object at 0x7fcfb34981f0>
+forbidden child synonym ; allowed = {'entry', 'desc'}
+forbidden child synonym ; allowed = {'entry', 'desc'}
+forbidden child synonym ; allowed = {'entry', 'desc'}
+forbidden child synonym ; allowed = {'entry', 'desc'}
+forbidden child synonym ; allowed = {'entry', 'desc'}
+(base) pm286macbook:pyami pm286$
+ """
         stem = self.module_stem.replace("ami_", "")
         return stem.upper()
 
 
     def make_run_func(self):
+        """probably obsolete"""
         func_name = self.module_stem.replace("ami_", "run_")
         print(f"run_func_name {func_name}")
         return func_name
 
     def make_sub_parser(self, subparsers):
+        """make subparser from subparsers
+        requires self.subparser_arg (probably should be argument
+        ALSO adds arguments through `self.add_arguments`
+        :param subparsers: subparser generator
+        :return: new subparser"""
         self.parser = subparsers.add_parser(self.subparser_arg)
         subparser_arg = self.parser.prog.split()[1]
-        # print(f" made subparser {subparser_arg}")
         self.add_arguments()
-        # self.parser.set_defaults(func=self.make_run_func)
         return self.parser
 
 

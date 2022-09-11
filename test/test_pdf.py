@@ -18,7 +18,6 @@ from py4ami.ami_bib import Publication
 
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
 from py4ami.ami_pdf import AmiPage, TextStyle, X, Y, SORT_XY, PDFImage
-from py4ami.ami_pdf import P_FONTNAME, P_HEIGHT, P_STROKING_COLOR, P_NON_STROKING_COLOR, P_TEXT, P_X0, P_Y0, P_X1, P_Y1
 from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
 from py4ami.ami_html import HtmlUtil, STYLE,FILL, STROKE, FONT_FAMILY, FONT_SIZE
 from py4ami.ami_html import H_DIV, H_SPAN, H_A, H_B, H_BODY, H_P
@@ -262,28 +261,16 @@ class PDFTest(test.test_all.AmiAnyTest):
         """The central AMI method to make HTML from PDF characters
         TODO DEVELOP THIS
         """
-        root = "chap6"
-        page_no = 0
+        output_stem = "chap6"
         page_nos = range(3, 13)
-        output_root = root
         input_pdf = Path(IPCC_CHAP6_PDF)
         assert input_pdf.exists(), f"{input_pdf} should exist"
-        """y="793.815">Final Government Distribution  Chapter 6 IPCC WGIII AR6 </span></div>
-<div><span style="font-size: 11.04 px;font-family: TimesNewRomanPS-BoldMT;" y="55.719">D"""
         bbox = BBox(xy_ranges=[[60, 999], [60, 790]])
-
         output_dir = Path(Resources.TEMP_DIR, "pdf")
-        if not output_dir.exists():
-            print(f"output {output_dir}")
-            output_dir.mkdir()
-        for page_no in page_nos:
-            html = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
-
-            output_html = Path(output_dir, f"{output_root}_{page_no}.html")
-            with open(output_html, "wb") as f:
-                f.write(lxml.etree.tostring(html))
-                print(f" wrote html {output_html}")
-                assert output_html.exists()
+        AmiPage.create_html_pages(bbox=bbox, input_pdf=input_pdf, output_dir=output_dir, output_stem=output_stem, page_nos=page_nos)
+        print(f"output_dir {output_dir}")
+        assert output_dir.exists()
+        assert Path(output_dir, f"{output_stem}_{5}.html").exists()
 
     def test_pdfplumber_full_page_info(self):
         """The definitive catalog of all objects on a page"""

@@ -955,7 +955,7 @@ class AmiDictionary:
             if child.tag in AmiDictionary.ALLOWED_CHILDREN:
                 pass
             else:
-                print(f"forbidden child {child.tag} ; allowed = {AmiDictionary.ALLOWED_CHILDREN}")
+                print(f"forbidden child of {self.root.tag}: {child.tag} ; allowed = {AmiDictionary.ALLOWED_CHILDREN}")
 
 
 class AmiSynonym:
