@@ -1074,7 +1074,8 @@ class PDFArgs(AbstractArgs):
                    r"(.*)" \
                    r")"
 
-        if result := re.compile(refregex).search(text):
+        result = re.compile(refregex).search(text)
+        if result:
             # print(f"matched: {result.group(1)} {result.group(2)}, {result.group(3)} {result.groups()}")
             elem0 = lxml.etree.SubElement(par, H_SPAN)
             elem0.text = result.group(1)
@@ -1160,18 +1161,21 @@ class PDFDebug:
         print(f"words {len(page.extract_words())}", end=" | ")
 
     def print_lines(self, page):
-        if (n_line := len(page.lines)) > 0:
+        n_line = len(page.lines)
+        if n_line > 0:
             print(f"lines {n_line}", end=" | ")
 
     def print_rects(self, page, debug=False):
-        if n_rect := len(page.rects) > 0:
+        n_rect = len(page.rects)
+        if n_rect > 0:
             print(f"rects {n_rect}", end=" | ")
             if debug:
                 for rect in page.rects[:self.max_rect]:
                     print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
 
     def print_curves(self, page):
-        if n_curve := len(page.curves) > 0:
+        n_curve = len(page.curves)
+        if n_curve > 0:
             print(f"curves {n_curve}", end=" | ")
             for curve in page.curves[:self.max_curve]:
                 print(f"keys: {curve.keys()}")
@@ -1183,7 +1187,8 @@ class PDFDebug:
         write_image = False
         resolution = 400  # may be better
             # see https://github.com/euske/pdfminer/blob/master/pdfminer/pdftypes.py
-        if (n_image := len(page.images)) > 0:
+        n_image = len(page.images)
+        if n_image > 0:
             print(f"images {n_image}", end=" |\n")
             for i, image in enumerate(page.images[:maximage]):
 
@@ -1228,8 +1233,8 @@ class PDFDebug:
 
     def print_tables(self, page, odir=None):
         tables = page.find_tables()
-
-        if n_table := len(tables) > 0:
+        n_table = len(tables)
+        if n_table > 0:
             print(f"tables {n_table}", end=" | ")
             print(f"table_dir {tables[0].__dir__()}")
             for i, table in enumerate(tables[:self.max_table]):
@@ -1259,7 +1264,8 @@ class PDFDebug:
         return f"{int(bbox[0])}_{int(bbox[2])}_{int(bbox[1])}_{int(bbox[3])}"
 
     def print_hyperlinks(self, page):
-        if n_hyper := len(page.hyperlinks) > 0:
+        n_hyper = len(page.hyperlinks)
+        if n_hyper > 0:
             print(f"hyperlinks {n_hyper}", end=" | ")
             for hyperlink in page.hyperlinks:
                 print(f"hyperlink {hyperlink.values()}")
@@ -1298,7 +1304,8 @@ class PDFDebug:
         and there are 34 (in a TableOfContents) and they work
 
         """
-        if n_annot := len(page.annots) > 0:
+        n_annot = len(page.annots)
+        if n_annot > 0:
             print(f"annots {n_annot}", end=" | ")
             for annot in page.annots:
                 print(f"annot: {annot.items()}")

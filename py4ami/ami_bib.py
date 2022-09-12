@@ -112,7 +112,8 @@ class Biblioref:
             chunks = bref.split(";")
             for chunk in chunks:
                 # print(f" chunk {chunk}")
-                if brefx := Biblioref.create_bref(chunk.strip()):
+                brefx = Biblioref.create_bref(chunk.strip())
+                if brefx:
                     bibliorefs.append(brefx)
         return bibliorefs
 

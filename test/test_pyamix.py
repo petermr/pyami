@@ -155,7 +155,15 @@ class TestPyami(AmiAnyTest):
 
         infile = "not yet written"
         pyami = PyAMI()
-        args = f"PDF --infile {infile} --outdir temp"
+        args = f"PDF --infile {infile} --outdir temp --pdf2html"
+        pyami.run_command(args)
+
+    @unittest.skip("not yet written")
+    def test_argparse_PROJECT_pdf2html(self):
+
+        indir = "not yet written, contains PDF files"
+        pyami = PyAMI()
+        args = f"PROJECT --indir {indir} --outdir temp"
         pyami.run_command(args)
 
 

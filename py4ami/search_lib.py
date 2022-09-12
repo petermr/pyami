@@ -13,7 +13,7 @@ from lxml import etree as LXET
 import sys
 # import RAKE  # python RAKE
 import tkinter as tk
-from rake_nltk import Rake
+# from rake_nltk import Rake
 import cProfile
 import argparse
 from pathlib import Path
