@@ -7,6 +7,7 @@ import unittest
 from py4ami.pyamix import PyAMI
 from py4ami.pyamix import main
 from test.test_all import AmiAnyTest
+from test.test_dict import AMIDICTS, TestAmiDictionary
 
 
 class TestPyami(AmiAnyTest):
@@ -132,5 +133,29 @@ class TestPyami(AmiAnyTest):
         var_dict = vars(args)
         assert var_dict == {'foo': None, 'plugh': 'XYZZY'}
 
+    def test_argparse_BAD_command_args(self):
+
+        with self.assertRaises(ValueError) as e:
+            infile = TestAmiDictionary().setup()[TestAmiDictionary.ETHNOBOT_DICT]
+            pyami = PyAMI()
+            args = f"DICT --dict {infile} --validatex"
+            pyami.run_command(args)
+        assert "bad command arguments" in str(e.exception), f"exception [{str(e)}]"
+
+
+    def test_argparse_DICT_validate(self):
+
+        infile = TestAmiDictionary().setup()[TestAmiDictionary.ETHNOBOT_DICT]
+        pyami = PyAMI()
+        args = f"DICT --dict {infile} --validate"
+        pyami.run_command(args)
+
+    @unittest.skip("not yet written")
+    def test_argparse_PDF_pdf2html(self):
+
+        infile = "not yet written"
+        pyami = PyAMI()
+        args = f"PDF --infile {infile} --outdir temp"
+        pyami.run_command(args)
 
 

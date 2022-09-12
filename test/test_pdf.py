@@ -260,6 +260,7 @@ class PDFTest(test.test_all.AmiAnyTest):
     def test_make_ami_pages_with_spans_from_charstream_ipcc_chap6(self):
         """The central AMI method to make HTML from PDF characters
         TODO DEVELOP THIS
+        USED
         """
         output_stem = "chap6"
         page_nos = range(3, 13)

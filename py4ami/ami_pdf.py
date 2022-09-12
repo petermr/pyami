@@ -518,6 +518,7 @@ class AmiPage:
                           output_stem=None,
                           page_nos=range(1,9999999)):
         """create HTML pages from PDF
+        USED
         uses pdfminer routines (AmiPage.chars_to_spans)
         will need further tuning to generate structured HTML
         :param bbox: clip page (default is none)

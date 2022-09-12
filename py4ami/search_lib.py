@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from nltk.tokenize import sent_tokenize
 from lxml import etree as LXET
 import sys
-import RAKE  # python RAKE
+# import RAKE  # python RAKE
 import tkinter as tk
 from rake_nltk import Rake
 import cProfile
@@ -378,17 +378,17 @@ class AmiSearch:
                     sections = self.section_make_data_table_counter_and_plot(
                         section_type)
                     self.write_data_table(proj.dirx, section_type)
-                    if self.use_rake:
-                        self.analyze_all_words_with_Rake(sections)
+                    # if self.use_rake:
+                    #     self.analyze_all_words_with_Rake(sections)
 
-            if self.use_rake:   # uses fulltext.txt
-                files = self.glob_fulltext(proj)
-                print("fulltext.txt", files)
-                text = ""
-                for file in files:
-                    with open(file, "r") as f:
-                        text += f.read()
-                self.analyze_text_with_Rake(text)
+            # if self.use_rake:   # uses fulltext.txt
+            #     files = self.glob_fulltext(proj)
+            #     print("fulltext.txt", files)
+            #     text = ""
+            #     for file in files:
+            #         with open(file, "r") as f:
+            #             text += f.read()
+            #     self.analyze_text_with_Rake(text)
             continue
 
     def write_data_table(self, project_dir, section_type):
@@ -459,10 +459,10 @@ class AmiSearch:
         text = text.replace("\n", " ")
         return text
 
-    def analyze_text_with_Rake(self, text):
-        text = self.remove_line_ends(text)
-        self.rake = AmiRake(self)
-        phrases = self.rake.analyze_text_with_RAKE(text)
+    # def analyze_text_with_Rake(self, text):
+    #     text = self.remove_line_ends(text)
+    #     self.rake = AmiRake(self)
+    #     phrases = self.rake.analyze_text_with_RAKE(text)
 
     def plot_tool_hits(self, counter_by_tool):
         for tool in counter_by_tool:
@@ -717,90 +717,90 @@ class SearchPattern:
         return matched_words
 
 
-class AmiRake:
-    def __init__(self, ami_search=None):
-        self.min_len = 2
-        self.max_len = 6
-        self.phrases = []
-        self.phrases_with_scores = []
-        self.ami_search = ami_search
-        self.counter = None
-        # method 1 is slow but gives useful phrases
-        self.method = 1
-        # method 2 favours equation components but is a lot faster
-#        self.method = 2
-        self.checkbox_results = []
-
-    def analyze_text_with_RAKE(self, text):
-
-        self.counter = Counter()
-        keywords = self.use_rake1(
-            text) if self.method == 1 else self.use_rake2(text)
-
-#        self.make_toplevel_phraselist(self.ami_search.ami_gui, keywords)
-        text = text.lower()
-        text_counter = Counter()
-        for keyword in keywords:
-            matches_in_text = len(text.split(keyword)) - 1
-            if matches_in_text > 1:
-                if all(x.isalpha() or x.isspace() or x == '-' for x in keyword):
-                    text_counter[keyword] = matches_in_text
-        phrases = [item[0] for item in text_counter.most_common()]
-        self.make_toplevel_phraselist(self.ami_search.ami_gui, phrases)
-
-    def make_toplevel_phraselist(self, master, phrases):
-
-        toplevel = tk.Toplevel(master)
-        toplevel.title("RAKE phraselist")
-        if phrases is None or len(phrases) == 0:
-            print("No phrases")
-        else:
-            results = []
-            scl = ScrollingCheckboxList(toplevel, receiver=self)
-            scl.pack(side="top", fill="both", expand=True)
-            scl.add_string_values(phrases)
-
-    def use_rake1(self, text):
-        stop_dir = Path(FileLib.get_pyami_resources(), SMART_STOP_LIST)
-        rake_object = RAKE.Rake(stop_dir)
-        weighted_keywords = self.sort_tuple(rake_object.run(text))  # [-10:]
-        weighted_keywords.reverse()
-#        print("keywords1", weighted_keywords)
-        keywords = self.create_keywords1(weighted_keywords)
-        return keywords
-
-    def use_rake2(self, text):
-        rake = Rake(min_length=self.min_len, max_length=self.max_len)
-        weighted_keywords = rake.extract_keywords_from_text(text)
-        print("weighted_keywords", weighted_keywords)
-        self.phrases = rake.get_ranked_phrases()  # [0:100]
-        # [0:100]
-        self.phrases_with_scores = rake.get_ranked_phrases_with_scores()
-        return self.phrases  # , self.phrases_with_scores
-
-    def create_keywords1(self, weighted_keywords):
-        keywords = []
-        for weighted_keyword in weighted_keywords:
-            keyword = weighted_keyword[0]
-            ll = len(keyword.split(" "))
-            if self.min_len <= ll <= self.max_len:
-                self.counter[keyword] = int(weighted_keyword[1])
-                keywords.append(keyword)
-        return keywords
-
-    def sort_tuple(self, tup):
-        """ sort
-        :reverse: None sort in ascending order
-        uses second elements of sublist as sort key
-        """
-        tup.sort(key=lambda x: x[1])
-        return tup
-
-    def receive_checked_values(self, values):
-        self.checked_values = values
-        print("V", len(values), values)
-        self.ami_search.save_rake_keywords(values)
-
+# class AmiRake:
+#     def __init__(self, ami_search=None):
+#         self.min_len = 2
+#         self.max_len = 6
+#         self.phrases = []
+#         self.phrases_with_scores = []
+#         self.ami_search = ami_search
+#         self.counter = None
+#         # method 1 is slow but gives useful phrases
+#         self.method = 1
+#         # method 2 favours equation components but is a lot faster
+# #        self.method = 2
+#         self.checkbox_results = []
+#
+#     def analyze_text_with_RAKE(self, text):
+#
+#         self.counter = Counter()
+#         keywords = self.use_rake1(
+#             text) if self.method == 1 else self.use_rake2(text)
+#
+# #        self.make_toplevel_phraselist(self.ami_search.ami_gui, keywords)
+#         text = text.lower()
+#         text_counter = Counter()
+#         for keyword in keywords:
+#             matches_in_text = len(text.split(keyword)) - 1
+#             if matches_in_text > 1:
+#                 if all(x.isalpha() or x.isspace() or x == '-' for x in keyword):
+#                     text_counter[keyword] = matches_in_text
+#         phrases = [item[0] for item in text_counter.most_common()]
+#         self.make_toplevel_phraselist(self.ami_search.ami_gui, phrases)
+#
+#     def make_toplevel_phraselist(self, master, phrases):
+#
+#         toplevel = tk.Toplevel(master)
+#         toplevel.title("RAKE phraselist")
+#         if phrases is None or len(phrases) == 0:
+#             print("No phrases")
+#         else:
+#             results = []
+#             scl = ScrollingCheckboxList(toplevel, receiver=self)
+#             scl.pack(side="top", fill="both", expand=True)
+#             scl.add_string_values(phrases)
+#
+#     def use_rake1(self, text):
+#         stop_dir = Path(FileLib.get_pyami_resources(), SMART_STOP_LIST)
+#         rake_object = RAKE.Rake(stop_dir)
+#         weighted_keywords = self.sort_tuple(rake_object.run(text))  # [-10:]
+#         weighted_keywords.reverse()
+# #        print("keywords1", weighted_keywords)
+#         keywords = self.create_keywords1(weighted_keywords)
+#         return keywords
+#
+#     def use_rake2(self, text):
+#         rake = Rake(min_length=self.min_len, max_length=self.max_len)
+#         weighted_keywords = rake.extract_keywords_from_text(text)
+#         print("weighted_keywords", weighted_keywords)
+#         self.phrases = rake.get_ranked_phrases()  # [0:100]
+#         # [0:100]
+#         self.phrases_with_scores = rake.get_ranked_phrases_with_scores()
+#         return self.phrases  # , self.phrases_with_scores
+#
+#     def create_keywords1(self, weighted_keywords):
+#         keywords = []
+#         for weighted_keyword in weighted_keywords:
+#             keyword = weighted_keyword[0]
+#             ll = len(keyword.split(" "))
+#             if self.min_len <= ll <= self.max_len:
+#                 self.counter[keyword] = int(weighted_keyword[1])
+#                 keywords.append(keyword)
+#         return keywords
+#
+#     def sort_tuple(self, tup):
+#         """ sort
+#         :reverse: None sort in ascending order
+#         uses second elements of sublist as sort key
+#         """
+#         tup.sort(key=lambda x: x[1])
+#         return tup
+#
+#     def receive_checked_values(self, values):
+#         self.checked_values = values
+#         print("V", len(values), values)
+#         self.ami_search.save_rake_keywords(values)
+#
 
 def test_profile():
     """Python profiler"""

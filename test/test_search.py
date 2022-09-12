@@ -3,7 +3,8 @@
 
 import logging
 # local
-from py4ami.search_lib import AmiSearch, AmiRake
+from py4ami.search_lib import AmiSearch
+# from py4ami.search_lib import AmiRake
 from py4ami.ami_dict import AmiDictionary
 
 def test_search():
