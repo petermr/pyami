@@ -837,7 +837,7 @@ class PDFArgs(AbstractArgs):
                           input_pdf=self.inpath,
                           output_dir=self.outdir,
                           output_stem=self.outstem,
-                          page_nos=range(1, 9999999)
+                          range_list=range(1, 9999999)
             )
 
         # self.convert_write()

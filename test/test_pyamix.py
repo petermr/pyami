@@ -157,7 +157,7 @@ class TestPyami(AmiAnyTest):
         infile = Path(ff.parent.parent, "test", "resources/ipcc/Chapter06/fulltext.pdf")
         outdir = Path(ff.parent.parent, "temp/ipcc_html/Chapter06/")
         pyami = PyAMI()
-        args = f"PDF --inpath {infile} --outdir temp --pdf2html pdfminer --pages 5 8 10 13 --outstem exec"
+        args = f"PDF --inpath {infile} --outdir temp --pdf2html pdfminer --ranges 5 8 10 13 --outstem exec"
         pyami.run_command(args)
 
     @unittest.skip("not yet written")

@@ -13,9 +13,10 @@ import argparse
 from enum import Enum
 from abc import ABC, abstractmethod
 # local
+from py4ami.ami_dict import AmiDictionary, AmiDictArgs
 from py4ami.ami_convert import ConvType, Converters
 from py4ami.ami_sections import AMIAbsSection
-from py4ami.ami_dict import AmiDictionary, AmiDictArgs
+from py4ami.ami_html import HTMLArgs
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, Pdf2SvgConverter
@@ -26,9 +27,6 @@ from py4ami.text_lib import TextUtil, DSLParser
 from py4ami.util import AmiLogger, Util
 from py4ami.wikimedia import WikidataLookup
 from py4ami.xml_lib import XmlLib
-
-# logging.debug("loading pyamix.py")
-# logging.warning(Path(__file__))
 
 
 class PyAMI:
@@ -85,6 +83,7 @@ class PyAMI:
 
 # parsers
     DICT_PARSER = "DICT"
+    HTML_PARSER = "HTML"
     PDF_PARSER = "PDF"
     PROJECT_PARSER = "PROJECT"
 
@@ -232,6 +231,7 @@ class PyAMI:
         subparsers = parser.add_subparsers(help='subcommands', dest="command")
 
         dict_parser = AmiDictArgs().make_sub_parser(subparsers)
+        html_parser = HTMLArgs().make_sub_parser(subparsers)
         pdf_parser = PDFArgs().make_sub_parser(subparsers)
         project_parser = ProjectArgs().make_sub_parser(subparsers)
 
@@ -351,6 +351,8 @@ class PyAMI:
             abstract_args = None
         elif subparser_type == "DICT":
             abstract_args = AmiDictArgs()
+        elif subparser_type == "HTML":
+            abstract_args = HTMLArgs()
         elif subparser_type == "PDF":
             abstract_args = PDFArgs()
         elif subparser_type == "PROJECT":

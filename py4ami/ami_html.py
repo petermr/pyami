@@ -1,12 +1,14 @@
 """Supports parsing, editing, markup, restructing of HTML
 Should have relatively few dependencies"""
-
+import argparse
+import logging
 import lxml
 import lxml.etree
 import re
 from pathlib import Path
 # local
-from py4ami.util import SScript
+# from py4ami.ami_dict import AmiDictionary
+from py4ami.util import SScript, AbstractArgs
 
 # HTML
 H_HTML = "html"
@@ -58,6 +60,16 @@ STYLES = [
     FILL,
     STROKE,
 ]
+
+# commandline
+ANNOTATE = "annotate"
+COLOR = "color"
+DICT = "dict"
+INPATH = "inpath"
+OUTDIR = "outdir"
+OUTPATH = "outpath"
+
+
 
 
 class AmiSpan:
@@ -167,7 +179,7 @@ class HtmlUtil:
         assert anchor_elem is not None
         assert tag
         parent = anchor_elem.getparent()
-        assert parent, f"No parent for anchor_elem"
+        assert parent is not None, f"No parent for anchor_elem"
         sibling = lxml.etree.SubElement(parent, tag)
         if copy_atts:
             for k, v in anchor_elem.attrib.items():
@@ -457,6 +469,108 @@ class HtmlTree:
         assert float(num_range[0])
         result = num_range[0] <= num <= num_range[1]
         return result
+
+
+class HTMLArgs(AbstractArgs):
+    """Parse args to analyze, edit and annotate HTML"""
+
+    def __init__(self):
+        """arg_dict is set to default"""
+        super().__init__()
+        self.dictfile = None
+        self.inpath = None
+        self.outpath = None
+        self.outstem = None
+        self.outdir = None
+        self.arg_dict = None
+
+
+    def add_arguments(self):
+        if self.parser is None:
+            self.parser = argparse.ArgumentParser()
+        """adds arguments to a parser or subparser"""
+        self.parser.description = 'HTML editing analysing annotation'
+        self.parser.add_argument(f"--{ANNOTATE}", action="store_true",
+                                 help="annotate HTML file with dictionary")
+        self.parser.add_argument(f"--{COLOR}", type=str, nargs=1,
+                                 help="colour for annotation")
+        self.parser.add_argument(f"--{DICT}", type=str, nargs=1,
+                                 help="dictionary for annotation")
+        self.parser.add_argument(f"--{INPATH}", type=str, nargs=1,
+                                 help="input html file")
+        self.parser.add_argument(f"--{OUTPATH}", type=str, nargs=1,
+                                 help="output html file")
+        self.parser.add_argument(f"--{OUTDIR}", type=str, nargs=1,
+                                 help="output directory")
+        self.parser.epilog = "==============="
+
+    """python -m py4ami.pyamix HTML --annotate 
+     --dict /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/dict/emissions_abbreviations.xml
+     --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/fulltext.html
+     --outpsth /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/annotated/fulltext_emissions.html
+     --color pink
+     """
+
+    # class AmiDictArgs:
+    def process_args(self):
+        """runs parsed args
+        :return:
+        """
+
+        if not self.arg_dict:
+            print(f"no arg_dict given, no action")
+            return
+
+        self.annotate = self.arg_dict.get(ANNOTATE)
+        self.color = self.arg_dict.get(COLOR)
+        self.dictfile = self.arg_dict.get(DICT)
+        self.inpath = self.arg_dict.get(INPATH)
+        self.outdir = self.arg_dict.get(OUTDIR)
+        self.outpath = self.arg_dict.get(OUTPATH)
+
+
+        if self.annotate:
+            self.annotate_with_dict()
+
+    # class AmiDictArgs:
+
+    @classmethod
+    def create_default_arg_dict(cls):
+        """returns a new COPY of the default dictionary"""
+        arg_dict = dict()
+        arg_dict[DICT] = None
+        return arg_dict
+
+
+    @property
+    def module_stem(self):
+        """name of module"""
+        return Path(__file__).stem
+
+    def annotate_with_dict(self):
+        """uses dictionary to annotate words and phrases in HTML file"""
+        from py4ami.ami_dict import AmiDictionary # horrible
+
+        if not self.dictfile:
+            logging.error(f"no dictionary given")
+            return
+        print(f"dictfile {self.dictfile}")
+        if not self.inpath:
+            logging.error(f"no input file to annotate given")
+            return
+        if not self.outpath:
+            logging.error(f"no output file given")
+            return
+        if not self.outdir:
+            self.outdir = Path(self.outpath).parent
+        self.outdir = Path(self.outdir)
+        if not self.outdir.exists():
+            self.outdir.mkdir()
+
+        self.ami_dict = AmiDictionary.create_from_xml_file(self.dictfile)
+        self.ami_dict.markup_html_from_dictionary(self.inpath, self.outpath, self.color)
+
+
 
 
 class CSSStyle:

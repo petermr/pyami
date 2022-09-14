@@ -269,8 +269,8 @@ class PDFTest(test.test_all.AmiAnyTest):
         assert input_pdf.exists(), f"{input_pdf} should exist"
         bbox = BBox(xy_ranges=[[60, 999], [60, 790]])
         output_dir = Path(Resources.TEMP_DIR, "pdf")
-        AmiPage.create_html_pages(bbox=bbox, input_pdf=input_pdf, output_dir=output_dir, output_stem=output_stem, page_nos=page_nos)
-        print(f"output_dir {output_dir}")
+        AmiPage.create_html_pages(bbox=bbox, input_pdf=input_pdf, output_dir=output_dir, output_stem=output_stem,
+                                  range_list=[range(3,8), range(129, 131)])
         assert output_dir.exists()
         assert Path(output_dir, f"{output_stem}_{5}.html").exists()
 

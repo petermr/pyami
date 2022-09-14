@@ -749,6 +749,12 @@ class AmiDictionary:
                                                      recurse=True, id_root=f"{span.attrib['id']}_", id_counter=0)
         self.convert_matched_spans_to_a(target_elem)
 
+        id_dict, multidict = self.write_annotated_html(background_color, output_path, target_elem)
+
+        self.write_index(id_dict, multidict, output_path)
+
+    def write_annotated_html(self, background_color, output_path,
+                             target_elem):
         a_elems = target_elem.xpath(f".//{H_A}")
         print(f" a_elems {len(a_elems)}")
         multidict = dict()
@@ -783,6 +789,11 @@ class AmiDictionary:
         with open(str(output_path), "wb") as f:
             f.write(lxml.etree.tostring(target_elem))
             print(f"wrote {output_path}")
+
+        return id_dict, multidict
+
+    def write_index(self, id_dict, multidict, output_path):
+        output_path = Path(output_path)
         html = HtmlUtil.create_skeleton_html()
         body = html.xpath(f".//{H_BODY}")[0]
         ul = lxml.etree.SubElement(body, H_UL)
@@ -803,7 +814,8 @@ class AmiDictionary:
                 if prec_follow[2]:
                     span = lxml.etree.SubElement(li2, H_SPAN)
                     span.text = prec_follow[2]
-        list_path = Path(output_path.parent, "links.html")
+        logging.info(f"outpath {output_path} {output_path.parent}")
+        list_path = Path(output_path.parent, "index.html")
         with open(str(list_path), "wb") as f:
             f.write(lxml.etree.tostring(html))
             print(f"wrote {list_path}")
