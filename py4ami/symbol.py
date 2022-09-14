@@ -44,6 +44,7 @@ class SymbolIni:
         """ """
         # remove later
         # config path is linked as PYAMI
+
         self.pyami_home = os.getenv(self.PYAMI_HOME)  # "/Users/pm286/pyami/"
         if not self.pyami_home:
             self.logger.fatal(f" environment variable $PYAMI_HOME must be set")
@@ -253,6 +254,7 @@ assumes value
         result = ""
         start = 0
         self.logger.info(f"expanding symbols in {arg}")
+        arg = str(arg)
         while SymbolIni.SYM_START in arg[start:]:
             idx0 = arg.index(SymbolIni.SYM_START, start)
             result += arg[start:idx0]

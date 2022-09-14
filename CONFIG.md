@@ -1,3 +1,23 @@
+# minimal installation
+
+CONFIG for PY4AMI
+A) everyone needs a config.ini file in their directory structure
+B) everyone needs environment variable $PYAMI_HOME
+
+* clone py4ami from github
+* verify it contains config.ini.master
+* make a subdirectory `pyami` under your home directory
+ - cd ~ on Unix/MAC
+ - mkdir pyami
+* copy the master config file to this directory
+ - cp pyami/config.ini.master pyami/
+ - set PYAMI_HOME to this directory 
+* test with echo $PYAMI_HOME
+giving:
+`/Users/pm286/pyami/`
+
+The rest of this file is for users who wish to change configuration
+
 # Config files and symbols
 
 (** some of this may be out of date)
@@ -36,7 +56,8 @@ The user needs a minimal config.ini file to tell the system where:
 * the dictionary repositories are
 * any of the standard data/text repositories are.
 
-She also needs to set the `PYAMI` environment variable to point to her `config.ini` file
+She also needs to set the `PYAMI_HOME` environment variable to point to the directory
+containing her `config.ini` file
 
 ## typical config.ini
 ````

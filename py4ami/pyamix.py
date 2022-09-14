@@ -18,8 +18,7 @@ from py4ami.ami_sections import AMIAbsSection
 from py4ami.ami_dict import AmiDictionary, AmiDictArgs
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
-from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, \
-    Pdf2SvgConverter
+from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, Pdf2SvgConverter
 from py4ami.ami_pdf import PDFArgs
 from py4ami.ami_project import CProject, CTree, CSubDir, ProjectArgs
 from py4ami.symbol import SymbolIni
@@ -274,6 +273,7 @@ class PyAMI:
 
         """
         if isinstance(args, str):
+            args =  args.strip()
             args = args.split(" ")
 
         self.logger.debug(f"********** raw arglist {args}")
@@ -339,7 +339,7 @@ class PyAMI:
         self.wikipedia_lookup = WikidataLookup()
         self.logger.debug(f"commandline args {self.args}")
         subparser_type = self.args.get("command")
-        print(f" COMMAND: {subparser_type}")
+        print(f" COMMAND: {subparser_type} {self.args}")
 
         # if "func" in self.args:
         #     f_func = self.args["func"]

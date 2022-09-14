@@ -264,6 +264,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         """
         output_stem = "chap6"
         page_nos = range(3, 13)
+        # page_nos = [3 4 5 8 ]
         input_pdf = Path(IPCC_CHAP6_PDF)
         assert input_pdf.exists(), f"{input_pdf} should exist"
         bbox = BBox(xy_ranges=[[60, 999], [60, 790]])

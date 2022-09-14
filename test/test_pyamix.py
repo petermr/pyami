@@ -1,6 +1,7 @@
 # test pyami
 import argparse
 import ast
+from pathlib import Path
 import sys
 import unittest
 # local
@@ -150,12 +151,13 @@ class TestPyami(AmiAnyTest):
         args = f"DICT --dict {infile} --validate"
         pyami.run_command(args)
 
-    @unittest.skip("not yet written")
     def test_argparse_PDF_pdf2html(self):
 
-        infile = "not yet written"
+        ff = Path(__file__)
+        infile = Path(ff.parent.parent, "test", "resources/ipcc/Chapter06/fulltext.pdf")
+        outdir = Path(ff.parent.parent, "temp/ipcc_html/Chapter06/")
         pyami = PyAMI()
-        args = f"PDF --infile {infile} --outdir temp --pdf2html"
+        args = f"PDF --inpath {infile} --outdir temp --pdf2html pdfminer --pages 5 8 10 13 --outstem exec"
         pyami.run_command(args)
 
     @unittest.skip("not yet written")
@@ -166,4 +168,55 @@ class TestPyami(AmiAnyTest):
         args = f"PROJECT --indir {indir} --outdir temp"
         pyami.run_command(args)
 
+    def test_parent_parser(self):
+        """reusable code"""
+        """from https://stackoverflow.com/questions/7498595/python-argparse-add-argument-to-multiple-subparsers/7498853#7498853"""
+        # Same main parser as usual
+        parser = argparse.ArgumentParser()
 
+        # Usual arguments which are applicable for the whole script / top-level args
+        parser.add_argument('--verbose', help='Common top-level parameter',
+                            action='store_true', required=False)
+
+        # Same subparsers as usual
+        subparsers = parser.add_subparsers(help='Desired action to perform', dest='action')
+
+        # Usual subparsers not using common options
+        parser_other = subparsers.add_parser("extra-action", help='Do something without db')
+
+        # Create parent subparser. Note `add_help=False` and creation via `argparse.`
+        parent_parser = argparse.ArgumentParser(add_help=False)
+        parent_parser.add_argument('-p', help='add db parameter', required=True)
+
+        # Subparsers based on parent
+
+        parser_create = subparsers.add_parser("create", parents=[parent_parser],
+                                              help='Create something')
+        # Add some arguments exclusively for parser_create
+
+        parser_update = subparsers.add_parser("update", parents=[parent_parser],
+                                              help='Update something')
+        # Add some arguments exclusively for parser_update
+
+        parser.print_help()
+        """usage: [-h] [--verbose] {extra-action,create,update} ...
+
+positional arguments:
+  {extra-action,create,update}
+                        Desired action to perform
+    extra-action        Do something without db
+    create              Create something
+    update              Update something
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --verbose             Common top-level parameter
+And the help message for the create action:
+
+>>> parser_create.print_help()
+usage:  create [-h] -p P
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -p P        add db parameter
+  """

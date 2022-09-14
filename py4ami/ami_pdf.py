@@ -516,28 +516,34 @@ class AmiPage:
                           input_pdf=None,
                           output_dir=None,
                           output_stem=None,
-                          page_nos=range(1,9999999)):
+                          range_list=range(1,9999999)):
         """create HTML pages from PDF
         USED
         uses pdfminer routines (AmiPage.chars_to_spans)
         will need further tuning to generate structured HTML
         :param bbox: clip page (default is none)
         :param inout_pdf: required PDF
+        :param output_dir: output dicrectory
+        :param output_stem: output filestem
+        :param page_nos: list of 2-tuples containing allowed ranges (e.g.  [(2,3), (5, 12)]
         """
-        if not input_pdf or not input_pdf.exists():
+        if not input_pdf or not Path(input_pdf).exists():
             logging.logger.error(f"must have not-null, existing pdf {input_pdf} ")
 
         if not output_dir.exists():
             output_dir.mkdir()
-        for page_no in page_nos:
+        with pdfplumber.open(input_pdf) as pdf:
+            page_count = len(pdf.pages)
+        for page_no in range(page_count):
+        # for page_no in page_nos:
+            if not Util.range_list_contains_int(page_no, range_list):
+                continue
             html = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
-
             output_html = Path(output_dir, f"{output_stem}_{page_no}.html")
             with open(output_html, "wb") as f:
                 f.write(lxml.etree.tostring(html))
                 # print(f" wrote html {output_html}")
                 # assert output_html.exists()
-
 
 
 class AmiSect:
@@ -713,13 +719,20 @@ CONVERT = "convert"
 FLOW = "flow"
 FOOTER = "footer"
 HEADER = "header"
+
 INDIR = "indir"
+INFORM = "inform"
 INPATH = "inpath"
+INSTEM = "instem"
+
 MAXPAGE = "maxpage"
+
 OUTDIR = "outdir"
-OUTPATH = "outpath"
 OUTFORM = "outform"
+OUTPATH = "outpath"
 OUTSTEM = "outstem"
+
+PAGES = "pages"
 PDF2HTML = "pdf2html"
 
 # FORMAT = "fmt"
@@ -733,14 +746,25 @@ class PDFArgs(AbstractArgs):
         """arg_dict is set to default"""
         super().__init__()
         self.convert = DEFAULT_CONVERT
-        self.out_fmt = DEFAULT_CONVERT
         self.html = None
+
+        self.footer = None
+        self.header = None
+
         self.indir = None
+        self.inform = 'PDF'
         self.inpath = None
+        self.instem = 'fulltext'
+
         self.maxpage = DEFAULT_MAXPAGES
+
         self.outdir = None
+        self.outform = DEFAULT_CONVERT
         self.outpath = None
         self.outstem = None
+
+        self.pages = None
+
         self.pdf2html = None
         self.raw_html = None
         self.flow = None
@@ -752,23 +776,32 @@ class PDFArgs(AbstractArgs):
         """
         if self.parser is None:
             self.parser = argparse.ArgumentParser()
-        self.parser.description='PDF parsing'
+        self.parser.description='PDF parsing. (still evolving) allows for various inputs and outputs and may become a parent parser. Currently either use ' \
+                                'a) inpath and outpath' \
+                                'b) inpath and outdir/outstem/outform (especially where splitting to pages)' \
+                                'c)'
         # self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
         self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
         self.parser.add_argument("--footer", type=float, nargs=1, help="top margin (clip everythimg above)", default=80)
         self.parser.add_argument("--header", type=float, nargs=1, help="bottom margin (clip everything below", default=80)
         self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
-        self.parser.add_argument("--indir", type=str, nargs=1, help="input directory")
-        self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url")
+
+        self.parser.add_argument("--indir", type=str, nargs=1, help="input directory (might be calculated from inpath)")
+        self.parser.add_argument("--inform", type=str, nargs="+", help="input formats (might be calculated from inpath)")
+        self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url; might be calculated from dir/stem/form")
+        self.parser.add_argument("--instem", type=str, nargs=1, help="input stem (e.g. 'fulltext'); maybe calculated from 'inpath`")
+
         self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages (will be deprecated, use 'pages')", default=self.arg_dict.get(MAXPAGE))
-        self.parser.add_argument("--pdf2html", type=bool, help="convert PDF to html (may need qualifiers")
-        self.parser.add_argument("--pages", type=tuple, nargs="+", help="(reads (1,3) or [(1, 3), (5, 10)] inclusive", default=[])
+
         self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
-        self.parser.add_argument("--outstem", type=str, nargs=1, help="output file", default="fulltext.flow")
+        self.parser.add_argument("--outpath", type=str, nargs=1, help="output path (can be calculated from dir/stem/form)")
+        self.parser.add_argument("--outstem", type=str, nargs=1, help="output stem", default="fulltext.flow")
         self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
-        self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)",
-                                 default=400)
+
+        self.parser.add_argument("--pdf2html", type=str, choices=['pdfminer', 'pdfplumber'], help="convert PDF to html", default='pdfminer')
+        self.parser.add_argument("--pages", type=int, nargs="+", help="(reads [3,5,9,12] -> 3-5 exclusive, 9-12 exclusive", default=all)
+        self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)", default=400)
         self.parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
         return self.parser
 
@@ -798,11 +831,11 @@ class PDFArgs(AbstractArgs):
         self.calculate_headers_footers()
 
         if self.pdf2html:
-            self.ensure_out()
+            self.check_output()
             AmiPage.create_html_pages(
-                          bbox=self.DEFAULT_BBOX,
+                          bbox=AmiPage.DEFAULT_BBOX,
                           input_pdf=self.inpath,
-                          output_dir=self.output,
+                          output_dir=self.outdir,
                           output_stem=self.outstem,
                           page_nos=range(1, 9999999)
             )
@@ -836,9 +869,9 @@ class PDFArgs(AbstractArgs):
             self.outstem = self.arg_dict.get(OUTSTEM)
             if not self.outstem:
                 raise FileNotFoundError(f"output file not given and cannot be generated")
-            if not self.out_fmt:
+            if not self.outform:
                 raise FileNotFoundError(f"no output format given")
-            self.outpath = Path(self.outdir, f"{self.outstem}.{self.out_fmt}")
+            self.outpath = Path(self.outdir, f"{self.outstem}.{self.outform}")
             print(f"outpath {self.outpath}")
         else:
             print(f"outdir {self.outdir}")
@@ -852,20 +885,29 @@ class PDFArgs(AbstractArgs):
 
     def read_arg_dict(self):
         self.flow = self.arg_dict.get(FLOW) is not None
+
         self.footer = self.arg_dict.get(FOOTER)
         if not self.footer:
             self.footer = 80
         self.header = self.arg_dict.get(HEADER)
         if not self.header:
             self.header = 80
+
         self.indir = self.arg_dict.get(INDIR)
+        self.inform = self.arg_dict.get(INFORM)
         self.inpath = self.arg_dict.get(INPATH)
+        self.instem = self.arg_dict.get(INSTEM)
+
         self.maxpage = self.arg_dict.get(MAXPAGE)
-        self.pdf2html = self.arg_dict.get(PDF2HTML)
+
         self.outdir = self.arg_dict.get(OUTDIR)
-        self.out_fmt = self.arg_dict.get(OUTFORM)
+        self.outform = self.arg_dict.get(OUTFORM)
+        self.outpath = self.arg_dict.get(OUTPATH)
         self.outstem = self.arg_dict.get(OUTSTEM)
-        self.convert = self.arg_dict.get(CONVERT)
+
+        self.pages = self.arg_dict.get(PAGES)
+
+        self.pdf2html = self.arg_dict.get(PDF2HTML)
 
             # self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
 
@@ -940,12 +982,20 @@ class PDFArgs(AbstractArgs):
         arg_dict[FLOW] = True
         arg_dict[FOOTER] = 80
         arg_dict[HEADER] = 80
+
         arg_dict[INDIR] = None
+        arg_dict[INFORM] = None
         arg_dict[INPATH] = None
+        arg_dict[INSTEM] = None
+
         arg_dict[MAXPAGE] = 5
+
         arg_dict[OUTDIR] = None
         arg_dict[OUTFORM] = "html"
+        arg_dict[OUTPATH] = None
         arg_dict[OUTSTEM] = None
+
+        arg_dict[PAGES] = None
         arg_dict[PDF2HTML] = None
         arg_dict[FLOW] = True
         return arg_dict
@@ -997,7 +1047,7 @@ class PDFArgs(AbstractArgs):
     def convert_write(self):
         print(f"==============CONVERT================")
         self.process_args()
-        self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.out_fmt, maxpages=self.maxpage)
+        self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
 
         if self.flow:
             self.html = self.tidy_flow()

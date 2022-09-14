@@ -139,6 +139,28 @@ class TestUtil(AmiAnyTest):
         arg_parse_builder = ArgParseBuilder()
         arg_dict = arg_parse_builder.create_arg_parse(arg_dict_file=arg_parse_file)
 
+    def test_range_list_contains_int(self):
+        """does a range or range list contain an int"""
+        # single
+        rangex = range(1,3)
+        assert not Util.range_list_contains_int(0, rangex)
+        assert Util.range_list_contains_int(1, rangex)
+        assert not Util.range_list_contains_int(3, rangex)
+        # list
+        range_list = [range(1,3), range(5,9)]
+        assert not Util.range_list_contains_int(0, range_list)
+        assert Util.range_list_contains_int(1, range_list)
+        assert not Util.range_list_contains_int(3, range_list)
+        assert not Util.range_list_contains_int(4, range_list)
+        assert Util.range_list_contains_int(5, range_list)
+        assert not Util.range_list_contains_int(9, range_list)
+        assert not Util.range_list_contains_int(10, range_list)
+        # None
+        range_list = None
+        assert not Util.range_list_contains_int(0, range_list)
+        range_list = range(1,3)
+        assert not Util.range_list_contains_int(None, range_list)
+
 
 class TestGithubDownloader(AmiAnyTest):
     # def __init__(self):

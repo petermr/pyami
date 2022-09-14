@@ -233,6 +233,23 @@ class Util:
                     (?P<post>.*)
                     """, re.VERBOSE)  # finds a bracket pair in running text, crude
 
+    @classmethod
+    def range_list_contains_int(cls, value, range_list):
+        """Is an in in a list of ranges
+        :param value: int to test
+        :param range_list: list of ranges (or single range)"""
+        if range_list is None:
+            return False
+        # might be a single range
+        if type(range_list) is range:
+            return value in range_list
+        for rangex in range_list:
+            if value in rangex:
+                return True
+        return False
+
+
+
 
 class GithubDownloader:
     """Note: Github uses the old 'master' name but we have changed it to 'main'"""
@@ -343,7 +360,7 @@ class AbstractArgs(ABC):
             else:
                 self.arg_dict[key] = item[1]
 
-        # print(f"ARG_DICT {self.arg_dict}")
+        print(f"ARG_DICT {self.arg_dict}")
         return self.arg_dict
 
     def parse_and_process(self):
@@ -372,6 +389,7 @@ class AbstractArgs(ABC):
     def parse_and_process1(self, argv_):
         self.parsed_args = argv_ if self.parser is None else self.parser.parse_args(argv_)
         self.arg_dict = self.create_arg_dict()
+        print(f"ARG_DICT {self.arg_dict}")
         self.process_args()
 
     @property
