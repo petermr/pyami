@@ -32,6 +32,7 @@ H_P = "p"
 
 A_HREF = "href"
 A_NAME = "name"
+A_TERM = "term"
 A_TITLE = "title"
 A_ID = "id"
 A_CLASS = "class"

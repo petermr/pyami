@@ -21,10 +21,9 @@ from shutil import copyfile
 from py4ami.util import Util
 from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
 from py4ami.ami_html import HtmlUtil, CSSStyle, H_A, H_SPAN, H_BODY, H_DIV, H_UL, H_LI, A_ID, \
-    A_HREF, A_NAME, A_TITLE
+    A_HREF, A_NAME, A_TITLE, A_TERM
 from py4ami.util import AbstractArgs
 from py4ami.wikimedia import WikidataSparql, WikidataLookup, WikidataPage
-from test.resources import Resources
 
 # elements in amidict
 DICTIONARY = "dictionary"
@@ -161,10 +160,10 @@ class AmiEntry:
         """set wikidataID, id must be Pddd... or Q... """
         if idx is None or not re.match("[PQ]\\d+", idx):
             raise AMIDictError(f"wikidata id {idx} must be Qddd... or Pddd...")
-        self.set_attribute(WIKIDATA, idx)
+        self.set_attribute(WIKIDATA_ID, idx)
 
     def wikidata_id(self):
-        return self.get_attribute_value(WIKIDATA)
+        return self.get_attribute_value(WIKIDATA_ID)
 
     def set_description(self, desc):
         """set description attribute, can be anything"""
@@ -187,6 +186,7 @@ class AmiEntry:
             # msg = f"ATT {attribut}"
             assert type(attribut) is str
             assert attribut in AmiEntry.ALLOWED_ATTS, f"attribute {attribut} is not allowed in <entry>"
+            self.validate_attribute(AmiEntry.WIKIDATA_A)
 
     def check_valid_children(self):
         if False:
@@ -202,6 +202,20 @@ class AmiEntry:
         for synonym_element in synonym_elements:
             ami_synonyms.append(AmiSynonym.create_from_element(synonym_element))
         return ami_synonyms
+
+    def validate_attribute(self, att_name):
+        if not att_name:
+            logger.warning(f"attribute name is None")
+            return
+        value = self.element.attrib.get(att_name)
+        if att_name == WIKIDATA_ID:
+            self.validate_wikidata_id(value)
+
+    def validate_wikidata_id(self, value):
+        mm = re.match("(Q|P)\d{1,11}", value)
+        if not mm:
+            logging.warning(f"{WIKIDATA_ID} bad value: {value}")
+        return mm
 
 
 class AmiDictionary:
@@ -740,7 +754,11 @@ class AmiDictionary:
     def markup_html_from_dictionary(self, target_path, output_path, background_color):
         term_set = self.get_or_create_term_set()
         re_join = '|'.join(term_set)
-        rec = re.compile(f"(.*?)({re_join})(.*)")
+        try:
+            rec = re.compile(f"(.*?)({re_join})(.*)")
+        except Exception as e:
+            logging.error(f"dictionary {self.title}: Cannot parse terms into regex: \n{re_join}\n please remove or escape characters")
+            return None
         target_elem = lxml.etree.parse(str(target_path))
         div_spans = target_elem.xpath(f".//{H_DIV}/{H_SPAN}")
         for span in div_spans:
@@ -780,7 +798,12 @@ class AmiDictionary:
                 href = entry.attrib["wikidataID"]
                 if href:
                     a_elem.attrib[A_HREF] = WIKIDATA_SITE + href
-                    a_elem.attrib[A_TITLE] = entry.attrib[A_NAME]
+                name = entry.attrib.get(A_NAME)
+                if name:
+                    a_elem.attrib[A_TITLE] = name
+                else:
+                    a_elem.attrib[A_TITLE] = entry.attrib.get(A_TERM)
+
             else:
                 # print(f" {text} has no wikidataIO")
                 pass
@@ -1396,20 +1419,20 @@ def main(argv=None):
         print(f"***Cannot run amidict***; see output for errors: {e} ")
 
 
-def test_process_args_build_dictionary():
-    words0_txt = f"{Path(Resources.TEST_RESOURCES_DIR, 'words0.txt')}"
-    print(f"words {words0_txt}")
-    with open(words0_txt, "r") as f:
-        print(f"words ==> {f.readlines()}")
-
-    words0_xml = f"{Path(Resources.TEMP_DIR, 'words0.xml')}"
-    print(f" s1 {sys.argv}")
-    # sys.argv = ['/Applications/PyCharm CE.app/Contents/plugins/python-ce/helpers/pycharm/_jb_pytest_runner.py', 'ami_dict.py::test_process_args', "--words", f"{words0_txt}", "--dict", f"{words0_xml}", "--validate", "--wikidata", "label"]
-    # print(f" s2 {sys.argv}")
-    argv = ["dummy_prog_name", "--words", f"{words0_txt}", "--dict", f"{words0_xml}", "--validate", "--wikidata",
-            "label"]
-    print(f" s2 {argv}")
-    main(argv=argv)
+# def test_process_args_build_dictionary():
+#     words0_txt = f"{Path(Resources.TEST_RESOURCES_DIR, 'words0.txt')}"
+#     print(f"words {words0_txt}")
+#     with open(words0_txt, "r") as f:
+#         print(f"words ==> {f.readlines()}")
+#
+#     words0_xml = f"{Path(Resources.TEMP_DIR, 'words0.xml')}"
+#     print(f" s1 {sys.argv}")
+#     # sys.argv = ['/Applications/PyCharm CE.app/Contents/plugins/python-ce/helpers/pycharm/_jb_pytest_runner.py', 'ami_dict.py::test_process_args', "--words", f"{words0_txt}", "--dict", f"{words0_xml}", "--validate", "--wikidata", "label"]
+#     # print(f" s2 {sys.argv}")
+#     argv = ["dummy_prog_name", "--words", f"{words0_txt}", "--dict", f"{words0_xml}", "--validate", "--wikidata",
+#             "label"]
+#     print(f" s2 {argv}")
+#     main(argv=argv)
 
 
 if __name__ == "__main__":

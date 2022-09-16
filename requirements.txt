@@ -13,7 +13,6 @@ SPARQLWrapper==1.8.5
 tkinterhtml==0.7
 tkinterweb==3.5.0
 
-py4ami~=0.0.16
 future~=0.18.2
 pdfplumber~=0.7.1
 requests~=2.27.1

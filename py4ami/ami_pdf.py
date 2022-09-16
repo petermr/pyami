@@ -535,14 +535,16 @@ class AmiPage:
         with pdfplumber.open(input_pdf) as pdf:
             page_count = len(pdf.pages)
         for page_no in range(page_count):
+            print(f"testing page {page_no}")
         # for page_no in page_nos:
             if not Util.range_list_contains_int(page_no, range_list):
                 continue
+            print(f"accept page {page_no}")
             html = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
             output_html = Path(output_dir, f"{output_stem}_{page_no}.html")
             with open(output_html, "wb") as f:
                 f.write(lxml.etree.tostring(html))
-                # print(f" wrote html {output_html}")
+                print(f" wrote html {output_html}")
                 # assert output_html.exists()
 
 
@@ -832,12 +834,13 @@ class PDFArgs(AbstractArgs):
 
         if self.pdf2html:
             self.check_output()
+            range_list = self.create_range_list()
             AmiPage.create_html_pages(
                           bbox=AmiPage.DEFAULT_BBOX,
                           input_pdf=self.inpath,
                           output_dir=self.outdir,
                           output_stem=self.outstem,
-                          range_list=range(1, 9999999)
+                          range_list=range_list
             )
 
         # self.convert_write()
@@ -1159,6 +1162,16 @@ class PDFArgs(AbstractArgs):
     def module_stem(self):
         """name of module"""
         return Path(__file__).stem
+
+    def create_range_list(self):
+        """makes list of ranges from pairs on numbers"""
+        range_list = range(1,999)
+        if type(self.pages) is list:
+            range_list = []
+            ll = list(map(int, self.pages))
+            for i in range(0, len(ll), 2):
+                range_list.append(ll[i:i + 2])
+        return range_list
 
 
 class PDFDebug:

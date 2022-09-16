@@ -47,8 +47,9 @@ class SymbolIni:
 
         self.pyami_home = os.getenv(self.PYAMI_HOME)  # "/Users/pm286/pyami/"
         if not self.pyami_home:
-            self.logger.fatal(f" environment variable $PYAMI_HOME must be set")
-            sys.exit(1)
+            # use `py4ami` to get bundled `config.ini`
+            self.pyami_home = Path(__file__).parent
+            self.logger.warning(f" environment variable $PYAMI_HOME not set, defaulting to bundled config.ini in {self.pyami_home}")
         if not os.path.exists(self.pyami_home) or not os.path.isdir(self.pyami_home):
             self.logger.fatal(f" $PYAMI_HOME {self.pyami_home} must be a directory")
             sys.exit(1)

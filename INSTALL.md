@@ -15,28 +15,14 @@ See https://pypi.org/project/py4ami/
 # ====================================
 
 ## quick instructions for experienced users
-EDIT VERSION NUMBER
-```cd pyami
-rm -rf dist
-# edit version number in setup.py
-```
-
-
-
-
-## repeat instructions (ONLY if you've done this before)  ============
 ```
 cd pyami
 rm -rf dist
-```
-# <EDIT VERSION in setup.py>
-# buildoutcfg
-
-```
+# EDIT VERSION NUMBER IN setup.py (or it clashes)
 python setup.py sdist
-
-twine upload dist/*
-# <login is pypi, not github>
+twine upload dist/* # <login is pypi, not github>
+pip uninstall py4ami
+pip install py4ami
 ```
 
 ## for new developers =============

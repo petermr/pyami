@@ -166,11 +166,14 @@ class PyAMI:
         def run_project():
             print(f"run project {self.args}")
 
+        version = self.version()
         parser = argparse.ArgumentParser(
-            description='Search sections with dictionaries and patterns')
+            description=f'Search sections with dictionaries and patterns V{version}')
         # apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
         apply_choices = ConvType.list_values()
         self.logger.debug(f"ch {apply_choices}")
+        parser.add_argument('--version', action="store_true",
+                            help=f"show version {version}")
         parser.add_argument('--apply', nargs="+",
                             #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
                             choices=apply_choices,
@@ -1106,6 +1109,18 @@ class PyAMI:
         except Exception:
             return False
 
+    def version(self):
+        """reads setup.py and extracts line of form version='0.0.29'"""
+        version = None
+        with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
+            setup_lines = f.readlines()
+            for line in setup_lines:
+                match = re.match("\s*version\s*=\s*\'\s*(\d+\.\d+\.\d+)\s*\'\s*,", line)
+                if match:
+                    version = match.group(1)
+                    break
+        print(f"VERSION {version}")
+        return version
 
 
 class ContentStore:
