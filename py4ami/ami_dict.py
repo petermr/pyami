@@ -212,6 +212,8 @@ class AmiEntry:
             self.validate_wikidata_id(value)
 
     def validate_wikidata_id(self, value):
+        if not value:
+            return None
         mm = re.match("(Q|P)\d{1,11}", value)
         if not mm:
             logging.warning(f"{WIKIDATA_ID} bad value: {value}")
