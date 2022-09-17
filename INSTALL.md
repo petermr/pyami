@@ -23,6 +23,9 @@ python setup.py sdist
 twine upload dist/* # <login is pypi, not github>
 pip uninstall py4ami
 pip install py4ami
+YES WE HAVE TO DO THIS TWICE TO FLUSH OUT THE OLD VERSION
+pip uninstall py4ami
+pip install py4ami
 ```
 
 ## for new developers =============

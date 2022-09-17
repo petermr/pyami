@@ -178,15 +178,15 @@ class AmiEntry:
         self.check_valid_children()
 
     def check_valid_attributes(self):
-        attributes = list(self.element.attrib)
-        assert attributes is not None
+        attribute_names = list(self.element.attrib)
+        assert attribute_names is not None
         # assert str(attributes) == "['name']", f"attributes {attributes}"
         # assert len(attributes) == 2, f" ATTS {attributes}"
-        for attribut in attributes:
+        for attribute_name in attribute_names:
             # msg = f"ATT {attribut}"
-            assert type(attribut) is str
-            assert attribut in AmiEntry.ALLOWED_ATTS, f"attribute {attribut} is not allowed in <entry>"
-            self.validate_attribute(AmiEntry.WIKIDATA_A)
+            assert type(attribute_name) is str
+            assert attribute_name in AmiEntry.ALLOWED_ATTS, f"attribute {attribute_name} is not allowed in <entry>"
+            self.validate_attribute(WIKIDATA_ID)
 
     def check_valid_children(self):
         if False:
@@ -208,6 +208,8 @@ class AmiEntry:
             logger.warning(f"attribute name is None")
             return
         value = self.element.attrib.get(att_name)
+        if not value:
+            logging.error(f"Attribute {att_name} cannot have null value")
         if att_name == WIKIDATA_ID:
             self.validate_wikidata_id(value)
 

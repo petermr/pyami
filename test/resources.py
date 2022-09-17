@@ -27,12 +27,24 @@ class Resources:
 
     # ipcc and html
     IPCC_DIR = Path(TEST_RESOURCES_DIR, "ipcc")
+    IPCC_CHAP02 = Path(IPCC_DIR, "Chapter02")
+    assert IPCC_CHAP02.exists()
+    IPCC_CHAP02_DICT = Path(IPCC_CHAP02, "dict")
+    assert IPCC_CHAP02_DICT.exists()
     IPCC_CHAP04 = Path(IPCC_DIR, "Chapter04")
     assert IPCC_CHAP04.exists()
     IPCC_CHAP06 = Path(IPCC_DIR, "Chapter06")
     assert IPCC_CHAP06.exists()
+    IPCC_CHAP07 = Path(IPCC_DIR, "Chapter07")
+    assert IPCC_CHAP07.exists()
+    IPCC_CHAP07_DICT = Path(IPCC_CHAP07, "dict")
+    assert IPCC_CHAP07_DICT.exists()
+    IPCC_CHAP08 = Path(IPCC_DIR, "Chapter08")
+    assert IPCC_CHAP08.exists()
+    IPCC_CHAP08_DICT = Path(IPCC_CHAP08, "dict")
+    assert IPCC_CHAP08_DICT.exists()
 
-    #pdfs
+    # pdfs
     PDFS_DIR = Path(TEST_RESOURCES_DIR, "pdfs")
     assert PDFS_DIR.exists()
     TEMP_PDFS_DIR = Path(TEMP_DIR, "pdfs")

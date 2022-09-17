@@ -360,7 +360,6 @@ class AbstractArgs(ABC):
             else:
                 self.arg_dict[key] = item[1]
 
-        print(f"ARG_DICT {self.arg_dict}")
         return self.arg_dict
 
     def parse_and_process(self):
@@ -389,7 +388,6 @@ class AbstractArgs(ABC):
     def parse_and_process1(self, argv_):
         self.parsed_args = argv_ if self.parser is None else self.parser.parse_args(argv_)
         self.arg_dict = self.create_arg_dict()
-        print(f"ARG_DICT {self.arg_dict}")
         self.process_args()
 
     @property

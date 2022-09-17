@@ -835,7 +835,9 @@ class TestSearchDictionary:
 
         AmiDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-
+    def test_merge_dicts_ipcc(self):
+        """test merge dictionaries from IPCC (heavy commonality)"""
+        C
 
 def main(argv=None):
     print(f"running PDFArgs main")
