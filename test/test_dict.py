@@ -835,9 +835,58 @@ class TestSearchDictionary:
 
         AmiDictionary.apply_dicts_and_sparql(dictionary_file, rename_file, sparql2amidict_dict, sparql_files)
 
-    def test_merge_dicts_ipcc(self):
+    def test_merge_dicts_ipcc_same_chap(self):
         """test merge dictionaries from IPCC (heavy commonality)"""
-        C
+        abb2_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP02_DICT, "ip_3_2_emissions_abb.xml"))
+        abb2_set = abb2_dict.get_or_create_term_set()
+        assert abb2_set == {
+ 'BECCS', 'CBEs', 'CDR', 'CRF', 'CSP',
+ 'EBEs', 'ECR', 'EET', 'ETSs',
+ 'EU ETS', 'EVs', 'F-gases', 'FAQs',
+ 'FFI', 'GDP', 'GHG', 'GTP',
+ 'GWP', 'GWP100', 'HCEs', 'HCFCs',
+ 'HCS', 'HDI', 'HFCs', 'IAMs',
+ 'IBE', 'LULUCF', 'NGHGI', 'ODSs',
+ 'PBEs', 'PFCs', 'RGGI', 'RSD',
+ 'TCBA', 'UNFCCC', 'WMO'
+                            } , f"abb2 set {abb2_set}"
+
+        man2_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP02_DICT, "ip_3_2_emissions_man.xml"))
+        man2_set = man2_dict.get_or_create_term_set()
+        assert man2_set == {
+ 'CAIT', 'CEDS', 'CGTP', 'CO2-equivalent emission',
+ 'CRF', 'EDGAR', 'FAOSTAT', 'FFI', 'FOLU', 'Final Energy Demand', 'GTP', 'GWP',
+ 'GWP100', 'GtCO2eq', 'LULUCF', 'NMVOC',
+ 'PRIMAP', 'Paris Agreement', 'Primary Energy', 'Primary Energy Conversion',
+ 'SLCF', 'SRES', 'SSP', 'UNFCCC', 'WMO',
+ 'atmospheric lifetime', 'baseline scenario',
+ 'carbon budget', 'carbon pricing',
+ 'cumulative CO2 emissions', 'demand side solutions',
+ 'emission inventory', 'emission sectors',
+ 'emissions factor', 'emissions trajectory',
+ 'fluorinated gas', 'social discount rate',
+ 'top down atmospheric measurement'
+        }, f"man2 set {man2_set}"
+
+        # phrases
+        phr2_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP02_DICT, "ip_3_2_emissions_phr.xml"))
+        phr2_set = phr2_dict.get_or_create_term_set()
+        assert phr2_set == {
+'BECCS', 'CBEs', 'CDR', 'CRF', 'CSP', 'EBEs', 'ECR', 'EET',
+ 'ETSs', 'EU ETS', 'EVs', 'F-gases',
+ 'FAQs', 'FFI', 'GDP', 'GHG', 'GTP', 'GWP', 'GWP-100', 'GWP100',
+ 'HCEs', 'HCFCs', 'HCS', 'HDI', 'HFCs', 'IAMs', 'IBE', 'LULUCF',
+ 'NGHGI', 'ODSs', 'PBEs', 'PFCs', 'RGGI', 'RSD', 'TCBA', 'UNFCCC', 'WMO'
+}
+
+# terms common to abbrev and manual
+        abb_man_set = abb2_set.intersection(man2_set)
+        assert len(abb_man_set) == 8, f"man2 set {len(abb_man_set)}"
+        assert abb_man_set == {
+            'GTP', 'FFI', 'GWP', 'UNFCCC', 'WMO', 'GWP100', 'CRF', 'LULUCF'}
+
+
+
 
 def main(argv=None):
     print(f"running PDFArgs main")
