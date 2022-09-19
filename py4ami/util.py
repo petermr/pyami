@@ -377,15 +377,18 @@ class AbstractArgs(ABC):
         while len(sys.argv) > 0 and self.module_stem not in str(sys.argv[0]):
             sys.argv = sys.argv[1:]
         self.add_arguments()
+        logger.warning(f"AbstractArgs ADDED ARGS")
         # print(f"argv {sys.argv}")
         if len(sys.argv) == 1:  # no args, print help
             self.parser.print_help()
         else:
+            logging.warning()
             argv_ = sys.argv[1:]
             print(f"argv: {argv_}")
             self.parse_and_process1(argv_)
 
     def parse_and_process1(self, argv_):
+        logging.warning(f"********** args for parse_and_process1 {argv_}")
         self.parsed_args = argv_ if self.parser is None else self.parser.parse_args(argv_)
         self.arg_dict = self.create_arg_dict()
         self.process_args()

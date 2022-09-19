@@ -530,7 +530,7 @@ class AmiPage:
         if not input_pdf or not Path(input_pdf).exists():
             logging.logger.error(f"must have not-null, existing pdf {input_pdf} ")
 
-        if not output_dir.exists():
+        if not Path(output_dir).exists():
             output_dir.mkdir()
         with pdfplumber.open(input_pdf) as pdf:
             page_count = len(pdf.pages)
@@ -859,12 +859,16 @@ class PDFArgs(AbstractArgs):
         print(f" check_output {self.arg_dict}")
         self.arg_dict[OUTSTEM] = Path(f"{self.inpath}").stem
         self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
+        if not self.outdir:
+            self.outdir = self.arg_dict[OUTDIR]
 
         if not self.outpath:
             self.outpath = self.arg_dict.get(OUTPATH)
-        if self.outpath:
-            self.outdir = Path(self.outpath).parent
-        elif not self.outdir:
+        # if no outdir , create from outpath
+        if not self.outdir:
+            if self.outpath:
+                self.outdir = Path(self.outpath).parent
+        if not self.outdir:
             if self.inpath:
                 self.outdir = Path(self.inpath).parent
             else:
