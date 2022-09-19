@@ -980,6 +980,18 @@ LTPage
         except SystemExit:
             pass
 
+    def test_subcommands(self):
+        # args = ['PDF', '--help']
+        # pyamix = PyAMI()
+        # pyamix.run_command(args)
+        #
+        inpath = Path(Resources.PDFS_DIR, "1758-2946-3-38.pdf")
+        outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-38")
+        # args = ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', 3, 6]
+        args = ['PDF', '--inpath', str(inpath), '--outdir', str(outdir)]
+        pyamix = PyAMI()
+        pyamix.run_command(args)
+
 
     # =====================================================================================================
     # =====================================================================================================

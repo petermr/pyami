@@ -279,7 +279,7 @@ class PyAMI:
             args =  args.strip()
             args = args.split(" ")
 
-        self.logger.debug(f"********** raw arglist {args}")
+        self.logger.warning(f"********** raw arglist {args}")
         self.parse_and_run_args(args)
         if self.is_flag_true(self.PRINT_SYMBOLS):
             self.symbol_ini.print_symbols()
@@ -301,7 +301,7 @@ class PyAMI:
         self.substitute_args()
         self.logger.debug(f"self.args {self.args}")
         self.add_single_str_to_list()
-        self.logger.debug("ARGS after substitution: " + str(self.args))
+        self.logger.warning("ARGS after substitution: " + str(self.args))
         self.set_loglevel_from_args()
         self.run_arguments()
 
@@ -471,7 +471,7 @@ class PyAMI:
             if str(parsed_args).startswith(self.SYSTEM_EXIT_FAIL):
                 raise ValueError(f"bad command arguments {parsed_args} (see log output)")
 
-            self.logger.debug(f"PARSED_ARGS {parsed_args}")
+            self.logger.warning(f"PARSED_ARGS {parsed_args}")
             arg_vars = vars(parsed_args)
             for item in arg_vars.items():
                 new_item = self.make_substitutions(item)
@@ -1188,7 +1188,7 @@ def main():
     pyamix = PyAMI()
     # this needs commandline
     if run_commands:
-        # print(f"main(): {sys.argv}")
+#        logging.warning(f"main(): {sys.argv}")
         pyamix.run_command(sys.argv[1:])
     if run_tests:
         pyamix.run_tests()

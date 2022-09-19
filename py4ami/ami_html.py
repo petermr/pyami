@@ -71,8 +71,6 @@ OUTDIR = "outdir"
 OUTPATH = "outpath"
 
 
-
-
 class AmiSpan:
     def __init__(self):
         self.text_style = None
@@ -132,7 +130,9 @@ class HtmlUtil:
         new_elems = [None, None, None]
         if match:
             parent = elemx.getparent()
-            assert len(match.groups()) == 3  # some may be empty strings
+            if len(match.groups()) != 3:  # some may be empty strings
+                logging.warning(f"Cannot match {textx} against {regex}")
+                return new_elems, id_counter
             group1 = match.group(1)
             if group1 != "":  # don't add empty string
                 elemx = HtmlUtil.add_sibling_after(elemx, new_tags[0], replace=True, copy_atts=copy_atts,
@@ -363,7 +363,7 @@ class HtmlTree:
                 if HtmlUtil.MARKER in child_div.attrib:
                     marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ",
                                                                                "_").lower()  # name from text content
-                    marker.replace(":", "") # BUG, extend this to all punctuation
+                    marker.replace(":", "")  # BUG, extend this to all punctuation
                     path = Path(output_dir, f"{marker}.html")
                     with open(path, "wb") as f:
                         f.write(lxml.etree.tostring(child_div, pretty_print=True))
@@ -485,7 +485,6 @@ class HTMLArgs(AbstractArgs):
         self.outdir = None
         self.arg_dict = None
 
-
     def add_arguments(self):
         if self.parser is None:
             self.parser = argparse.ArgumentParser()
@@ -529,7 +528,6 @@ class HTMLArgs(AbstractArgs):
         self.outdir = self.arg_dict.get(OUTDIR)
         self.outpath = self.arg_dict.get(OUTPATH)
 
-
         if self.annotate:
             self.annotate_with_dict()
 
@@ -542,7 +540,6 @@ class HTMLArgs(AbstractArgs):
         arg_dict[DICT] = None
         return arg_dict
 
-
     @property
     def module_stem(self):
         """name of module"""
@@ -550,7 +547,7 @@ class HTMLArgs(AbstractArgs):
 
     def annotate_with_dict(self):
         """uses dictionary to annotate words and phrases in HTML file"""
-        from py4ami.ami_dict import AmiDictionary # horrible
+        from py4ami.ami_dict import AmiDictionary  # horrible
 
         if not self.dictfile:
             logging.error(f"no dictionary given")
@@ -570,8 +567,6 @@ class HTMLArgs(AbstractArgs):
 
         self.ami_dict = AmiDictionary.create_from_xml_file(self.dictfile)
         self.ami_dict.markup_html_from_dictionary(self.inpath, self.outpath, self.color)
-
-
 
 
 class CSSStyle:

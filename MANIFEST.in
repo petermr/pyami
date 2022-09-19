@@ -1,7 +1,7 @@
 include LICENSE
 graft py4ami/resources
 include config.ini.master
-include config.ini
+include py4ami/config.ini
 include py4ami/pyami.ini
 include CONFIG.md
 include requirements.txt
