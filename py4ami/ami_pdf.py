@@ -5,6 +5,7 @@ import logging
 import os.path
 import re
 import statistics
+import sys
 import traceback
 from io import BytesIO, StringIO
 from pathlib import Path
@@ -478,7 +479,7 @@ class AmiPage:
         for ch in pdf_page.chars[:maxchars]:
             col = ch.get('non_stroking_color')
             if col:
-                print(f"txt {ch.get('text')} : col {col}")
+                logging.debug(f"txt {ch.get('text')} : col {col}")
         # print(f"HTML {html}")
         return html
 
@@ -534,12 +535,12 @@ class AmiPage:
             output_dir.mkdir()
         with pdfplumber.open(input_pdf) as pdf:
             page_count = len(pdf.pages)
-        for page_no in range(page_count):
-            print(f"testing page {page_no}")
+        for page_no in range(page_count):  # 1-based page_no
+            logging.debug(f"testing page {page_no}")
         # for page_no in page_nos:
-            if not Util.range_list_contains_int(page_no, range_list):
+            if not Util.range_list_contains_int(page_no + 1, range_list):
                 continue
-            print(f"accept page {page_no}")
+            logging.debug(f"accept page {page_no}")
             html = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
             output_html = Path(output_dir, f"{output_stem}_{page_no}.html")
             with open(output_html, "wb") as f:
@@ -778,13 +779,13 @@ class PDFArgs(AbstractArgs):
         """
         if self.parser is None:
             self.parser = argparse.ArgumentParser()
-        self.parser.description='PDF parsing. (still evolving) allows for various inputs and outputs and may become a parent parser. Currently either use ' \
+        self.parser.description='PDF parsing. (still evolving) allows for various inputs and outputs. Currently either use ' \
                                 'a) inpath and outpath' \
-                                'b) inpath and outdir/outstem/outform (especially where splitting to pages)' \
+                                'b) inpath and outdir/outstem/outform (especially where splitting PDF to pages)' \
                                 'c)'
         # self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
         self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
-        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML (heuristics)", default=True)
+        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML, e.g. join l;ines, pages (heuristics)", default=True)
         self.parser.add_argument("--footer", type=float, nargs=1, help="top margin (clip everythimg above)", default=80)
         self.parser.add_argument("--header", type=float, nargs=1, help="bottom margin (clip everything below", default=80)
         self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
@@ -802,7 +803,7 @@ class PDFArgs(AbstractArgs):
         self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
 
         self.parser.add_argument("--pdf2html", type=str, choices=['pdfminer', 'pdfplumber'], help="convert PDF to html", default='pdfminer')
-        self.parser.add_argument("--pages", type=int, nargs="+", help="(reads [3,5,9,12] -> 3-5 exclusive, 9-12 exclusive", default=all)
+        self.parser.add_argument("--pages", type=str, nargs="+", help="reads '_2 4_6 8 11_' as 1-2, 4-6, 8, 11-end ; all ranges inclusive (not yet debugged)", default=all)
         self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)", default=400)
         self.parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
         return self.parser
@@ -834,13 +835,13 @@ class PDFArgs(AbstractArgs):
 
         if self.pdf2html:
             self.check_output()
-            range_list = self.create_range_list()
+            # range_list = self.create_range_list()
             AmiPage.create_html_pages(
                           bbox=AmiPage.DEFAULT_BBOX,
                           input_pdf=self.inpath,
                           output_dir=self.outdir,
                           output_stem=self.outstem,
-                          range_list=range_list
+                          range_list=self.pages
             )
 
         # self.convert_write()
@@ -856,7 +857,7 @@ class PDFArgs(AbstractArgs):
         return True
 
     def check_output(self):
-        print(f" check_output {self.arg_dict}")
+        logging.debug(f" check_output {self.arg_dict}")
         self.arg_dict[OUTSTEM] = Path(f"{self.inpath}").stem
         self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
         if not self.outdir:
@@ -879,15 +880,15 @@ class PDFArgs(AbstractArgs):
             if not self.outform:
                 raise FileNotFoundError(f"no output format given")
             self.outpath = Path(self.outdir, f"{self.outstem}.{self.outform}")
-            print(f"outpath {self.outpath}")
+            logging.debug(f"outpath {self.outpath}")
         else:
-            print(f"outdir {self.outdir}")
+            logging.debug(f"outdir {self.outdir}")
         if not Path(self.outdir).exists():
             Path(self.outdir).mkdir()
         elif not Path(self.outdir).is_dir():
             raise ValueError(f"output dir {self.outdir} is not a directory")
         else:
-            print(f"output dir {self.outdir}")
+            logging.debug(f"output dir {self.outdir}")
         return True
 
     def read_arg_dict(self):
@@ -912,7 +913,7 @@ class PDFArgs(AbstractArgs):
         self.outpath = self.arg_dict.get(OUTPATH)
         self.outstem = self.arg_dict.get(OUTSTEM)
 
-        self.pages = self.arg_dict.get(PAGES)
+        self.pages = PDFArgs.make_page_ranges(self.arg_dict.get(PAGES))
 
         self.pdf2html = self.arg_dict.get(PDF2HTML)
 
@@ -1167,15 +1168,44 @@ class PDFArgs(AbstractArgs):
         """name of module"""
         return Path(__file__).stem
 
-    def create_range_list(self):
-        """makes list of ranges from pairs on numbers"""
-        range_list = range(1,999)
-        if type(self.pages) is list:
-            range_list = []
-            ll = list(map(int, self.pages))
-            for i in range(0, len(ll), 2):
-                range_list.append(ll[i:i + 2])
-        return range_list
+    # def create_range_list(self):
+    #     """makes list of ranges from pairs on numbers"""
+    #     range_list = range(1,999)
+    #     if type(self.pages) is list:
+    #         range_list = []
+    #         ll = list(map(int, self.pages))
+    #         for i in range(0, len(ll), 2):
+    #             range_list.append(ll[i:i + 2])
+    #     return range_list
+
+    @classmethod
+    def make_page_ranges(cls, raw_pages):
+        """expand pages arg to list of ranges
+        typical input _2 4_5 8 9_11 13 16_
+        These are *inclusive* so expand to
+        range(1,3) range(4,6) range(8,9) range (9,12) range(13,14) range(16-maxint)
+        converts raw_pages to page ranges
+        uses 1-based pages
+        """
+        ranges = []
+        if raw_pages:
+            for chunk in raw_pages:
+                if not chunk == "":
+                    chunk0 = chunk
+                    try:
+                        if chunk.startswith("_"):  # prepend 1
+                            chunk = f"{1}{chunk}"
+                        if chunk.endswith("_"):  # append Maxint
+                            chunk = f"{chunk}{sys.maxsize}"
+                        if not "_" in chunk: # expand n to n_n (inclusive)
+                            chunk = f"{chunk}_{chunk}"
+                        ints = chunk.split("_")
+                        logging.debug(f"ints {ints}")
+                        rangex = range(int(ints[0]), (int(ints[1]) + 1))  # convert to upper-exclusive
+                        ranges.append(rangex)
+                    except Exception as e:
+                        raise ValueError(f"Cannot parse {chunk0} as int range {e}")
+        return ranges
 
 
 class PDFDebug:
