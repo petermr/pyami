@@ -1,3 +1,4 @@
+import os
 import shutil
 import sys
 import unittest
@@ -182,10 +183,51 @@ class TestCProjTree(unittest.TestCase):
         self.assert_exists(cproject.dirx, ['1758_2946_3_38', '1758_2946_3_44', '1758_2946_4_15'])
         self.clean_directories(src, dst)
         cproject.make_cproject_from_pdfs(max_ctree_len=11)
-        self.assert_exists(cproject.dirx, ['1758_2946_3', '1758_2946_3_1', '1758_2946_4'])
+        self.assert_exists(cproject.dirx, ['1758_2946_3', '1758_2946_4'])
         self.clean_directories(src, dst)
         cproject.make_cproject_from_pdfs(max_ctree_len=9)
-        self.assert_exists(cproject.dirx, ['1758_2946', '1758_2946_1', '1758_2946_2'])
+        self.assert_exists(cproject.dirx, ['1758_2946', '1758_2946', '1758_2946'])
+
+    def test_make_cproject_from_pdf_list(self):
+        """makes a CProject from pdf files
+        shows the adjustment of filenames to be unique"""
+        assert Resources.PDFS_DIR.exists()
+        dst = Resources.TEMP_PDFS_DIR
+        src = Resources.PDFS_DIR
+        self.clean_directories(src, dst)
+        cproject = CProject(Resources.TEMP_PDFS_DIR)
+        # names are short enough and uniue
+        self.clean_directories(src, dst)
+        filesx = [
+            '1758-2946-3-38.pdf',
+            '1758-2946-4-15.pdf'
+        ]
+        cproject.make_cproject_from_pdfs(files=filesx)
+        self.assert_exists(cproject.dirx, ['1758_2946_3_38', '1758_2946_4_15'])
+        print(f"src {src} dst {dst}")
+
+
+    def test_make_cproject_from_pdf_list_cmd(self):
+        """makes a CProject from pdf files commandline
+        shows the adjustment of filenames to be unique"""
+        assert Resources.PDFS_DIR.exists()
+        dst = Resources.TEMP_PDFS_DIR
+        src = Resources.PDFS_DIR
+        cproject = CProject(dirx=Resources.TEMP_PDFS_DIR)
+        self.clean_directories(None, dst)
+
+        dirstr = str(cproject.dirx)
+        print(f"dirstr: {dirstr}")
+        Util.copy_file('1758-2946-3-38.pdf', src, dst)
+        Util.copy_file('1758-2946-4-15.pdf', src, dst)
+
+        PyAMI().run_command(
+            ['PROJECT', '--project', dirstr, '--make', '--file', '1758-2946-3-38.pdf', '1758-2946-4-15.pdf'])
+        ctree_3_38_dir = Path(Resources.TEMP_PDFS_DIR, "1758_2946_3_38")
+        assert ctree_3_38_dir.exists(), f"dir should exist {ctree_3_38_dir}"
+        file_3_38 = Path(ctree_3_38_dir, 'fulltext.pdf')
+        assert file_3_38.exists(), f"file should exist {file_3_38}"
+        print(f"PDFS dir {Resources.TEMP_PDFS_DIR}")
 
     @unittest.skip("VERY LONG, DOWNLOADS")
     def test_make_cproject_from_webpage(self):
@@ -222,10 +264,18 @@ class TestCProjTree(unittest.TestCase):
     # ================================
     @classmethod
     def clean_directories(cls, src, dst):
+        """
+        cleans destination directad copies new files
+        if src is None, cleans dst and leaves it empty
+        :param src: directory with files to copy
+        :param dst: destination directory complete copy of src
+        """
         if dst.exists():
             shutil.rmtree(dst)
-            # Util.delete_directory_contents(Resources.TEMP_PDFS_DIR)
-        Util.copyanything(src, dst)
+        if src:
+            Util.copyanything(src, dst)
+        elif not dst.exists():
+            os.mkdir(dst)
 
     @classmethod
     def assert_exists(cls, cproj_dir, file_list):

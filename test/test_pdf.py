@@ -981,15 +981,17 @@ LTPage
             pass
 
     def test_subcommands(self):
-        # args = ['PDF', '--help']
-        # pyamix = PyAMI()
-        # pyamix.run_command(args)
-        #
+        # run args
         inpath = Path(Resources.PDFS_DIR, "1758-2946-3-44.pdf")
         outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-44")
-        args = ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_']
-        pyamix = PyAMI()
-        pyamix.run_command(args)
+        PyAMI().run_command(
+            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
+
+    def test_cannot_iterate(self):
+        PyAMI().run_command(
+            ['PDF'])
+        PyAMI().run_command(
+            ['PDF', '--help'])
 
 
     # =====================================================================================================

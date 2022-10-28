@@ -376,7 +376,7 @@ class AmiTree:
         return path_list
 
     def recursive_display(self, dirx, parent_id, tree):
-        childfiles = [f.path for f in os.scandir(dirx) if os.path.isdir(dirx) and not dirx.startswith(".")]
+        childfiles = [f.path for f in os.scandir(dirx) if os.path.isdir(dirx) and not dirx.startswith(".") and not dirx==""]
         sorted_child_files = AmiTree.sorted_alphanumeric(childfiles)
         for f in sorted_child_files:
             filename = AmiTree.path_leaf(f)

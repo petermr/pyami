@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from py4ami.ami_dict import AmiDictionary, AmiDictArgs
 from py4ami.ami_convert import ConvType, Converters
 from py4ami.ami_sections import AMIAbsSection
+from py4ami.ami_gui import GUIArgs
 from py4ami.ami_html import HTMLArgs
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
@@ -28,6 +29,8 @@ from py4ami.util import AmiLogger, Util
 from py4ami.wikimedia import WikidataLookup
 from py4ami.xml_lib import XmlLib
 
+class SubParser(Enum):
+    DICT = "DICT"
 
 class PyAMI:
     """ main entry point for running pyami
@@ -80,6 +83,7 @@ class PyAMI:
     # symbols to update table
     SPECIAL_SYMBOLS = ["_proj"]
     LOGLEVEL = "loglevel"
+    PY4AMI = "py4ami"
 
 # parsers
     DICT_PARSER = "DICT"
@@ -167,6 +171,8 @@ class PyAMI:
             print(f"run project {self.args}")
 
         version = self.version()
+        if not sys.argv or len(sys.argv) == 0:
+            sys.argv = [PyAMI.PY4AMI]
         parser = argparse.ArgumentParser(
             description=f'Search sections with dictionaries and patterns V{version}')
         # apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
@@ -234,6 +240,7 @@ class PyAMI:
         subparsers = parser.add_subparsers(help='subcommands', dest="command")
 
         dict_parser = AmiDictArgs().make_sub_parser(subparsers)
+        gui_parser = GUIArgs().make_sub_parser(subparsers)
         html_parser = HTMLArgs().make_sub_parser(subparsers)
         pdf_parser = PDFArgs().make_sub_parser(subparsers)
         project_parser = ProjectArgs().make_sub_parser(subparsers)
@@ -280,9 +287,20 @@ class PyAMI:
             args = args.split(" ")
 
         self.logger.warning(f"********** raw arglist {args}")
-        self.parse_and_run_args(args)
-        if self.is_flag_true(self.PRINT_SYMBOLS):
-            self.symbol_ini.print_symbols()
+        test_catch = False
+        if test_catch: # try to trap exception
+            try:
+                self.parse_and_run_args(args)
+            except Exception as e:
+                print(f"ERROR {e.args} from {args}")
+                logging.error(f"\n============PARSE ERROR==({e.__cause__})======\n")
+                return
+            if self.is_flag_true(self.PRINT_SYMBOLS):
+                self.symbol_ini.print_symbols()
+        else:
+            self.parse_and_run_args(args)
+
+        return
 
     def parse_and_run_args(self, arglist):
         """runs cmds and makes substitutions (${...} then runs workflow
@@ -354,6 +372,8 @@ class PyAMI:
             abstract_args = None
         elif subparser_type == "DICT":
             abstract_args = AmiDictArgs()
+        elif subparser_type == "GUI":
+            abstract_args = GUIArgs()
         elif subparser_type == "HTML":
             abstract_args = HTMLArgs()
         elif subparser_type == "PDF":

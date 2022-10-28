@@ -167,7 +167,17 @@ class Util:
             if exc.errno in (errno.ENOTDIR, errno.EINVAL):
                 shutil.copy(src, dst)
             else:
-                raise
+                raise exc
+
+    @classmethod
+    def copy_file(cls, file, src, dst):
+        """
+        :param file: filename in src dir
+        :param src: source directory
+        :oaram dst: destinatiom diecrtory
+        """
+        Util.copyanything(Path(src, file), Path(dst, file))
+
 
     @classmethod
     def delete_directory_contents(cls, dirx):
@@ -377,12 +387,12 @@ class AbstractArgs(ABC):
         while len(sys.argv) > 0 and self.module_stem not in str(sys.argv[0]):
             sys.argv = sys.argv[1:]
         self.add_arguments()
-        logger.warning(f"AbstractArgs ADDED ARGS")
+        logger.warning(f"AbstractArgs ADDED ARGS {sys.argv}")
         # print(f"argv {sys.argv}")
         if len(sys.argv) == 1:  # no args, print help
             self.parser.print_help()
         else:
-            logging.warning()
+            logging.warning(f"sys.argv {sys.argv}")
             argv_ = sys.argv[1:]
             print(f"argv: {argv_}")
             self.parse_and_process1(argv_)
@@ -390,6 +400,7 @@ class AbstractArgs(ABC):
     def parse_and_process1(self, argv_):
         logging.warning(f"********** args for parse_and_process1 {argv_}")
         self.parsed_args = argv_ if self.parser is None else self.parser.parse_args(argv_)
+#        logging.warning(f"ARG DICTYY {self.arg_dict}")
         self.arg_dict = self.create_arg_dict()
         self.process_args()
 

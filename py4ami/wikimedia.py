@@ -97,12 +97,18 @@ class WikidataLookup:
         qitem = None  # to avoid UnboundLocalError
         if ul is not None:
             self.wikidata_dict = self.create_dict_for_all_possible_wd_matches(ul)
+            if len(self.wikidata_dict) == 0:
+                assert False, f"no wikidata hits for {term}"
             sort_orders = sorted(self.wikidata_dict.items(), key=lambda item: int(item[1][STATEMENTS]), reverse=True)
-            wikidata_hits = [s[0] for s in sort_orders[:5]]
-            #            pprint.pprint(sort_orders[0:3])
-            #  take the first
-            qitem = sort_orders[0]
-            # TODO fix non-tuples
+            if sort_orders:
+                wikidata_hits = [s[0] for s in sort_orders[:5]]
+                #            pprint.pprint(sort_orders[0:3])
+                #  take the first
+                qitem = sort_orders[0]
+            else:
+                print(f"no wikidata hits for {term}")
+
+                # TODO fix non-tuples
         if qitem is None:
             return None, None, None
         else:
@@ -129,6 +135,12 @@ class WikidataLookup:
         wikidata_dict = {}
         for li in ul:
             result_heading_a = li.find("./div[@class='" + MW_SEARCH_RESULT_HEADING + "']/a")
+            if result_heading_a is None:
+                print(f"no result_heading_a in {lxml.etree.tostring(li)}")
+                continue
+            if not result_heading_a.attrib.get(HREF):
+                print(f"no href in {result_heading_a}")
+                continue
             qitem = result_heading_a.attrib[HREF].split("/")[-1]
             if qitem in wikidata_dict:
                 print(f"duplicate wikidata entry {qitem}")

@@ -258,10 +258,10 @@ class FileLib:
 
     @classmethod
     def force_write(cls, file, data, overwrite=True):
-        """:write path, creating dirtectory if necessary
+        """:write path, creating directory if necessary
         :path: path to write to
         :data: str data to write
-        :overwrite: force write iuf path exists
+        :overwrite: force write if path exists
 
         may throw exception from write
         """
@@ -337,7 +337,10 @@ class FileLib:
 
     @classmethod
     def read_pydictionary(cls, file):
-        """read a json path into a python dictiomary"""
+        """read a JSON path into a python dictionary
+        :param file: JSON file to read
+        :return: JSON dictionary (created by ast.literal_eval)
+        """
         import ast
         with open(file, "r") as f:
             pydict = ast.literal_eval(f.read())
@@ -347,7 +350,9 @@ class FileLib:
     def punct2underscore(cls, text):
         """ replace all ASCII punctuation except '.' , '-', '_' by '_'
 
-        for filenames
+        usually used for filenames
+        :param text: input string
+        :return: substituted string
 
         """
         from py4ami.text_lib import TextUtil
@@ -361,8 +366,9 @@ class FileLib:
 
     @classmethod
     def get_suffix(cls, file):
-        """get suffix
-        INCLUDES the "."
+        """get suffix of filename
+        :param file: filename
+        :return: suffix including the '.'
 
         """
         _suffix = None if file is None else Path(file).suffix

@@ -1,8 +1,11 @@
+import argparse
 import tkinter as tk
 import tkinter.ttk as ttk
+from enum import Enum
 from tkinter import messagebox
 from tkinter import scrolledtext
 from PIL import ImageTk, Image
+import logging
 import os
 from xml.etree import ElementTree as ET
 from tkinter import TOP, BOTTOM, LEFT
@@ -13,12 +16,12 @@ from io import BytesIO
 from tkinter import filedialog as fd
 
 # local
-
 from py4ami.gutil import AmiTree, Gutil, CreateToolTip
 from py4ami.gutil import Gutil as gu
 from py4ami.search_lib import AmiSearch, AmiSection, AmiDictionaries, AmiProjects
 from py4ami.xml_lib import XmlLib
 from py4ami.wikimedia import WikidataBrowser
+from py4ami.util import AbstractArgs
 
 PYGETPAPERS = "pygetpapers"
 
@@ -36,13 +39,20 @@ PDFBOX_FLAG = "pdfbox"
 TOTAL_HITS_ARE = "Total Hits are"
 WROTE_XML = "Wrote xml"
 
+# args
+class AmiGuiArgsEnum(Enum):
+    DICT = "dict"
+    RUN = "run"
+
+    def __str__(self):
+        return self.value
 
 # select by typing
 # https://stackoverflow.com/questions/47839813/python-tkinter-autocomplete-combobox-with-like-search
 
 def button1(event):
     """
-    :param event: 
+    :param event:
     """
 
     print("button1", event)
@@ -52,6 +62,75 @@ def button1(event):
     if len(tup) > 0:
         print(tup[0], event.widget.get(tup[0]))
 
+class GUIArgs(AbstractArgs):
+    """Parse args to run GUI"""
+
+    def __init__(self):
+        """arg_dict is set to default"""
+        super().__init__()
+        self.dict = None
+        self.run = None
+        self.arg_dict = None
+
+    def add_arguments(self):
+        if self.parser is None:
+            self.parser = argparse.ArgumentParser()
+        """adds arguments to a parser or subparser"""
+        self.parser.description = 'HTML editing analysing annotation'
+        self.parser.add_argument(f"--{AmiGuiArgsEnum.DICT}", nargs="+",
+                                 help="dictionary/ies to load (NYI)")
+        self.parser.add_argument(f"--{AmiGuiArgsEnum.RUN}", action="store_true",
+                                 help="run ami_gui")
+        self.parser.epilog = "==============="
+
+    """python -m py4ami.pyamix GUI --foobar
+     """
+
+    def read_arg_dict(self):
+        logging.warning(f"read argdict {self.arg_dict}")
+        self.dict = self.arg_dict.get(AmiGuiArgsEnum.DICT)
+        self.run = self.arg_dict.get(AmiGuiArgsEnum.RUN)
+
+
+    # class GUIArgs:
+    def process_args(self):
+        """runs parsed args
+        :return:
+        """
+
+        logging.warning(f"====process_args==== {self.arg_dict}")
+        if self.arg_dict:
+            self.read_arg_dict()
+        print(f"*******************************")
+        if not self.arg_dict:
+            print(f"no arg_dict given, no action")
+            return
+
+        self.run = self.arg_dict.get(AmiGuiArgsEnum.RUN)
+        print(f"RUN {self.run}")
+
+        if self.run:
+            run_gui()
+
+    # class AmiDictArgs:
+
+    @classmethod
+    def create_default_arg_dict(cls):
+        """returns a new COPY of the default dictionary"""
+        arg_dict = dict()
+        arg_dict[AmiGuiArgsEnum.DICT] = None
+        arg_dict[AmiGuiArgsEnum.RUN] = False
+        return arg_dict
+
+    @property
+    def module_stem(self):
+        """name of module"""
+        return Path(__file__).stem
+
+    def do_foobar(self):
+        """uses dictionary to annotate words and phrases in HTML file"""
+        from py4ami.ami_dict import AmiDictionary  # horrible
+        logging.info("dummy foobar")
 
 class AmiGui(tk.Frame):
     """ """
@@ -113,7 +192,7 @@ class AmiGui(tk.Frame):
     def main_text_display_button1(self, event):
         """
 
-        :param event: 
+        :param event:
 
         """
         # print("Main button 1", event)
@@ -122,7 +201,7 @@ class AmiGui(tk.Frame):
     def main_text_display_selected(self, event):
         """
 
-        :param event: 
+        :param event:
 
         """
         # print("Main selected", event, event.widget.selection_get())
@@ -131,7 +210,7 @@ class AmiGui(tk.Frame):
     def process_selection(self, event):
         """
 
-        :param event: 
+        :param event:
 
         """
         text = self.get_main_text_on_release(event)
@@ -141,7 +220,7 @@ class AmiGui(tk.Frame):
     def get_main_text_on_release(self, event):
         """
 
-        :param event: 
+        :param event:
 
         """
         text = event.widget.selection_get() if event.widget.tag_ranges("sel") else None
@@ -150,7 +229,7 @@ class AmiGui(tk.Frame):
     def create_display_frame(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
         from py4ami.file_lib import FileLib
@@ -204,8 +283,8 @@ class AmiGui(tk.Frame):
     def open_pdf(self, file, text, page_num=0):
         """
 
-        :param file: 
-        :param text: 
+        :param file:
+        :param text:
         :param page_num:  (Default value = 0)
 
         """
@@ -218,8 +297,8 @@ class AmiGui(tk.Frame):
     def create_html_view(self, frame, htmlfile):
         """
 
-        :param frame: 
-        :param htmlfile: 
+        :param frame:
+        :param htmlfile:
 
         """
         a = urlopen(htmlfile)
@@ -232,7 +311,7 @@ class AmiGui(tk.Frame):
     def view_main_text(self, file):
         """
 
-        :param file: 
+        :param file:
 
         """
         if file.endswith(".xml"):
@@ -249,7 +328,7 @@ class AmiGui(tk.Frame):
     def view_main_text_content(self, content):
         """
 
-        :param content: 
+        :param content:
 
         """
         self.main_text_display.delete("1.0", tk.END)
@@ -258,7 +337,7 @@ class AmiGui(tk.Frame):
     def view_main_xml_file(self, file):
         """
 
-        :param file: 
+        :param file:
 
         """
         self.xml_root = XmlLib.parse_xml_file_to_root(file)
@@ -268,7 +347,7 @@ class AmiGui(tk.Frame):
     def create_image_label(self, image_path):
         """
 
-        :param image_path: 
+        :param image_path:
 
         """
         frame_height = 400
@@ -292,7 +371,7 @@ class AmiGui(tk.Frame):
     def set_image_and_persist(self, img):
         """
 
-        :param img: 
+        :param img:
 
         """
         self.label.configure(image=img)
@@ -301,7 +380,7 @@ class AmiGui(tk.Frame):
     def create_dashboard(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
         self.dashboard = tk.Frame(master)
@@ -311,7 +390,7 @@ class AmiGui(tk.Frame):
     def make_ami_widgets(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
         pg_frame = tk.Frame(master,
@@ -331,7 +410,7 @@ class AmiGui(tk.Frame):
     def make_section_frame(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
         section_frame, title_var = Gutil.make_frame_with_hide(master,
@@ -361,7 +440,7 @@ class AmiGui(tk.Frame):
                            "Terms related to Parkinson's disease"),
         }
 
-        :param master: 
+        :param master:
 
         """
         dictionary_frame, _ = Gutil.make_frame_with_hide(master,
@@ -474,8 +553,8 @@ class AmiGui(tk.Frame):
     def make_pygetpapers_query_frame(self, master, TOP):
         """
 
-        :param master: 
-        :param TOP: 
+        :param master:
+        :param TOP:
 
         """
 
@@ -505,7 +584,7 @@ class AmiGui(tk.Frame):
     def make_ami_project(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
         ami_project_frame, title_var = Gutil.make_frame_with_hide(master,
@@ -546,7 +625,7 @@ class AmiGui(tk.Frame):
     def make_ami_search(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
 
@@ -587,7 +666,7 @@ class AmiGui(tk.Frame):
     def refresh_project_listbox(self, run_ami_frame):
         """
 
-        :param run_ami_frame: 
+        :param run_ami_frame:
 
         """
         self.project_names_listbox = self.create_generic_listbox(
@@ -618,7 +697,7 @@ class AmiGui(tk.Frame):
     def make_getpapers_args(self, frame):
         """
 
-        :param frame: 
+        :param frame:
 
         """
         getpapers_args_frame = tk.Frame(frame,
@@ -643,8 +722,8 @@ class AmiGui(tk.Frame):
     def make_pygetpapers_check_button(self, master, key):
         """
 
-        :param master: 
-        :param key: 
+        :param master:
+        :param key:
 
         """
         cbox_dict = self.pygetpapers_flags[key]
@@ -653,7 +732,7 @@ class AmiGui(tk.Frame):
     def create_run_button(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
         button = tk.Button(master)
@@ -666,7 +745,7 @@ class AmiGui(tk.Frame):
     def create_make_project_button(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
         button = tk.Button(master)
@@ -681,9 +760,9 @@ class AmiGui(tk.Frame):
     def make_dictionary_content_boxes(self, master, dictionary_dict, selected_dict_names):
         """
 
-        :param master: 
-        :param dictionary_dict: 
-        :param selected_dict_names: 
+        :param master:
+        :param dictionary_dict:
+        :param selected_dict_names:
 
         """
         frame = tk.Frame(master,
@@ -716,8 +795,8 @@ class AmiGui(tk.Frame):
     def make_cproject_frame(self, master, box_side):
         """
 
-        :param master: 
-        :param box_side: 
+        :param master:
+        :param box_side:
 
         """
         from tkinter import ttk
@@ -773,14 +852,17 @@ class AmiGui(tk.Frame):
 
         outdir_val = self.outdir_var.get()
         self.ami_tree.directory = outdir_val
-        self.ami_tree.recursive_display(outdir_val, parent, self.treeview)
+        try:
+            self.ami_tree.recursive_display(outdir_val, parent, self.treeview)
+        except Exception as e:
+            logging.error(f"Cannot recursively display {outdir_val}; cause: {e}")
 
     def make_dictionary_content_box(self, master, dictionary_name, ami_dictionary, desc="Missing desc"):
         """
 
-        :param master: 
-        :param dictionary_name: 
-        :param ami_dictionary: 
+        :param master:
+        :param dictionary_name:
+        :param ami_dictionary:
         :param desc:  (Default value = "Missing desc")
 
         """
@@ -804,8 +886,8 @@ class AmiGui(tk.Frame):
     def show_dictionary_item(self, event, dictionary_name):
         """
 
-        :param event: 
-        :param dictionary_name: 
+        :param event:
+        :param dictionary_name:
 
         """
         box = event.widget
@@ -832,7 +914,7 @@ class AmiGui(tk.Frame):
     def create_generic_listbox(self, items, master=None, command=None, title=None, tooltip=None, button_text="select"):
         """
 
-        :param items: 
+        :param items:
         :param master:  (Default value = None)
         :param command:  (Default value = None)
         :param title:  (Default value = None)
@@ -866,7 +948,7 @@ class AmiGui(tk.Frame):
     def run_query_and_get_output(self, args):
         """
 
-        :param args: 
+        :param args:
 
         """
         try:
@@ -946,7 +1028,7 @@ class AmiGui(tk.Frame):
     def add_flags_to_query_command(self, cmd_options):
         """
 
-        :param cmd_options: 
+        :param cmd_options:
 
         """
 
@@ -964,7 +1046,7 @@ class AmiGui(tk.Frame):
     def add_query_entry(self, query_string):
         """
 
-        :param query_string: 
+        :param query_string:
 
         """
         query_string = self.entry_text.get()
@@ -975,7 +1057,7 @@ class AmiGui(tk.Frame):
     def add_dictionary_box_terms(self, lbstr):
         """
 
-        :param lbstr: 
+        :param lbstr:
 
         """
         for box in self.selected_boxes:
@@ -990,9 +1072,9 @@ class AmiGui(tk.Frame):
     def add_if_checked(self, cmd_options, var, val):
         """
 
-        :param cmd_options: 
-        :param var: 
-        :param val: 
+        :param cmd_options:
+        :param var:
+        :param val:
 
         """
         if var is not None and var.get() == gu.ONVAL:
@@ -1006,7 +1088,7 @@ class AmiGui(tk.Frame):
     def make_query_string(self, listbox):
         """
 
-        :param listbox: 
+        :param listbox:
 
         """
         selected = Gutil.get_selections_from_listbox(listbox)
@@ -1022,7 +1104,7 @@ class AmiGui(tk.Frame):
     def selected_text(event):
         """
 
-        :param event: 
+        :param event:
 
         """
         print("SELECTED", event)
@@ -1030,8 +1112,8 @@ class AmiGui(tk.Frame):
     def display_query_output(self, master, lines):
         """
 
-        :param master: 
-        :param lines: 
+        :param master:
+        :param lines:
 
         """
         # Title Label
@@ -1066,7 +1148,7 @@ class AmiGui(tk.Frame):
     def read_entry_names(self, dictionary_file):
         """
 
-        :param dictionary_file: 
+        :param dictionary_file:
 
         """
 #        print(dictionary_file)
@@ -1081,7 +1163,7 @@ class AmiGui(tk.Frame):
     def make_quit(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
 
@@ -1099,7 +1181,7 @@ class AmiGui(tk.Frame):
     def make_dictionary_content_boxes_frame(self, master):
         """
 
-        :param master: 
+        :param master:
 
         """
         self.dcb_frame, title_var = Gutil.make_frame(master,
@@ -1112,7 +1194,7 @@ class AmiGui(tk.Frame):
     def query_wikidata(self, text):
         """
 
-        :param text: 
+        :param text:
 
         """
         print("launch wikidata browser")
@@ -1121,7 +1203,7 @@ class AmiGui(tk.Frame):
     def create_wikidata_query_url(self, text):
         """
 
-        :param text: 
+        :param text:
 
         """
         BASE_URL = "https://www.wikidata.org/w/index.php?search="

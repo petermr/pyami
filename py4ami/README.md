@@ -32,8 +32,9 @@ The new code [./search.py] will replaces `ami search`.
 
 ## DEMO with multiple projects , dictionaries and sections
 
-** for Monday 2021-03-22 **
-** RUN **
+**for Monday 2021-03-22**
+
+**RUN**
 
 ```
 python search_lib.py
@@ -73,7 +74,7 @@ Will create sections from JATS-XML (replaces `ami section`). Over 50% written.
 https://github.com/petermr/openDiagram/blob/master/physchem/python/xml_lib.py
 
 ## Notes
-"""
+```
 long_desc = "Pyami converts scientific articles to structured form (discrete files for sections, subsections, etc.)."+
 "XML or HTML files are directly split into *.xml, PDFs or TXT are heuristically split into text and images."+
 "Text can be searched with (lists of) words, regexes, ami-dictionaries or through globbing filenames."+
@@ -85,4 +86,22 @@ long_desc = "Pyami converts scientific articles to structured form (discrete fil
 "nested directories it is easy to analyse it with other Python tools."
 long_desc="Pyami desc"
 print (f"long:desc {long_desc}")
-"""
+```
+
+# update 2022-09-29
+
+Created subcommands (subparsers) in `py4ami`:
+* `DICT`: display and edit dictionaries
+* `GUI`: launches `py4ami.ami-gui` (under development)
+* `HTML`: parse raw HTML to be semantic
+* `PDF` convert PDF to semantic form
+* `PROJECT`: make `CProject` from a list of raw files (normally PDF)
+
+<!-- this is HTML
+<table>
+  <tbody>
+    <tr><td><b>Lantana</b></td><td>plant</td></tr>
+    <tr><td>Kangaroo</td><td>animal</td></tr>
+  </tbody>
+</table>
+-->

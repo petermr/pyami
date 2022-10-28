@@ -3,6 +3,7 @@ import glob
 import logging
 import os
 import re
+import textwrap
 import time
 import traceback
 from abc import ABC, abstractmethod
@@ -181,6 +182,7 @@ class CProject(CContainer):
         self.ctree_dict = None
         self.name = None
         self.max_ctree_name_len = 24
+        self.add_underscore = False
 
     def __repr__(self):
         r = super().__repr__()
@@ -276,7 +278,7 @@ class CProject(CContainer):
 
         cproject.pdf2htmlx()
 
-    def make_cproject_from_pdfs(self, keep=True, max_ctree_len=24, max_flag=50):
+    def make_cproject_from_pdfs(self, keep=True, files=None, max_ctree_len=24, max_flag=50):
         """makes directory for each PDF with safe names
         was 'make_project' in ami3
         for project dir with
@@ -293,26 +295,37 @@ class CProject(CContainer):
         lowercases all filenames
         if collisions, adds _1, _2, etc to filenames
         :param keep: keep original PDFs
+        :param files: explicit list of files (default is None, iterate over all PDFs)
         :param max_ctree_len: max length of filenames
         :param max_flag:maximum number of collision flags
 
 
 
         """
-        files = glob.glob(f"{self.dirx}/*.pdf", recursive=False)
+        assert Path(self.dirx).exists(), f"CProject dir should exist {self.dirx}"
+        if not files:
+            files = glob.glob(f"{self.dirx}/*.pdf", recursive=False)
         for file in files:
             stem = Path(file).stem
             stem_dir = CTree.flatten_filename(stem, max_len=max_ctree_len)
             ctree_dir = Path(self.dirx, stem_dir)
             if ctree_dir.exists():
-                for flag in range(1, max_flag):
-                    ctree_dir1 = Path(self.dirx, f"{stem_dir}_{flag}")
-                    if not ctree_dir1.exists():
-                        ctree_dir = ctree_dir1
-                        break
+                if self.add_underscore:
+                    ctree_dir = self.add_underscore_extension(ctree_dir, max_flag, stem_dir)
             if not ctree_dir.exists():
                 ctree_dir.mkdir()
-                Util.copyanything(file, Path(ctree_dir, FULLTEXT + ".pdf"))
+            src_file = Path(self.dirx, file)
+#            assert src_file.exists(), f"file should exist {src_file}" # problem
+            dst_file = Path(ctree_dir, FULLTEXT + ".pdf")
+            Util.copyanything(src_file, dst_file)
+
+    def add_underscore_extension(self, ctree_dir, max_flag, stem_dir):
+        for flag in range(1, max_flag):
+            ctree_dir1 = Path(self.dirx, f"{stem_dir}_{flag}")
+            if not ctree_dir1.exists():
+                ctree_dir = ctree_dir1
+                break
+        return ctree_dir
 
     def get_ctree(self, name: str):
         self.get_ctree_dict()
@@ -566,6 +579,7 @@ class CSubDir(CContainer):
 
 
 class ProjectArgs(AbstractArgs):
+    FILE = "file"
     FORMATS = "formats"
     KEEP = "keep"
     MAKE = "make"
@@ -583,8 +597,20 @@ class ProjectArgs(AbstractArgs):
         """
         if self.parser is None:
             self.parser = argparse.ArgumentParser()
-        self.parser.description = 'Project parsing'
+        self.parser.description = textwrap.dedent('Convert raw files into a CProject. \n'
+                                                  '----------------------------------\n' 
+                                                  'Typically the CProject directory contains a list of files' 
+                                                  '(e.g. *.pdf) and converts them into CTrees with the filestem.\n' 
+                                                  'Long filenames are truncated; punctuation and ' 
+                                                  'whitespace are converted to underscores.\n' 
+                                                  'Duplicates have a numbered extension (_dd)\n' 
+                                                  '\nExamples:\n' 
+                                                  '  * PROJECT --project foobar\n' 
+                                                  '  * PROJECT --project --foobar --ctree Chapter03 Chapter09\n')
+        self.parser.formatter_class = argparse.RawDescriptionHelpFormatter
         # make_project requires --project <proj>
+        self.parser.add_argument(f"--{ProjectArgs.FILE}", nargs="+",
+                                 help="Use list of CTrees rather than all filestems")
         self.parser.add_argument(f"--{ProjectArgs.PROJECT}", type=str, nargs=1, help="project directory")
         self.parser.add_argument(f"--{ProjectArgs.MAKE}", action='store_true',
                                  help="make project from list of filetypes")
@@ -592,7 +618,7 @@ class ProjectArgs(AbstractArgs):
         self.parser.add_argument(f"--{ProjectArgs.KEEP}", action='store_true', help="keep original PDFs")
         self.parser.add_argument(f"--{ProjectArgs.MAXLEN}", type=int, nargs=1, help="max length of project name",
                                  # default=self.create_arg_dict()[ProjectArgs.MAXLEN]
-                                 default=40
+                                 default=80 # this includes the directory tree
                                  )
 
         self.parser.add_argument(f"--{ProjectArgs.MAXFLAG}", type=int, nargs=1, default=20,
@@ -613,6 +639,7 @@ class ProjectArgs(AbstractArgs):
             maxlen = self.arg_dict.get(ProjectArgs.MAXLEN)
             maxflag = self.arg_dict.get(ProjectArgs.MAXFLAG)
             keep = self.arg_dict.get(ProjectArgs.KEEP)
+            files = self.arg_dict.get(ProjectArgs.FILE)
 
             if not project_name:
                 raise ValueError("no --project given")
@@ -621,7 +648,7 @@ class ProjectArgs(AbstractArgs):
                 raise ValueError(f"project does not exist {project_path}")
             project = CProject(project_name)
             if make_project:
-                project.make_cproject_from_pdfs(max_ctree_len=maxlen, max_flag=maxflag, keep=keep)
+                project.make_cproject_from_pdfs(files=files, max_ctree_len=maxlen, max_flag=maxflag, keep=keep)
 
     # class ProjectArgs:
 

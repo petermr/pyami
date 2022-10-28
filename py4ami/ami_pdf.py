@@ -728,6 +728,7 @@ INFORM = "inform"
 INPATH = "inpath"
 INSTEM = "instem"
 
+ALL_PAGES = "all_pages"
 MAXPAGE = "maxpage"
 
 OUTDIR = "outdir"
@@ -803,7 +804,7 @@ class PDFArgs(AbstractArgs):
         self.parser.add_argument("--outform", type=str, nargs=1, help="output format ", default="html")
 
         self.parser.add_argument("--pdf2html", type=str, choices=['pdfminer', 'pdfplumber'], help="convert PDF to html", default='pdfminer')
-        self.parser.add_argument("--pages", type=str, nargs="+", help="reads '_2 4_6 8 11_' as 1-2, 4-6, 8, 11-end ; all ranges inclusive (not yet debugged)", default=all)
+        self.parser.add_argument("--pages", type=str, nargs="+", help="reads '_2 4_6 8 11_' as 1-2, 4-6, 8, 11-end ; all ranges inclusive (not yet debugged)", default=ALL_PAGES)
         self.parser.add_argument("--resolution", type=int, nargs=1, help="resolution of output images (if imagedir)", default=400)
         self.parser.add_argument("--template", type=str, nargs=1, help="file to parse specific type of document (NYI)")
         return self.parser
@@ -825,7 +826,8 @@ class PDFArgs(AbstractArgs):
   --template TEMPLATE   file to parse specific type of document"""
 
         if self.arg_dict:
-            self.read_arg_dict()
+#            logging.warning(f"ARG DICTXX {self.arg_dict}")
+            self.read_from_arg_dict()
 
         if not self.check_input():
             print(f"no input given")
@@ -857,7 +859,7 @@ class PDFArgs(AbstractArgs):
         return True
 
     def check_output(self):
-        logging.debug(f" check_output {self.arg_dict}")
+        logging.warning(f" *** ARG_DICT {self.arg_dict}")
         self.arg_dict[OUTSTEM] = Path(f"{self.inpath}").stem
         self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
         if not self.outdir:
@@ -891,7 +893,8 @@ class PDFArgs(AbstractArgs):
             logging.debug(f"output dir {self.outdir}")
         return True
 
-    def read_arg_dict(self):
+    def read_from_arg_dict(self):
+#        logging.warning(f"ARG DICT0 {self.arg_dict}")
         self.flow = self.arg_dict.get(FLOW) is not None
 
         self.footer = self.arg_dict.get(FOOTER)
@@ -913,7 +916,9 @@ class PDFArgs(AbstractArgs):
         self.outpath = self.arg_dict.get(OUTPATH)
         self.outstem = self.arg_dict.get(OUTSTEM)
 
-        self.pages = PDFArgs.make_page_ranges(self.arg_dict.get(PAGES))
+#        logging.warning(f"ARG DICT {self.arg_dict}")
+        pages = self.arg_dict.get(PAGES)
+        self.pages = PDFArgs.make_page_ranges(pages)
 
         self.pdf2html = self.arg_dict.get(PDF2HTML)
 
@@ -1188,7 +1193,13 @@ class PDFArgs(AbstractArgs):
         uses 1-based pages
         """
         ranges = []
+        if raw_pages == ALL_PAGES:
+            raw_pages = "1_9999999"
         if raw_pages:
+            logging.warning(f"**** raw pages: {raw_pages}")
+            if not hasattr(raw_pages, "__iter__"):
+                logging.error(f"{raw_pages} is not iterable {type(raw_pages)}")
+                return
             for chunk in raw_pages:
                 if not chunk == "":
                     chunk0 = chunk
