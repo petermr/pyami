@@ -1,4 +1,6 @@
 # Tests wikipedia and wikidata methods under pytest
+import ast
+import lxml
 import os
 import pprint
 import unittest
@@ -8,7 +10,8 @@ from lxml import etree, html
 import requests
 # local
 from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor, WikidataProperty, WikidataFilter
-from py4ami.ami_dict import WIKIDATA_ID
+from py4ami.ami_dict import WIKIDATA_ID, AmiEntry
+from test.resources import Resources
 
 """This runs under Pycharm and also
 cd pyami # toplevel checkout
@@ -419,7 +422,8 @@ class TestWikidataLookup(unittest.TestCase):
         dictionary.write_to_file(Path(output_dir, "eoCompound", "eoCompound1.xml"))
 
     def test_disambiguation(self):
-        """attempts to disambiguate the result of PMR-wikidata lookup"""
+        """attempts to disambiguate the result of PMR-wikidata lookup
+        """
         input_dir = EO_COMPOUND_DIR
         output_dir = TEMP_DIR
         input_path = Path(input_dir, "disambig.xml")
@@ -432,18 +436,57 @@ class TestWikidataLookup(unittest.TestCase):
         }
         dictionary = AmiDictionary.create_from_xml_file(str(input_path))
         for entry in dictionary.entries:
-            wikidata_id = AmiDictionary.get_wikidata_id(entry)
-            if not AmiDictionary.is_valid_wikidata_id(wikidata_id):
-                term = AmiDictionary.get_term(entry)
-                # print(f"no wikidataID in entry: {term}")
-                dictionary.lookup_and_add_wikidata_to_entry(entry, allowed_descriptions="")
-                wikidata_id = AmiDictionary.get_wikidata_id(entry)
-                if wikidata_id is None:
-                    print(f"no wikidata entry for {term}")
-                    entry.attrib[WIKIDATA_ID] = AmiDictionary.NOT_FOUND
-                else:
-                    print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
+            dictionary.disambiguate_wikidata_by_desc(entry)
         dictionary.write_to_file(Path(output_dir, "eoCompound", "disambig.xml"))
+
+    def test_disambiguate_multiple_wikidata_hits_GHG(self):
+        """
+        test multiple hits for 'GHG' and use heuristics to find the most likely
+        uses dictionary created from abbreviations via docanalysis
+        requires WIKIDATA LOOKUP on Internet
+
+        ghg entry is:
+  <entry term="GHG" name="Greenhouse Gas" >
+    <raw wikidataID="['Q167336', 'Q3588927', 'Q925312', 'Q57584895', 'Q110612403', 'Q112192791', 'Q140182']"/>
+  </entry>
+
+        """
+
+        ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
+        assert ami_dict is not None
+        ghg = "GHG"
+        ghg_element = ami_dict.get_entry(ghg)
+        assert ghg_element, f"entry for {ghg} is None, probably not found"
+        assert type(ghg_element) is lxml.etree._Element, f"entry has type {type(ghg_element)}"
+        ghg_entry = AmiEntry.create_from_element(ghg_element)
+        assert type(ghg_entry) is AmiEntry, f"ami_entry is type {type(ghg_entry)}"
+        assert ghg_entry is not None
+        wikidata_id = ghg_entry.wikidata_id
+        assert not wikidata_id
+        raw_children = ghg_element.findall("raw")
+        assert len(raw_children) == 1
+        raw_child = raw_children[0]
+        assert raw_child is not None
+        wikidata_id = raw_child.get(WIKIDATA_ID)
+        assert wikidata_id == "['Q167336', 'Q3588927', 'Q925312', 'Q57584895', 'Q110612403', 'Q112192791', 'Q140182']"
+        wikidata_ids = ast.literal_eval(wikidata_id)
+        assert len(wikidata_ids) == 7
+        # wikidata_lookup = WikidataLookup()
+        titles = [
+            'greenhouse gas',
+            'carbon dioxide emissions',
+            'Greenhouse Gases Observing Satellite',
+            'Greenhouse Gases: science and technology',
+            'greenhouse gas reduction mandate',
+            'greenhouse gas emission',
+            'carbon accounting',
+            ]
+        for i, wikidata_id in enumerate(wikidata_ids):
+            wikidata_page = WikidataPage(pqitem=wikidata_id)
+            assert wikidata_page is not None
+            title = wikidata_page.get_title()
+            assert title == titles[i], f"{wikidata_id} should have title {titles[i]} but found {title}"
+
 
     def test_get_instances(self):
         """<div class="wikibase-statementview-mainsnak-container">

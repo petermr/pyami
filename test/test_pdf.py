@@ -96,6 +96,7 @@ class PDFTest(test.test_all.AmiAnyTest):
 
     def test_pdfbox_output_exists(self):
         """check CLIMATE dir exists
+
         """
         # assert str(Resources.CLIMATE_10_DIR) == "/Users/pm286/workspace/pyami/test/resources/svg", f"resources {Resources.CLIMATE_10_DIR}"
         assert Resources.CLIMATE_10_PROJ_DIR.exists(), f"{Resources.CLIMATE_10_PROJ_DIR} should exist"
@@ -939,7 +940,8 @@ LTPage
 
     def test_convert_pdf_to_html_and_save(self):
         """Uses PDFArgs.convert_pdf to convert PDF to HTML and save
-        to temp
+        to temp (/Users/pm286/workspace/pyami/temp/html/pmc4121.xml)
+        This is raw output with <br> between lines and mirrors the layout of 
         """
         # Use `pip3 install pdfminer.six` for python3
 
@@ -988,6 +990,10 @@ LTPage
             ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
 
     def test_cannot_iterate(self):
+        """
+        Test that 'PDF' subcomand works without errors
+        """
+
         PyAMI().run_command(
             ['PDF'])
         PyAMI().run_command(

@@ -31,6 +31,8 @@ class Resources:
     assert IPCC_CHAP02.exists()
     IPCC_CHAP02_DICT = Path(IPCC_CHAP02, "dict")
     assert IPCC_CHAP02_DICT.exists()
+    IPCC_CHAP02_ABB_DICT = Path(IPCC_CHAP02_DICT, "ip_3_2_emissions_abb.xml")
+    assert IPCC_CHAP02_ABB_DICT.exists()
     IPCC_CHAP04 = Path(IPCC_DIR, "Chapter04")
     assert IPCC_CHAP04.exists()
     IPCC_CHAP06 = Path(IPCC_DIR, "Chapter06")

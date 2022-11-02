@@ -293,6 +293,10 @@ class TestAmiDictionary(AmiAnyTest):
         assert attrib_names is not None
 
     def test_get_term_of_first_entry(self):
+        """
+        tests that we can retrieve the `name` value from an element
+        Also
+        """
         amidict = self.setup()[ONE_ENTRY_DICT]
         assert amidict.get_first_entry().attrib[TERM] == "Douglas Adams"
 
@@ -837,7 +841,8 @@ class TestSearchDictionary:
 
     def test_merge_dicts_ipcc_same_chap(self):
         """test merge dictionaries from IPCC (heavy commonality)"""
-        abb2_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP02_DICT, "ip_3_2_emissions_abb.xml"))
+
+        abb2_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
         abb2_set = abb2_dict.get_or_create_term_set()
         assert abb2_set == {
  'BECCS', 'CBEs', 'CDR', 'CRF', 'CSP',

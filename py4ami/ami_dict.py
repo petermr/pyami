@@ -7,7 +7,6 @@ from lxml import etree
 import lxml
 import os
 import re
-import sys
 import traceback
 import urllib.request
 
@@ -113,8 +112,8 @@ class AmiEntry:
         return self.element.get(TERM)
 
     @property
-    def get_wikidata_id(self):
-        return self.element.get(WIKIDATA)
+    def wikidata_id(self):
+        return self.element.get(WIKIDATA_ID)
 
     @property
     def get_wikipedia_page(self):
@@ -162,8 +161,9 @@ class AmiEntry:
             raise AMIDictError(f"wikidata id {idx} must be Qddd... or Pddd...")
         self.set_attribute(WIKIDATA_ID, idx)
 
-    def wikidata_id(self):
-        return self.get_attribute_value(WIKIDATA_ID)
+    # @property
+    # def wikidata_id(self):
+    #     return self.get_attribute_value(WIKIDATA_ID)
 
     def set_description(self, desc):
         """set description attribute, can be anything"""
@@ -273,21 +273,37 @@ class AmiDictionary:
     #    class AmiDictionary:
 
     @classmethod
-    def create_from_xml_file(cls, xml_file, title=None, ignorecase=False):
+    def create_from_xml_file(cls, xml_file,
+                             title=None,
+                             ignorecase=False):
+        """
+        reads a dictionary XML file, creates and returns the AMIDictionary from it
+        uses AmiDictionary.read_dictionary_from_xml_file()
+        :param xml_file: file containing an AMI Dictionary as XML
+        :param title: Obsolete
+        :param ignorecase: see AmiDictionary.create_from_xml_object
+        :returns: AmiDictionary object or null
+        """
         if not os.path.exists(xml_file):
-            raise IOError("cannot find path " + str(xml_file))
-        dictionary = cls.read_dictionary_from_xml_file(xml_file, ignorecase=ignorecase)
-        file_title = Path(xml_file).stem
-        if not title:
-            title = file_title
-        print(f"title {file_title}")
+            raise IOError("cannot find dictionary path " + str(xml_file))
+        xml_tree = ET.parse(str(xml_file), parser=ET.XMLParser(encoding="utf-8"))
+        dictionary = AmiDictionary.create_from_xml_object(xml_tree, ignorecase=ignorecase)
+        dictionary.xml_content = xml_tree
+        dictionary.file = xml_file
+        dictionary.root = xml_tree.getroot()
+        # dictionary = dictionary1
+        # file_title = Path(xml_file).stem
+        # if not title:
+        #     title = file_title
+        # print(f"title {file_title}")
+
         return dictionary
 
     @classmethod
     def create_dictionary_from_words(cls, terms, title=None, desc=None, wikilangs=None, wikidata=False, outdir=None):
         """use raw list of words and optionally lookup each. choosing WD page and using languages
         :param terms: list of words/phrases
-        :param title: for dictionary oject and file
+        :param title: for dictionary object and file
         :param desc: description of dictionary
         :param wikilangs: languages to use in Wikidata default EN)
         :param wikidata: if true lookup wikidata
@@ -420,15 +436,6 @@ class AmiDictionary:
         :param file: containing dictionary
         :return: new Dictionary"""
         return AmiDictionary.create_from_xml_file(file) if file is not None else None
-
-    @classmethod
-    def read_dictionary_from_xml_file(cls, file, ignorecase=True):
-        xml_tree = ET.parse(str(file), parser=ET.XMLParser(encoding="utf-8"))
-        dictionary = cls.create_from_xml_object(xml_tree, ignorecase=ignorecase)
-        dictionary.xml_content = xml_tree
-        dictionary.file = file
-        dictionary.root = xml_tree.getroot()
-        return dictionary
 
     #    class AmiDictionary:
 
@@ -747,6 +754,21 @@ class AmiDictionary:
 
         return wikidata_page
 
+    def disambiguate_wikidata_by_desc(self, entry):
+        """
+
+        """
+        wikidata_id = AmiDictionary.get_wikidata_id(entry)
+        if not AmiDictionary.is_valid_wikidata_id(wikidata_id):
+            term = AmiDictionary.get_term(entry)
+            self.lookup_and_add_wikidata_to_entry(entry, allowed_descriptions="")
+            wikidata_id = AmiDictionary.get_wikidata_id(entry)
+            if wikidata_id is None:
+                print(f"no wikidata entry for {term}")
+                entry.attrib[WIKIDATA_ID] = AmiDictionary.NOT_FOUND
+            else:
+                print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
+
     @classmethod
     def get_term(cls, entry):
         return entry.get(TERM)
@@ -958,24 +980,28 @@ class AmiDictionary:
         return list(self.entry_by_term.keys())
 
     @classmethod
-    def is_valid_version_string(cls, versionx):
+    def is_valid_version_string(cls, version):
         """tests validity of version string major.minor.patch
-
-        e.g. version = "1.2.3"
+        :param version: e.g. version = "1.2.3"
+        :raises AMIDictError: version is None (maybe missing attribute)
+        :raises AMIDictError: version does not have 3 parts")
+        :raises AMIDictError: version parts must be integers")
+        :returns: True (errors raises exceptions)
         """
-        if versionx is None:
-            raise AMIDictError(f"{cls} does not have version attribute ")
-        parts = versionx.split(".")
+        if version is None:
+            raise AMIDictError(f"{cls} version is None")
+        parts = version.split(".")
         if len(parts) != 3:
-            raise AMIDictError(f"{cls} version attribute {versionx} does not have 3 parts")
+            raise AMIDictError(f"{cls} version attribute {version} does not have 3 parts")
         try:
             for part in parts:
                 _ = int(part)
         except Exception:
-            raise AMIDictError(f"{cls} version attribute {versionx} parts must be integers")
+            raise AMIDictError(f"{cls} version attribute {version} parts must be integers")
         return True
 
     def check_validity(self):
+
         self.check_valid_attributes()
         self.check_valid_children()
 
