@@ -1,9 +1,9 @@
+import configparser
 import logging
 import os
-import sys
-import configparser
 import urllib.request
 from pathlib import Path
+
 # local
 from py4ami.file_lib import FileLib
 
@@ -52,11 +52,13 @@ class SymbolIni:
             self.logger.warning(f" environment variable $PYAMI_HOME not set, defaulting to bundled config.ini in {self.pyami_home}")
         if not os.path.exists(self.pyami_home) or not os.path.isdir(self.pyami_home):
             self.logger.fatal(f" $PYAMI_HOME {self.pyami_home} must be a directory")
-            sys.exit(1)
+            self.add_default_directory()
+            return
         config_ini = os.path.join(self.pyami_home, self.CONFIG_INI)
         if not os.path.exists(config_ini) or os.path.isdir(config_ini):
-            self.logger.fatal(f" config.ini.master {config_ini} must be an exiting path")
-            sys.exit(1)
+            self.logger.fatal(f" {self.CONFIG_INI}  or {config_ini} must be an existing file")
+            self.add_default_symbols()
+            return
 
         self.pyami.args[self.CONFIG] = config_ini  # "/Users/pm286/pyami/config.ini.master"
         self.logger.debug(f"config path in args: {config_ini}")
@@ -295,3 +297,9 @@ assumes value
         for name in self.symbols:
             print(f"{name}:{self.symbols[name]}")
         print("<<\n\n")
+
+    def add_default_symbols(self):
+        logging.warning(f"must create default symbols")
+
+    def add_default_directory(self):
+        logging.warning(f"must create default directory")

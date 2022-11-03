@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from enum import Enum
 
 from lxml import etree as ET
 from lxml import etree, html
@@ -332,13 +333,17 @@ class WikidataPage:
         wikidata_page.json = response.json()
         return wikidata_page
 
-    def get_root_for_item(self, qitem):
+    def get_root_for_item(self, pqitem):
         """search wikidata site for QItem
-        :param qitem: Qitem (or P item to search
+        :param pqitem: Qitem (or P item to search
         :return: parsed lxml root"""
         if self.root is None:
-            self.root = ParserWrapper.parse_utf8_html_to_root(self.get_wikidata_site() + qitem)
+            url_for_pqitem = self.get_url_for_pqitem(pqitem)
+            self.root = ParserWrapper.parse_utf8_html_to_root(url_for_pqitem)
         return self.root
+
+    def get_url_for_pqitem(self, qitem):
+        return self.get_wikidata_site() + qitem
 
     @classmethod
     def get_wikidata_site(cls):
@@ -532,6 +537,20 @@ class WikidataPage:
         desc = "" if not desc_list else desc_list[0].text
         return desc
 
+    def get_id(self):
+        """
+        get id from <span class="wikibase-title-id">(Q42)</span>
+        remove brackets
+        :return: P/Q id or None
+        """
+        id_list = self.get_elements_for_normalized_attrib_val("class", "wikibase-title-id")
+        id = None if not id_list else id_list[0].text
+        if id:
+            id = id.strip("(").strip(")")
+        else:
+            id = None
+        return id
+
     def get_elements_for_normalized_attrib_val(self, attname, attval, lead="//*", trail=""):
         """some attvals contain leading/trailing space
         searches for <lead>/*[@foo=bar] where bar might be whitespaced
@@ -587,13 +606,52 @@ class WikidataPage:
         xpath = f"{lead}[contains(concat(' ',normalize-space(@{attname}),' '),concat(' ',normalize-space('{attval}'),' '))]{trail}"
         return xpath
 
-    # def _get_elements_for_normalized_attrib_val(self, attname, attval):
-    #     """some attvals contain trailing space"""
-    #     xpath = f"/html//*[contains(concat(' ',@{attname},' '),concat(' ','{attval}',' '))]"
-    #     print(f"xpath |{xpath}|")
-    #     xpath = f"/html//*[normalize-space(@{attname})='{attval}']"
-    #     elems = self.root.xpath(xpath)
-    #     return elems
+    # WikidataPage
+
+    def title_matches(self, wikidata_title, ignorecase=True):
+        """
+        does the wikidata_title match the title of the psge
+        """
+        if not wikidata_title:
+            return False
+        title = self.get_title()
+        if not title:
+            return False
+        if ignorecase:
+            title = title.lower()
+            wikidats_title = wikidata_title.lower()
+        return title == wikidata_title
+
+    class WikidataLabelMatch(Enum):
+        EXACT = 1,
+        SUBSTRING = 2,
+
+    def find_name_to_wikidata_match(labels=None,
+                                    ids=None,
+                                    wikidata_label=None,
+                                    method=WikidataLabelMatch.EXACT,
+                                    ignorecase=True,
+                                    ):
+        """iterate over list of wikidata titles/labels to find closest/exact match for title
+        :param titles: list of previously extracted wikidata labels
+        """
+        if labels == None:
+            logging.info(f"no labels given")
+            return None
+        if ids == None:
+            logging.error(f"must give list of ids")
+            return None
+        if len(labels) != len(ids):
+            logging.error(f"labels {labels} and ids {ids} are different lengths")
+            return None
+        if wikidata_label == None:
+            logging.error(f"must give required wikidata label")
+            return None
+        idlist = []
+        for label, id in zip(labels, ids):
+            if label_match(label, wikidata_label, method, ignorecase):
+                idlist.append(id)
+
 
 """<div class="wikibase-entitytermsview-heading-description">chemical compound</div>"""
 class WikidataSparql:

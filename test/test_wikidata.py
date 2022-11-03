@@ -94,9 +94,9 @@ class TestWikidataLookup(unittest.TestCase):
         wikidata_lookup = WikidataLookup()
         # qitems, descs = wikidata_lookup.lookup_items(terms)
         temp_dir = Path(Path(__file__).parent.parent, "temp")
-        dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="parkinsons",
-                                                                                  wikidata=True, directory=temp_dir)
-        assert os.path.exists(dictfile)
+        # dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="parkinsons",
+        #                                                                           wikidata=True, directory=temp_dir)
+        # assert os.path.exists(dictfile)
 
     def test_parse_wikidata_html(self):
         """find Wikidata items with given property
@@ -439,7 +439,7 @@ class TestWikidataLookup(unittest.TestCase):
             dictionary.disambiguate_wikidata_by_desc(entry)
         dictionary.write_to_file(Path(output_dir, "eoCompound", "disambig.xml"))
 
-    def test_disambiguate_multiple_wikidata_hits_GHG(self):
+    def test_extract_multiple_wikidata_hits_ghg(self):
         """
         test multiple hits for 'GHG' and use heuristics to find the most likely
         uses dictionary created from abbreviations via docanalysis
@@ -463,15 +463,37 @@ class TestWikidataLookup(unittest.TestCase):
         assert ghg_entry is not None
         wikidata_id = ghg_entry.wikidata_id
         assert not wikidata_id
-        raw_children = ghg_element.findall("raw")
-        assert len(raw_children) == 1
-        raw_child = raw_children[0]
-        assert raw_child is not None
-        wikidata_id = raw_child.get(WIKIDATA_ID)
-        assert wikidata_id == "['Q167336', 'Q3588927', 'Q925312', 'Q57584895', 'Q110612403', 'Q112192791', 'Q140182']"
-        wikidata_ids = ast.literal_eval(wikidata_id)
-        assert len(wikidata_ids) == 7
-        # wikidata_lookup = WikidataLookup()
+        raw_wikidata_ids = ghg_entry.get_raw_child_wikidata_ids()
+        assert len(raw_wikidata_ids) == 7
+        assert raw_wikidata_ids == [
+            'Q167336',
+            'Q3588927',
+            'Q925312',
+            'Q57584895',
+            'Q110612403',
+            'Q112192791',
+            'Q140182'
+        ]
+
+    def test_get_best_match_for_ghg(self):
+        """
+        gets best wikidata match for term
+        WORKING
+
+        """
+        ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
+        term = "GHG"
+        ami_entry = ami_dict.get_ami_entry(term)
+        raw_wikidata_ids = raw_wikidata_ids = ami_entry.get_raw_child_wikidata_ids()
+        assert raw_wikidata_ids == [
+            'Q167336',
+            'Q3588927',
+            'Q925312',
+            'Q57584895',
+            'Q110612403',
+            'Q112192791',
+            'Q140182'
+        ]
         titles = [
             'greenhouse gas',
             'carbon dioxide emissions',
@@ -481,12 +503,9 @@ class TestWikidataLookup(unittest.TestCase):
             'greenhouse gas emission',
             'carbon accounting',
             ]
-        for i, wikidata_id in enumerate(wikidata_ids):
-            wikidata_page = WikidataPage(pqitem=wikidata_id)
-            assert wikidata_page is not None
-            title = wikidata_page.get_title()
-            assert title == titles[i], f"{wikidata_id} should have title {titles[i]} but found {title}"
-
+        wikidata_pages = AmiEntry.get_wikidata_pages_for_ids(raw_wikidata_ids)
+        matched_pages = AmiEntry.find_name_to_wikidata_match(wikidata_pages, wikidata_title="greenhouse gas")
+        assert len(matched_pages) == 1 and matched_pages[0].get_id() == "Q167336"
 
     def test_get_instances(self):
         """<div class="wikibase-statementview-mainsnak-container">

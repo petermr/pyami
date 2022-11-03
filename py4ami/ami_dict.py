@@ -1,6 +1,8 @@
 import argparse
+import ast
 import json
 import logging
+from enum import Enum
 
 from lxml import etree as ET
 from lxml import etree
@@ -28,6 +30,7 @@ from py4ami.wikimedia import WikidataSparql, WikidataLookup, WikidataPage
 DICTIONARY = "dictionary"
 ENTRY = "entry"
 IMAGE = "image"
+RAW = "raw"
 TITLE = "title"
 WIKIPEDIA = "wikipedia"
 WIKIDATA = "wikidata"
@@ -96,6 +99,8 @@ class AmiEntry:
         ami_entry.element = entry_element
         return ami_entry
 
+# AmiEntry
+
     @classmethod
     def create_from_term(cls, term):
         assert term is not None
@@ -119,6 +124,8 @@ class AmiEntry:
     def get_wikipedia_page(self):
         return self.element.get(WIKIPEDIA)
 
+    # AmiEntry
+
     def get_synonyms(self):
         """list of child synonym objects"""
         synonyms = [] if self.element is None else self.element.xpath("./" + AmiSynonym.TAG)
@@ -137,6 +144,8 @@ class AmiEntry:
     def get_term(self):
         term = self.element.attrib[TERM]
         return term
+
+    # AmiEntry
 
     @classmethod
     def add_name(cls, entry_element, name):
@@ -161,9 +170,7 @@ class AmiEntry:
             raise AMIDictError(f"wikidata id {idx} must be Qddd... or Pddd...")
         self.set_attribute(WIKIDATA_ID, idx)
 
-    # @property
-    # def wikidata_id(self):
-    #     return self.get_attribute_value(WIKIDATA_ID)
+    # AmiEntry
 
     def set_description(self, desc):
         """set description attribute, can be anything"""
@@ -176,6 +183,8 @@ class AmiEntry:
     def check_validity(self):
         self.check_valid_attributes()
         self.check_valid_children()
+
+    # AmiEntry
 
     def check_valid_attributes(self):
         attribute_names = list(self.element.attrib)
@@ -193,6 +202,8 @@ class AmiEntry:
             for child in self.element:
                 assert child.tag in self.ELEMENT_CHILD_TAGS
 
+    # AmiEntry
+
     def get_synonyms(self):
         """create AmiSynonyms from <synonym> children
         :return: list of AmiSynonyms created from children
@@ -202,6 +213,34 @@ class AmiEntry:
         for synonym_element in synonym_elements:
             ami_synonyms.append(AmiSynonym.create_from_element(synonym_element))
         return ami_synonyms
+
+    def get_raw_child_wikidata_ids(self):
+        """
+        for single child of form <raw wikidataID = [Q1, Q2...]
+        :return: list of ids, else []
+        """
+        raw_child = self.get_single_raw_child_element()
+        wikidata_id_att = raw_child.get(WIKIDATA_ID)
+        wikidata_ids = ast.literal_eval(wikidata_id_att) if wikidata_id_att else []
+        return wikidata_ids
+
+    def get_single_raw_child_element(self):
+        """
+        :return: <raw> child of element if exactly 1, else None
+        """
+        raw_children = self.get_raw_child_elements()
+        raw_child = raw_children[0] if len(raw_children) == 1 else None
+        return raw_child
+
+    # AmiEntry
+
+    def get_raw_child_elements(self):
+        """
+        get all <raw> child elements of AmiEntry.element
+        :return: list of elements (may be zero-length never None)
+        """
+        raw_children = self.element.findall(RAW)
+        return raw_children
 
     def validate_attribute(self, att_name):
         if not att_name:
@@ -220,6 +259,41 @@ class AmiEntry:
         if not mm:
             logging.warning(f"{WIKIDATA_ID} bad value: {value}")
         return mm
+
+    # AmiEntry
+
+    @classmethod
+    def find_name_to_wikidata_match(cls, wikidata_pages, wikidata_title=None):
+        """
+        matches wikidata pages against wikidata_title
+        (Later may have fuzzy matching)
+        :param wikidata_pages: list of pages
+        :param wikidata_title: title to match
+        :return: list of pages that match
+        """
+        matched_pages = []
+        for wikidata_page in wikidata_pages:
+            title = wikidata_page.get_title()
+            if wikidata_page.title_matches(wikidata_title):
+                # print(f"exact match for {wikidata_title} is {wikidata_page.get_id()}")
+                matched_pages.append(wikidata_page)
+        return matched_pages
+
+    @classmethod
+    def get_wikidata_pages_for_ids(cls, wikidata_ids):
+        """
+        get WikidataPages for list of PQids
+        :param wikidata_ids: list of PQitems
+        :return: list of corresponding WikidataPages
+        """
+        wikidata_pages = []
+        for id in wikidata_ids:
+            wikidata_page = WikidataPage(pqitem=id)
+            wikidata_pages.append(wikidata_page)
+        return wikidata_pages
+
+
+
 
 
 class AmiDictionary:
