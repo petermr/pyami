@@ -350,14 +350,14 @@ class TestAmiDictionary(AmiAnyTest):
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
         amidict = AmiDictionary.create_minimal_dictionary()
         amidict.add_entries_from_words(terms)
-        entry_bar = amidict.get_entry("bar")
+        entry_bar = amidict.get_lxml_entry("bar")
         assert entry_bar is not None
 
     def test_fail_on_missing_entry_after_add_list_of_entries_from_list_of_string(self):
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
         amidict = AmiDictionary.create_minimal_dictionary()
         amidict.add_entries_from_words(terms)
-        entry_zilch = amidict.get_entry("zilch")
+        entry_zilch = amidict.get_lxml_entry("zilch")
         assert entry_zilch is None, f"missing entry returns None"
 
     def test_add_second_list_of_entries_from_list_of_string(self):
@@ -398,18 +398,18 @@ class TestAmiDictionary(AmiAnyTest):
     def test_find_entry_by_term(self):
         """searches for entry by value of term"""
         amidict = self._create_amidict_with_foo_bar_entries()
-        entry = amidict.get_entry("foo")
+        entry = amidict.get_lxml_entry("foo")
         assert entry is not None
         assert entry.attrib[TERM] == "foo", f"should retrieve entry with term 'foo'"
 
     def test_find_entry_by_term_bar(self):
         amidict = self._create_amidict_with_foo_bar_entries()
-        entry = amidict.get_entry("bar")
+        entry = amidict.get_lxml_entry("bar")
         assert entry is not None
 
     def test_find_entry_by_term_zilch(self):
         amidict = self._create_amidict_with_foo_bar_entries()
-        entry = amidict.get_entry("zilch")
+        entry = amidict.get_lxml_entry("zilch")
         assert entry is None
 
     def test_delete_entry_by_term_foo(self):
@@ -445,7 +445,7 @@ class TestAmiDictionary(AmiAnyTest):
         AmiEntry.add_name(entry, "foofoo")
         amidict.create_and_add_entry_with_term(term, replace=True)
         assert amidict.get_entry_count() == 1
-        entry = amidict.get_entry(term)
+        entry = amidict.get_lxml_entry(term)
         assert type(entry) is _Element
 
         assert term == entry.attrib[TERM]
@@ -464,10 +464,10 @@ class TestAmiDictionary(AmiAnyTest):
     def test_create_and_overwrite_duplicate_term(self):
         term = "foo"
         amidict = AmiDictionary.create_minimal_dictionary()
-        entry = amidict.create_and_add_entry_with_term(term)
-        assert AmiEntry.get_name(entry) is None
-        AmiEntry.add_name(entry, "bar")
-        assert AmiEntry.get_name(entry) == "bar"
+        ami_entry = AmiEntry.create_from_element(amidict.create_and_add_entry_with_term(term))
+        assert ami_entry.get_name() is None
+        ami_entry.set_name("bar")
+        assert ami_entry.get_name() == "bar"
         try:
             amidict.create_and_add_entry_with_term(term, replace=True)
             assert True, f"should overwrite duplicate entry"
@@ -622,7 +622,55 @@ class TestAmiDictionary(AmiAnyTest):
         # assert text1 == dict_text, f"{text1} != {dict_text}"
         # TODO remove user from metadata
 
-    # helpers
+    def test_find_missing_wikidata_ids(self):
+        ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
+        lxml_entries = ami_dict.get_entries_with_missing_wikidata_ids()
+        # missing_wikidata_ids = AmiEntry.get_wikidata_ids_for_entries(_entries)
+        missing_wikidata_terms = AmiEntry.get_terms_for_lxml_entries(lxml_entries)
+        assert missing_wikidata_terms == [
+            'FAQs',
+             'CBEs',
+             'EET',
+             'GHG',
+             'GWP100',
+             'UNFCCC',
+             'GDP',
+             'HFCs',
+             'HCFCs',
+             'CRF',
+             'WMO',
+             'NGHGI',
+             'GWP',
+             'FFI',
+             'PBEs',
+             'TCBA',
+             'HCEs',
+             'EBEs',
+             'IBE',
+             'RSD',
+             'HDI',
+             'CSP',
+             'BECCS',
+             'IAMs',
+             'CDR',
+             'ECR',
+             'ETSs',
+             'EVs',
+             'ODSs',
+             'HCS'
+        ]
+
+    def test_disambiguate_raw_wikidata_ids_in_dictionary(self):
+        """
+        find
+        USABLE
+        """
+        ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
+        _term_id_list = ami_dict.get_disambiguated_raw_wikidata_ids()
+        assert len(_term_id_list) == 3
+        assert _term_id_list[0] == ('GHG', ['Q167336'])
+
+    # ===== helpers =====
     def _create_amidict_with_foo_bar_entries(self):
         amidict = AmiDictionary.create_minimal_dictionary()
         entry_foo = amidict.create_and_add_entry_with_term("foo")

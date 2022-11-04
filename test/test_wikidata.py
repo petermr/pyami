@@ -383,10 +383,10 @@ class TestWikidataLookup(unittest.TestCase):
         path = Path(EO_COMPOUND_DIR, "dict_5.xml")
         dictionary = AmiDictionary.create_from_xml_file(str(path))
         assert len(dictionary.entries) == 5
-        entry = dictionary.get_entry("allylhexanoate")
+        entry = dictionary.get_lxml_entry("allylhexanoate")
         assert entry.get(WIKIDATA_ID) == "Q3270746"
 
-        entry = dictionary.get_entry("allyl isovalerate")
+        entry = dictionary.get_lxml_entry("allyl isovalerate")
         assert entry.get(WIKIDATA_ID) is None
         dictionary.lookup_and_add_wikidata_to_entry(entry)
         assert entry.get(WIKIDATA_ID) == "Q27155908"
@@ -455,7 +455,7 @@ class TestWikidataLookup(unittest.TestCase):
         ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
         assert ami_dict is not None
         ghg = "GHG"
-        ghg_element = ami_dict.get_entry(ghg)
+        ghg_element = ami_dict.get_lxml_entry(ghg)
         assert ghg_element, f"entry for {ghg} is None, probably not found"
         assert type(ghg_element) is lxml.etree._Element, f"entry has type {type(ghg_element)}"
         ghg_entry = AmiEntry.create_from_element(ghg_element)
@@ -479,32 +479,16 @@ class TestWikidataLookup(unittest.TestCase):
         """
         gets best wikidata match for term
         WORKING
+entry like:
+  <entry term="GHG" name="Greenhouse Gas" >
+    <raw wikidataID="['Q167336', 'Q3588927', 'Q925312', 'Q57584895', 'Q110612403', 'Q112192791', 'Q140182']"/>
+  </entry>
 
         """
         ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
         term = "GHG"
         ami_entry = ami_dict.get_ami_entry(term)
-        raw_wikidata_ids = raw_wikidata_ids = ami_entry.get_raw_child_wikidata_ids()
-        assert raw_wikidata_ids == [
-            'Q167336',
-            'Q3588927',
-            'Q925312',
-            'Q57584895',
-            'Q110612403',
-            'Q112192791',
-            'Q140182'
-        ]
-        titles = [
-            'greenhouse gas',
-            'carbon dioxide emissions',
-            'Greenhouse Gases Observing Satellite',
-            'Greenhouse Gases: science and technology',
-            'greenhouse gas reduction mandate',
-            'greenhouse gas emission',
-            'carbon accounting',
-            ]
-        wikidata_pages = AmiEntry.get_wikidata_pages_for_ids(raw_wikidata_ids)
-        matched_pages = AmiEntry.find_name_to_wikidata_match(wikidata_pages, wikidata_title="greenhouse gas")
+        matched_pages = ami_entry.get_wikidata_pages_from_raw_wikidata_ids_matching_wikidata_page_title()
         assert len(matched_pages) == 1 and matched_pages[0].get_id() == "Q167336"
 
     def test_get_instances(self):

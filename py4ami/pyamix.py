@@ -875,7 +875,7 @@ class PyAMI:
         new_hits = []
         if self.ami_dictionary is not None:
             for hit in hits:
-                entry = self.ami_dictionary.get_entry(hit.lower())
+                entry = self.ami_dictionary.get_lxml_entry(hit.lower())
                 if entry is not None:
                     new_hits.append(hit)
                     self.hit_counter[hit] += 1

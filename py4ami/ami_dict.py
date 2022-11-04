@@ -6,6 +6,7 @@ from enum import Enum
 
 from lxml import etree as ET
 from lxml import etree
+from lxml.etree import Element, _Element
 import lxml
 import os
 import re
@@ -71,6 +72,11 @@ LANG_UR = "ur"
 
 logger = logging.getLogger("ami_dict")
 
+"""
+work with lxml Elements as far as possible, and only wrap as Ami* objects when thos functions
+are needed. Gradually increasing specific names (e.g. _lxml_entry). I know it's not pythonic
+but it stops me making errors
+"""
 
 class AmiEntry:
     TAG = "entry"
@@ -102,7 +108,11 @@ class AmiEntry:
 # AmiEntry
 
     @classmethod
-    def create_from_term(cls, term):
+    def create_lxml_entry_from_term(cls, term):
+        """create lxml entry element
+        :param term: creates @term attribute
+        :return: lxml entry element with @term
+        """
         assert term is not None
         entry_element = lxml.etree.Element(ENTRY)
         entry_element.attrib[TERM] = term
@@ -148,14 +158,21 @@ class AmiEntry:
     # AmiEntry
 
     @classmethod
-    def add_name(cls, entry_element, name):
-        assert entry_element is not None
-        assert entry_element.tag == ENTRY
-        entry_element.attrib[NAME] = name
+    def add_name(cls, lxml_entry_element, name):
+        assert type(lxml_entry_element) is _Element, f"found {type(lxml_entry_element)}"
+        assert lxml_entry_element is not None
+        assert lxml_entry_element.tag == ENTRY
+        lxml_entry_element.attrib[NAME] = name
 
-    @classmethod
-    def get_name(cls, entry):
-        return AmiEntry.get_attribute_value(entry, NAME)
+    def set_name(self, name):
+        AmiEntry.add_name(self.element, name)
+
+    # @classmethod
+    # def get_name(cls, entry):
+    #     return AmiEntry.get_attribute_value(entry, NAME)
+
+    def get_name(self):
+        return AmiEntry.get_attribute_value(self.element, NAME)
 
     @classmethod
     def get_attribute_value(cls, element, attname):
@@ -220,6 +237,8 @@ class AmiEntry:
         :return: list of ids, else []
         """
         raw_child = self.get_single_raw_child_element()
+        if raw_child is None:
+            return []
         wikidata_id_att = raw_child.get(WIKIDATA_ID)
         wikidata_ids = ast.literal_eval(wikidata_id_att) if wikidata_id_att else []
         return wikidata_ids
@@ -292,7 +311,73 @@ class AmiEntry:
             wikidata_pages.append(wikidata_page)
         return wikidata_pages
 
+    # AmiEntry
 
+    def get_wikidata_id(self, empty_to_none=True):
+        """gets value of wikidataID attribute
+        :param empty_to_none: if True treats "" as None
+        :return: raw value or None
+        """
+        return self.element.get(WIKIDATA_ID)
+
+    @classmethod
+    def get_wikidata_ids_for_entries(cls, entries, empty_to_none=True):
+        """
+        list of wikidata_ids for list of entries
+        may contain None values if no wikidata_id
+        :param entries: list of entries to process
+        :param empty_to_none: if true treat "" as None
+        :return: list of wikidata IDs (may be [])
+        """
+
+        return [AmiEntry.create_from_element(entry).get_wikidata_id(empty_to_none=empty_to_none) for entry in entries] if entries else []
+
+    # AmiEntry
+
+    @classmethod
+    def get_terms_for_lxml_entries(cls, lxml_entries):
+        """
+        Convenience method
+        get list of @term's for list of AmiEntries
+        USABLE
+        :param entries: list of entries to process
+        :return: list of terms (may be [])
+        """
+        if len(lxml_entries) == 0:
+            return []
+        type1 = type(lxml_entries[0])
+        assert type1 is _Element, f"found {type1}"
+
+        return [lxml_entry.get(TERM) for lxml_entry in lxml_entries]
+
+    def get_wikidata_pages_from_raw_wikidata_ids_matching_wikidata_page_title(self):
+        """
+        use entry name to search for wikidata pages (from raw@wikidataID child ids) whose title/label == name
+        <entry term="GHG" name="Greenhouse Gas" >
+            <raw wikidataID="['Q167336', 'Q3588927', 'Q925312', 'Q57584895', 'Q110612403', 'Q112192791', 'Q140182']"/>
+        </entry>
+        Object: find all wikidata pages whose titles match the `name`s in the raw wikidata pages
+        1) retrieve the wikidata pages with the given wikidataIDs
+        2) find each of their titles/labels
+        3) check the entry name ("greenhouse gas") against the titles (case-insensitive, exact match)
+        4) return the pages which match
+        USABLE
+
+        :return: list of pages with title (may be empty)
+        """
+        raw_wikidata_ids = self.get_raw_child_wikidata_ids()
+        if not raw_wikidata_ids:
+            return []
+        wikidata_pages = AmiEntry.get_wikidata_pages_for_ids(raw_wikidata_ids)
+        name = self.get_name().lower()
+        matched_pages = AmiEntry.find_name_to_wikidata_match(wikidata_pages, wikidata_title=name)
+        return matched_pages
+
+    @classmethod
+    def create_from_elements(cls, _entries):
+        """create a list of AmiEntry's wrapping a list of lxml elements"""
+        ami_entries = [AmiEntry.create_from_element(_element) for _element in _entries]
+        return ami_entries
 
 
 
@@ -415,7 +500,7 @@ class AmiDictionary:
         for term in terms:
             term = term.strip()
             if term:
-                dup_entry = self.get_entry(term)
+                dup_entry = self.get_lxml_entry(term)
                 if dup_entry is None:
                     self._add_entry(term)
                 elif duplicates == "error":
@@ -603,7 +688,7 @@ class AmiDictionary:
         return term.lower() if term is not None and self.ignorecase else term
 
     def get_xml_and_image_url(self, term):
-        entry = self.get_entry(term)
+        entry = self.get_lxml_entry(term)
         entry_xml = ET.tostring(entry)
         image_url = entry.find(".//" + IMAGE)
         return entry_xml, image_url.text if image_url is not None else None
@@ -639,7 +724,7 @@ class AmiDictionary:
 
     #    class AmiDictionary:
 
-    def get_entry(self, termx, ignorecase=True):
+    def get_lxml_entry(self, termx, ignorecase=True):
         """get entry if term attribute == term (case may matter
         :param termx: term to search for
         :param ignorecase: if true searches for any case variant
@@ -655,6 +740,7 @@ class AmiDictionary:
         entry = self.entry_by_term[lcase] if lcase in self.entry_by_term else None
         # if case-sensitive check whether term was different case
         if entry is not None:
+            assert type(entry) is _Element, f"found {type(entry)}"
             entry_term = entry.attrib[TERM]
             # if the term is case sensitive, compare them
             if not ignorecase and entry_term != termx:
@@ -668,7 +754,7 @@ class AmiDictionary:
         :param term: to search for
         :return: entry wrapped in AmiEntry
         """
-        entry = self.get_entry(term)
+        entry = self.get_lxml_entry(term)
         return None if entry is None else AmiEntry.create_from_element(entry)
 
     def get_entry_count(self):
@@ -678,6 +764,14 @@ class AmiDictionary:
     def get_entries(self):
         assert self.entry_by_term
         return list(self.entry_by_term.values())
+
+    @classmethod
+    def get_term(cls, lxml_entry):
+        return lxml_entry.get(TERM)
+
+    @classmethod
+    def get_wikidata_id(cls, lxml_entry):
+        return lxml_entry.get(WIKIDATA_ID)
 
     def get_ami_entries(self):
         """creates entriws from elements in self.entry_by_term
@@ -704,26 +798,32 @@ class AmiDictionary:
 
     def delete_entry_by_term(self, term):
         """removes an entry with given term"""
-        entry = self.get_entry(term)
+        entry = self.get_lxml_entry(term)
         if entry is not None:
             self.root.remove(entry)
             self.entry_by_term.pop(term)
 
     def create_and_add_entry_with_term(self, term, replace=True):
-        entry_new = AmiEntry.create_from_term(term)
-        entry_exist = self.get_entry(term)
+        """creates lxml_entry element from term
+        uses AmiEntry.create_lxml_entry_from_term(term)
+        :param term: term attribute
+        :param replace: if True, replace entry element
+        :return: new lxml_entry
+        """
+        lxml_entry_new = AmiEntry.create_lxml_entry_from_term(term)
+        lxml_entry_exist = self.get_lxml_entry(term)
 
-        if entry_exist is not None:
+        if lxml_entry_exist is not None:
             if replace:
-                entry_exist.addnext(entry_new)
-                entry_exist.getparent().remove(entry_exist)
+                lxml_entry_exist.addnext(lxml_entry_new)
+                lxml_entry_exist.getparent().remove(lxml_entry_exist)
             else:
                 raise AMIDictError("attempt to add duplicate entry with replace=False")
         else:
-            self.root.append(entry_new)
-        if entry_new is not None:
-            self.entry_by_term[term] = entry_new
-        return entry_new
+            self.root.append(lxml_entry_new)
+        if lxml_entry_new is not None:
+            self.entry_by_term[term] = lxml_entry_new
+        return lxml_entry_new
 
     def check_unique_wikidata_ids(self):
         # print("entries", len(self.entries))
@@ -843,13 +943,23 @@ class AmiDictionary:
             else:
                 print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
 
-    @classmethod
-    def get_term(cls, entry):
-        return entry.get(TERM)
+    def get_disambiguated_raw_wikidata_ids(self):
+        """
+        returns disambiguated list of (term, idlist) tuples for ambiguous raw@wikidataIDs
+        iterates over all entry/raw@wikidataID attributes and disambiguates the IDs by matching
+        against the entry name
+        :return: list of (term, idlist) tuples if disambiguates
 
-    @classmethod
-    def get_wikidata_id(cls, entry):
-        return entry.get(WIKIDATA_ID)
+        """
+        _entries = self.get_entries_with_raw_wikidata_ids()
+        ami_entries = AmiEntry.create_from_elements(_entries)
+        _term_id_list = []
+        for ami_entry in ami_entries:
+            wikidata_pages = ami_entry.get_wikidata_pages_from_raw_wikidata_ids_matching_wikidata_page_title()
+            ids = [page.get_id() for page in wikidata_pages]
+            if ids:
+                _term_id_list.append((ami_entry.get_term(), ids))
+        return _term_id_list
 
     def markup_html_from_dictionary(self, target_path, output_path, background_color):
         term_set = self.get_or_create_term_set()
@@ -879,7 +989,7 @@ class AmiDictionary:
         match_counter = Counter()
         id_dict = dict()
         for a_elem in a_elems:
-            entry = self.get_entry(a_elem.text, ignorecase=True)  # lookup in dictionary
+            entry = self.get_lxml_entry(a_elem.text, ignorecase=True)  # lookup in dictionary
             if entry is None:
                 # print(f" BUG {text}") # this seemed to catch "Page n"
                 continue
@@ -1095,6 +1205,32 @@ class AmiDictionary:
                 pass
             else:
                 print(f"forbidden child of {self.root.tag}: {child.tag} ; allowed = {AmiDictionary.ALLOWED_CHILDREN}")
+
+    def get_entries_with_missing_wikidata_ids(self):
+        """
+        get all entries for which there is no wikidataId or its value is ""
+        :return: list of entries (may be empty)
+        """
+        entries = self.get_entries()
+        missing_wikidata_entries = []
+        for entry in entries:
+            wikidata_id = AmiEntry.create_from_element(entry).get_wikidata_id()
+            if not wikidata_id or wikidata_id.strip() == "":
+                missing_wikidata_entries.append(entry)
+        return missing_wikidata_entries
+
+    def get_entries_with_raw_wikidata_ids(self):
+        """
+        get all entries for which there is a raw@wikidataID child
+        :return: list of entries (may be empty)
+        """
+        entries = self.get_entries()
+        missing_wikidata_entries = []
+        for entry in entries:
+            wikidata_id = AmiEntry.create_from_element(entry).get_wikidata_id()
+            if not wikidata_id or wikidata_id.strip() == "":
+                missing_wikidata_entries.append(entry)
+        return missing_wikidata_entries
 
 
 class AmiSynonym:
