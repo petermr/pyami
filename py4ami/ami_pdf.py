@@ -1721,11 +1721,13 @@ class PDFImage:
             return
         if not suffixes or not '.' in suffixes[0] or not target_suffix or not '.' in target_suffix:
             return
+        Path(outdir).mkdir(parents=True, exist_ok=True)
         for image_file in image_files:
             infile = Path(indir, image_file)
+            stem = Path(infile).stem
             if infile.suffix in suffixes:
                 # note ADDS suffix
-                self.convert_image_file(infile, Path(f"{infile}{target_suffix}"))
+                self.convert_image_file(infile, Path(outdir, stem + target_suffix))
 
     def convert_image_file(self, infile, outfile):
         """converts infile to outfile

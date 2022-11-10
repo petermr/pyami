@@ -8,6 +8,9 @@ from lxml import etree, html
 import lxml.etree
 
 # local
+from py4ami.util import Util
+
+# from py4ami.ami_dict import REGEX_BLACKLIST
 
 logging.debug("loading wikimedia.py")
 
@@ -44,6 +47,10 @@ ID_NAME = "id_name"
 SPQ_NAME = "sparql_name"
 DICT_NAME = "dict_name"
 
+REGEX_BLACKLIST = [".*((scientific|journal)\\s+)?article.*",
+                   ".*((scientific|academic)\\s+)?journal.*",
+                   ".*(film|song|album)"]
+
 
 # this should go in config files
 class WikidataPredicate:
@@ -51,7 +58,7 @@ class WikidataPredicate:
         "P31": {
             "Q11173": "chemical compound",
             "weight": 0.9
-            },
+        },
 
         "P117": {"object": "chemical structure",
                  "weight": 0.9
@@ -62,11 +69,9 @@ class WikidataPredicate:
         "P223": {"object": "canonical SMILES",
                  "weight": 0.9
                  },
-        "P223": {"object": "canonical SMILES",
-                 "weight": 0.9
-                 },
         # "IDENTIFIER": {"InChI" : }
     }
+
 
 # TODO add docstrings and check return values
 class WikidataLookup:
@@ -76,6 +81,7 @@ class WikidataLookup:
         self.wikidata_dict = None
         self.root = None
         self.exact_lookup = exact_lookup
+        self.hits_dict = dict()
 
     def lookup_wikidata(self, term):
         """
@@ -84,40 +90,41 @@ class WikidataLookup:
         NOTE requires Internet
 
         :param term: word or phrase to lookup
-        :return: triple (e.g. qitem[0], qitem[1]["desc"], wikidata_hits)
+        :return: triple (e.g. hit0_id, hit0_description, wikidata_hits)
         """
 
         from urllib.parse import quote
 
+        if not term:
+            logging.warning("null term")
+            return None, None, None
         self.term = term
+        MAX_ENTRIES = 5
         url = WIKIDATA_QUERY_URI + quote(term.encode('utf8'))
-        print(f"url {url}")
+        # print(f"url {url}")
         self.root = ParserWrapper.parse_utf8_html_to_root(url)
         body = self.root.find(BODY)
         ul = body.find(".//ul[@class='" + MW_SEARCH_RESULTS + "']")
-        qitem = None  # to avoid UnboundLocalError
+        hit0 = None  # to avoid UnboundLocalError
         if ul is not None:
             self.wikidata_dict = self.create_dict_for_all_possible_wd_matches(ul)
             if len(self.wikidata_dict) == 0:
                 assert False, f"no wikidata hits for {term}"
             sort_orders = sorted(self.wikidata_dict.items(), key=lambda item: int(item[1][STATEMENTS]), reverse=True)
             if sort_orders:
-                wikidata_hits = [s[0] for s in sort_orders[:5]]
-                #            pprint.pprint(sort_orders[0:3])
+                wikidata_hits = [s[0] for s in sort_orders[:MAX_ENTRIES]]
                 #  take the first
-                qitem = sort_orders[0]
+                hit0 = sort_orders[0]
             else:
                 print(f"no wikidata hits for {term}")
 
                 # TODO fix non-tuples
-        if qitem is None:
+        if hit0 is None:
             return None, None, None
         else:
-            return qitem[0], qitem[1]["desc"], wikidata_hits
-
-    # def lookup_qitem(self, qitem):
-    #     root = ParserWrapper.parse_utf8_html_to_root(WIKIDATA_SITE + qitem)
-    #     return root
+            hit0_id = hit0[0]
+            hit0_description = hit0[1]["desc"]
+            return hit0_id, hit0_description, wikidata_hits
 
     def lookup_items(self, terms):
         """looks up a series of terms and returns a tuple of list(qitem), list(desc)
@@ -158,6 +165,26 @@ class WikidataLookup:
         # just take statements at present (n statements or 1 statement)
         sub_dict[STATEMENTS] = \
             li.find("./div[@class='" + MW_SEARCH_RESULT_DATA + "']").text.split(",")[0].split(" statement")[0]
+
+    def get_possible_wikidata_hits(self, name):
+        entry_hits = self.lookup_wikidata(name)
+        print(f"------{name}-------")
+        if not entry_hits[0]:
+            #                print(f" no hit for {name}")
+            pass
+        else:
+            hits = dict()
+            for qid in entry_hits[2]:
+                wpage = WikidataPage(qid)
+                description = wpage.get_description()
+                regex = Util.matches_regex_list(description, REGEX_BLACKLIST)
+                if regex:
+                    logging.debug(f"{regex} // {description}")
+                else:
+                    logging.debug(f"\n{wpage.get_title()}\n{description}")
+                    hits[qid] = wpage.get_title()
+            if hits:
+                self.hits_dict[name] = hits
 
 
 class WikidataBrowser:
@@ -210,6 +237,7 @@ class WikidataBrowser:
         for subelem in element.xpath(xpath):
             subelem.getparent().remove(subelem)
 
+
 class WikidataFilter:
 
     @classmethod
@@ -228,7 +256,6 @@ class WikidataFilter:
         return filter
 
 
-
 class WikidataProperty:
 
     def __init__(self):
@@ -244,11 +271,11 @@ class WikidataProperty:
     @classmethod
     def create_property_from_element(cls, html_element):
         """Create from HTML element from wikidata.org page"""
-        property = None
+        propertyx = None
         if html_element is not None:
-            property = WikidataProperty()
-            property.element = html_element
-        return property
+            propertyx = WikidataProperty()
+            propertyx.element = html_element
+        return propertyx
 
     @property
     def id(self):
@@ -298,12 +325,17 @@ class WikidataProperty:
         if not property_list:
             return properties_dict
 
-        for property in property_list:
-            property_dict = property.create_property_dict()
-            properties_dict[property.id] = property_dict
+        for propertyx in property_list:
+            property_dict = propertyx.create_property_dict()
+            properties_dict[propertyx.id] = property_dict
         return properties_dict
 
+
 # class WikidataProperty:
+
+
+def label_match(label, wikidata_label, method, ignorecase):
+    raise NotImplemented("label match")
 
 
 class WikidataPage:
@@ -349,7 +381,7 @@ class WikidataPage:
     def get_wikidata_site(cls):
         return WIKIDATA_SITE
 
-# WikidataPage
+    # WikidataPage
 
     def get_wikipedia_page_links(self, lang_list):
         """
@@ -438,7 +470,8 @@ class WikidataPage:
         """
         selector = WikidataPage.get_data_property_xpath()
         property_element_list = self.root.xpath(selector)
-        property_list = [WikidataProperty.create_property_from_element(p_element) for p_element in property_element_list]
+        property_list = [WikidataProperty.create_property_from_element(p_element) for p_element in
+                         property_element_list]
         return property_list
 
     @classmethod
@@ -450,7 +483,7 @@ class WikidataPage:
         """get list of ids presenting properties
         These will be in the left-hand column of the page
         :return: ids , example ['P31', 'P279', 'P361', 'P117']"""
-        property_list = self.get_data_property_list() # WikidataProperty
+        property_list = self.get_data_property_list()  # WikidataProperty
         property_id_list = [property.id for property in property_list]
         return property_id_list
 
@@ -474,8 +507,6 @@ class WikidataPage:
         if len(hdiv_p) >= 1:
             qvals = hdiv_p[0].xpath(".//div[@class='wikibase-snakview-body']//a[starts-with(@title,'Q')]")
         return qvals
-
-
 
     @classmethod
     def get_predicate_object_from_file(cls, wikidata_file, pred, obj):
@@ -634,6 +665,7 @@ class WikidataPage:
                                     ):
         """iterate over list of wikidata titles/labels to find closest/exact match for title
         :param titles: list of previously extracted wikidata labels
+        NOT YET USED
         """
         if labels == None:
             logging.info(f"no labels given")
@@ -649,11 +681,13 @@ class WikidataPage:
             return None
         idlist = []
         for label, id in zip(labels, ids):
-            if label_match(label, wikidata_label, method, ignorecase):
+            if label_match(label, wikidata_label, method, ignorecase):  # METHOD NOT WRITTEN
                 idlist.append(id)
 
 
 """<div class="wikibase-entitytermsview-heading-description">chemical compound</div>"""
+
+
 class WikidataSparql:
 
     def __init__(self, dictionary):
@@ -760,8 +794,10 @@ class ParserWrapper:
         root = tree.getroot()
         return root
 
+
 import pprint
 import requests
+
 
 class WikidataExtractor:
     """Thanks to Awena for showing the approach"""
@@ -887,4 +923,3 @@ class WikidataExtractor:
         # 			if key=="P31":		# instance of
         # 				result["instance"]			= data["claims"][key][0]["mainsnak"]["datavalue"]["value"]["id"]
         return result
-

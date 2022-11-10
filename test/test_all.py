@@ -16,12 +16,26 @@ from py4ami.xml_lib import XmlLib
 
 skip_config_test = True
 
+
 # TODO needs local config file
 @unittest.skipIf(skip_config_test, "needs local config")
 def tests():
     AmiConfig.test_dicts()
 
+
 class AmiAnyTest(unittest.TestCase):
+    # for marking and skipping unittests
+    # skipUnless
+    ADMIN = True  # check that low-level files, tools, etc. work
+    CMD = True   # test runs the commandline
+    DEBUG = True   # test runs the commandline
+    LONG = True   # test runs for a long time
+    NET = True    # test requires Internet
+    OLD = True    # test probably out of data
+    VERYLONG = False   # test runs for a long time
+    # skipIf
+    NYI = True    # test not yet implemented
+    USER = True   # user-facing test
 
     def setUp(self) -> None:
         if len(sys.argv) == 0:
@@ -31,11 +45,11 @@ class AmiAnyTest(unittest.TestCase):
     def tearDown(self) -> None:
         # print(f"argv_copy {self.argv_copy}")
         # print(f"argv {sys.argv}")
-        self.argv =  list(self.argv_copy)
+        self.argv = list(self.argv_copy)
 
 
 class UtilTests:
-    def test_dict_read():
+    def test_dict_read(self):
         file = "section_templates.json"
         return Util.read_pydict_from_json(file)
 
@@ -44,7 +58,6 @@ class FileTests:
 
     @classmethod
     def test_expand_braces(cls):
-
         home = os.path.expanduser("~")
         file = __file__
         python_dir = os.path.abspath(file + "/../")
@@ -66,7 +79,7 @@ class FileTests:
         print("b", glob(open_diagram11))
         open_diagram12 = os.path.join(home, "projects", "*iagram", "**", "*.xml")
         print("od", open_diagram12)
-#        print("b12", glob(open_diagram12, recursive=True))
+        #        print("b12", glob(open_diagram12, recursive=True))
         pics = os.path.join(home, "projects", "*iagram", "**", "{*.climate10_,*.txt,*.png}")
         print("od", pics)
         print("pics", bg.braced_glob(pics, recursive=True))
@@ -74,6 +87,7 @@ class FileTests:
     @classmethod
     def tests(cls):
         cls.test_expand_braces()
+
 
 class WikimediaTests:
     @classmethod
@@ -92,12 +106,12 @@ class WikimediaTests:
         results = WS.get_results_xml(query)
         print(results)
 
-class XmlTests:
 
+class XmlTests:
     XSLT_FILE = os.path.join(Path(__file__).parent, "jats2html.xsl")
+
     @classmethod
     def test_replace_nodes_with_text(cls):
-
         data = '''<everything>
     <m>Some text before <r/></m>
     <m><r/> and some text after.</m>
@@ -127,10 +141,9 @@ class XmlTests:
 >>> bytes(result)
 b'<?xml version="1.0"?>\n<foo>A</foo>\n'
     """
+
     @classmethod
-
     def test_xslt_italic(cls):
-
         data = '''<p>essential oil extracted from
  <italic>T. bovei</italic> was comprised ... on the
  <italic>T. bovei</italic> activities ... activity.
@@ -139,8 +152,7 @@ b'<?xml version="1.0"?>\n<foo>A</foo>\n'
 
     @classmethod
     def test_xslt_copy(cls):
-
-        data="""<ack>
+        data = """<ack>
  <title>Acknowledgements</title>
  <p>The authors acknowledge the assistance of the technicians Mohamad Arar and Linda Esa and for An-Najah National University and Birzeit University for their support.</p>
  <sec id="FPar1">
@@ -179,8 +191,9 @@ if __name__ == "__main__":
     wiki_test = False
     xml_test = False
 
-    if config_test:
-        ConfigTests.tests()
+    # NYI
+    # if config_test:
+    #     ConfigTests.tests()
     if file_test:
         FileTests.tests()
     if wiki_test:

@@ -259,6 +259,19 @@ class Util:
         return False
 
 
+    @staticmethod
+    def matches_regex_list(string, regex_list):
+        """
+        iterate through list and break at first match
+        :param string: to match
+        :param regex_list: list of regexes
+        :return: regex of first match, else None
+        """
+        for regex in regex_list:
+            if re.match(regex, string):
+                return regex
+        return None
+
 
 
 class GithubDownloader:
@@ -540,6 +553,8 @@ class AmiLogger:
 
     def error(self, msg):
         self._print_count(msg, "error")
+
+
 
     # =======
 

@@ -1,21 +1,21 @@
+import glob
 import logging
 import os
 import pprint
 import re
+import unittest
 from pathlib import Path
 
-from lxml.etree import XMLSyntaxError, _Element
 import lxml
 from lxml import etree
-import glob
-import unittest
+from lxml.etree import XMLSyntaxError, _Element
 
 # local
 from py4ami.ami_dict import AmiDictionary, AmiEntry, AmiDictArgs, AMIDictError, \
-    AmiDictValidator, NAME, TITLE, TERM, LANG_UR, VERSION, WIKIDATA, WIKIDATA_ID
+    AmiDictValidator, NAME, TITLE, TERM, LANG_UR, VERSION, WIKIDATA_ID
+from py4ami.constants import PHYSCHEM_RESOURCES, CEV_OPEN_DICT_DIR
 from py4ami.wikimedia import WikidataSparql, WikidataPage
 from py4ami.xml_lib import XmlLib
-from py4ami.constants import PHYSCHEM_RESOURCES, CEV_OPEN_DICT_DIR
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
@@ -40,6 +40,14 @@ AMIDICTS = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts")  # re
 STARTING_VERSION = "0.0.1"
 
 
+# ===== helpers =====
+def _create_amidict_with_foo_bar_entries():
+    amidict = AmiDictionary.create_minimal_dictionary()
+    entry_foo = amidict.create_and_add_entry_with_term("foo")
+    entry_bar = amidict.create_and_add_entry_with_term("bar")
+    return amidict
+
+
 class TestAmiDictionary(AmiAnyTest):
     """These are tests for developing CODE for dictionary creation and validation
 
@@ -61,6 +69,14 @@ class TestAmiDictionary(AmiAnyTest):
     AMIDICTS = Path(Path(__file__).parent.parent, "py4ami/resources/amidicts")  # relative to dictribution base
 
     STARTING_VERSION = "0.0.1"
+
+    ADMIN = True and AmiAnyTest.ADMIN
+    CMD = True and AmiAnyTest.CMD
+    LONG = True and AmiAnyTest.LONG
+    NET = True and AmiAnyTest.NET
+    NYI = True and AmiAnyTest.NYI
+    USER = True and AmiAnyTest.USER
+    VERYLONG = True and AmiAnyTest.VERYLONG
 
     def setup(self):
         """Variables created afresh for every test"""
@@ -88,6 +104,7 @@ class TestAmiDictionary(AmiAnyTest):
         print(f"setup_dict {setup_dict}")
         return setup_dict
 
+    @unittest.skipUnless("environment", ADMIN)
     def test_dictionary_file1_exists(self):
         """Test that a simple dictionary "dictfile1" file exists"""
         setup_dict = self.setup()
@@ -95,6 +112,9 @@ class TestAmiDictionary(AmiAnyTest):
         self.teardown()
 
     def test_read_wellformed_dictionary(self):
+        """test can create from XML string
+        includes well-formed and non-well-formed XML
+        """
         dict_str = """
         <dictionary title='foo'>
         </dictionary>
@@ -182,7 +202,7 @@ class TestAmiDictionary(AmiAnyTest):
         note: depends on INTERNET"""
         mentha_url = "https://raw.githubusercontent.com/petermr/pyami/main/py4ami/resources/amidicts/mentha_tps.xml"
         mentha_dict = AmiDictionary.create_dictionary_from_url(mentha_url)
-        assert len(mentha_dict.get_entries()) == 1
+        assert len(mentha_dict.get_lxml_entries()) == 1
         assert mentha_dict.get_first_ami_entry().get_term() == "1,8-cineole synthase"
         assert mentha_dict.get_version() == "0.0.3"
 
@@ -203,7 +223,7 @@ class TestAmiDictionary(AmiAnyTest):
     def test_title_from_url_stem(self):
         amidict = AmiDictionary.create_minimal_dictionary()
         amidict.url = "https://some.where/foo/bar.xml"
-        assert amidict.root.attrib[TITLE] == "minimal" # needs fixing
+        assert amidict.root.attrib[TITLE] == "minimal"  # needs fixing
 
     def test_title_from_file_stem(self):
         amidict = AmiDictionary.create_minimal_dictionary()
@@ -224,7 +244,7 @@ class TestAmiDictionary(AmiAnyTest):
         url = PLANT_PART_RAW_DICT_URL
         tree = XmlLib.parse_url_to_tree(url)
         descendants = tree.getroot().xpath('.//*')
-        assert 730 >= len(descendants)  >= 720
+        assert 730 >= len(descendants) >= 720
 
     def test_dictionary_has_xml_declaration_with_encoding(self):
         """Checks dictionary has encoding of 'UTF-8' and XML Version 1.0
@@ -245,7 +265,7 @@ class TestAmiDictionary(AmiAnyTest):
             PLANT_PART_RAW_DICT_URL,
             ANALYSIS_METHOD_RAW_DICT_URL,
             COMPOUND_RAW_DICT_URL
-            ]
+        ]
         for url in urllist:
             print(f"url: {url}")
             tree = XmlLib.parse_url_to_tree(url)
@@ -275,7 +295,7 @@ class TestAmiDictionary(AmiAnyTest):
     def test_dictionary_get_entries(self):
         setup_dict = self.setup()
         amidict = setup_dict[ONE_ENTRY_DICT]
-        entries = amidict.get_entries()
+        entries = amidict.get_lxml_entries()
         assert entries is not None
 
     def test_dictionary_contains_one_entry(self):
@@ -328,7 +348,8 @@ class TestAmiDictionary(AmiAnyTest):
         amidict = AmiDictionary.create_minimal_dictionary()
         entry = amidict.create_and_add_entry_with_term("foo")
         assert etree.tostring(entry) == b'<entry term="foo"/>'
-        assert etree.tostring(amidict.root) == b'<dictionary title="minimal" version="0.0.1"><entry term="foo"/></dictionary>'
+        assert etree.tostring(
+            amidict.root) == b'<dictionary title="minimal" version="0.0.1"><entry term="foo"/></dictionary>'
         assert amidict.get_entry_count() == 1
 
     def test_add_two_entry_with_term_to_zero_entry_dict(self):
@@ -336,7 +357,8 @@ class TestAmiDictionary(AmiAnyTest):
         entry_foo = amidict.add_entry_element("foo")
         entry_bar = amidict.add_entry_element("bar")
         assert etree.tostring(entry_bar) == b'<entry name="bar" term="bar"/>'
-        assert etree.tostring(amidict.root) == b'<dictionary title="minimal" version="0.0.1"><entry name="foo" term="foo"/><entry name="bar" term="bar"/></dictionary>'
+        assert etree.tostring(
+            amidict.root) == b'<dictionary title="minimal" version="0.0.1"><entry name="foo" term="foo"/><entry name="bar" term="bar"/></dictionary>'
         assert amidict.get_entry_count() == 2
 
     def test_add_list_of_entries_from_list_of_string(self):
@@ -387,7 +409,7 @@ class TestAmiDictionary(AmiAnyTest):
 
     def test_add_then_remove_entry_and_replace(self):
         """create new entry , then delete, then re-add"""
-        amidict,_ = AmiDictionary.create_dictionary_from_words(["foo", "bar", "plugh", "xyzzy"])
+        amidict, _ = AmiDictionary.create_dictionary_from_words(["foo", "bar", "plugh", "xyzzy"])
         assert amidict.get_entry_count() == 4
         amidict.delete_entry_by_term("bar")
         assert amidict.get_entry_count() == 3, f"entry 'bar' should have been removed"
@@ -397,30 +419,30 @@ class TestAmiDictionary(AmiAnyTest):
     # find entries
     def test_find_entry_by_term(self):
         """searches for entry by value of term"""
-        amidict = self._create_amidict_with_foo_bar_entries()
+        amidict = _create_amidict_with_foo_bar_entries()
         entry = amidict.get_lxml_entry("foo")
         assert entry is not None
         assert entry.attrib[TERM] == "foo", f"should retrieve entry with term 'foo'"
 
     def test_find_entry_by_term_bar(self):
-        amidict = self._create_amidict_with_foo_bar_entries()
+        amidict = _create_amidict_with_foo_bar_entries()
         entry = amidict.get_lxml_entry("bar")
         assert entry is not None
 
     def test_find_entry_by_term_zilch(self):
-        amidict = self._create_amidict_with_foo_bar_entries()
+        amidict = _create_amidict_with_foo_bar_entries()
         entry = amidict.get_lxml_entry("zilch")
         assert entry is None
 
     def test_delete_entry_by_term_foo(self):
-        amidict = self._create_amidict_with_foo_bar_entries()
+        amidict = _create_amidict_with_foo_bar_entries()
         print(f"amidict0 {lxml.etree.tostring(amidict.root)}")
         amidict.delete_entry_by_term("foo")
         print(f"amidict1 {lxml.etree.tostring(amidict.root)}")
         assert amidict.get_entry_count() == 1
 
     def test_delete_entry_by_term_foo_and_re_add(self):
-        amidict = self._create_amidict_with_foo_bar_entries()
+        amidict = _create_amidict_with_foo_bar_entries()
         amidict.delete_entry_by_term("foo")
         amidict.create_and_add_entry_with_term("foo")
         assert amidict.get_entry_count() == 2
@@ -492,7 +514,7 @@ class TestAmiDictionary(AmiAnyTest):
     def test_get_duplicate_entries(self):
         """Dictionary has two entries for 'apical' but only one for 'cone'"""
         dup_dict = AmiDictionary.create_from_xml_file(self.setup()[DUPLICATE_ENTRIES])
-        entries = dup_dict.get_entries()
+        entries = dup_dict.get_lxml_entries()
         assert len(entries) == 4, "one duplicate term omitted"
         entries = dup_dict.find_entries_with_term("apical")
         assert entries is not None and len(entries) == 1
@@ -543,17 +565,17 @@ class TestAmiDictionary(AmiAnyTest):
 
     def test_ethnobot_dict_has_8_entries(self):
         ethnobot_dict = AmiDictionary.create_from_xml_file(self.setup()[ETHNOBOT_DICT])
-        entries = ethnobot_dict.get_entries()
+        entries = ethnobot_dict.get_lxml_entries()
         assert len(entries) == 8
 
     def test_ethnobot_dict_entry_0_is_valid(self):
         ethnobot_dict = AmiDictionary.create_from_xml_file(self.setup()[ETHNOBOT_DICT])
-        entry0 = ethnobot_dict.get_entries()[0]
+        entry0 = ethnobot_dict.get_lxml_entries()[0]
         AmiEntry.create_from_element(entry0).check_validity()
 
     def test_all_ethnobot_dict_entries_are_valid(self):
         ethnobot_dict = AmiDictionary.create_from_xml_file(self.setup()[ETHNOBOT_DICT])
-        for entry in ethnobot_dict.get_entries():
+        for entry in ethnobot_dict.get_lxml_entries():
             AmiEntry.create_from_element(entry).check_validity()
 
     # integrations
@@ -561,7 +583,7 @@ class TestAmiDictionary(AmiAnyTest):
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
         title = "foobar"
         directory = None
-        amidict,_ = AmiDictionary.create_dictionary_from_words(terms, title)
+        amidict, _ = AmiDictionary.create_dictionary_from_words(terms, title)
         assert amidict is not None
         title = amidict.root.attrib[TITLE]
         assert title == "foobar"
@@ -604,7 +626,7 @@ class TestAmiDictionary(AmiAnyTest):
                  # "DMSO",
                  # "ethanol"
                  ]
-        amidict,_ = AmiDictionary.create_dictionary_from_words(terms, title="solvents", wikidata=True)
+        amidict, _ = AmiDictionary.create_dictionary_from_words(terms, title="solvents", wikidata=True)
         temp_dir = Path(Path(__file__).parent.parent, "temp")
         dictfile = amidict.write_to_dir(temp_dir)
 
@@ -624,40 +646,40 @@ class TestAmiDictionary(AmiAnyTest):
 
     def test_find_missing_wikidata_ids(self):
         ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
-        lxml_entries = ami_dict.get_entries_with_missing_wikidata_ids()
+        lxml_entries = ami_dict.get_lxml_entries_with_missing_wikidata_ids()
         # missing_wikidata_ids = AmiEntry.get_wikidata_ids_for_entries(_entries)
         missing_wikidata_terms = AmiEntry.get_terms_for_lxml_entries(lxml_entries)
         assert missing_wikidata_terms == [
             'FAQs',
-             'CBEs',
-             'EET',
-             'GHG',
-             'GWP100',
-             'UNFCCC',
-             'GDP',
-             'HFCs',
-             'HCFCs',
-             'CRF',
-             'WMO',
-             'NGHGI',
-             'GWP',
-             'FFI',
-             'PBEs',
-             'TCBA',
-             'HCEs',
-             'EBEs',
-             'IBE',
-             'RSD',
-             'HDI',
-             'CSP',
-             'BECCS',
-             'IAMs',
-             'CDR',
-             'ECR',
-             'ETSs',
-             'EVs',
-             'ODSs',
-             'HCS'
+            'CBEs',
+            'EET',
+            'GHG',
+            'GWP100',
+            'UNFCCC',
+            'GDP',
+            'HFCs',
+            'HCFCs',
+            'CRF',
+            'WMO',
+            'NGHGI',
+            'GWP',
+            'FFI',
+            'PBEs',
+            'TCBA',
+            'HCEs',
+            'EBEs',
+            'IBE',
+            'RSD',
+            'HDI',
+            'CSP',
+            'BECCS',
+            'IAMs',
+            'CDR',
+            'ECR',
+            'ETSs',
+            'EVs',
+            'ODSs',
+            'HCS'
         ]
 
     def test_disambiguate_raw_wikidata_ids_in_dictionary(self):
@@ -670,14 +692,98 @@ class TestAmiDictionary(AmiAnyTest):
         assert len(_term_id_list) == 3
         assert _term_id_list[0] == ('GHG', ['Q167336'])
 
-    # ===== helpers =====
-    def _create_amidict_with_foo_bar_entries(self):
-        amidict = AmiDictionary.create_minimal_dictionary()
-        entry_foo = amidict.create_and_add_entry_with_term("foo")
-        entry_bar = amidict.create_and_add_entry_with_term("bar")
-        return amidict
+    @unittest.skipUnless(VERYLONG, "lookup whole dictionaries")
+    def test_lookup_missing_abbreviation_wikidata_ids_by_name(self):
+        """
+        scans dictionary for missing @wikidataID and searches wikidata by name/term
+        USEFUL
+        """
+        ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
+        lookup = ami_dict.lookup_missing_wikidata_ids()
+        pprint.PrettyPrinter(indent=4).pprint(lookup.hits_dict)
+        assert len(lookup.hits_dict) == 17
+        """{   'Electric vehicles': {   'Q13629441': 'electric vehicle',
+                             'Q17107666': 'Miles Electric Vehicles',
+                             'Q1720353': 'Smith Electric Vehicles',
+                             'Q5029961': 'Canadian Electric Vehicles',
+                             'Q67371583': 'John Bradshaw Ltd.'},
+    'Frequently Asked Questions': {   'Property:P9214': 'FAQ URL',
+                                      'Q189293': 'FAQ',
+                                      'Q76407407': 'Ffatrïoedd a busnesau a '
+                                                   'gynorthwyir : cwestiynau '
+                                                   'cyffredin = Supported '
+                                                   'factories and businesses : '
+                                                   'frequently asked '
+                                                   'questions'},
+    'Global Warming Potential': {'Property:P2565': 'global warming potential'},
+    'Greenhouse Gas': {   'Q107315539': 'Greenhouse Gas Mitigation Workshop '
+                                        '(2016)',
+                          'Q167336': 'greenhouse gas',
+                          'Q5604172': 'greenhouse gas emissions by the United '
+                                      'Kingdom'},
+"""
 
-    # test helpers
+    @unittest.skipUnless(VERYLONG, "runs several chapters")
+    def test_debug_chapter_dictionaries(self):
+        self.debug_dict(dict_path=Resources.IPCC_CHAP07_ABB_DICT)
+        self.debug_dict(dict_path=Resources.IPCC_CHAP07_MAN_DICT)
+        self.debug_dict(dict_path=Resources.IPCC_CHAP08_ABB_DICT)
+        self.debug_dict(dict_path=Resources.IPCC_CHAP08_MAN_DICT)
+
+    @classmethod
+    def debug_dict(cls, dict_path):
+        print(f"======={dict_path}=======")
+        ami_dict = AmiDictionary.create_from_xml_file(dict_path)
+        if ami_dict:
+            lookup = ami_dict.lookup_missing_wikidata_ids()
+            pprint.PrettyPrinter(indent=4).pprint(lookup.hits_dict)
+        else:
+            print(f"****Cannot find valid dict {dict_path}****")
+            logging.error(f"Cannot find valid dict {dict_path}")
+
+    @unittest.skipUnless(VERYLONG, "lookup whole dictionaries")
+    def test_lookup_missing_manual_wikidata_ids_by_name(self):
+        """
+        scans dictionary for missing @wikidataID and searches wikidata by name/term
+        USEFUL
+        """
+        ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP07_MAN_DICT)
+        lookup = ami_dict.lookup_missing_wikidata_ids()
+        pp = pprint.PrettyPrinter(indent=4)
+        pp.pprint(lookup.hits_dict)
+        assert 8 >= len(lookup.hits_dict) >= 6
+
+    @unittest.skipUnless(VERYLONG, "lookup whole dictionaries")
+    def test_lookup_missing_wikidata_ids_by_term(self):
+        """
+        scans dictionary for missing @wikidataID and searches wikidata by term
+        USEFUL
+        """
+        ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
+        lookup = ami_dict.lookup_missing_wikidata_ids(lookup_string=TERM)
+        pp = pprint.PrettyPrinter(indent=4)
+        pp.pprint(lookup.hits_dict)
+        assert 28 >= len(lookup.hits_dict) >= 22
+
+    # {
+    #     {'BECCS': {'Q146790': 'Aomori',
+    #                'Q209727': 'palmitic acid',
+    #                'Q455712': 'Domenico di Pace Beccafumi',
+    #                'Q472237': 'Nikolaos Gyzis',
+    #                'Q507854': 'Karlstadt am Main'},
+    #      'CBEs': {'Q1391': 'Maryland',
+    #               'Q227': 'Azerbaijan',
+    #               'Q7024': 'Lugano',
+    #               'Q8093': 'Nintendo',
+    #               'Q884': 'South Korea'},
+    #      'WMO': {'Property:P4136': 'WIGOS station ID',
+    #              'Property:P5956': 'War Memorials Online ID',
+    #              'Property:P9737': 'WMO code',
+    #              'Q170424': 'World Meteorological Organization',
+    #              'Q4468436': 'White Mountain Airport'}}
+    #     }
+
+    # =====helpers======
 
     def teardown(self):
         dict1_root = None
@@ -698,14 +804,14 @@ class TestSearchDictionary:
         words = ["limonene", "alpha-pinene", "Lantana camara"]
         description = "created from words"
         title = "test"
-        dictionary,_ = AmiDictionary.create_dictionary_from_words(words, title=title, desc=description, wikidata=True)
+        dictionary, _ = AmiDictionary.create_dictionary_from_words(words, title=title, desc=description, wikidata=True)
         assert len(dictionary.entries) == 3
 
     def test_get_property_ids(self):
         """gets properties af a dictionary entry"""
         words = ["limonene"]
-        dictionary,_ = AmiDictionary.create_dictionary_from_words(words, "test", "created from words",
-                                                                wikilangs=["en", "de"])
+        dictionary, _ = AmiDictionary.create_dictionary_from_words(words, "test", "created from words",
+                                                                   wikilangs=["en", "de"])
         dictionary.add_wikidata_from_terms()
         pprint.pprint(lxml.etree.tostring(dictionary.root).decode("UTF-8"))
         assert len(dictionary.entries) == 1
@@ -737,7 +843,7 @@ class TestSearchDictionary:
         dictionary = AmiDictionary.create_from_xml_file(dictionary_file)
         wikidata_sparql = WikidataSparql(dictionary)
         wikidata_sparql.update_from_sparql(sparql_file, sparql_to_dictionary)
-        outdir = Path(Resources.TEMP_DIR,"sparql")
+        outdir = Path(Resources.TEMP_DIR, "sparql")
         if not outdir.exists():
             outdir.mkdir()
         # ff = dictionary_file[:-(len(".xml"))] + "_update" + ".xml"
@@ -893,52 +999,50 @@ class TestSearchDictionary:
         abb2_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
         abb2_set = abb2_dict.get_or_create_term_set()
         assert abb2_set == {
- 'BECCS', 'CBEs', 'CDR', 'CRF', 'CSP',
- 'EBEs', 'ECR', 'EET', 'ETSs',
- 'EU ETS', 'EVs', 'F-gases', 'FAQs',
- 'FFI', 'GDP', 'GHG', 'GTP',
- 'GWP', 'GWP100', 'HCEs', 'HCFCs',
- 'HCS', 'HDI', 'HFCs', 'IAMs',
- 'IBE', 'LULUCF', 'NGHGI', 'ODSs',
- 'PBEs', 'PFCs', 'RGGI', 'RSD',
- 'TCBA', 'UNFCCC', 'WMO'
-                            } , f"abb2 set {abb2_set}"
+            'BECCS', 'CBEs', 'CDR', 'CRF', 'CSP',
+            'EBEs', 'ECR', 'EET', 'ETSs',
+            'EU ETS', 'EVs', 'F-gases', 'FAQs',
+            'FFI', 'GDP', 'GHG', 'GTP',
+            'GWP', 'GWP100', 'HCEs', 'HCFCs',
+            'HCS', 'HDI', 'HFCs', 'IAMs',
+            'IBE', 'LULUCF', 'NGHGI', 'ODSs',
+            'PBEs', 'PFCs', 'RGGI', 'RSD',
+            'TCBA', 'UNFCCC', 'WMO'
+        }, f"abb2 set {abb2_set}"
 
         man2_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP02_DICT, "ip_3_2_emissions_man.xml"))
         man2_set = man2_dict.get_or_create_term_set()
         assert man2_set == {
- 'CAIT', 'CEDS', 'CGTP', 'CO2-equivalent emission',
- 'CRF', 'EDGAR', 'FAOSTAT', 'FFI', 'FOLU', 'Final Energy Demand', 'GTP', 'GWP',
- 'GWP100', 'GtCO2eq', 'LULUCF', 'NMVOC',
- 'PRIMAP', 'Paris Agreement', 'Primary Energy', 'Primary Energy Conversion',
- 'SLCF', 'SRES', 'SSP', 'UNFCCC', 'WMO',
- 'atmospheric lifetime', 'baseline scenario',
- 'carbon budget', 'carbon pricing',
- 'cumulative CO2 emissions', 'demand side solutions',
- 'emission inventory', 'emission sectors',
- 'emissions factor', 'emissions trajectory',
- 'fluorinated gas', 'social discount rate',
- 'top down atmospheric measurement'
+            'CAIT', 'CEDS', 'CGTP', 'CO2-equivalent emission',
+            'CRF', 'EDGAR', 'FAOSTAT', 'FFI', 'FOLU', 'Final Energy Demand', 'GTP', 'GWP',
+            'GWP100', 'GtCO2eq', 'LULUCF', 'NMVOC',
+            'PRIMAP', 'Paris Agreement', 'Primary Energy', 'Primary Energy Conversion',
+            'SLCF', 'SRES', 'SSP', 'UNFCCC', 'WMO',
+            'atmospheric lifetime', 'baseline scenario',
+            'carbon budget', 'carbon pricing',
+            'cumulative CO2 emissions', 'demand side solutions',
+            'emission inventory', 'emission sectors',
+            'emissions factor', 'emissions trajectory',
+            'fluorinated gas', 'social discount rate',
+            'top down atmospheric measurement'
         }, f"man2 set {man2_set}"
 
         # phrases
         phr2_dict = AmiDictionary.create_from_xml_file(Path(Resources.IPCC_CHAP02_DICT, "ip_3_2_emissions_phr.xml"))
         phr2_set = phr2_dict.get_or_create_term_set()
         assert phr2_set == {
-'BECCS', 'CBEs', 'CDR', 'CRF', 'CSP', 'EBEs', 'ECR', 'EET',
- 'ETSs', 'EU ETS', 'EVs', 'F-gases',
- 'FAQs', 'FFI', 'GDP', 'GHG', 'GTP', 'GWP', 'GWP-100', 'GWP100',
- 'HCEs', 'HCFCs', 'HCS', 'HDI', 'HFCs', 'IAMs', 'IBE', 'LULUCF',
- 'NGHGI', 'ODSs', 'PBEs', 'PFCs', 'RGGI', 'RSD', 'TCBA', 'UNFCCC', 'WMO'
-}
+            'BECCS', 'CBEs', 'CDR', 'CRF', 'CSP', 'EBEs', 'ECR', 'EET',
+            'ETSs', 'EU ETS', 'EVs', 'F-gases',
+            'FAQs', 'FFI', 'GDP', 'GHG', 'GTP', 'GWP', 'GWP-100', 'GWP100',
+            'HCEs', 'HCFCs', 'HCS', 'HDI', 'HFCs', 'IAMs', 'IBE', 'LULUCF',
+            'NGHGI', 'ODSs', 'PBEs', 'PFCs', 'RGGI', 'RSD', 'TCBA', 'UNFCCC', 'WMO'
+        }
 
-# terms common to abbrev and manual
+        # terms common to abbrev and manual
         abb_man_set = abb2_set.intersection(man2_set)
         assert len(abb_man_set) == 8, f"man2 set {len(abb_man_set)}"
         assert abb_man_set == {
             'GTP', 'FFI', 'GWP', 'UNFCCC', 'WMO', 'GWP100', 'CRF', 'LULUCF'}
-
-
 
 
 def main(argv=None):

@@ -444,17 +444,13 @@ class AmiDictionary:
         :returns: AmiDictionary object or null
         """
         if not os.path.exists(xml_file):
-            raise IOError("cannot find dictionary path " + str(xml_file))
+            logging.warning("cannot find dictionary path " + str(xml_file))
+            return None
         xml_tree = ET.parse(str(xml_file), parser=ET.XMLParser(encoding="utf-8"))
         dictionary = AmiDictionary.create_from_xml_object(xml_tree, ignorecase=ignorecase)
         dictionary.xml_content = xml_tree
         dictionary.file = xml_file
         dictionary.root = xml_tree.getroot()
-        # dictionary = dictionary1
-        # file_title = Path(xml_file).stem
-        # if not title:
-        #     title = file_title
-        # print(f"title {file_title}")
 
         return dictionary
 
@@ -614,9 +610,7 @@ class AmiDictionary:
         dictionary.title = dictionary.root.xpath("@title")
         dictionary.ignorecase = ignorecase
         dictionary.entries = list(dictionary.root.findall(ENTRY))
-        print(f"dictionary.entries {len(dictionary.entries)}")
         dictionary.create_entry_by_term()
-        print(f"entry_by_term {len(dictionary.entry_by_term)}")
         dictionary.term_set = set()
         return dictionary
 
@@ -761,7 +755,11 @@ class AmiDictionary:
         assert self.entry_by_term is not None
         return len(self.entry_by_term)
 
-    def get_entries(self):
+    def get_lxml_entries(self):
+        """
+        get lxml_entries from dictionary
+        :return: list of lxml_entry's
+        """
         assert self.entry_by_term
         return list(self.entry_by_term.values())
 
@@ -961,6 +959,53 @@ class AmiDictionary:
                 _term_id_list.append((ami_entry.get_term(), ids))
         return _term_id_list
 
+    def lookup_missing_wikidata_ids(self, lookup_string=NAME, maxhits=99999):
+        """
+        finds entries with missing WikidataIDs and searches wikidata by name or term
+        creates WikidataLookup which holds hits_dict with details of possible match
+
+        e.g .
+        # {
+#     {'BECCS': {'Q146790': 'Aomori',
+#                'Q209727': 'palmitic acid',
+#                'Q455712': 'Domenico di Pace Beccafumi',
+#                'Q472237': 'Nikolaos Gyzis',
+#                'Q507854': 'Karlstadt am Main'},
+#      'CBEs': {'Q1391': 'Maryland',
+#               'Q227': 'Azerbaijan',
+#               'Q7024': 'Lugano',
+#               'Q8093': 'Nintendo',
+#               'Q884': 'South Korea'},
+#      'WMO': {'Property:P4136': 'WIGOS station ID',
+#              'Property:P5956': 'War Memorials Online ID',
+#              'Property:P9737': 'WMO code',
+#              'Q170424': 'World Meteorological Organization',
+#              'Q4468436': 'White Mountain Airport'}}
+#     }
+
+        :param lookup_string: either "name" (NAME) OR "term" (TERM); default NAME
+        :param maxhits: exit after maxhits entries
+        :return: new WikidataLookup with lookup.hits_dict
+        """
+        lxml_entries = self.get_lxml_entries_with_missing_wikidata_ids()
+        lookup = WikidataLookup()
+        for i, lxml_entry in enumerate(lxml_entries):
+            if i >= maxhits:
+                break
+            ami_entry = AmiEntry.create_from_element(lxml_entry)
+            # where only some of name/term are present
+            if lookup_string == NAME:
+                string = ami_entry.get_name()
+                if not string:
+                    string = ami_entry.get_term()
+            else:
+                string = ami_entry.get_term()
+                if not string:
+                    string = ami_entry.get_name()
+
+            lookup.get_possible_wikidata_hits(string)
+        return lookup
+
     def markup_html_from_dictionary(self, target_path, output_path, background_color):
         term_set = self.get_or_create_term_set()
         re_join = '|'.join(term_set)
@@ -1086,7 +1131,7 @@ class AmiDictionary:
     def set_encoding(self, encoding=UTF_8):
         assert self.root is not None
         # self.root.docinfo.encoding = encoding
-        print(f"cannot yet set encoding")
+        # print(f"cannot yet set encoding")
 
     def set_version(self, version='0.0.1'):
         assert self.root is not None
@@ -1100,16 +1145,16 @@ class AmiDictionary:
     def get_first_entry(self):
         """gets first entry mainly for testing
         """
-        if self.root is None or len(self.get_entries()) == 0:
+        if self.root is None or len(self.get_lxml_entries()) == 0:
             return None
-        return self.get_entries()[0]
+        return self.get_lxml_entries()[0]
 
     def get_first_ami_entry(self):
         """gets first entry mainly for testing
         """
-        if self.root is None or len(self.get_entries()) == 0:
+        if self.root is None or len(self.get_lxml_entries()) == 0:
             return None
-        return AmiEntry.create_from_element(self.get_entries()[0])
+        return AmiEntry.create_from_element(self.get_lxml_entries()[0])
 
     # TODO is this in the right place?
     @classmethod
@@ -1148,7 +1193,7 @@ class AmiDictionary:
         """
         # print(f"looking for {term} in {len(self.get_entries())}")
         _entries = []
-        for entry in self.get_entries():
+        for entry in self.get_lxml_entries():
             _term = AmiEntry.get_attribute_value(entry, TERM)
             print(f"{type(entry)}  {_term}")
             if _term == term:
@@ -1206,17 +1251,17 @@ class AmiDictionary:
             else:
                 print(f"forbidden child of {self.root.tag}: {child.tag} ; allowed = {AmiDictionary.ALLOWED_CHILDREN}")
 
-    def get_entries_with_missing_wikidata_ids(self):
+    def get_lxml_entries_with_missing_wikidata_ids(self):
         """
         get all entries for which there is no wikidataId or its value is ""
-        :return: list of entries (may be empty)
+        :return: list of lxml_entries (may be empty)
         """
-        entries = self.get_entries()
+        lxml_entries = self.get_lxml_entries()
         missing_wikidata_entries = []
-        for entry in entries:
-            wikidata_id = AmiEntry.create_from_element(entry).get_wikidata_id()
+        for lxml_entry in lxml_entries:
+            wikidata_id = AmiEntry.create_from_element(lxml_entry).get_wikidata_id()
             if not wikidata_id or wikidata_id.strip() == "":
-                missing_wikidata_entries.append(entry)
+                missing_wikidata_entries.append(lxml_entry)
         return missing_wikidata_entries
 
     def get_entries_with_raw_wikidata_ids(self):
@@ -1224,7 +1269,7 @@ class AmiDictionary:
         get all entries for which there is a raw@wikidataID child
         :return: list of entries (may be empty)
         """
-        entries = self.get_entries()
+        entries = self.get_lxml_entries()
         missing_wikidata_entries = []
         for entry in entries:
             wikidata_id = AmiEntry.create_from_element(entry).get_wikidata_id()

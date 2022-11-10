@@ -1,12 +1,13 @@
+import os
+import pprint
 import sys
 import unittest
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
+
 import lxml
 import lxml.etree
 import lxml.html
-
-import os
 
 import test.test_all
 
@@ -17,13 +18,14 @@ from PIL import Image
 from py4ami.ami_bib import Publication
 
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
-from py4ami.ami_pdf import AmiPage, TextStyle, X, Y, SORT_XY, PDFImage
-from py4ami.ami_pdf import DEBUG_ALL, DEBUG_OPTIONS, WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS
-from py4ami.ami_html import HtmlUtil, STYLE,FILL, STROKE, FONT_FAMILY, FONT_SIZE
-from py4ami.ami_html import H_DIV, H_SPAN, H_A, H_B, H_BODY, H_P
+from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage
+from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS
+from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE
+from py4ami.ami_html import H_SPAN, H_BODY, H_P
+from py4ami.pyamix import PyAMI
 from py4ami.bbox_copy import BBox
 from test.resources import Resources
-from py4ami.pyamix import PyAMI
+from test.test_all import AmiAnyTest
 
 # class PDFTest:
 
@@ -90,17 +92,36 @@ def make_html_dir():
 
 
 class PDFTest(test.test_all.AmiAnyTest):
-
     MAX_PAGE = 5
     MAX_ITER = 20
 
+    # all are skipUnless
+    ADMIN = True and AmiAnyTest.ADMIN
+    CMD = True and AmiAnyTest.CMD
+    DEBUG = True and AmiAnyTest.DEBUG
+    LONG = True and AmiAnyTest.LONG
+    NET = True and AmiAnyTest.NET
+    OLD = True and AmiAnyTest.OLD
+    NYI = True and AmiAnyTest.NYI
+    USER = True and AmiAnyTest.USER
+
+    VERYLONG = False or AmiAnyTest.VERYLONG
+
+    # local
+    HTML = True
+    SVG = True
+
+    # old tests
+    OLD = False
+
+    @unittest.skipUnless("enviroment", ADMIN)
     def test_pdfbox_output_exists(self):
         """check CLIMATE dir exists
-
         """
         # assert str(Resources.CLIMATE_10_DIR) == "/Users/pm286/workspace/pyami/test/resources/svg", f"resources {Resources.CLIMATE_10_DIR}"
         assert Resources.CLIMATE_10_PROJ_DIR.exists(), f"{Resources.CLIMATE_10_PROJ_DIR} should exist"
 
+    @unittest.skipUnless("enviroment", ADMIN)
     def test_findall_svg_and_find_texts(self):
         """find climate10_:text elements
         """
@@ -109,6 +130,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         texts = page9_elem.findall(f"//{{{SVG_NS}}}text")
         assert len(texts) == 108
 
+    @unittest.skipUnless(SVG, "svg")
     def test_get_text_attribs(self):
         """find various SVG attributes, including 'style'
         """
@@ -138,6 +160,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         assert text_content == "APPROVED Summary for Policymakers IPCC AR6 WG III "
         assert len(text_content) == 50  # some spaces have been elided??
 
+    @unittest.skipUnless(SVG, "svg")
     def test_get_text_attrib_vals(self):
         """more attributes and convenience methods"""
         ami_page = AmiPage.create_page_from_svg(PAGE_9)
@@ -173,13 +196,15 @@ class PDFTest(test.test_all.AmiAnyTest):
         assert style_dict[STROKE] == 'none'
         assert ami_text0.get_font_size() == 9.96
 
+    @unittest.skipUnless(SVG, "svg")
     def test_create_text_lines_page6(self):
         """creation of AmiPage from SVG page and creation of text spans"""
         page = AmiPage.create_page_from_svg(PAGE_6)
         page.create_text_spans(sort_axes=SORT_XY)
         assert 70 >= len(page.text_spans) >= 60
 
-    def test_create_html(self):
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_html_from_svg(self):
         """
         Test 10 pages
         """
@@ -196,7 +221,8 @@ class PDFTest(test.test_all.AmiAnyTest):
             ami_page.write_html(html_path, pretty_print, use_lines)
             assert html_path.exists(), f"{html_path} exists"
 
-    def test_create_html_in_selection(self):
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_html_in_selection_from_svg(self):
         """
         Test 10 pages
         """
@@ -219,6 +245,7 @@ class PDFTest(test.test_all.AmiAnyTest):
             counter += 1
             assert html_path.exists(), f"{html_path} exists"
 
+    @unittest.skipUnless(SVG, "svg")
     def test_create_chapters_through_svg(self):
         pretty_print = True
         use_lines = True
@@ -246,22 +273,22 @@ class PDFTest(test.test_all.AmiAnyTest):
                 chapter = HtmlUtil.get_text_content(span)
                 print("CHAP ", chapter)
 
+    @unittest.skipUnless(SVG, "svg")
+    @unittest.skipUnless("command", CMD)
     def test_svg2page(self):
         proj = Resources.CLIMATE_10_PROJ_DIR
         args = f"--proj {proj} --apply svg2page"
         PyAMI().run_command(args)
 
-
-    @unittest.skip("page2sect NYI")
+    @unittest.skipIf(NYI, "page2sect")
     def test_page2chap(self):
         proj = Resources.CLIMATE_10_PROJ_DIR
         args = f"--proj {proj} --apply page2sect"
         PyAMI().run_command(args)
 
+    @unittest.skipUnless(USER, "page2sect")
     def test_make_ami_pages_with_spans_from_charstream_ipcc_chap6(self):
         """The central AMI method to make HTML from PDF characters
-        TODO DEVELOP THIS
-        USED
         """
         output_stem = "chap6"
         page_nos = range(3, 13)
@@ -271,7 +298,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         bbox = BBox(xy_ranges=[[60, 999], [60, 790]])
         output_dir = Path(Resources.TEMP_DIR, "pdf")
         AmiPage.create_html_pages(bbox=bbox, input_pdf=input_pdf, output_dir=output_dir, output_stem=output_stem,
-                                  range_list=[range(3,8), range(129, 131)])
+                                  range_list=[range(3, 8), range(129, 131)])
         assert output_dir.exists()
         assert Path(output_dir, f"{output_stem}_{5}.html").exists()
 
@@ -327,32 +354,35 @@ class PDFTest(test.test_all.AmiAnyTest):
                  'text': 'J', 'stroking_color': None, 'non_stroking_color': (0.86667, 0.26667, 1, 0.15294),
                  'top': 37.8297, 'bottom': 46.8297, 'doctop': 37.8297
                  },
-                {'matrix': (9, 0, 0, 9, 322.6092, 797.4203), 'fontname': 'KAAHHD+Calibri,Italic', 'adv': 0.513, 'upright': True,
-                 'x0': 322.6092, 'y0': 795.1703, 'x1': 327.2262, 'y1': 804.1703, 'width': 4.617000000000019, 'height': 9.0, 'size': 9.0,
-                 'object_type': 'char', 'page_number': 1, 'text': 'o', 'stroking_color': None, 'non_stroking_color': (0.86667, 0.26667, 1, 0.15294),
+                {'matrix': (9, 0, 0, 9, 322.6092, 797.4203), 'fontname': 'KAAHHD+Calibri,Italic', 'adv': 0.513,
+                 'upright': True,
+                 'x0': 322.6092, 'y0': 795.1703, 'x1': 327.2262, 'y1': 804.1703, 'width': 4.617000000000019,
+                 'height': 9.0, 'size': 9.0,
+                 'object_type': 'char', 'page_number': 1, 'text': 'o', 'stroking_color': None,
+                 'non_stroking_color': (0.86667, 0.26667, 1, 0.15294),
                  'top': 37.8297, 'bottom': 46.8297, 'doctop': 37.8297},
-                ],  f"first_page.objects['char'][0]  {first_page.objects['char'][0] }"
+            ], f"first_page.objects['char'][0]  {first_page.objects['char'][0]}"
             assert len(first_page.objects['line']) == 1, f" len(first_page.objects['line'])"
             assert first_page.objects['line'][0] == {
-                 'bottom': 48.24000000000001,
-                 'doctop': 48.24000000000001,
-                 'evenodd': False,
-                 'fill': False,
-                 'height': 0.0,
-                 'linewidth': 1,
-                 'non_stroking_color': 0,
-                 'object_type': 'line',
-                 'page_number': 1,
-                 'pts': [(56.7, 793.76), (542.76, 793.76)],
-                 'stroke': True,
-                 'stroking_color': (0.3098, 0.24706, 0.2549, 0),
-                 'top': 48.24000000000001,
-                 'width': 486.06,
-                 'x0': 56.7,
-                 'x1': 542.76,
-                 'y0': 793.76,
-                 'y1': 793.76
-                                                     }, f"first_page.objects['line'][0]  {first_page.objects['line'][0] }"
+                'bottom': 48.24000000000001,
+                'doctop': 48.24000000000001,
+                'evenodd': False,
+                'fill': False,
+                'height': 0.0,
+                'linewidth': 1,
+                'non_stroking_color': 0,
+                'object_type': 'line',
+                'page_number': 1,
+                'pts': [(56.7, 793.76), (542.76, 793.76)],
+                'stroke': True,
+                'stroking_color': (0.3098, 0.24706, 0.2549, 0),
+                'top': 48.24000000000001,
+                'width': 486.06,
+                'x0': 56.7,
+                'x1': 542.76,
+                'y0': 793.76,
+                'y1': 793.76
+            }, f"first_page.objects['line'][0]  {first_page.objects['line'][0]}"
             # assert first_page.process_object(obj) == [], f"process_object (LTItem) {first_page.process_object()}"
 
             assert first_page.find_tables() == []
@@ -375,7 +405,7 @@ class PDFTest(test.test_all.AmiAnyTest):
 
             assert first_page.curves == []
             assert first_page.images == []
-            assert len(first_page.chars) == 4411 # same as first_page.objects['char'] I think
+            assert len(first_page.chars) == 4411  # same as first_page.objects['char'] I think
             assert first_page.chars[:1] == [
                 {'adv': 0.319,
                  'bottom': 46.8297,
@@ -462,7 +492,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         """debug the PDF objects (crude)
         outputs wordcount for page, and any image data.
         Would ber better if we knew hoe to read PDFStream"""
-        maxpage = 9 # images on page 8, and 9
+        maxpage = 9  # images on page 8, and 9
         # maxpage = 9999 # image is on page 8
         outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
         pdf_debug = PDFDebug()
@@ -502,13 +532,12 @@ class PDFTest(test.test_all.AmiAnyTest):
         def save_images_from_page(page: pdfminer.layout.LTPage):
             images = list(filter(bool, map(get_image, page)))
             outdir = Path(Resources.TEMP_DIR, "pdf", "chap6", "pdf miner")
-            iw = ImageWriter(outdir)
+            iw = ImageWriter(str(outdir))
             for image in images:
                 iw.export_image(image)
                 print(f" image {image}")
 
         save_images_from_page(page)
-
 
     def test_debug_page_properties(self):
         """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
@@ -531,22 +560,36 @@ class PDFTest(test.test_all.AmiAnyTest):
 
             for page in pages:
                 pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES])
-            print(f"images: {pdf_debug.image_dict .keys()}")
+            print(f"images: {pdf_debug.image_dict.keys()}")
 
     def test_bmp_png_to_png(self):
-        """convert bmp, jpgs, etc to PNG
+        """
+        convert bmp, jpgs, etc to PNG
+        results in temp/ipcc_chap6/png/
+        checks existence on created PNG
+        uses: pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
+        USEFUL
+
         """
         dirx = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
-        outdir = Path(Resources.IPCC_CHAP06, "image")
+        outdir = Path(Resources.TEMP_DIR, "ipcc_chap6", "png")
         if not dirx.exists():
             print(f"no directory {dirx}")
             return
         pdf_image = PDFImage()
         pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
+        pngs = [
+            "Im1.png", "Im0.1.png", "Im0.2.png", "Im1.4.png", "Im1.5.png", "Im0.1.png",
+            "Im0.0.png", "Im1.png", "Im3.png", "Im0.2.png", "Im0.3.png", "Im2.png",
+        ]
+        for png in pngs:
+            assert Path(outdir, png).exists()
 
     def test_merge_pdf2txt_bmp_jpg_with_coords(self):
-        """creates coordinate data for images (20 pp doc) and also reads existing coord data from file
-        (? from AMI3-java or previous run) and tries to match them"""
+        """
+        creates coordinate data for images (20 pp doc) and also reads existing coord data from file
+        (? from AMI3-java or previous run) and tries to match them
+        """
         png_dir = Path(Resources.IPCC_CHAP06, "images")
         bmp_jpg_dir = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
         coord_file = Path(Resources.IPCC_CHAP06, "image_coords.txt")
@@ -567,10 +610,10 @@ class PDFTest(test.test_all.AmiAnyTest):
             assert len(coords) == 7
             bbox = BBox(xy_ranges=[[coords[3], coords[4]], [coords[5], coords[6]]])
             print(f"coord {coord} {bbox} {bbox.width},{bbox.height}")
-            wh_tuple = bbox.width,bbox.height
+            wh_tuple = bbox.width, bbox.height
             print(f"wh {wh_tuple}")
             wh_counter[wh_tuple] += 1
-            if coords_by_width_height.get(wh_tuple) == None:
+            if coords_by_width_height.get(wh_tuple) is None:
                 coords_by_width_height[wh_tuple] = [coord]
             else:
                 coords_by_width_height.get(wh_tuple).append(coord)
@@ -582,15 +625,9 @@ class PDFTest(test.test_all.AmiAnyTest):
             if Path(bmp_jpg_image).suffix == ".png":
                 print(f"png {bmp_jpg_image}")
                 with Image.open(str(Path(bmp_jpg_dir, bmp_jpg_image))) as image:
-                    wh_tuple = image.width,image.height
+                    wh_tuple = image.width, image.height
                     print(f"wh ... {wh_tuple}")
                     print(f"coords {coords_by_width_height.get(wh_tuple)}")
-
-
-
-
-
-
 
     # See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
 
@@ -618,7 +655,7 @@ class PDFTest(test.test_all.AmiAnyTest):
 
     # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
 
-    @unittest.skip("too much output")
+    @unittest.skipUnless(DEBUG, "too much output")
     def test_pdfminer_font_and_character_output(self):
         """Examines every character and annotates it
         Typical:
@@ -665,7 +702,18 @@ LTPage
             name = o.__class__.__name__
             if hasattr(o, 'fontname') and hasattr(o, 'size'):
                 if name == "LTChar":
-                    ['_text', 'matrix', 'fontname', 'ncs', 'graphicstate', 'adv', 'upright', 'x0', 'y0', 'x1', 'y1', 'width', 'height', 'bbox', 'size', '__module__', '__doc__', '__init__', '__repr__', 'get_text', 'is_compatible', '__lt__', '__le__', '__gt__', '__ge__', 'set_bbox', 'is_empty', 'is_hoverlap', 'hdistance', 'hoverlap', 'is_voverlap', 'vdistance', 'voverlap', 'analyze', '__dict__', '__weakref__', '__hash__', '__str__', '__getattribute__', '__setattr__', '__delattr__', '__eq__', '__ne__', '__new__', '__reduce_ex__', '__reduce__', '__subclasshook__', '__init_subclass__', '__format__', '__sizeof__', '__dir__', '__class__']
+                    dummy = ['_text', 'matrix', 'fontname', 'ncs', 'graphicstate', 'adv', 'upright', 'x0', 'y0', 'x1',
+                             'y1',
+                             'width', 'height', 'bbox', 'size', '__module__', '__doc__', '__init__', '__repr__',
+                             'get_text',
+                             'is_compatible', '__lt__', '__le__', '__gt__', '__ge__', 'set_bbox', 'is_empty',
+                             'is_hoverlap',
+                             'hdistance', 'hoverlap', 'is_voverlap', 'vdistance', 'voverlap', 'analyze', '__dict__',
+                             '__weakref__', '__hash__', '__str__', '__getattribute__', '__setattr__', '__delattr__',
+                             '__eq__',
+                             '__ne__', '__new__', '__reduce_ex__', '__reduce__', '__subclasshook__',
+                             '__init_subclass__',
+                             '__format__', '__sizeof__', '__dir__', '__class__']
                     print(f"LTChar {o.__dir__()}")
                 return f'{o.fontname} {round(o.size)}pt'
             return ''
@@ -721,26 +769,39 @@ LTPage
             print(f"check {outfile} exists")
             assert outfile.exists(), f"outfile {outfile} should exist"
 
-
+    @unittest.skipUnless(HTML, "create running text")
+    @unittest.skipUnless(USER, "develop for commandline")
     def test_make_structured_html_pages_MAIN(self):
-        """structures the flat HTML from pdfplumber, but no coordinates
-        Can still be used for word frequency, etc."""
+        """structures the flat HTML from pdfplumber into a running stream, but no coordinates
+        Can still be used for word frequency, etc.
 
-        print(f" converting {IPCC_CHAP6_PDF}")
+Uses:
+    self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
+
+    if self.flow:
+        self.html = self.tidy_flow()
+
+        """
+
+        # print(f" converting {IPCC_CHAP6_PDF}")
         assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
         pdf_args = PDFArgs()
+        pdf_args.arg_dict[MAXPAGE] = 4
         pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
+        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_DIR,  "ipcc_chap6", "flow.test.html")
+
+        pprint.pprint(pdf_args.arg_dict)
         # pdf_args.arg_dict[PAGES] = [(1,3), (5,10)]
 
         print(f"arg_dict {pdf_args.arg_dict}")
-        outfile = pdf_args.convert_write()
+        outfile = Path(pdf_args.convert_write())
         if not outfile:
             print(f"no file written")
         else:
-            print(f"check {outfile} exists")
+            print(f"check {outfile.absolute()} exists")
             assert outfile.exists(), f"outfile {outfile} should exist"
 
-    @unittest.skip("not implemented - just to remind us")
+    @unittest.skipIf(NYI, "no code yet")
     def test_make_structured_html_cmdline_DEBUG(self):
         """
         Previous one gives:
@@ -806,7 +867,7 @@ LTPage
         }
         pdf_args.convert_write()
 
-    @unittest.skip("too long")
+    @unittest.skipIf(LONG, "too long")
     def test_make_ipcc_html(self):
         """not really a test"""
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
@@ -860,7 +921,6 @@ LTPage
             }
             pdf_args.convert_write(unwanteds=unwanteds)
 
-
     def test_pdfminer_text_html_xml(self):
         # Use `pip3 install pdfminer.six` for python3
         """runs pdfinterpreter/converter over 5-page article and creates html and xml versions"""
@@ -868,7 +928,7 @@ LTPage
         maxpages = 0
         path = Path(PMC1421)
         result = PDFArgs.convert_pdf(
-            path=path,
+            path=str(path),
             fmt=fmt,
             maxpages=maxpages
         )
@@ -950,7 +1010,7 @@ LTPage
 
         # convert PDF to html
         result = PDFArgs.convert_pdf(
-            path=pathx,
+            path=str(pathx),
             fmt="html",
             caching=True,
         )
@@ -975,7 +1035,7 @@ LTPage
         AmiPage.create_page_from_pdf_html(path)
 
     def test_main_help(self):
-        sys.argv=[]
+        sys.argv = []
         sys.argv.append("--help")
         try:
             main()
@@ -989,6 +1049,7 @@ LTPage
         PyAMI().run_command(
             ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
 
+    #    @unittest.skipUnless("old test", self.admin)
     def test_cannot_iterate(self):
         """
         Test that 'PDF' subcomand works without errors
@@ -999,7 +1060,6 @@ LTPage
         PyAMI().run_command(
             ['PDF', '--help'])
 
-
     # =====================================================================================================
     # =====================================================================================================
 
@@ -1008,6 +1068,7 @@ LTPage
     MAX_TABLE = 5
     MAX_ROW = 10
     MAX_IMAGE = 5
+
 
 #     def find_chapter_title(cls, elem):
 #         """<div style="" id="id296"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 15px;" id="id297">Chapter 6:</span></div>
