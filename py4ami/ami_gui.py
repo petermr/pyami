@@ -87,7 +87,7 @@ class GUIArgs(AbstractArgs):
      """
 
     def read_arg_dict(self):
-        logging.warning(f"read argdict {self.arg_dict}")
+        logging.debug(f"read argdict {self.arg_dict}")
         self.dict = self.arg_dict.get(AmiGuiArgsEnum.DICT)
         self.run = self.arg_dict.get(AmiGuiArgsEnum.RUN)
 
@@ -98,16 +98,14 @@ class GUIArgs(AbstractArgs):
         :return:
         """
 
-        logging.warning(f"====process_args==== {self.arg_dict}")
+        logging.debug(f"====process_args==== {self.arg_dict}")
         if self.arg_dict:
             self.read_arg_dict()
-        print(f"*******************************")
         if not self.arg_dict:
             print(f"no arg_dict given, no action")
             return
 
         self.run = self.arg_dict.get(AmiGuiArgsEnum.RUN)
-        print(f"RUN {self.run}")
 
         if self.run:
             run_gui()

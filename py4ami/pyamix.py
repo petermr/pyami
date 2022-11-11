@@ -7,6 +7,7 @@ import glob
 import lxml.etree as etree
 import pprint
 from collections import Counter
+import textwrap
 import traceback
 from pathlib import Path
 import argparse
@@ -182,6 +183,36 @@ class PyAMI:
         self.logger.debug(f"ch {apply_choices}")
         parser.add_argument('--version', action="store_true",
                             help=f"show version {version}")
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+        parser.description = textwrap.dedent(
+            'Py4AMI: create, manipulate, use CProject \n'
+            '----------------------------------------\n\n'
+            'Py4AMI is the largest collection of functionality in the AMI system.'
+            'It contains executable code and libraries to manage complex documents.\n'
+            'A key structure is the corpus (CProject directory) which contains a list of subdirectories '
+            '(CTrees) which themselves contain many different document features (text, tables, images, graphics.\n'
+            'Py4AMI can create, fill, manipulate, transform many of the components including PDF, HTML, TXT, images, CSV.\n'
+            '\n'
+            'The subcommands:\n\n'
+            '  DICT <options>      # create/edit/search dictionaries\n' 
+            '  GUI <options>       # run tkinter GUI (prototype)\n' 
+            '  HTML <options>      # create/edit HTML\n' 
+            '  PDF <options>       # convert PDF into HTML and images\n' 
+            '  PROJECT <options>   # create and transform a corpus of documents\n' 
+            '\n'
+            'After installation, run \n' 
+            '  py4ami <subcommand> <options>\n'
+            '\n'
+            '\nExamples (# foo is a comment):\n' 
+            '  py4ami        # runs help\n'
+            '  py4ami -h     # runs help\n'
+            '  py4ami PDF -h # runs PDF help\n'
+            '  py4ami PDF --makehtml --infile foo.pdf --outdir bar/ # converts PDF to HTML\n'
+            '  py4ami PROJECT --project foodir/ # converts all PDF in foodir to CTrees\n'
+            '\n'
+            '----------------------------------------\n\n'
+        )
+
 # obsolete commands
 #         parser.add_argument('--apply', nargs="+",
 #                             #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
@@ -253,7 +284,7 @@ class PyAMI:
         parser.epilog = "other entry points run as 'python -m py4ami.ami_dict args' also ami_pdf, ami_project"
         parser.epilog = """run:
         py4ami <subcommand> <args>
-          where subcommand is in   {DICT,GUI,HTML,PDF,PROJECT} and args deopend on subcommand
+          where subcommand is in   {DICT,GUI,HTML,PDF,PROJECT} and args depend on subcommand
         """
 
 

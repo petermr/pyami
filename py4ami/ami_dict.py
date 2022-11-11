@@ -1518,7 +1518,7 @@ class AmiDictArgs(AbstractArgs):
         self.parser.add_argument(f"--wikidata", type=str, nargs="*", help="add WikidataIDs")
         self.parser.add_argument(f"--wikipedia", type=str, nargs="*", help="add Wikipedia link/s")
         """
-        logging.warning(f"DICT process_args {self.arg_dict}")
+        logging.debug(f"DICT process_args {self.arg_dict}")
         if not self.arg_dict:
             print(f"no arg_dict given, no actiom")
 
