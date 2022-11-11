@@ -119,6 +119,8 @@ class TestCProjTree(unittest.TestCase):
         project.make_jats_sections(force=True)
 
     @classmethod
+    @unittest.skip("obsolete, args have changed")
+
     def test_captions_oil186(cls):
         c_project = CProject(Path("/Users/pm286/projects/CEVOpen/searches/oil186"))
         dirx = c_project.dirx

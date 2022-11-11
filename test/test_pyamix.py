@@ -14,6 +14,7 @@ from test.test_dict import AMIDICTS, TestAmiDictionary
 class TestPyami(AmiAnyTest):
 
     """ tests commandline parsing, etc but not detailed methods
+    some of these tests are old-style before we introduced SUBCOMMANDS
     """
 
     def test_no_args(self):
@@ -34,6 +35,7 @@ class TestPyami(AmiAnyTest):
 
 # test APPLY
 
+    @unittest.skip("obsolete")
     def test_apply_missing_value(self):
         """Missing parameter value
         outputs brief help and error message (see log)
@@ -45,6 +47,7 @@ class TestPyami(AmiAnyTest):
         except ValueError as e:
             assert True, "should fail in parser {e"
 
+    @unittest.skip("obsolete")
     def test_apply_pdf2svg(self):
         """Valid arguments (but no action)"""
         args = "--apply pdf2svg"
@@ -69,6 +72,7 @@ class TestPyami(AmiAnyTest):
             assert True
 
 # flags
+    @unittest.skip("obsolete")
     def test_no_flags(self):
         """
         """
@@ -79,6 +83,7 @@ class TestPyami(AmiAnyTest):
         assert not pyami.flag_dict.get(pyami.PRINT_SYMBOLS)
         print(f"flags {pyami.flag_dict}")
 
+    @unittest.skip("obsolete")
     def test_single_flag(self):
         """Checks name is kept as a string and uses boolean as test
         """
@@ -94,6 +99,7 @@ class TestPyami(AmiAnyTest):
         pyami.run_command(args)
         assert pyami.is_flag_true(PyAMI.PRINT_SYMBOLS)
 
+    @unittest.skip("obsolete")
     def test_set_unknown_flag(self):
         """set unknown flag, with possible checking
         """
@@ -102,6 +108,7 @@ class TestPyami(AmiAnyTest):
         pyami.run_command(args)
         assert pyami.flag_dict.get(PyAMI.RECURSE), f"RECURSE should be True by default"
 
+    @unittest.skip("obsolete")
     def test_set_numeric_flag(self):
         """set numeric flag
         """
@@ -111,6 +118,7 @@ class TestPyami(AmiAnyTest):
         assert pyami.flag_dict.get("foo") == 42, f" foo shoule be 42"
 
 
+    @unittest.skip("obsolete")
     def test_multiple_flags(self):
         """
         """

@@ -198,7 +198,7 @@ assumes value
                 #  the prefix __file__ may have been expanded by the parser
                 new_value = parent_dir + raw_value[len(self.PARENT):]
             elif raw_value.startswith("__file__"):
-                print("__file__ is obsolete ", file)
+                logging.debug("__file__ is obsolete ", file)
             else:
                 new_value = self.replace_symbols_in_arg(raw_value)
                 if new_value != raw_value:

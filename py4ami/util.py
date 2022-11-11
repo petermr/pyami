@@ -411,7 +411,7 @@ class AbstractArgs(ABC):
             self.parse_and_process1(argv_)
 
     def parse_and_process1(self, argv_):
-        logging.warning(f"********** args for parse_and_process1 {argv_}")
+        logging.debug(f"********** args for parse_and_process1 {argv_}")
         self.parsed_args = argv_ if self.parser is None else self.parser.parse_args(argv_)
 #        logging.warning(f"ARG DICTYY {self.arg_dict}")
         self.arg_dict = self.create_arg_dict()

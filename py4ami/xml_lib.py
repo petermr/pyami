@@ -109,7 +109,7 @@ NS_MAP = {
 
 logger = logging.getLogger("xml_lib")
 logger.setLevel(logging.WARNING)
-print(f"===========LOGGING {logger.level} .. {logging.DEBUG}")
+logging.debug(f"===========LOGGING {logger.level} .. {logging.DEBUG}")
 
 
 class XmlLib:

@@ -273,8 +273,9 @@ class PDFTest(test.test_all.AmiAnyTest):
                 chapter = HtmlUtil.get_text_content(span)
                 print("CHAP ", chapter)
 
+    @unittest.skip("obsolete")
     @unittest.skipUnless(SVG, "svg")
-    @unittest.skipUnless("command", CMD)
+    @unittest.skipUnless(CMD, "command")
     def test_svg2page(self):
         proj = Resources.CLIMATE_10_PROJ_DIR
         args = f"--proj {proj} --apply svg2page"
@@ -867,9 +868,10 @@ Uses:
         }
         pdf_args.convert_write()
 
-    @unittest.skipIf(LONG, "too long")
+    @unittest.skipIf(False and VERYLONG, "processes Chapters 04, 05, 16, 17")
     def test_make_ipcc_html(self):
-        """not really a test"""
+        """
+        """
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
         if not sem_clim_dir.exists():
             print(f"no ipcc dir {sem_clim_dir}, so skipping")
@@ -919,7 +921,9 @@ Uses:
                     "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
                 },
             }
-            pdf_args.convert_write(unwanteds=unwanteds)
+            pdf_args.convert_write(
+                # unwanteds=unwanteds
+            )
 
     def test_pdfminer_text_html_xml(self):
         # Use `pip3 install pdfminer.six` for python3

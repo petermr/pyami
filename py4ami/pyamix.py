@@ -174,64 +174,69 @@ class PyAMI:
         if not sys.argv or len(sys.argv) == 0:
             sys.argv = [PyAMI.PY4AMI]
         parser = argparse.ArgumentParser(
-            description=f'Search sections with dictionaries and patterns V{version}')
+            description=f'py4ami: V{version} call with ONE of subcommands (DICT,GUI,HTML,PDF,PROJECT), e.g. py4ami PDF --help'
+        )
+
         # apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
         apply_choices = ConvType.list_values()
         self.logger.debug(f"ch {apply_choices}")
         parser.add_argument('--version', action="store_true",
                             help=f"show version {version}")
-        parser.add_argument('--apply', nargs="+",
-                            #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
-                            choices=apply_choices,
-                            help='list of sequential transformations (1:1 map) to apply to pipeline '
-                                 '({self.TXT2SENT} NYI)')
-        parser.add_argument('--assert', nargs="+",
-                            help='assertions; failure gives error message (prototype)')
-        parser.add_argument('--combine', nargs=1,
-                            help='operation to combine files into final object (e.g. concat text or CSV path')
-        parser.add_argument('--config', '-c', nargs="+",
-                            help='path (e.g. ~/pyami/config.ini.master) with list of config path(s) or config vars;'
-                                 ' "symbols": gives symbols')
-        parser.add_argument('--copy', nargs="+",
-                            help='copy path or directory from=<from> to=<to> overwrite=<yes/no default=no>')
-        parser.add_argument('--debug', nargs="+", type=str,
-                            help='debugging commands , symbols, numbers, (not formalised)')
-        parser.add_argument('--delete', nargs="+",
-                            help='delete globbed files. Argument/s <glob> are relative to `proj`')
-        parser.add_argument('--dict', '-d', nargs="+",
-                            help='dictionaries to ami-search with, _help gives list')
-        parser.add_argument('--examples', nargs="*", type=str,
-                            help='simple demos, empty gives list, "all" runs all. May need downloading corpora')
-        parser.add_argument('--filter', nargs="+",
-                            help='expr to filter with')
-        parser.add_argument('--flags', nargs="+",
-                            help='name-value pairs collected into self.flag_dict, "help" gives list')
-        parser.add_argument('--glob', '-g', nargs="+",
-                            help='glob files; python syntax (* and ** wildcards supported); '
-                                 'include alternatives in {...,...}. ')
-        # parser.add_argument('--help', '-h', nargs="?",
-        #                     help='output help; (NYI) an optional arg gives level')
-        parser.add_argument('--languages', nargs="+", default=["en"],
-                            help='languages (NYI)')
-        parser.add_argument('--loglevel', '-l', default="info",
-                            help='log level (NYI)')
-        parser.add_argument('--maxbars', nargs="?", type=int, default=25,
-                            help='max bars on plot (NYI)')
-        parser.add_argument('--nosearch', action="store_true",
-                            help='search (NYI)')
-        parser.add_argument('--outfile', type=str,
-                            help='output path. default is single path (default is overwrite). '
-                                 'expands special variables _CPROJ, _CTREE, _PARENT to create iterators NYI')
-        parser.add_argument('--patt', nargs="+",
-                            help='patterns to search with (NYI); regex may need quoting')
-        parser.add_argument('--plot', action="store_false",
-                            help='plot params (NYI)')
-        parser.add_argument('--proj', '-p', nargs="+",
-                            help='projects to search; _help will give list')
-        parser.add_argument('--sect', '-s', nargs="+",  # default=[AmiSection.INTRO, AmiSection.RESULTS],
-                            help='sections to search; _help gives all(?)')
-        parser.add_argument('--split', nargs="+", choices=['txt2para', 'xml2sect'],  # split fulltext.xml,
-                            help='split fulltext.* into paras, sections')
+# obsolete commands
+#         parser.add_argument('--apply', nargs="+",
+#                             #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
+#                             choices=apply_choices,
+#                             help='list of sequential transformations (1:1 map) to apply to pipeline '
+#                                  '({self.TXT2SENT} NYI)')
+#
+#         parser.add_argument('--assert', nargs="+",
+#                             help='assertions; failure gives error message (prototype)')
+#         parser.add_argument('--combine', nargs=1,
+#                             help='operation to combine files into final object (e.g. concat text or CSV path')
+
+        # parser.add_argument('--config', '-c', nargs="+",
+        #                     help='path (e.g. ~/pyami/config.ini.master) with list of config path(s) or config vars;'
+        #                          ' "symbols": gives symbols')
+        # parser.add_argument('--copy', nargs="+",
+        #                     help='copy path or directory from=<from> to=<to> overwrite=<yes/no default=no>')
+        # parser.add_argument('--debug', nargs="+", type=str,
+        #                     help='debugging commands , symbols, numbers, (not formalised)')
+        # parser.add_argument('--delete', nargs="+",
+        #                     help='delete globbed files. Argument/s <glob> are relative to `proj`')
+        # parser.add_argument('--dict', '-d', nargs="+",
+        #                     help='dictionaries to ami-search with, _help gives list')
+        # parser.add_argument('--examples', nargs="*", type=str,
+        #                     help='simple demos, empty gives list, "all" runs all. May need downloading corpora')
+        # parser.add_argument('--filter', nargs="+",
+        #                     help='expr to filter with')
+        # parser.add_argument('--flags', nargs="+",
+        #                     help='name-value pairs collected into self.flag_dict, "help" gives list')
+        # parser.add_argument('--glob', '-g', nargs="+",
+        #                     help='glob files; python syntax (* and ** wildcards supported); '
+        #                          'include alternatives in {...,...}. ')
+        # # parser.add_argument('--help', '-h', nargs="?",
+        # #                     help='output help; (NYI) an optional arg gives level')
+        # parser.add_argument('--languages', nargs="+", default=["en"],
+        #                     help='languages (NYI)')
+        # parser.add_argument('--loglevel', '-l', default="info",
+        #                     help='log level (NYI)')
+        # parser.add_argument('--maxbars', nargs="?", type=int, default=25,
+        #                     help='max bars on plot (NYI)')
+        # parser.add_argument('--nosearch', action="store_true",
+        #                     help='search (NYI)')
+        # parser.add_argument('--outfile', type=str,
+        #                     help='output path. default is single path (default is overwrite). '
+        #                          'expands special variables _CPROJ, _CTREE, _PARENT to create iterators NYI')
+        # parser.add_argument('--patt', nargs="+",
+        #                     help='patterns to search with (NYI); regex may need quoting')
+        # parser.add_argument('--plot', action="store_false",
+        #                     help='plot params (NYI)')
+        # parser.add_argument('--proj', '-p', nargs="+",
+        #                     help='projects to search; _help will give list')
+        # parser.add_argument('--sect', '-s', nargs="+",  # default=[AmiSection.INTRO, AmiSection.RESULTS],
+        #                     help='sections to search; _help gives all(?)')
+        # parser.add_argument('--split', nargs="+", choices=['txt2para', 'xml2sect'],  # split fulltext.xml,
+        #                     help='split fulltext.* into paras, sections')
         # parser.add_argument('--test', nargs="*",
         #                     choices=TestFile.OPTIONS,  # tests and/or setup/teardown
         #                     help='run tests for modules; no selection runs all')
@@ -246,6 +251,11 @@ class PyAMI:
         project_parser = ProjectArgs().make_sub_parser(subparsers)
 
         parser.epilog = "other entry points run as 'python -m py4ami.ami_dict args' also ami_pdf, ami_project"
+        parser.epilog = """run:
+        py4ami <subcommand> <args>
+          where subcommand is in   {DICT,GUI,HTML,PDF,PROJECT} and args deopend on subcommand
+        """
+
 
         return parser
 
@@ -286,7 +296,7 @@ class PyAMI:
             args =  args.strip()
             args = args.split(" ")
 
-        self.logger.warning(f"********** raw arglist {args}")
+        self.logger.debug(f"********** raw arglist {args}")
         test_catch = False
         if test_catch: # try to trap exception
             try:
@@ -319,7 +329,7 @@ class PyAMI:
         self.substitute_args()
         self.logger.debug(f"self.args {self.args}")
         self.add_single_str_to_list()
-        self.logger.warning("ARGS after substitution: " + str(self.args))
+        self.logger.debug("ARGS after substitution: " + str(self.args))
         self.set_loglevel_from_args()
         self.run_arguments()
 
@@ -360,7 +370,7 @@ class PyAMI:
         self.wikipedia_lookup = WikidataLookup()
         self.logger.debug(f"commandline args {self.args}")
         subparser_type = self.args.get("command")
-        print(f" COMMAND: {subparser_type} {self.args}")
+        logging.debug(f" COMMAND: {subparser_type} {self.args}")
 
         # if "func" in self.args:
         #     f_func = self.args["func"]
@@ -387,7 +397,7 @@ class PyAMI:
             self.run_core_mathods()
 
     def run_core_mathods(self):
-        print(f"run_core")
+        logging.debug(f"run_core")
         if self.FLAGS in self.args and self.args[self.FLAGS] is not None:
             self.add_flags()
         if self.CONFIG in self.args and self.args[self.CONFIG] is not None:
@@ -491,7 +501,7 @@ class PyAMI:
             if str(parsed_args).startswith(self.SYSTEM_EXIT_FAIL):
                 raise ValueError(f"bad command arguments {parsed_args} (see log output)")
 
-            self.logger.warning(f"PARSED_ARGS {parsed_args}")
+            self.logger.debug(f"PARSED_ARGS {parsed_args}")
             arg_vars = vars(parsed_args)
             for item in arg_vars.items():
                 new_item = self.make_substitutions(item)
@@ -577,7 +587,7 @@ class PyAMI:
             return
         self.cproject = CProject(self.proj)
 
-        self.logger.warning(f"{Util.basename(__file__)} proj: {self.proj}")
+        self.logger.debug(f"{Util.basename(__file__)} proj: {self.proj}")
         # if self.args[self.CONFIG]:
         #     self.apply_config()
         if self.args[self.DELETE]:
@@ -754,7 +764,7 @@ class PyAMI:
                 self.logger.error(f"Cannot find func for {apply_type}")
             else:
                 # apply data is stored in self.file_dict
-                self.logger.warning(f"running {func_tuple} {apply_type}")
+                self.logger.debug(f"running {func_tuple} {apply_type}")
                 self.apply_to_file_content(func_tuple, apply_type)
 
         return
@@ -835,7 +845,7 @@ class PyAMI:
         elif filterx == self.WIKIDATA_SPARQL:
             hits = self.apply_wikidata_sparql(hit_list, value)
             if hits:
-                self.logger.warning(f"wikidata_sparql hits {hits}")
+                self.logger.debug(f"wikidata_sparql hits {hits}")
                 hit_list = hits
 
         elif filterx == self.XPATH and file.endswith(".xml"):
@@ -1203,7 +1213,7 @@ def main():
     #    run_commands = False
     #    run_tests = True
 
-    PyAMI.logger.warning(
+    PyAMI.logger.debug(
         f"\n============== running pyami main ===============\n{sys.argv[1:]}")
     pyamix = PyAMI()
     # this needs commandline

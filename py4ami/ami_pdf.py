@@ -6,6 +6,7 @@ import os.path
 import re
 import statistics
 import sys
+import textwrap
 import traceback
 from io import BytesIO, StringIO
 from pathlib import Path
@@ -746,6 +747,36 @@ TEMPLATE = "template"
 
 
 class PDFArgs(AbstractArgs):
+    """
+    Holds argument values for py4ami PDF commands and runs conversions
+    Also holds much of the document data
+
+        self.convert = DEFAULT_CONVERT
+        self.html = None
+
+        self.footer = None
+        self.header = None
+
+        self.indir = None
+        self.inform = 'PDF'
+        self.inpath = None
+        self.instem = 'fulltext'
+
+        self.maxpage = DEFAULT_MAXPAGES
+
+        self.outdir = None
+        self.outform = DEFAULT_CONVERT
+        self.outpath = None
+        self.outstem = None
+
+        self.pages = None
+
+        self.pdf2html = None
+        self.raw_html = None
+        self.flow = None
+        self.unwanteds = None
+
+    """
     def __init__(self):
         """arg_dict is set to default"""
         super().__init__()
@@ -779,11 +810,19 @@ class PDFArgs(AbstractArgs):
 
         """
         if self.parser is None:
-            self.parser = argparse.ArgumentParser()
-        self.parser.description='PDF parsing. (still evolving) allows for various inputs and outputs. Currently either use ' \
-                                'a) inpath and outpath' \
-                                'b) inpath and outdir/outstem/outform (especially where splitting PDF to pages)' \
-                                'c)'
+            self.parser = argparse.ArgumentParser(
+                usage="py4ami always uses subcommands (DICT,GUI,HTML,PDF,PROJECT)\n e.g. py4ami PDF --help"
+            )
+
+        self.parser.description = textwrap.dedent(
+            'PDF tools. \n'
+            '----------\n'                                                  
+            'Typically reads one or more PDF files and converts to HTML\n'
+            'can clip parts of page, select page ranges, etc.\n'
+            '\nExamples:\n'
+            '  * PDF --help\n'
+        )
+        self.parser.formatter_class = argparse.RawDescriptionHelpFormatter
         # self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
         self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML, e.g. join l;ines, pages (heuristics)", default=True)
@@ -1058,6 +1097,12 @@ class PDFArgs(AbstractArgs):
         self.footer = 90
 
     def convert_write(self):
+        """
+        Convenience method to run PDFArgs.convert_pdf on self.inpath, self.outform, and self.maxpage
+        writes output to self.outpath
+        if self.flow runs self.tidy_flow
+        :return: outpath
+        """
         print(f"==============CONVERT================")
         self.process_args()
         self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
@@ -1196,7 +1241,7 @@ class PDFArgs(AbstractArgs):
         if raw_pages == ALL_PAGES:
             raw_pages = "1_9999999"
         if raw_pages:
-            logging.warning(f"**** raw pages: {raw_pages}")
+            logging.debug(f"**** raw pages: {raw_pages}")
             if not hasattr(raw_pages, "__iter__"):
                 logging.error(f"{raw_pages} is not iterable {type(raw_pages)}")
                 return
@@ -1762,7 +1807,7 @@ class SvgText:
             self.text_span.create_bbox()
         return self.text_span
 
-    # AmiText
+    # SvgText
 
     def create_text_style(self) -> TextStyle:
         """create TextStyle from style attributes"""
@@ -1836,6 +1881,7 @@ class SvgText:
     def get_font_family(self) -> str:
         """get font-family from SVG style
         No checking on values
+        :returns: font-maily or None
         """
 
         sd = self.extract_style_dict_from_svg()
@@ -1920,6 +1966,12 @@ def main(argv=None):
 
 
 def parse_and_process_1(pdf_args):
+    """
+    Convenience method to run pdf_args
+    Runs pdf_args.parse_and_process()
+        pdf_args.convert_write()
+    :param pdf_args: previously populated args
+    """
     try:
         pdf_args.parse_and_process()
         pdf_args.convert_write()

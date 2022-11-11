@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 # local
 from py4ami.ami_convert import ConvType, Converters, Svg2PageConverter
 from py4ami.pyamix import PyAMI
@@ -41,13 +42,16 @@ class TestConvert(unittest.TestCase):
         svg_converter.read_and_convert(infile=None, indir_basename=Resources.CLIMATE_10_PROJ_DIR, outfile=None,
                                        outdir_basename=Resources.TEMP_CLIMATE_10_PROJ_DIR)
 
+    @unittest.skip("obsolete, args have changed")
     def test_cli_iterator_svg2xml(self):
         """PyAMI conversion with implicit directories set by converter"""
         cmd = f"-p {Resources.CLIMATE_10_PROJ_DIR} --apply svg2page"
         PyAMI().run_command(cmd)
 
+    @unittest.skip("obsolete")
     def test_cli_iterator_(self):
         """PyAMI conversion with implicit directories set by converter"""
+        assert Path(Resources.CLIMATE_10_PROJ_DIR).exists(), f"{Path(Resources.CLIMATE_10_PROJ_DIR)} should exist"
         cmd = f"-p {Resources.CLIMATE_10_PROJ_DIR} --apply svg2page"
         PyAMI().run_command(cmd)
 
