@@ -38,14 +38,17 @@ class AmiAnyTest(unittest.TestCase):
     USER = True   # user-facing test
 
     def setUp(self) -> None:
-        if len(sys.argv) == 0:
-            sys.argv = ["ami"]
-        self.argv_copy = list(sys.argv)
+        # if len(sys.argv) == 0:
+        #     sys.argv = ["ami"]
+        # self.argv_copy = list(sys.argv)
+        pass
 
     def tearDown(self) -> None:
         # print(f"argv_copy {self.argv_copy}")
         # print(f"argv {sys.argv}")
-        self.argv = list(self.argv_copy)
+        # self.argv = list(self.argv_copy)
+        pass
+
 
 
 class UtilTests:

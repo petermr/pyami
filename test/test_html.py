@@ -1,6 +1,7 @@
 """Create, transform, markup up HTML, etc."""
 import lxml.etree
 from pathlib import Path
+import os
 import re
 import unittest
 from collections import Counter
@@ -12,12 +13,25 @@ from py4ami.ami_bib import Reference, Biblioref
 from py4ami.util import Util
 from py4ami.ami_dict import AmiDictionary
 
+import test
+from test.resources import Resources
+from test.test_all import AmiAnyTest
 
 
-class TestHtml(unittest.TestCase):
+
+class HtmlTest(test.test_all.AmiAnyTest):
     """ parsing , structuring linking in/to.form HTML
     This will evolve into an ami_html.py module
     """
+    # all are skipUnless
+    ADMIN = True and AmiAnyTest.ADMIN
+    CMD = True and AmiAnyTest.CMD
+    DEBUG = True and AmiAnyTest.DEBUG
+    LONG = True and AmiAnyTest.LONG
+    NET = True and AmiAnyTest.NET
+    OLD = True and AmiAnyTest.OLD
+    NYI = True and AmiAnyTest.NYI
+    USER = True and AmiAnyTest.USER
 
     def setUp(self) -> None:
         self.html = """<span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id2507">First, the studies are relevant to different spatial levels, ranging from macro-scale regions with globally 
@@ -153,7 +167,9 @@ class TestHtml(unittest.TestCase):
         for div in ref_divs:
             ref = Reference.create_ref_from_div(div)
             ref.markup_dois_in_spans()
-        chap4_dir = Path(Resources.TEMP_DIR, "ipcc_html", "chapter04")
+        path = Path(Resources.TEMP_DIR, "ipcc_html")
+        path.mkdir(exist_ok=True)
+        chap4_dir = Path(path, "chapter04")
         if not chap4_dir.exists():
             chap4_dir.mkdir()
         outpath = Path(chap4_dir, "ref_doi.html")
@@ -171,7 +187,9 @@ class TestHtml(unittest.TestCase):
 
         Reference.markup_dois_in_div_spans(ref_divs)
 
-        chap4_dir = Path(Resources.TEMP_DIR, "ipcc_html", "chapter04")
+        path = Path(Resources.TEMP_DIR)
+        path.mkdir(exist_ok=True)
+        chap4_dir = Path(path, "ipcc_html", "chapter04")
         if not chap4_dir.exists():
             chap4_dir.mkdir()
         outpath = Path(chap4_dir, "ref_doi.html")
@@ -429,6 +447,55 @@ class TestHtml(unittest.TestCase):
                     print(f"styles match")
                 last_span = span
                 last_style = style
+
+
+    @unittest.skipUnless(USER, "claim paras")
+    def test_make_ipcc_obsidian_md(self):
+        """
+        Read IPCC exec_summary Chapter and make obsidian MD.
+        Reads an executive.summary consisting of about 15 paras, each of which
+        has a bolds first sentence (main claim).
+        Tries to split this into the main claim and subclaims.
+
+        writes 1 file per paragraph into B_1.md, B_2.md, etc.
+
+<body>
+<p class="p1"><span class="s1"><b>Executive Summary</b></span></p>
+<p class="p2"><span class="s1"><b>Global net anthropogenic Greenhouse Gas (GHG) emissions during the last decade (2010-2019) were higher than at any previous time in human history </b><i>(high confidence)</i>. Since 2010, GHG emissions have continued to grow reaching 59±6.6 GtCO<sub>2</sub>eq in 2019<sup>1</sup>, but the average annual growth in the last decade (1.3%, 2010-2019) was lower than in the previous decade (2.1%, 2000-2009) (<i>high confidence</i>). Average annual GHG emissions were 56 GtCO<sub>2</sub>eqyr<sup>-1</sup> for the decade 2010-2019 growing by about 9.1 GtCO<sub>2</sub>eqyr<sup>-1</sup> from the previous decade (2000-2009) – the highest decadal average on record (<i>high confidence</i>). {2.2.2, Table 2.1, Figure 2.5}</span></p>
+<p class="p2"><span class="s1"><b>Emissions growth has varied, but persisted across all groups of greenhouse gases </b><i>(high confidence)</i>. The average annual emission levels of the last decade (2010-2019) were higher than in any previous decade for each group of greenhouse gases (<i>high confidence</i>). In 2019, CO<sub>2</sub> emissions were 45±5.5 GtCO<sub>2</sub>,<sub>2</sub> CH<sub>4</sub> 11±3.2 GtCO<sub>2</sub>eq, N<sub>2</sub>O 2.7±1.6 GtCO<sub>2</sub>eq and fluorinated gases (F-gases: HFCs, PFCs, SF<sub>6</sub>, NF<sub>3</sub>) 1.4±0.41 GtCO<sub>2</sub>eq. Compared to 1990, the magnitude and speed of these increases differed across gases: CO<sub>2</sub> from fossil fuel and industry (FFI) grew by 15 GtCO<sub>2</sub>eqyr<sup>-1</sup> (67%), CH<sub>4</sub> by 2.4 GtCO<sub>2</sub>eqyr<sup>-1</sup>(29%), F-gases by 0.97 GtCO<sub>2</sub>eqyr<sup>-1</sup> (250%), N<sub>2</sub>O by 0.65 GtCO<sub>2</sub>eqyr<sup>-1</sup> (33%). CO<sub>2</sub> emissions from net land use, land-use change and forestry (LULUCF) have shown little long-term change, with large uncertainties preventing the detection of statistically significant trends. F-gases excluded from GHG emissions inventories such as <i>chlorofluorocarbons</i> and <i>hydrochlorofluorocarbons</i> are about the same size as those included (<i>high confidence</i>). {2.2.1, 2.2.2, Table 2.1, Figure 2.2, Figure 2.3, Figure 2.5}</span></p>
+
+        BUGS: furst bold sentence missed out in B_10.md and B_20.md
+        Maybe full-stop after italics is bold?
+
+        https://stackoverflow.com/questions/62472162/lxml-xpath-expression-for-selecting-all-text-under-a-given-child-node-including
+        """
+        in_file = Path(Resources.IPCC_CHAP02, "exec_summary.html")
+        outdir = Path(Resources.TEMP_DIR, "obsidian")
+        os.makedirs(outdir, exist_ok=True)
+        path = Path(in_file)
+        assert path.exists(), f"{path} should exist"
+        tree = lxml.etree.parse(str(path))
+        ps = tree.findall(".//p")
+        assert len(ps) == 23
+        for i, p in enumerate(ps):
+            bs = p.xpath(".//b")
+            if len(bs) > 0:
+                for b in bs:
+                    t = b.xpath('.//text()')
+                    bstr = "__".join(t)
+
+                    nonb = p.xpath(".//text()[not(ancestor::b)]")
+                    tstr = "".join(nonb)
+                    file = Path(outdir, f"B_{i + 1}.md")
+                    print(f"writing {file}")
+                    with open(file, "w") as f:
+                        f.write(bstr)
+                        f.write("\n=======lesser claims==========\n")
+                        f.write(tstr)
+
+
+
+
 
 
     # ========================================

@@ -1956,7 +1956,7 @@ def main(argv=None):
     typical:
     python -m py4ami.ami_pdf \
         --inpath /Users/pm286/workspace/pyami/test/resources/ipcc/Chapter06/fulltext.pdf \
-        --outdir /Users/pm286/workspace/pyami/temp/pdf/chap6/
+        --outdir /Users/pm286/workspace/pyami/temp_oldx/pdf/chap6/
         --maxpage 100
 
     """

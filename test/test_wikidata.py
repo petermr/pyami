@@ -31,7 +31,7 @@ except Exception:
         logging.error(f"Cannot import from py4ami.ami_dict")
 
 RESOURCES_DIR = Path(Path(__file__).parent.parent, "test", "resources")
-TEMP_DIR = Path(Path(__file__).parent.parent, "temp")
+TEMP_DIR = Path(Path(__file__).parent.parent, "temp_oldx")
 DICTIONARY_DIR = Path(os.path.expanduser("~"), "projects", "CEVOpen", "dictionary")
 EO_COMPOUND = "eoCompound"
 EO_COMPOUND_DIR = Path(RESOURCES_DIR, EO_COMPOUND)
@@ -93,7 +93,7 @@ class TestWikidataLookup(unittest.TestCase):
         ]
         wikidata_lookup = WikidataLookup()
         # qitems, descs = wikidata_lookup.lookup_items(terms)
-        temp_dir = Path(Path(__file__).parent.parent, "temp")
+        temp_dir = Path(Resources.TEMP_DIR, "temp_oldx")
         # dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="parkinsons",
         #                                                                           wikidata=True, directory=temp_dir)
         # assert os.path.exists(dictfile)
@@ -391,14 +391,14 @@ class TestWikidataLookup(unittest.TestCase):
         dictionary.lookup_and_add_wikidata_to_entry(entry)
         assert entry.get(WIKIDATA_ID) == "Q27155908"
 
-        dictionary.write_to_file(Path(TEMP_DIR, "dict_5.xml"))
+        dictionary.write_to_file(Path(Resources.TEMP_DIR, EO_COMPOUND, "dict_5.xml"))
 
     @unittest.skip("LONG DOWNLOAD")
     def test_add_wikidata_to_complete_dictionary_with_filter(self):
         """Takes existing dictionary and looks up Wikidata stuff for entries w/o WikidataID
         Need dictionary in AmiDictionary format"""
         input_dir = EO_COMPOUND_DIR
-        output_dir = TEMP_DIR
+        output_dir = Path(Resources.TEMP_DIR, EO_COMPOUND)
         start_entry = 0
         end_entry = 10
         input_path = Path(input_dir, "eoCompound1.xml")
@@ -419,13 +419,14 @@ class TestWikidataLookup(unittest.TestCase):
                     entry.attrib[WIKIDATA_ID] = AmiDictionary.NOT_FOUND
                 else:
                     print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
-        dictionary.write_to_file(Path(output_dir, "eoCompound", "eoCompound1.xml"))
+        dictionary.write_to_file(Path(output_dir, "eoCompound1.xml"))
 
     def test_disambiguation(self):
         """attempts to disambiguate the result of PMR-wikidata lookup
         """
         input_dir = EO_COMPOUND_DIR
-        output_dir = TEMP_DIR
+        output_dir = Path(Resources.TEMP_DIR, EO_COMPOUND)
+        output_dir.mkdir(exist_ok=True)
         input_path = Path(input_dir, "disambig.xml")
         assert input_path.exists(), f"{input_path} should exist"
         dictionary = AmiDictionary.create_from_xml_file(str(input_path))
@@ -437,7 +438,7 @@ class TestWikidataLookup(unittest.TestCase):
         dictionary = AmiDictionary.create_from_xml_file(str(input_path))
         for entry in dictionary.entries:
             dictionary.disambiguate_wikidata_by_desc(entry)
-        dictionary.write_to_file(Path(output_dir, "eoCompound", "disambig.xml"))
+        dictionary.write_to_file(Path(output_dir, "disambig.xml"))
 
     def test_extract_multiple_wikidata_hits_ghg(self):
         """
@@ -525,10 +526,7 @@ entry like:
             "ERS1",
             "EIN4",
         ]
-        # with open(Path(RESOURCES_DIR, "eoCompound", "enzymes.txt"), "r") as f:
-        #     terms = f.readlines()
-        #     assert 100 > len(terms) > 90
-        with open(Path(RESOURCES_DIR, "eoCompound", "compounds.txt"), "r") as f:
+        with open(Path(RESOURCES_DIR, EO_COMPOUND, "compounds.txt"), "r") as f:
             terms = f.readlines()
             assert 100 > len(terms) > 87
         wikidata_lookup = WikidataLookup()

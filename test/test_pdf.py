@@ -36,8 +36,6 @@ CURRENT_RANGE = range(1, 20)
 # CHAPTER_RANGE = range(1, 200)
 CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
 
-# FULL_TEMP_DIR = Path(Path(__file__).parent.parent, "temp", "full")
-
 PMC1421 = Path(Resources.RESOURCES_DIR, "projects", "liion4", "PMC4391421", "fulltext.pdf")
 
 IPCC_DIR = Path(Resources.TEST_RESOURCES_DIR, "ipcc")
@@ -495,7 +493,10 @@ class PDFTest(test.test_all.AmiAnyTest):
         Would ber better if we knew hoe to read PDFStream"""
         maxpage = 9  # images on page 8, and 9
         # maxpage = 9999 # image is on page 8
-        outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
+        path = Path(Resources.TEMP_DIR, "pdf")
+        path.mkdir(exist_ok=True)
+        outdir = Path(path, "chap6")
+        outdir.mkdir(exist_ok=True)
         pdf_debug = PDFDebug()
 
         with pdfplumber.open(IPCC_CHAP6_PDF) as pdf:
@@ -545,7 +546,9 @@ class PDFTest(test.test_all.AmiAnyTest):
         finds WORDS (count) and IMAGE details
         """
 
-        outdir = Path(Resources.TEMP_DIR, "pdf", "pmc1421")
+        p = Path(Resources.TEMP_DIR, "pdf")
+        p.mkdir(exist_ok=True)
+        outdir = Path(p, "pmc1421")
         if not outdir.exists():
             outdir.mkdir()
         with pdfplumber.open(PMC1421) as pdf:
@@ -566,7 +569,7 @@ class PDFTest(test.test_all.AmiAnyTest):
     def test_bmp_png_to_png(self):
         """
         convert bmp, jpgs, etc to PNG
-        results in temp/ipcc_chap6/png/
+        results in temp_oldx/ipcc_chap6/png/
         checks existence on created PNG
         uses: pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
         USEFUL
@@ -868,7 +871,7 @@ Uses:
         }
         pdf_args.convert_write()
 
-    @unittest.skipIf(False and VERYLONG, "processes Chapters 04, 05, 16, 17")
+    @unittest.skipUnless(VERYLONG, "processes Chapters 04, 05, 16, 17")
     def test_make_ipcc_html(self):
         """
         """
@@ -1004,7 +1007,7 @@ LTPage
 
     def test_convert_pdf_to_html_and_save(self):
         """Uses PDFArgs.convert_pdf to convert PDF to HTML and save
-        to temp (/Users/pm286/workspace/pyami/temp/html/pmc4121.xml)
+        to temp_oldx (/Users/pm286/workspace/pyami/temp_oldx/html/pmc4121.xml)
         This is raw output with <br> between lines and mirrors the layout of 
         """
         # Use `pip3 install pdfminer.six` for python3
@@ -1052,6 +1055,13 @@ LTPage
         outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-44")
         PyAMI().run_command(
             ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
+
+    def test_subcommands_maxpage(self):
+        # run args
+        inpath = Path(Resources.PDFS_DIR, "1758-2946-3-44.pdf")
+        outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-44")
+        PyAMI().run_command(
+            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), "--maxpage", "3"])
 
     #    @unittest.skipUnless("old test", self.admin)
     def test_cannot_iterate(self):

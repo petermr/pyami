@@ -1,9 +1,0 @@
-<dictionary version="0.0.1" title="parkinsons" encoding="UTF-8">
-  <metadata user="pm286" date="2022-05-11 16:56:11.985095"/>
-  <entry term="SCRNASeq" wikidataID="Q98158482" description="scientific article published on 28 July 2020"/>
-  <entry term="SNPS" wikidataID="Q33896815" description="scientific article"/>
-  <entry term="A53T" wikidataID="Q37026033" description="scientific article published on 17 May 2013"/>
-  <entry term="linkage disequilibrium" wikidataID="Q77796076" description="scientific article published on 01 December 1998"/>
-  <entry term="Parkinsons" wikidataID="Q11085" description="long-term degenerative neurological disorder that mainly affects movement"/>
-  <entry term="transcriptomics" wikidataID="Q33703532" description="scientific article"/>
-</dictionary>

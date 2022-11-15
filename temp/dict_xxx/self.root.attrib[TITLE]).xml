@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<dictionary title="solvents">
+  <entry name="acetone" term="acetone" wikidataID="Q49546" wikidataURL="https://www.wikidata.org/entity/Q49546" desc="chemical compound">
+    <wikidataHit type="wikidata_hits">Q222936</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q329022</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q63986955</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q4673277</wikidataHit>
+  </entry>
+  <entry name="chloroform" term="chloroform" wikidataID="Q172275" wikidataURL="https://www.wikidata.org/entity/Q172275" desc="chemical compound">
+    <wikidataHit type="wikidata_hits">Q1032539</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q21173565</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q25938986</wikidataHit>
+    <wikidataHit type="wikidata_hits">Q26379274</wikidataHit>
+  </entry>
+</dictionary>

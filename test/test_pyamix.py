@@ -163,9 +163,9 @@ class TestPyami(AmiAnyTest):
 
         ff = Path(__file__)
         infile = Path(ff.parent.parent, "test", "resources/ipcc/Chapter06/fulltext.pdf")
-        outdir = Path(ff.parent.parent, "temp/ipcc_html/Chapter06/")
+        outdir = Path(ff.parent.parent, "temp_oldx/ipcc_html/Chapter06/")
         pyami = PyAMI()
-        args = f"PDF --inpath {infile} --outdir temp --pdf2html pdfminer --pages 5 8 10 13 --outstem exec"
+        args = f"PDF --inpath {infile} --outdir temp_oldx --pdf2html pdfminer --pages 5 8 10 13 --outstem exec"
         pyami.run_command(args)
 
     @unittest.skip("not yet written")
@@ -173,7 +173,7 @@ class TestPyami(AmiAnyTest):
 
         indir = "not yet written, contains PDF files"
         pyami = PyAMI()
-        args = f"PROJECT --indir {indir} --outdir temp"
+        args = f"PROJECT --indir {indir} --outdir temp_oldx"
         pyami.run_command(args)
 
     def test_parent_parser(self):

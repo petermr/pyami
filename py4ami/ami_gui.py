@@ -819,7 +819,7 @@ class AmiGui(tk.Frame):
         )
         display_button.pack(side=tk.RIGHT, expand=True)
 
-        default_dir = os.path.join(os.path.expanduser("~"), "temp")
+        default_dir = os.path.join(os.path.expanduser("~"), "temp_cproject")
 
         self.outdir_var = tk.StringVar(None)
         self.dir_entry = tk.Entry(

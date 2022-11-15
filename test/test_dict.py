@@ -590,7 +590,8 @@ class TestAmiDictionary(AmiAnyTest):
 
     def test_create_dictionary_from_list_of_string_and_save(self):
         terms = ["acetone", "benzene", "chloroform", "DMSO", "ethanol"]
-        temp_dir = Path(Path(__file__).parent.parent, "temp")
+        temp_dir = Path(Resources.TEMP_DIR, "dictx")
+        temp_dir.mkdir(exist_ok=True)
         assert os.path.exists(temp_dir), f"{temp_dir} exists"
         title = "solvents"
         tempfile = Path(temp_dir, title + ".xml")
@@ -599,7 +600,7 @@ class TestAmiDictionary(AmiAnyTest):
 
     def test_create_dictionary_from_list_of_string_save_and_compare(self):
         terms = ["acetone", "benzene", "chloroform", "DMSO", "ethanol"]
-        temp_dir = Path(Path(__file__).parent.parent, "temp")
+        temp_dir = Path(Resources.TEMP_DIR, "dictxx")
         amidict, dictfile = AmiDictionary.create_dictionary_from_words(terms, title="solvents", outdir=temp_dir)
         with open(dictfile, "r") as f:
             dict_text = f.read()
@@ -627,7 +628,7 @@ class TestAmiDictionary(AmiAnyTest):
                  # "ethanol"
                  ]
         amidict, _ = AmiDictionary.create_dictionary_from_words(terms, title="solvents", wikidata=True)
-        temp_dir = Path(Path(__file__).parent.parent, "temp")
+        temp_dir = Path(Resources.TEMP_DIR, "dict_xxx")
         dictfile = amidict.write_to_dir(temp_dir)
 
         with open(dictfile, "r") as f:
