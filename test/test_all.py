@@ -36,6 +36,7 @@ class AmiAnyTest(unittest.TestCase):
     # skipIf
     NYI = True    # test not yet implemented
     USER = True   # user-facing test
+    BUG = True    # skip BUGs
 
     def setUp(self) -> None:
         if len(sys.argv) == 0:

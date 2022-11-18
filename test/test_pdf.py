@@ -25,6 +25,7 @@ from py4ami.ami_html import H_SPAN, H_BODY, H_P
 from py4ami.pyamix import PyAMI
 from py4ami.bbox_copy import BBox
 from test.resources import Resources
+
 from test.test_all import AmiAnyTest
 
 # class PDFTest:
@@ -45,6 +46,7 @@ IPCC_GLOSS_DIR = Path(IPCC_DIR, "glossary")
 IPCC_GLOSSARY = Path(IPCC_GLOSS_DIR, "IPCC_AR6_WGIII_Annex-I.pdf")
 IPCC_CHAP6_DIR = Path(IPCC_DIR, "Chapter06")
 IPCC_CHAP6_PDF = Path(IPCC_CHAP6_DIR, "fulltext.pdf")
+# IPCC_TEMP_CHAP6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
 
 # arg_dict
 
@@ -56,6 +58,9 @@ OUTDIR = "outdir"
 OUTFORM = "outform"
 OUTPATH = "outpath"
 OUTSTEM = "outstem"
+PDF2HTML = "pdf2html"
+PDFMINER = "pdfminer"
+PDFPLUMBER = "pdfplumber"
 FLOW = "flow"
 # FORMAT = "fmt"
 IMAGEDIR = "imagedir"
@@ -104,6 +109,9 @@ class PDFTest(test.test_all.AmiAnyTest):
     OLD = True and AmiAnyTest.OLD
     NYI = True and AmiAnyTest.NYI
     USER = True and AmiAnyTest.USER
+
+    #skipIf
+    BUG = True and AmiAnyTest.BUG
 
     VERYLONG = False or AmiAnyTest.VERYLONG
 
@@ -288,7 +296,13 @@ class PDFTest(test.test_all.AmiAnyTest):
 
     @unittest.skipUnless(USER, "page2sect")
     def test_make_ami_pages_with_spans_from_charstream_ipcc_chap6(self):
-        """The central AMI method to make HTML from PDF characters
+        """
+        The central AMI method to make HTML from PDF characters
+
+        creates spans with coordinates inside divs
+        Uses AmiPage.create_html_pages() which uses AmiPage.chars_to_spans()
+        creates Raw HTML
+
         """
         output_stem = "chap6"
         page_nos = range(3, 13)
@@ -572,7 +586,7 @@ class PDFTest(test.test_all.AmiAnyTest):
 
         """
         dirx = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
-        outdir = Path(Resources.TEMP_DIR, "ipcc_chap6", "png")
+        outdir = Path(Resources.IPCC_CHAP06, "png")
         if not dirx.exists():
             print(f"no directory {dirx}")
             return
@@ -751,6 +765,7 @@ LTPage
                 for page in pages[:max_page]:
                     pdf_debug.debug_page_properties(page, debug=options)
 
+    # @unittest.skipIf(BUG, "page range bug")
     def test_make_structured_html_MAIN(self):
         """structures the flat HTML from pdfplumber, but no coordinates
         Can still be used for word frequency, etc."""
@@ -759,7 +774,8 @@ LTPage
         assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
         pdf_args = PDFArgs()
         pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
-        pdf_args.arg_dict[MAXPAGE] = 10
+        # pdf_args.arg_dict[MAXPAGE] = 10
+        pdf_args.arg_dict[PAGES] = "1_10"
 
         print(f"arg_dict {pdf_args.arg_dict}")
         outfile = pdf_args.convert_write()
@@ -771,7 +787,8 @@ LTPage
 
     @unittest.skipUnless(HTML, "create running text")
     @unittest.skipUnless(USER, "develop for commandline")
-    def test_make_structured_html_pages_MAIN(self):
+    # @unittest.skipIf(BUG, "bad parsing of page ranges")
+    def test_convert_to_raw_html_chap6_maxpage(self):
         """structures the flat HTML from pdfplumber into a running stream, but no coordinates
         Can still be used for word frequency, etc.
 
@@ -781,14 +798,21 @@ Uses:
     if self.flow:
         self.html = self.tidy_flow()
 
+        creates single file ~/pyami/temp/ipcc_chap6/flow.test4.html (concatenated pages in WRONG ORDER)
+        /pyami/temp/ipcc_chap6/chapter_6:.html - seems to be Chapter/author page.
+
+
         """
 
         # print(f" converting {IPCC_CHAP6_PDF}")
         assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
         pdf_args = PDFArgs()
-        pdf_args.arg_dict[MAXPAGE] = 4
+        maxpage = 5
+        pdf_args.arg_dict[MAXPAGE] = maxpage  #works
         pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
-        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_DIR,  "ipcc_chap6", "flow.test.html")
+        IPCC_TEMP_CHAP6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
+        pdf_args.arg_dict[OUTPATH] = Path(IPCC_TEMP_CHAP6, f"flow.test{maxpage}.html")
+        pdf_args.arg_dict[PDF2HTML] = PDFPLUMBER
 
         pprint.pprint(pdf_args.arg_dict)
         # pdf_args.arg_dict[PAGES] = [(1,3), (5,10)]
@@ -800,6 +824,44 @@ Uses:
         else:
             print(f"check {outfile.absolute()} exists")
             assert outfile.exists(), f"outfile {outfile} should exist"
+            print (f"OUT {outfile.stat()}")
+            size = outfile.stat().st_size
+            if maxpage == 4:
+                assert 16000 > size > 15000, f"size {outfile} {size}"
+
+    @unittest.skipUnless(CMD, "command")
+    def test_convert_to_raw_html_chap6_page_ranges(self):
+        """
+        converts complete chapter to raw HTML.
+        outputs each page as
+        .../pyami/temp/ipcc_chap6/fulltext.flow_5.html
+        and also concatenates into .../pyami/temp/ipcc_chap6/flow.test.html
+        If --maxpage or --pages is used then only output specific pages
+        --maxpage is obsolete
+
+        DOES NOT CREATE FLOW YET.
+        """
+        outfile = Path(Resources.IPCC_TEMP_CHAP06, "all.html")
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 9 11_15 217_ --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06}"
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfplumber"
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfminer"
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.IPCC_TEMP_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
+        PyAMI().run_command(args)
+        print(f"created outfile {outfile}")
+        assert outfile.exists(), f"{outfile} should exist"
+
+    def test_extract_single_page_ipcc_toc_chap6(self):
+        """
+        extract a single page which is the TableOfContents
+
+        """
+        assert Path(IPCC_CHAP6_PDF).exists(), f"expected {IPCC_CHAP6_PDF}"
+        assert Path(Resources.IPCC_TEMP_CHAP06).exists(), f"expected {Resources.IPCC_TEMP_CHAP06}"
+
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.IPCC_TEMP_CHAP06} --flow True"
+        PyAMI().run_command(args)
+        outpath = Path(Resources.IPCC_TEMP_CHAP06, "fulltext.flow_4.html")
+        assert outpath.exists(), f"{outpath} should be created"
 
     @unittest.skipIf(NYI, "no code yet")
     def test_make_structured_html_cmdline_DEBUG(self):
@@ -822,6 +884,7 @@ Uses:
          maxpage=[88], outdir=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/'],
          outform='html', outstem='fulltext.flow', resolution=400, template=None)"""
 
+    @unittest.skipIf(BUG, "page range bug")
     def test_make_ipcc_html_spans(self):
         """uses PDFMiner library (no coordinates I think)"""
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
@@ -868,6 +931,7 @@ Uses:
         pdf_args.convert_write()
 
     @unittest.skipIf(LONG, "too long")
+    @unittest.skipIf(BUG, "page ranges have bug")
     def test_make_ipcc_html(self):
         """not really a test"""
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
