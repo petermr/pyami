@@ -109,6 +109,7 @@ Y1 = 'y1'
 X1 = 'x1'
 Y0 = 'y0'
 
+MAX_MAXPAGE = 9999999
 
 class AmiPage:
     """Transformation of an SVG Page from PDFBox/Ami3
@@ -523,20 +524,26 @@ class AmiPage:
         USED
         uses pdfminer routines (AmiPage.chars_to_spans)
         will need further tuning to generate structured HTML
+        uses AmiPage.chars_to_spans()
+
         :param bbox: clip page (default is none)
         :param inout_pdf: required PDF
         :param output_dir: output dicrectory
         :param output_stem: output filestem
         :param page_nos: list of 2-tuples containing allowed ranges (e.g.  [(2,3), (5, 12)]
+
+        creates Raw HTML
         """
         if not input_pdf or not Path(input_pdf).exists():
-            logging.logger.error(f"must have not-null, existing pdf {input_pdf} ")
+            logging.error(f"must have not-null, existing pdf {input_pdf} ")
 
         if not Path(output_dir).exists():
             output_dir.mkdir()
         with pdfplumber.open(input_pdf) as pdf:
             page_count = len(pdf.pages)
-        for page_no in range(page_count):  # 1-based page_no
+        for page_no in range(page_count):  # 0-based page_no
+            page_1based = page_no + 1 # 1-based
+
             logging.debug(f"testing page {page_no}")
         # for page_no in page_nos:
             if not Util.range_list_contains_int(page_no + 1, range_list):
@@ -725,13 +732,15 @@ FOOTER = "footer"
 HEADER = "header"
 
 INDIR = "indir"
+INFILE = "infile"
 INFORM = "inform"
 INPATH = "inpath"
 INSTEM = "instem"
 
-ALL_PAGES = "all_pages"
+ALL_PAGES = ['1_9999999']
 MAXPAGE = "maxpage"
 
+OFFSET = "offset"
 OUTDIR = "outdir"
 OUTFORM = "outform"
 OUTPATH = "outpath"
@@ -833,10 +842,12 @@ class PDFArgs(AbstractArgs):
         self.parser.add_argument("--indir", type=str, nargs=1, help="input directory (might be calculated from inpath)")
         self.parser.add_argument("--inform", type=str, nargs="+", help="input formats (might be calculated from inpath)")
         self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url; might be calculated from dir/stem/form")
+        self.parser.add_argument("--infile", type=str, nargs=1, help="input file (synonym for inpath)")
         self.parser.add_argument("--instem", type=str, nargs=1, help="input stem (e.g. 'fulltext'); maybe calculated from 'inpath`")
 
         self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages (will be deprecated, use 'pages')", default=self.arg_dict.get(MAXPAGE))
 
+        self.parser.add_argument("--offset", type=int, nargs=1, help="number of pages before numbers page 1, default=0", default=0)
         self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
         self.parser.add_argument("--outpath", type=str, nargs=1, help="output path (can be calculated from dir/stem/form)")
         self.parser.add_argument("--outstem", type=str, nargs=1, help="output stem", default="fulltext.flow")
@@ -893,7 +904,7 @@ class PDFArgs(AbstractArgs):
             return False
             # raise FileNotFoundError(f"input file not given")
         if not Path(self.inpath).exists():
-            raise FileNotFoundError(f"input file does not exist: ({self.inpath}")
+            raise FileNotFoundError(f"input file/path does not exist: ({self.inpath}")
         self.indir = Path(self.inpath).parent
         return True
 
@@ -944,11 +955,17 @@ class PDFArgs(AbstractArgs):
             self.header = 80
 
         self.indir = self.arg_dict.get(INDIR)
+        self.infile = self.arg_dict.get(INFILE)
         self.inform = self.arg_dict.get(INFORM)
         self.inpath = self.arg_dict.get(INPATH)
+        self.inpath = self.infile if self.infile else self.inpath # infile takes precedence
         self.instem = self.arg_dict.get(INSTEM)
 
         self.maxpage = self.arg_dict.get(MAXPAGE)
+        if not self.maxpage:
+            maxpage = MAX_MAXPAGE
+
+        self.offset = self.arg_dict.get(OFFSET)
 
         self.outdir = self.arg_dict.get(OUTDIR)
         self.outform = self.arg_dict.get(OUTFORM)
@@ -957,7 +974,12 @@ class PDFArgs(AbstractArgs):
 
 #        logging.warning(f"ARG DICT {self.arg_dict}")
         pages = self.arg_dict.get(PAGES)
-        self.pages = PDFArgs.make_page_ranges(pages)
+        if not pages:
+            # create from maxpage
+            if self.maxpage:
+                pages = [f'1_{self.maxpage}']
+        self.pages = PDFArgs.make_page_ranges(pages, offset=self.arg_dict.get(OFFSET))
+        logging.info(f"pages {pages}")
 
         self.pdf2html = self.arg_dict.get(PDF2HTML)
 
@@ -1229,23 +1251,34 @@ class PDFArgs(AbstractArgs):
     #     return range_list
 
     @classmethod
-    def make_page_ranges(cls, raw_pages):
+    def make_page_ranges(cls, raw_page_ranges, offset=0):
         """expand pages arg to list of ranges
         typical input _2 4_5 8 9_11 13 16_
         These are *inclusive* so expand to
         range(1,3) range(4,6) range(8,9) range (9,12) range(13,14) range(16-maxint)
         converts raw_pages to page ranges
         uses 1-based pages
+
+        :param raw_page_ranges: page ranges before expansion
+        :param offset: number of leading unnumbered pages (when page 1 is not the first)
+        :return: the list of page ranges (ranges are absolute numbers
         """
+        if not offset:
+            offset = 0
+        if not type(raw_page_ranges) is list:
+            strlist = []
+            strlist.append(raw_page_ranges)
+        else :
+            strlist = raw_page_ranges
         ranges = []
-        if raw_pages == ALL_PAGES:
-            raw_pages = "1_9999999"
-        if raw_pages:
-            logging.debug(f"**** raw pages: {raw_pages}")
-            if not hasattr(raw_pages, "__iter__"):
-                logging.error(f"{raw_pages} is not iterable {type(raw_pages)}")
+        if strlist == ALL_PAGES:
+            strlist = ['1_9999999']
+        if strlist:
+            logging.warning(f"**** raw pages: {raw_page_ranges}")
+            if not hasattr(strlist, "__iter__"):
+                logging.error(f"{raw_page_ranges} is not iterable {type(raw_page_ranges)}")
                 return
-            for chunk in raw_pages:
+            for chunk in strlist:
                 if not chunk == "":
                     chunk0 = chunk
                     try:
@@ -1257,7 +1290,8 @@ class PDFArgs(AbstractArgs):
                             chunk = f"{chunk}_{chunk}"
                         ints = chunk.split("_")
                         logging.debug(f"ints {ints}")
-                        rangex = range(int(ints[0]), (int(ints[1]) + 1))  # convert to upper-exclusive
+                        rangex = range(int(ints[0]) + int(offset), (int(ints[1]) + 1 + int(offset)))  # convert to upper-exclusive
+                        logging.info((f"ranges: {rangex}"))
                         ranges.append(rangex)
                     except Exception as e:
                         raise ValueError(f"Cannot parse {chunk0} as int range {e}")
@@ -1807,7 +1841,7 @@ class SvgText:
             self.text_span.create_bbox()
         return self.text_span
 
-    # SvgText
+    # AmiText
 
     def create_text_style(self) -> TextStyle:
         """create TextStyle from style attributes"""
@@ -1881,7 +1915,7 @@ class SvgText:
     def get_font_family(self) -> str:
         """get font-family from SVG style
         No checking on values
-        :returns: font-maily or None
+        :returns: font-family or None
         """
 
         sd = self.extract_style_dict_from_svg()
@@ -1956,7 +1990,7 @@ def main(argv=None):
     typical:
     python -m py4ami.ami_pdf \
         --inpath /Users/pm286/workspace/pyami/test/resources/ipcc/Chapter06/fulltext.pdf \
-        --outdir /Users/pm286/workspace/pyami/temp_oldx/pdf/chap6/
+        --outdir /Users/pm286/workspace/pyami/temp/pdf/chap6/
         --maxpage 100
 
     """

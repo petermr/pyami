@@ -42,6 +42,7 @@ class Resources:
     assert IPCC_CHAP04.exists()
     IPCC_CHAP06 = Path(IPCC_DIR, "Chapter06")
     assert IPCC_CHAP06.exists()
+    IPCC_TEMP_CHAP06 = Path(TEMP_DIR, "ipcc_chap6")
 
     if Path(LOCAL_IPCC_DIR).exists():
         IPCC_CHAP07 = Path(LOCAL_IPCC_DIR, "Chapter07")
