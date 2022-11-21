@@ -913,7 +913,7 @@ class PDFArgs(AbstractArgs):
         self.arg_dict[OUTSTEM] = Path(f"{self.inpath}").stem
         self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
         if not self.outdir:
-            self.outdir = self.arg_dict[OUTDIR]
+            self.outdir = self.arg_dict.get(OUTDIR)
 
         if not self.outpath:
             self.outpath = self.arg_dict.get(OUTPATH)

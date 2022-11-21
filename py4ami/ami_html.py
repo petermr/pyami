@@ -1,9 +1,11 @@
 """Supports parsing, editing, markup, restructing of HTML
 Should have relatively few dependencies"""
 import argparse
+from collections import defaultdict
 import logging
 import lxml
 import lxml.etree
+from lxml.etree import _Element
 import re
 from pathlib import Path
 # local
@@ -96,12 +98,6 @@ class AmiSpan:
                 html_span.attrib["x1"] = str(self.x1)
             html_span.attrib["y"] = str(self.y0)
         return html_span
-
-
-class AmiHtml:
-
-    def __init__(self):
-        pass
 
 
 class HtmlUtil:
@@ -263,6 +259,9 @@ class HtmlUtil:
 
     @classmethod
     def get_text_content(cls, elem):
+        """
+        avoids having to remember join/itertext
+        """
         return ''.join(elem.itertext())
 
     @classmethod
@@ -470,6 +469,170 @@ class HtmlTree:
         assert float(num_range[0])
         result = num_range[0] <= num <= num_range[1]
         return result
+
+class HTMLSearcher:
+    """
+    methods for finding chunks and strings in HTML elements
+
+    Example text:
+    <span>observed increases in the most recent years (Minx et al., 2021; UNEP, 2020a).
+    2019 GHG emissions levels were higher compared to 10 and 30 years ago (high confidence): about 12% (6.5 GtCO2eq)
+    higher than in 2010 (53±5.7 GtCO2eq) (AR5 reference year) and about 54% (21 GtCO2eq) higher than in 1990
+    (38±4.8 GtCO2eq) (Kyoto Protocol reference year and frequent NDC reference)</span>
+    """
+    """
+    """
+
+
+
+
+    # for text search
+    DEFAULT_XPATH = "//text()"
+    CHUNK_RE = "chunk_re"  # finds text chunks in text
+    SPLITTER_RE = "splitter_re"  # splits those chunks (e,g, comma-separated lists
+    SUBNODE_RE = "sub_node_re_list"  # matches the components of the split lists
+    UNMATCHED = "unmatched"    # adds unmatched nodes
+    XPATH = "xpath"
+
+    def __init__(self):
+        self.xpath_dict = dict()
+        self.chunk_dict = dict()
+        self.splitter_dict = dict()
+        self.subnode_dict = dict()
+
+    def search_path_chunk_node(self, html_path):
+        assert html_path.exists(), f"{html_path} should exist"
+        tree = lxml.etree.parse(str(html_path))
+
+        self.xpaths = self.xpath_dict.get(self.XPATH)
+        if not self.xpaths:
+            print(f"ERROR must give xpath")
+            return
+        for xpath in self.xpaths:
+            print(f" XPATH {xpath}")
+            try:
+                match_elements = tree.xpath(xpath)
+            except Exception as e:
+                print(f"ERROR xpath {xpath}")
+                raise e
+
+        self.element_list = list()
+        for xpath in self.xpaths:
+            match_elements = tree.xpath(xpath)
+            for match_element in match_elements:
+                t = type(match_element)
+                if t is not _Element:
+                    raise ValueError(f"not an element {t} {match_element}")
+                    break
+                self.element_list.append(match_element)
+
+        for element in self.element_list:
+            for text in element.xpath("./text()"):
+                print(f"TEXT {len(text)} {text}")
+                # nodestr = self.select_chunks_subchunks_nodes(text)
+
+
+    def select_chunks_subchunks_nodes(self, text):
+        # chunk_re, splitter_re, node_re_liat, add_unmatched = False):
+        """
+        Move to a class and refactor to use dictionary
+        """
+
+        chunk_res = self.chunk_dict.get(self.CHUNK_RE)
+        splitter_res = self.splitter_dict.get(self.SPLITTER_RE)
+        node_res = self.chunk_node_dict.get(self.SUBNODE_RE)
+        # self.validate_re(chunk_re)
+
+        add_unmatched = self.chunk_node_dict.get(self.UNMATCHED)
+        ptr = 0
+        while True:
+            for chunk_re in chunk_res:
+                match = re.search(chunk_re, text[ptr:])
+                if not match:
+                    break
+                ptr += match.span()[1]
+                nodestr = match.group(1)
+
+                nodes = re.split(splitter_re, nodestr)
+                node_dict = defaultdict(list)
+                for node in nodes:
+                    m = re.search(node_re, node)
+                    if m:
+                        node_dict[node_re].append(node)
+                    if not m and add_unmatched:
+                        node_dict[self.UNMATCHED].append(node)
+                for item in node_dict.items():
+                    print (f"item {item}")
+
+    def add_xpath(self, title, xpath):
+        """
+        set xpath for extracting HTML nodes.
+        :param key: title of xpath
+        :param xpath: acts on current nodeset
+        """
+        tree = lxml.etree.fromstring("<foo/>")
+        try:
+            tree.xpath(xpath)
+        except lxml.etree.XPathEvalError as e:
+            logging.error(f"bad XPath {xpath}, {e}")
+            raise e
+
+        self.add_item_to_array_dict(self.xpath_dict, title, xpath)
+        # self.add_item_to_array_dict(self.xpath_dict, title, "./a/b/zzz")
+        # print(f"XPATH DICT {self.xpath_dict}")
+        # self.add_item_to_array_dict(self.xpath_dict, "foo", "/boo/bar")
+        # print(f"XPATH DICT {self.xpath_dict}")
+
+    def add_chunk_re(self, chunk_re):
+        """
+        add chunk regex for extracting chunks.
+        :param chunk_re: acts on current nodeset
+        """
+        self.add_item_to_array_dict(self.chunk_dict, self.CHUNK_RE, chunk_re)
+        self.validate_re(chunk_re)
+
+    def add_splitter_re(self, splitter_re):
+        """
+        add splitter regex for extracting lists in chunks.
+        :param splitter_re: acts on current nodeset
+        """
+        self.add_item_to_array_dict(self.splitter_dict, self.SPLITTER_RE, splitter_re)
+        self.validate_re(splitter_re)
+
+    def add_subnode_key_re(self, name, subnode_re):
+        """
+        add named subnode regex for parsing list items from splitting
+        :param name: name of re in dict
+        :param subnode_re: regex to store
+        """
+        self.add_named_value(name, subnode_re)
+
+    def add_named_value(self, name, subnode_re):
+        self.add_item_to_array_dict(self.chunk_dict, name, subnode_re)
+        self.validate_re(subnode_re)
+
+    def set_unmatched(self, unmatched):
+        """
+        set UNMATCHED boolean. If true adds all unmatched values to dict under UNMATCHED
+        :param unmatched: acts on current nodeset
+        """
+        self.chunk_dict[self.UNMATCHED] = unmatched
+
+    def validate_re(self, regex):
+        """
+        :param regex: regex to be validated
+        :except: throws Exception for bad regex
+        """
+        try:
+            re.compile(regex)
+        except Exception as e:
+            logging.error(f"bad regex {regex}")
+            raise e
+
+    def add_item_to_array_dict(self, the_dict, key, value):
+        if not the_dict.get(key):
+            the_dict[key] = []
+        the_dict[key].append(value)
 
 
 class HTMLArgs(AbstractArgs):

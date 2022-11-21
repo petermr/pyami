@@ -1,16 +1,13 @@
 import argparse
 import ast
-import errno
 import logging
 import os
-import shutil
 import sys
 import csv
 import re
 from enum import Enum
 from abc import ABC, abstractmethod
 from collections import Counter
-from pathlib import Path
 import time
 import requests
 import json
@@ -59,28 +56,6 @@ class Util:
 
         _logger.debug(f"PyAMI {_logger.level}{_logger.name}")
         return _logger
-
-    @staticmethod
-    def check_exists(file):
-        """
-        raise exception on null value or non-existent path
-        """
-        if file is None:
-            raise Exception("null path")
-
-        if os.path.isdir(file):
-            # print(path, "is directory")
-            pass
-        elif os.path.isfile(file):
-            # print(path, "is path")
-            pass
-        else:
-            try:
-                f = open(file, "r")
-                print("tried to open", file)
-                f.close()
-            except Exception:
-                raise FileNotFoundError(str(file) + " should exist")
 
     @staticmethod
     def find_unique_keystart(keys, start):
@@ -154,38 +129,6 @@ class Util:
             print(f"should only extend default sys.argv (len=1), found {sys.argv}")
         sys.argv.extend(args)
 
-    @classmethod
-    def copyanything(cls, src, dst):
-        """copy file or directory
-        (from StackOverflow)
-        :param src: source file/directory
-        :param dst: destination
-        """
-        try:
-            shutil.copytree(src, dst)
-        except OSError as exc:  # python >2.5
-            if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-                shutil.copy(src, dst)
-            else:
-                raise exc
-
-    @classmethod
-    def copy_file(cls, file, src, dst):
-        """
-        :param file: filename in src dir
-        :param src: source directory
-        :oaram dst: destinatiom diecrtory
-        """
-        Util.copyanything(Path(src, file), Path(dst, file))
-
-
-    @classmethod
-    def delete_directory_contents(cls, dirx):
-        for path in Path(dirx).glob("**/*"):
-            if path.is_file():
-                path.unlink()
-            elif path.is_dir():
-                shutil.rmtree(path)
 
     @classmethod
     def create_name_value(cls, arg: str, delim: str = "=") -> tuple:
@@ -271,8 +214,6 @@ class Util:
             if re.match(regex, string):
                 return regex
         return None
-
-
 
 class GithubDownloader:
     """Note: Github uses the old 'master' name but we have changed it to 'main'"""

@@ -2,7 +2,6 @@ import argparse
 import ast
 import json
 import logging
-from enum import Enum
 
 from lxml import etree as ET
 from lxml import etree
@@ -24,6 +23,7 @@ from py4ami.util import Util
 from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
 from py4ami.ami_html import HtmlUtil, CSSStyle, H_A, H_SPAN, H_BODY, H_DIV, H_UL, H_LI, A_ID, \
     A_HREF, A_NAME, A_TITLE, A_TERM
+from py4ami.file_lib import FileLib
 from py4ami.util import AbstractArgs
 from py4ami.wikimedia import WikidataSparql, WikidataLookup, WikidataPage
 
@@ -1433,7 +1433,7 @@ class AmiDictionaries:
         if key in self.dictionary_dict:
             raise Exception("duplicate dictionary key " +
                             key + " in " + str(self.dictionary_dict))
-        Util.check_exists(file)
+        FileLib.check_exists(file)
         try:
             dictionary = AmiDictionary.create_from_xml_file(file)
             self.dictionary_dict[key] = dictionary

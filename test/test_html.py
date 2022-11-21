@@ -1,19 +1,17 @@
 """Create, transform, markup up HTML, etc."""
-import lxml.etree
-from pathlib import Path
 import os
 import re
 import unittest
-from collections import Counter
+from collections import Counter, defaultdict
+from pathlib import Path
 
-# local
-from test.resources import Resources
-from py4ami.ami_html import AmiHtml, HtmlUtil, H_A, H_BODY, H_DIV, H_SPAN, CSSStyle
+import lxml.etree
+
 from py4ami.ami_bib import Reference, Biblioref
-from py4ami.util import Util
 from py4ami.ami_dict import AmiDictionary
-
-import test
+# local
+from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HTMLSearcher
+from py4ami.util import Util
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
@@ -65,6 +63,7 @@ class HtmlTest(AmiAnyTest):
         assert type(html_span) is lxml.etree._Element
         assert html_span.text == "to national level (4.2.2.3) and subnational"
 
+    @unittest.skipIf(OLD, "use TextChunker")
     def test_find_single_brackets_in_span(self):
         """
         add docs here
@@ -158,7 +157,7 @@ class HtmlTest(AmiAnyTest):
         counter = Counter()
         for biblioref in bibliorefs:
             ref = biblioref.first
-            if not ref in counter:
+            if ref not in counter:
                 counter[ref] = 0
             counter[ref] += 1
         assert len(counter) == 86
@@ -199,7 +198,7 @@ class HtmlTest(AmiAnyTest):
     def test_make_reference_class(self):
         """reads a references file and creates class"""
 
-        ami_html = AmiHtml()
+        # ami_html = AmiHtml()
         ref_path = Path(Resources.IPCC_CHAP04, "references.html")
         assert ref_path.exists()
         ref_elem = lxml.etree.parse(str(ref_path))
@@ -249,13 +248,13 @@ class HtmlTest(AmiAnyTest):
         span = div_elem.xpath("./span")[0]
 
         regex = Util.SINGLE_BRACKET_RE
-        spans,_ = HtmlUtil.split_span_at_match(span, regex)
+        spans, _ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is not None
         assert spans[1] is not None
         assert spans[2] is not None
 
         assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
-            """<div><span class="re_pref">prefix the </span><span class="re_match">bracketed</span><span class="re_post"> string postfix</span></div>"""
+               """<div><span class="re_pref">prefix the </span><span class="re_match">bracketed</span><span class="re_post"> string postfix</span></div>"""
 
         # no leading string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed) string postfix</span></div>")
@@ -489,6 +488,7 @@ class HtmlTest(AmiAnyTest):
 
         THIS USED A STYLE-NORMALISED FILE WHICH I THINK WAS CREARTED  BY ATOM.
         THE FILE MAY BE LOST
+        BUG
 
         https://stackoverflow.com/questions/62472162/lxml-xpath-expression-for-selecting-all-text-under-a-given-child-node-including
         """
@@ -516,4 +516,62 @@ class HtmlTest(AmiAnyTest):
                         f.write("\n=======lesser claims==========\n")
                         f.write(tstr)
 
+    def test_extract_ipcc_nodes_and_pointers_raw_format(self):
+        """
+        read (old style) raw html with IPCC nodes and node_pointers and convert to HTML@a elements
+        example
+        '(high confidence). {2.2.2, Table 2.1, Figure 2.5}' contains 3 node pointers
+        """
+        # html = "executive_summary_css.html"
+        # html = "executive_summary1.html"
+        exec_summ1 = Path(Resources.IPCC_CHAP02, "maintext_old.html")
+        assert exec_summ1.exists(), f"{exec_summ1} should exist"
+        tree = lxml.etree.parse(str(exec_summ1))
+        xpath = "//div//text()[contains(., '{')]"
+        texts = tree.xpath(xpath)
+        print(f"texts {len(texts)}")
+        for text in texts:
+            print(f"text: {text}")
+            nodestr = self.extract_ipcc_nodes(text)
+
+    def test_extract_ipcc_bib_pointers(self):
+        """
+    (Peters et al., 2020; Jackson et al., 2019; Friedlingstein et al., 2020).
+    Refactor and generalise to python dict
+        """
+        xpath = "//div//text()[contains(., '(')]"
+
+        html_searcher = HTMLSearcher()
+        html_searcher.add_xpath("text_with_paren", "//*[contains(text(), '(')]")
+        print(f"XPATH... {html_searcher.xpath_dict.keys()}")
+        html_searcher.add_chunk_re("\\(([^\\)]*)\\)")
+        html_searcher.add_splitter_re("\\s*[,;]\\s*")
+        html_searcher.add_subnode_key_re("ref", "([A-Z].*\\s+(20|19)\\d\\d[a-z]?)")
+        html_searcher.set_unmatched(False)
+
+        html_path = Path(Resources.IPCC_CHAP02, "maintext_old.html")
+        html_searcher.search_path_chunk_node(html_path)
+
     # ========================================
+    def extract_ipcc_nodes(self, text) -> None:
+        """
+        Move to a class and refactor to use dictionary
+        """
+        ptr = 0
+        while True:
+            match = re.search("{([^}]*)}", text[ptr:])
+            if not match:
+                break
+            ptr = match.span()[1]
+            nodestr = match.group(1)
+            # print(f"match: {nodestr} =========")
+            nodes = re.split("\\s*[,;]\\s*", nodestr)
+            node_dict = defaultdict(list)
+            for node in nodes:
+                print(f"node: {node}")
+                m = re.match("(Table|Figure)\\s+(.*)", node)
+                if m:
+                    node_dict[m.group(1)].append(m.group(2))
+                    continue
+                node_dict["other"].append(node)
+            print(f"node_dict: {node_dict.items()}")

@@ -24,6 +24,7 @@ from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZ
 from py4ami.ami_html import H_SPAN, H_BODY, H_P
 from py4ami.pyamix import PyAMI
 from py4ami.bbox_copy import BBox
+from py4ami.file_lib import FileLib
 from test.resources import Resources
 
 from test.test_all import AmiAnyTest
@@ -67,24 +68,6 @@ TEMPLATE = "template"
 
 # ==============================
 
-def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=False):
-    """
-    reads SVG output from ami3/pdfbox and converts to HTML
-    used by several tests at present and will be intergrated
-    :param pretty_print: pretty print the HTML. Warning may introduce whitespace
-    :param use_lines: output is CompositeLines. Not converted into running text (check)
-    :param rotated_text: include/ignore tex# ts with non-zero @rotateDegress attribute
-    """
-    if not Path(FINAL_DRAFT_DIR, f"fulltext-page.2912.svg").exists():
-        raise Exception("must have SVG from ami3")
-    for page_index in CURRENT_RANGE:
-        page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-        html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-        if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
-            Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
-        ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
-        ami_page.write_html(html_path, pretty_print, use_lines)
-
 
 def make_html_dir():
     html_dir = Path(Resources.TEMP_DIR, "html")
@@ -114,7 +97,6 @@ class PDFTest(test.test_all.AmiAnyTest):
 
     # local
     HTML = True
-    SVG = True
 
     # old tests
     OLD = False
@@ -123,168 +105,8 @@ class PDFTest(test.test_all.AmiAnyTest):
     def test_pdfbox_output_exists(self):
         """check CLIMATE dir exists
         """
-        # assert str(Resources.CLIMATE_10_DIR) == "/Users/pm286/workspace/pyami/test/resources/svg", f"resources {Resources.CLIMATE_10_DIR}"
         assert Resources.CLIMATE_10_PROJ_DIR.exists(), f"{Resources.CLIMATE_10_PROJ_DIR} should exist"
 
-    @unittest.skipUnless("enviroment", ADMIN)
-    def test_findall_svg_and_find_texts(self):
-        """find climate10_:text elements
-        """
-        assert PAGE_9.exists(), f"{PAGE_9} should exist"
-        page9_elem = lxml.etree.parse(str(PAGE_9))
-        texts = page9_elem.findall(f"//{{{SVG_NS}}}text")
-        assert len(texts) == 108
-
-    @unittest.skipUnless(SVG, "svg")
-    def test_get_text_attribs(self):
-        """find various SVG attributes, including 'style'
-        """
-        ami_page = AmiPage.create_page_from_svg(PAGE_9)
-        # <climate10_:text> element
-        text0 = ami_page.get_svg_text(0)
-        assert text0.svg_text_elem.tag == f"{{{SVG_NS}}}text"
-        # single Y-coord
-        assert text0.svg_text_elem.attrib.get(Y) == '44.76'
-        # list of X-coords
-        assert text0.svg_text_elem.attrib.get(X) == \
-               '72.0,79.201,84.721,90.241,96.961,104.162,111.363,117.482,124.798,127.288,258.242,263.762,268.' \
-               '802,276.601,284.401,288.841,292.202,297.241,299.761,303.001,308.041,311.402,313.921,319.441,' \
-               '324.481,327.241,330.001,334.441,339.481,347.28,351.601,356.641,361.081,364.442,368.28,370.77,' \
-               '448.08,451.439,456.96,463.563,470.167,472.687,480.006,486.61,491.651,494.171,503.533,510.718,' \
-               '513.238,516.594,519.951,523.307'
-        # list of character-widths (from publisher) (multiply by font-size to get pixels)
-        assert text0.svg_text_elem.attrib.get(f"{{{SVGX_NS}}}width") == \
-               '0.72,0.56,0.56,0.67,0.72,0.72,0.61,0.72,0.25,0.55,0.56,0.5,0.78,0.78,0.44,0.33,0.5,0.25,0.33,' \
-               '0.5,0.33,0.25,0.56,0.5,0.28,0.28,0.44,0.5,0.78,0.44,0.5,0.44,0.33,0.39,0.25,0.55,0.33,0.56,' \
-               '0.67,0.67,0.25,0.72,0.67,0.5,0.25,0.94,0.72,0.25,0.33,0.33,0.33,0.25'
-        # style (dict-like collection of name-value pairs
-        assert text0.svg_text_elem.get(STYLE) == \
-               'fill:rgb(0,0,0);font-family:TimesNewRomanPSMT;font-size:9.96px;stroke:none;'
-        # text-content without tags
-        text_content = text0.get_text_content()
-        assert text_content == "APPROVED Summary for Policymakers IPCC AR6 WG III "
-        assert len(text_content) == 50  # some spaces have been elided??
-
-    @unittest.skipUnless(SVG, "svg")
-    def test_get_text_attrib_vals(self):
-        """more attributes and convenience methods"""
-        ami_page = AmiPage.create_page_from_svg(PAGE_9)
-        # <climate10_:text> element
-        ami_text0 = ami_page.get_svg_text(0)
-        x_coords = ami_text0.get_x_coords()
-        assert x_coords == [
-            72.0, 79.201, 84.721, 90.241,
-            96.961, 104.162, 111.363, 117.482, 124.798, 127.288, 258.242, 263.762, 268.802,
-            276.601, 284.401, 288.841, 292.202, 297.241, 299.761,
-            303.001, 308.041, 311.402, 313.921, 319.441, 324.481, 327.241, 330.001,
-            334.441, 339.481, 347.28, 351.601, 356.641, 361.081, 364.442,
-            368.28, 370.77, 448.08, 451.439, 456.96, 463.563, 470.167,
-            472.687, 480.006, 486.61, 491.651, 494.171, 503.533, 510.718, 513.238, 516.594, 519.951, 523.307]
-        assert len(x_coords) == 52
-
-        widths = ami_text0.get_widths()
-        assert widths == [
-            0.72, 0.56, 0.56, 0.67, 0.72, 0.72, 0.61,
-            0.72, 0.25, 0.55, 0.56, 0.5, 0.78, 0.78, 0.44, 0.33, 0.5, 0.25, 0.33, 0.5, 0.33,
-            0.25, 0.56, 0.5, 0.28, 0.28, 0.44, 0.5, 0.78, 0.44, 0.5, 0.44, 0.33,
-            0.39, 0.25, 0.55, 0.33, 0.56, 0.67, 0.67, 0.25, 0.72, 0.67, 0.5, 0.25, 0.94, 0.72, 0.25, 0.33, 0.33,
-            0.33, 0.25
-        ]
-        assert len(widths) == 52
-
-        # SVG style dict from SVG@style attribute
-        style_dict = ami_text0.extract_style_dict_from_svg()
-        # assert style_dict == {'fill': 'rgb(0,0,0)',\n 'font-family': 'TimesNewRomanPSMT',\n 'font-size': '9.96px',\n 'stroke': 'none'}
-        assert style_dict[FILL] == 'rgb(0,0,0)'
-        assert style_dict[FONT_FAMILY] == 'TimesNewRomanPSMT'
-        assert style_dict[FONT_SIZE] == '9.96px'
-        assert style_dict[STROKE] == 'none'
-        assert ami_text0.get_font_size() == 9.96
-
-    @unittest.skipUnless(SVG, "svg")
-    def test_create_text_lines_page6(self):
-        """creation of AmiPage from SVG page and creation of text spans"""
-        page = AmiPage.create_page_from_svg(PAGE_6)
-        page.create_text_spans(sort_axes=SORT_XY)
-        assert 70 >= len(page.text_spans) >= 60
-
-    @unittest.skipUnless(SVG, "svg")
-    def test_create_html_from_svg(self):
-        """
-        Test 10 pages
-        """
-        pretty_print = True
-        use_lines = True
-        svg_dir = Resources.CLIMATE_10_SVG_DIR
-        html_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
-        for page_index in range(1, 9):
-            page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
-            html_path = Path(html_dir, f"page.{page_index}.html")
-            if not html_dir.exists():
-                html_dir.mkdir()
-            ami_page = AmiPage.create_page_from_svg(page_path)
-            ami_page.write_html(html_path, pretty_print, use_lines)
-            assert html_path.exists(), f"{html_path} exists"
-
-    @unittest.skipUnless(SVG, "svg")
-    def test_create_html_in_selection_from_svg(self):
-        """
-        Test 10 pages
-        """
-        pretty_print = True
-        use_lines = True
-        # selection = range(1, 2912)
-        page_selection = range(1, 50)
-        counter = 0
-        counter_tick = 20
-        html_out_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
-        for page_index in page_selection:
-            if counter % counter_tick == 0:
-                print(f".", end="")
-            page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-            html_path = Path(html_out_dir, f"page.{page_index}.html")
-            if not html_out_dir.exists():
-                html_out_dir.mkdir()
-            ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
-            ami_page.write_html(html_path, pretty_print, use_lines)
-            counter += 1
-            assert html_path.exists(), f"{html_path} exists"
-
-    @unittest.skipUnless(SVG, "svg")
-    def test_create_chapters_through_svg(self):
-        pretty_print = True
-        use_lines = True
-        make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
-        selection = CURRENT_RANGE
-        temp_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
-        for page_index in selection:
-            html_path = Path(temp_dir, f"page.{page_index}.html")
-            with open(html_path, "r") as h:
-                xml = h.read()
-            root = lxml.etree.fromstring(xml)
-            spans = root.findall(f"./{H_BODY}/{H_P}/{H_SPAN}")
-            assert type(spans[0]) is lxml.etree._Element, f"expected str got {type(spans[0])}"
-            assert len(HtmlUtil.get_text_content(spans[0])) > 0
-            span = None
-            chapter = ""
-            # bug in parsing line 0
-            if Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[0])):
-                span = spans[0]
-            if span is None and Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[1])):
-                span = spans[1]
-            if span is None:
-                print(f"p:{page_index}, {HtmlUtil.get_text_content(spans[0])}, {HtmlUtil.get_text_content(spans[1])}")
-            else:
-                chapter = HtmlUtil.get_text_content(span)
-                print("CHAP ", chapter)
-
-    @unittest.skip("obsolete")
-    @unittest.skipUnless(SVG, "svg")
-    @unittest.skipUnless(CMD, "command")
-    def test_svg2page(self):
-        proj = Resources.CLIMATE_10_PROJ_DIR
-        args = f"--proj {proj} --apply svg2page"
-        PyAMI().run_command(args)
 
     @unittest.skipIf(NYI, "page2sect")
     def test_page2chap(self):
@@ -1119,11 +941,29 @@ LTPage
             ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
 
     def test_subcommands_maxpage(self):
+        """
+        USER
+         COMMAND
+         PDF2HTML (but doesn't yet work)
+
+         for Manny
+        """
         # run args
-        inpath = Path(Resources.PDFS_DIR, "1758-2946-3-44.pdf")
-        outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-44")
+
+        inpath = Path(Resources.IPCC_CHAP06, "fulltext.pdf")
+        outdir = Path(Resources.IPCC_TEMP_CHAP06)
+        htmls = FileLib.delete_files(outdir, "*.html")
+        out2 = Path(outdir, "fulltext.flow_2.html")
+        assert not out2.exists()
         PyAMI().run_command(
-            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), "--maxpage", "3"])
+            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir),
+             "--pdf2html", "pdfplumber", "--pages", "1_3"])
+        files = FileLib.list_files(outdir, "*.html")
+        assert len(files) == 3
+        assert FileLib.size(out2) > 5000 # files may be empty
+
+
+
 
     #    @unittest.skipUnless("old test", self.admin)
     def test_cannot_iterate(self):
@@ -1135,6 +975,198 @@ LTPage
             ['PDF'])
         PyAMI().run_command(
             ['PDF', '--help'])
+
+class PDF_SVGTest(test.test_all.AmiAnyTest):
+
+    # all are skipUnless
+    ADMIN = True and AmiAnyTest.ADMIN
+    CMD = True and AmiAnyTest.CMD
+    DEBUG = True and AmiAnyTest.DEBUG
+    LONG = True and AmiAnyTest.LONG
+    NET = True and AmiAnyTest.NET
+    OLD = True and AmiAnyTest.OLD
+    NYI = True and AmiAnyTest.NYI
+    USER = True and AmiAnyTest.USER
+
+    SVG = True
+
+    def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=False):
+        """
+        reads SVG output from ami3/pdfbox and converts to HTML
+        used by several tests at present and will be intergrated
+        :param pretty_print: pretty print the HTML. Warning may introduce whitespace
+        :param use_lines: output is CompositeLines. Not converted into running text (check)
+        :param rotated_text: include/ignore tex# ts with non-zero @rotateDegress attribute
+        """
+        if not Path(FINAL_DRAFT_DIR, f"fulltext-page.2912.svg").exists():
+            raise Exception("must have SVG from ami3")
+        for page_index in CURRENT_RANGE:
+            page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
+            html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+            if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
+                Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
+            ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
+            ami_page.write_html(html_path, pretty_print, use_lines)
+
+    @unittest.skipUnless("enviroment", ADMIN)
+    def test_findall_svg_and_find_texts(self):
+        """find climate10_:text elements
+        """
+        assert PAGE_9.exists(), f"{PAGE_9} should exist"
+        page9_elem = lxml.etree.parse(str(PAGE_9))
+        texts = page9_elem.findall(f"//{{{SVG_NS}}}text")
+        assert len(texts) == 108
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_get_text_attribs(self):
+        """find various SVG attributes, including 'style'
+        """
+        ami_page = AmiPage.create_page_from_svg(PAGE_9)
+        # <climate10_:text> element
+        text0 = ami_page.get_svg_text(0)
+        assert text0.svg_text_elem.tag == f"{{{SVG_NS}}}text"
+        # single Y-coord
+        assert text0.svg_text_elem.attrib.get(Y) == '44.76'
+        # list of X-coords
+        assert text0.svg_text_elem.attrib.get(X) == \
+               '72.0,79.201,84.721,90.241,96.961,104.162,111.363,117.482,124.798,127.288,258.242,263.762,268.' \
+               '802,276.601,284.401,288.841,292.202,297.241,299.761,303.001,308.041,311.402,313.921,319.441,' \
+               '324.481,327.241,330.001,334.441,339.481,347.28,351.601,356.641,361.081,364.442,368.28,370.77,' \
+               '448.08,451.439,456.96,463.563,470.167,472.687,480.006,486.61,491.651,494.171,503.533,510.718,' \
+               '513.238,516.594,519.951,523.307'
+        # list of character-widths (from publisher) (multiply by font-size to get pixels)
+        assert text0.svg_text_elem.attrib.get(f"{{{SVGX_NS}}}width") == \
+               '0.72,0.56,0.56,0.67,0.72,0.72,0.61,0.72,0.25,0.55,0.56,0.5,0.78,0.78,0.44,0.33,0.5,0.25,0.33,' \
+               '0.5,0.33,0.25,0.56,0.5,0.28,0.28,0.44,0.5,0.78,0.44,0.5,0.44,0.33,0.39,0.25,0.55,0.33,0.56,' \
+               '0.67,0.67,0.25,0.72,0.67,0.5,0.25,0.94,0.72,0.25,0.33,0.33,0.33,0.25'
+        # style (dict-like collection of name-value pairs
+        assert text0.svg_text_elem.get(STYLE) == \
+               'fill:rgb(0,0,0);font-family:TimesNewRomanPSMT;font-size:9.96px;stroke:none;'
+        # text-content without tags
+        text_content = text0.get_text_content()
+        assert text_content == "APPROVED Summary for Policymakers IPCC AR6 WG III "
+        assert len(text_content) == 50  # some spaces have been elided??
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_get_text_attrib_vals(self):
+        """more attributes and convenience methods"""
+        ami_page = AmiPage.create_page_from_svg(PAGE_9)
+        # <climate10_:text> element
+        ami_text0 = ami_page.get_svg_text(0)
+        x_coords = ami_text0.get_x_coords()
+        assert x_coords == [
+            72.0, 79.201, 84.721, 90.241,
+            96.961, 104.162, 111.363, 117.482, 124.798, 127.288, 258.242, 263.762, 268.802,
+            276.601, 284.401, 288.841, 292.202, 297.241, 299.761,
+            303.001, 308.041, 311.402, 313.921, 319.441, 324.481, 327.241, 330.001,
+            334.441, 339.481, 347.28, 351.601, 356.641, 361.081, 364.442,
+            368.28, 370.77, 448.08, 451.439, 456.96, 463.563, 470.167,
+            472.687, 480.006, 486.61, 491.651, 494.171, 503.533, 510.718, 513.238, 516.594, 519.951, 523.307]
+        assert len(x_coords) == 52
+
+        widths = ami_text0.get_widths()
+        assert widths == [
+            0.72, 0.56, 0.56, 0.67, 0.72, 0.72, 0.61,
+            0.72, 0.25, 0.55, 0.56, 0.5, 0.78, 0.78, 0.44, 0.33, 0.5, 0.25, 0.33, 0.5, 0.33,
+            0.25, 0.56, 0.5, 0.28, 0.28, 0.44, 0.5, 0.78, 0.44, 0.5, 0.44, 0.33,
+            0.39, 0.25, 0.55, 0.33, 0.56, 0.67, 0.67, 0.25, 0.72, 0.67, 0.5, 0.25, 0.94, 0.72, 0.25, 0.33, 0.33,
+            0.33, 0.25
+        ]
+        assert len(widths) == 52
+
+        # SVG style dict from SVG@style attribute
+        style_dict = ami_text0.extract_style_dict_from_svg()
+        # assert style_dict == {'fill': 'rgb(0,0,0)',\n 'font-family': 'TimesNewRomanPSMT',\n 'font-size': '9.96px',\n 'stroke': 'none'}
+        assert style_dict[FILL] == 'rgb(0,0,0)'
+        assert style_dict[FONT_FAMILY] == 'TimesNewRomanPSMT'
+        assert style_dict[FONT_SIZE] == '9.96px'
+        assert style_dict[STROKE] == 'none'
+        assert ami_text0.get_font_size() == 9.96
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_text_lines_page6(self):
+        """creation of AmiPage from SVG page and creation of text spans"""
+        page = AmiPage.create_page_from_svg(PAGE_6)
+        page.create_text_spans(sort_axes=SORT_XY)
+        assert 70 >= len(page.text_spans) >= 60
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_html_from_svg(self):
+        """
+        Test 10 pages
+        """
+        pretty_print = True
+        use_lines = True
+        svg_dir = Resources.CLIMATE_10_SVG_DIR
+        html_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        for page_index in range(1, 9):
+            page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
+            html_path = Path(html_dir, f"page.{page_index}.html")
+            if not html_dir.exists():
+                html_dir.mkdir()
+            ami_page = AmiPage.create_page_from_svg(page_path)
+            ami_page.write_html(html_path, pretty_print, use_lines)
+            assert html_path.exists(), f"{html_path} exists"
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_html_in_selection_from_svg(self):
+        """
+        Test 10 pages
+        """
+        pretty_print = True
+        use_lines = True
+        # selection = range(1, 2912)
+        page_selection = range(1, 50)
+        counter = 0
+        counter_tick = 20
+        html_out_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        for page_index in page_selection:
+            if counter % counter_tick == 0:
+                print(f".", end="")
+            page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
+            html_path = Path(html_out_dir, f"page.{page_index}.html")
+            if not html_out_dir.exists():
+                html_out_dir.mkdir()
+            ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
+            ami_page.write_html(html_path, pretty_print, use_lines)
+            counter += 1
+            assert html_path.exists(), f"{html_path} exists"
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_chapters_through_svg(self):
+        pretty_print = True
+        use_lines = True
+        self.make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
+        selection = CURRENT_RANGE
+        temp_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        for page_index in selection:
+            html_path = Path(temp_dir, f"page.{page_index}.html")
+            with open(html_path, "r") as h:
+                xml = h.read()
+            root = lxml.etree.fromstring(xml)
+            spans = root.findall(f"./{H_BODY}/{H_P}/{H_SPAN}")
+            assert type(spans[0]) is lxml.etree._Element, f"expected str got {type(spans[0])}"
+            assert len(HtmlUtil.get_text_content(spans[0])) > 0
+            span = None
+            chapter = ""
+            # bug in parsing line 0
+            if Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[0])):
+                span = spans[0]
+            if span is None and Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[1])):
+                span = spans[1]
+            if span is None:
+                print(f"p:{page_index}, {HtmlUtil.get_text_content(spans[0])}, {HtmlUtil.get_text_content(spans[1])}")
+            else:
+                chapter = HtmlUtil.get_text_content(span)
+                print("CHAP ", chapter)
+
+    @unittest.skip("obsolete")
+    @unittest.skipUnless(SVG, "svg")
+    @unittest.skipUnless(CMD, "command")
+    def test_svg2page(self):
+        proj = Resources.CLIMATE_10_PROJ_DIR
+        args = f"--proj {proj} --apply svg2page"
+        PyAMI().run_command(args)
 
     # =====================================================================================================
     # =====================================================================================================
