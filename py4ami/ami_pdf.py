@@ -14,7 +14,6 @@ from typing import Container
 
 import lxml
 import lxml.html
-import numpy as np
 import pdfplumber
 from PIL import Image
 from lxml import etree
@@ -25,9 +24,10 @@ from pdfminer.layout import LAParams
 from pdfminer.layout import LTImage
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
-from sklearn.linear_model import LinearRegression
 
-from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
+# local
+
+from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY, HtmlTidy
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
@@ -1130,7 +1130,8 @@ class PDFArgs(AbstractArgs):
         self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
 
         if self.flow:
-            self.html = self.tidy_flow()
+            html_tidy = HtmlTidy()
+            self.html = self.tidy_flow(html_tidy, self.raw_html)
             assert len(self.html) > 0
             print(f"flow {len(self.raw_html)}")
         if self.outpath is None:
@@ -1141,47 +1142,40 @@ class PDFArgs(AbstractArgs):
             print(f"wrote outpath {self.outpath}")
         return self.outpath
 
-    def tidy_flow(self):
-        tree = lxml.etree.parse(StringIO(self.raw_html), lxml.etree.HTMLParser())
+    def tidy_flow(self,
+                  html_tidy,
+                  raw_html
+                  ):
+        # TODO check and move to instance of HtmlTidy
+
+        tree = lxml.etree.parse(StringIO(raw_html), lxml.etree.HTMLParser())
         result_elem = tree.getroot()
         HtmlUtil.add_ids(result_elem)
         # this is slightly tacky
-        PDFUtil.remove_descendant_elements_by_tag("br", result_elem)
-        PDFUtil.remove_style(result_elem, [
+        HtmlUtil.remove_descendant_elements_by_tag("br", result_elem)
+        HtmlUtil.remove_style(result_elem, [
             "position",
             # "left",
             "border",
             "writing-mode",
             "width",  # this disables flowing text
         ])
-        PDFUtil.remove_empty_elements(result_elem, ["span"])
-        PDFUtil.remove_empty_elements(result_elem, ["div"])
-        PDFUtil.remove_lh_line_numbers(result_elem)
-        PDFUtil.remove_large_fonted_elements(result_elem)
+        HtmlUtil.remove_empty_elements(result_elem, ["span"])
+        HtmlUtil.remove_empty_elements(result_elem, ["div"])
+        HtmlUtil.remove_lh_line_numbers(result_elem)
+        HtmlUtil.remove_large_fonted_elements(result_elem)
         marker_xpath = ".//div[a[@name]]"
-        offset, pagesize, page_coords = PDFUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
-        PDFUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
-        PDFUtil.remove_style_attribute(result_elem, "top")
-        PDFUtil.remove_style(result_elem, ["left", "height"])
-        PDFUtil.remove_unwanteds(result_elem, self.unwanteds)
-        PDFUtil.remove_newlines(result_elem)
-        self.markup_parentheses(result_elem)
-        print(f"ref_counter {self.ref_counter}")
+        offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
+        HtmlUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
+        HtmlUtil.remove_style_attribute(result_elem, "top")
+        HtmlUtil.remove_style(result_elem, ["left", "height"])
+        HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
+        HtmlUtil.remove_newlines(result_elem)
         HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
-        self.html = lxml.etree.tostring(result_elem).decode("UTF-8")
-        return self.html
+        htmlstr = lxml.etree.tostring(result_elem).decode("UTF-8")
+        return htmlstr
 
     # class PDFArgs:
-
-    def markup_parentheses(self, result_elem):
-        """iterate over parenthesised fields
-
-        """
-        xpath = ".//span"
-        spans = result_elem.xpath(xpath)
-        for span in spans:
-            # self.extract_brackets(span)
-            pass
 
     def extract_brackets(self, span):
         """extract (...) from text, and add hyperlinks for refs, NYI
@@ -1624,164 +1618,12 @@ class PDFParser:
         print(f"NYI, create from arg_parse")
         return pdf_parser
 
-
 class PDFUtil:
     """utility routieses which need extracting into classes"""
+    """
+    Maybe move ALL to HTMLTidy
+    """
 
-    @classmethod
-    def remove_empty_elements(cls, elem, tag):
-        if tag:
-            if type(tag) is list:
-                for t in tag:
-                    cls.remove_empty_elements(elem, t)
-            else:
-                xp = f".//{tag}[normalize-space(.)='' and count({tag}/*) = 0]"
-                elems = elem.xpath(xp)
-                for el in elems:
-                    cls.remove_elem_keep_tail(el)
-
-    @classmethod
-    def remove_elem_keep_tail(cls, el):
-        parent = el.getparent()
-        tail = el.tail
-        if tail is not None and len(tail.strip()) > 0:
-            prev = el.getprevious()
-            if prev is not None:
-                prev.tail = (prev.tail or '') + el.tail
-            else:
-                parent.text = (parent.text or '') + el.tail
-
-        parent.remove(el)
-
-    @classmethod
-    def remove_descendant_elements_by_tag(cls, tag, result_elem):
-        lxml.etree.strip_tags(result_elem, tag)
-
-    @classmethod
-    def remove_style(cls, xpath_root_elem, names):
-        """removes name-value pairs from css-style and reapply to xpath'ed elements"""
-        xpath = f".//*[@style]"
-        # print(f"xpath: {xpath}")
-        try:
-            styled_elems = xpath_root_elem.xpath(xpath)
-        except lxml.etree.XPathEvalError as xpee:
-            raise ValueError(f"Bad xpath {xpath}")
-
-        print(f"styles {len(styled_elems)}")
-        for styled_elem in styled_elems:
-            css_style = CSSStyle.create_css_style(styled_elem)
-            css_style.remove(names)
-            css_style.apply_to(styled_elem)
-            style = styled_elem.attrib["style"]
-
-    @classmethod
-    def find_elements_with_style(cls, elem, xpath, condition=None, remove=False):
-        """remove all elements with style fulfilling condition
-        :param elem: root element for xpath
-        :param xpath: elements to scan , should normally contain the @style condition
-                          if None uses
-        :param condition: style condition primitive at present
-                          (variable, or variable  operator value (eval is evil)
-                          example "_font-size > 30" or "_position" (means has position)
-        :param remove: remove these elements (not their tail)
-        """
-        assert elem is not None, f"must have elem"
-        if xpath:
-            els = elem.xpath(xpath)
-        else:
-            els = [elem]
-        elems = []
-        for el in els:
-            css_style = CSSStyle.create_css_style(el)
-            if condition:
-                if css_style.obeys(condition):
-                    # print(f"{elem} obeys {condition}")
-                    if remove:
-                        cls.remove_elem_keep_tail(el)
-
-    @classmethod
-    def remove_headers_and_footers(cls, ref_elem, pagesize, header_height, footer_height, marker_xpath):
-        elems = ref_elem.xpath(marker_xpath)
-
-        for elem in ref_elem.xpath("//*[@style]"):
-            top = CSSStyle.create_css_style(elem).get_numeric_attval("top")  # the y-coordinate
-            if top:
-                top = top % pagesize
-                if top < header_height or top > pagesize - footer_height:
-                    cls.remove_elem_keep_tail(elem)
-
-    @classmethod
-    def remove_lh_line_numbers(cls, ref_elem):
-        cls.find_elements_with_style(ref_elem, ".//*[@style]", "left<49", remove=True)
-
-    @classmethod
-    def remove_style_attribute(cls, ref_elem, style_name):
-        elems = ref_elem.xpath(".//*")
-        for el in elems:
-            css_style = CSSStyle.create_css_style(el)
-            if css_style.name_value_dict.get(style_name):
-                css_style.name_value_dict.pop(style_name)
-                css_style.apply_to(el)
-
-    @classmethod
-    def remove_large_fonted_elements(cls, ref_elem):
-        cls.find_elements_with_style(ref_elem, ".//*[@style]", "font-size>30", remove=True)
-
-    @classmethod
-    def find_constant_coordinate_markers(cls, ref_elem, xpath, style="top"):
-        """
-        finds a line with constant difference from top of page
-<div style="top: 50px;"><a name="1">Page 1</a></div>
-        """
-
-        elems = ref_elem.xpath(xpath)
-        coords = []
-        for elem in elems:
-            css_style = CSSStyle.create_css_style(elem)
-            coord = css_style.name_value_dict.get(style)
-            if coord:
-                try:
-                    coords.append(float(coord[:-2]))
-                except Exception:
-                    print(f"cannot parse {coord} for {style}")
-        np_coords = np.array(coords)
-        x = np.array(range(np_coords.size)).reshape((-1, 1))
-        # print(x, coords)
-        model = LinearRegression().fit(x, coords)
-        r_sq = model.score(x, coords)
-        # print(f"coefficient of determination: {r_sq} intercept {model.intercept_} slope {model.coef_}")
-        if r_sq < 0.98:
-            print(f"cannot calculate offset reliably")
-        return model.intercept_, model.coef_, np_coords
-
-    @classmethod
-    def remove_unwanteds(cls, top_elem, unwanteds):
-        if not unwanteds:
-            print(f"no unwanteds to remove")
-            return
-        for key in unwanteds:
-            unwanted = unwanteds[key]
-            xpath = unwanted[U_XPATH]
-            if xpath:
-                regex = unwanted[U_REGEX]
-                regex_comp = re.compile(regex) if regex else None
-                elems = top_elem.xpath(xpath)
-                for elem in elems:
-                    text = ''.join(elem.itertext())
-                    matched = regex_comp.search(text) if regex_comp else True
-                    if matched:
-                        # print(f"deleted {xpath} {text}")
-                        cls.remove_elem_keep_tail(elem)
-
-    @classmethod
-    def remove_newlines(cls, elem):
-        """remove \n"""
-        for el in elem.xpath(".//*[not(*)]"):
-            text = ''.join(el.itertext())
-            text1 = text.replace('\n', '')
-            if text1 != text:
-                el.text = text1
-                # print(f"\n[[{text} => {''.join(el.itertext())}]]\n")
 
 class PDFImage:
     """utility class for tidying images from PDF

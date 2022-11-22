@@ -591,8 +591,12 @@ LTPage
                     pdf_debug.debug_page_properties(page, debug=options)
 
     def test_make_structured_html_MAIN(self):
-        """structures the flat HTML from pdfplumber, but no coordinates
-        Can still be used for word frequency, etc."""
+        """
+        structures the flat HTML from pdfplumber, but no coordinates
+        Can still be used for word frequency, etc.
+        USER
+        uses tidy_flow()
+        """
 
         print(f" converting {IPCC_CHAP6_PDF}")
         assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
@@ -614,6 +618,7 @@ LTPage
     # @unittest.skipIf(BUG, "bad parsing of page ranges")
     def test_convert_to_raw_html_chap6_maxpage(self):
         """structures the flat HTML from pdfplumber into a running stream, but no coordinates
+        the only test that uses tidy_flow()
         Can still be used for word frequency, etc.
 
 Uses:
@@ -643,15 +648,15 @@ Uses:
 
         print(f"arg_dict {pdf_args.arg_dict}")
         outfile = Path(pdf_args.convert_write())
+        assert Path(outfile).exists()
+        assert str(outfile).endswith("temp/ipcc_chap6/flow.test5.html")
         if not outfile:
             print(f"no file written")
         else:
-            print(f"check {outfile.absolute()} exists")
             assert outfile.exists(), f"outfile {outfile} should exist"
-            print (f"OUT {outfile.stat()}")
             size = outfile.stat().st_size
             if maxpage == 4:
-                assert 16000 > size > 15000, f"size {outfile} {size}"
+                assert size > 15000, f"size {outfile} {size}"
 
     @unittest.skipUnless(CMD, "command")
     def test_convert_to_raw_html_chap6_page_ranges(self):
@@ -710,7 +715,11 @@ Uses:
 
     # @unittest.skipIf(BUG, "page range bug")
     def test_make_ipcc_html_spans(self):
-        """uses PDFMiner library (no coordinates I think)"""
+        """
+        uses PDFMiner library (no coordinates I think)
+        uses flow_tidy()
+        """
+
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
         if not sem_clim_dir.exists():
             print(f"no ipcc dir {sem_clim_dir}, so skipping")
@@ -957,7 +966,7 @@ LTPage
         assert not out2.exists()
         PyAMI().run_command(
             ['PDF', '--inpath', str(inpath), '--outdir', str(outdir),
-             "--pdf2html", "pdfplumber", "--pages", "1_3"])
+             "--pdf2html", "pdfplumber", "--pages", "1_3", "--flow", "True"])
         files = FileLib.list_files(outdir, "*.html")
         assert len(files) == 3
         assert FileLib.size(out2) > 5000 # files may be empty

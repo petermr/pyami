@@ -6,8 +6,10 @@ import logging
 import lxml
 import lxml.etree
 from lxml.etree import _Element
+import numpy as np
 import re
 from pathlib import Path
+from sklearn.linear_model import LinearRegression
 # local
 # from py4ami.ami_dict import AmiDictionary
 from py4ami.util import SScript, AbstractArgs
@@ -99,10 +101,48 @@ class AmiSpan:
             html_span.attrib["y"] = str(self.y0)
         return html_span
 
+class HtmlTidy:
+    """for tidying PDF parsing
+    """
+    """might move to HtmlUtil or might make a stateful class"""
+    def __init__(self):
+        pass
 
 class HtmlUtil:
     SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
     MARKER = "marker"
+
+    @classmethod
+    def remove_empty_elements(cls, elem, tag):
+        """
+        Maybe move to HTMLTidy
+        """
+        if tag:
+            if type(tag) is list:
+                for t in tag:
+                    cls.remove_empty_elements(elem, t)
+            else:
+                xp = f".//{tag}[normalize-space(.)='' and count({tag}/*) = 0]"
+                elems = elem.xpath(xp)
+                for el in elems:
+                    cls.remove_elem_keep_tail(el)
+
+    @classmethod
+    def remove_elem_keep_tail(cls, el):
+        """
+        Maybe move to HTMLTidy
+        """
+        parent = el.getparent()
+        tail = el.tail
+        if tail is not None and len(tail.strip()) > 0:
+            prev = el.getprevious()
+            if prev is not None:
+                prev.tail = (prev.tail or '') + el.tail
+            else:
+                parent.text = (parent.text or '') + el.tail
+
+        parent.remove(el)
+
 
     @classmethod
     def split_span_at_match(cls, elemx, regex, copy_atts=True, recurse=True, id_root=None, id_counter=0,
@@ -302,6 +342,170 @@ class HtmlUtil:
         body = lxml.etree.Element(H_BODY)
         html.append(body)
         return html
+
+    @classmethod
+    def find_elements_with_style(cls, elem, xpath, condition=None, remove=False):
+        """remove all elements with style fulfilling condition
+        :param elem: root element for xpath
+        :param xpath: elements to scan , should normally contain the @style condition
+                          if None uses
+        :param condition: style condition primitive at present
+                          (variable, or variable  operator value (eval is evil)
+                          example "_font-size > 30" or "_position" (means has position)
+        :param remove: remove these elements (not their tail)
+        """
+        """
+        Maybe move to HTMLTidy
+        """
+        assert elem is not None, f"must have elem"
+        if xpath:
+            els = elem.xpath(xpath)
+        else:
+            els = [elem]
+        elems = []
+        for el in els:
+            css_style = CSSStyle.create_css_style(el)
+            if condition:
+                if css_style.obeys(condition):
+                    # print(f"{elem} obeys {condition}")
+                    if remove:
+                        cls.remove_elem_keep_tail(el)
+
+    @classmethod
+    def remove_headers_and_footers(cls, ref_elem, pagesize, header_height, footer_height, marker_xpath):
+        """
+        Maybe move to HTMLTidy
+        """
+
+        elems = ref_elem.xpath(marker_xpath)
+
+        for elem in ref_elem.xpath("//*[@style]"):
+            top = CSSStyle.create_css_style(elem).get_numeric_attval("top")  # the y-coordinate
+            if top:
+                top = top % pagesize
+                if top < header_height or top > pagesize - footer_height:
+                    cls.remove_elem_keep_tail(elem)
+
+    @classmethod
+    def remove_lh_line_numbers(cls, ref_elem):
+        cls.find_elements_with_style(ref_elem, ".//*[@style]", "left<49", remove=True)
+        """
+        Maybe move to HTMLTidy
+        """
+
+    @classmethod
+    def remove_style_attribute(cls, ref_elem, style_name):
+        """
+        Maybe move to HTMLTidy
+        """
+
+        elems = ref_elem.xpath(".//*")
+        for el in elems:
+            css_style = CSSStyle.create_css_style(el)
+            if css_style.name_value_dict.get(style_name):
+                css_style.name_value_dict.pop(style_name)
+                css_style.apply_to(el)
+
+    @classmethod
+    def remove_large_fonted_elements(cls, ref_elem):
+        """
+        Maybe move to HTMLTidy
+        """
+        cls.find_elements_with_style(ref_elem, ".//*[@style]", "font-size>30", remove=True)
+
+    @classmethod
+    def find_constant_coordinate_markers(cls, ref_elem, xpath, style="top"):
+        """
+        finds a line with constant difference from top of page
+<div style="top: 50px;"><a name="1">Page 1</a></div>
+        """
+        """
+        Maybe move to HTMLTidy
+        """
+
+        elems = ref_elem.xpath(xpath)
+        coords = []
+        for elem in elems:
+            css_style = CSSStyle.create_css_style(elem)
+            coord = css_style.name_value_dict.get(style)
+            if coord:
+                try:
+                    coords.append(float(coord[:-2]))
+                except Exception:
+                    print(f"cannot parse {coord} for {style}")
+        np_coords = np.array(coords)
+        x = np.array(range(np_coords.size)).reshape((-1, 1))
+        # print(x, coords)
+        model = LinearRegression().fit(x, coords)
+        r_sq = model.score(x, coords)
+        # print(f"coefficient of determination: {r_sq} intercept {model.intercept_} slope {model.coef_}")
+        if r_sq < 0.98:
+            print(f"cannot calculate offset reliably")
+        return model.intercept_, model.coef_, np_coords
+
+    @classmethod
+    def remove_unwanteds(cls, top_elem, unwanteds):
+        """
+        Maybe move to HTMLTidy
+        """
+        if not unwanteds:
+            print(f"no unwanteds to remove")
+            return
+        for key in unwanteds:
+            unwanted = unwanteds[key]
+            xpath = unwanted[U_XPATH]
+            if xpath:
+                regex = unwanted[U_REGEX]
+                regex_comp = re.compile(regex) if regex else None
+                elems = top_elem.xpath(xpath)
+                for elem in elems:
+                    text = ''.join(elem.itertext())
+                    matched = regex_comp.search(text) if regex_comp else True
+                    if matched:
+                        # print(f"deleted {xpath} {text}")
+                        cls.remove_elem_keep_tail(elem)
+
+    @classmethod
+    def remove_newlines(cls, elem):
+        """remove \n"""
+        """
+        Maybe move to HTMLTidy
+        """
+
+        for el in elem.xpath(".//*[not(*)]"):
+            text = ''.join(el.itertext())
+            text1 = text.replace('\n', '')
+            if text1 != text:
+                el.text = text1
+                # print(f"\n[[{text} => {''.join(el.itertext())}]]\n")
+
+    @classmethod
+    def remove_descendant_elements_by_tag(cls, tag, result_elem):
+        """
+        Maybe move to HTMLTidy
+        """
+        lxml.etree.strip_tags(result_elem, tag)
+
+    @classmethod
+    def remove_style(cls, xpath_root_elem, names):
+        """removes name-value pairs from css-style and reapply to xpath'ed elements"""
+        """
+        Maybe move to HTMLTidy
+        """
+
+        xpath = f".//*[@style]"
+        # print(f"xpath: {xpath}")
+        try:
+            styled_elems = xpath_root_elem.xpath(xpath)
+        except lxml.etree.XPathEvalError as xpee:
+            raise ValueError(f"Bad xpath {xpath}")
+
+        print(f"styles {len(styled_elems)}")
+        for styled_elem in styled_elems:
+            css_style = CSSStyle.create_css_style(styled_elem)
+            css_style.remove(names)
+            css_style.apply_to(styled_elem)
+            style = styled_elem.attrib["style"]
 
 
 class HtmlTree:
