@@ -83,9 +83,6 @@ P_Y0 = "y0"
 P_Y1 = "y1"
 P_TEXT = "text"
 
-# Unwanted sections
-U_XPATH = "xpath"
-U_REGEX = "regex"
 
 IPCC_CHAP_TOP_REC = re.compile(""
                                "(Chapter\\s?\\d\\d?\\s?:.*$)|"
@@ -1132,6 +1129,8 @@ class PDFArgs(AbstractArgs):
         if self.inpath is None:
             raise ValueError("No input path in convert_write()")
         out_html = self.pdf_to_raw_then_raw_to_tidy(pdf_path=self.inpath, flow=self.flow)
+        if out_html is None:
+            raise ValueError(f" out_html is None")
         if self.outpath is None:
             print(f"no outpath given")
             return None
@@ -1142,6 +1141,7 @@ class PDFArgs(AbstractArgs):
 
     def pdf_to_raw_then_raw_to_tidy(self, pdf_path=None, flow=True):
         """converts PDF to raw_html and (optionally raw_html to tidy_html
+        URGENT
         """
         raw_html = PDFArgs.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
         if raw_html is None:
@@ -1152,6 +1152,7 @@ class PDFArgs(AbstractArgs):
         out_html = self.tidy_flow(html_tidy, raw_html)
         assert len(out_html) > 0
         print(f"flow {len(raw_html)} +> ")
+        return out_html
 
     def tidy_flow(self,
                   html_tidy,

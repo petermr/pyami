@@ -57,6 +57,10 @@ FONT_FAMILY = "font-family"
 FILL = "fill"
 STROKE = "stroke"
 
+# Unwanted sections
+U_XPATH = "xpath"
+U_REGEX = "regex"
+
 STYLES = [
     FONT_SIZE,
     FONT_STYLE,

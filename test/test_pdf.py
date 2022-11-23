@@ -636,7 +636,7 @@ Uses:
         # print(f" converting {IPCC_CHAP6_PDF}")
         assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
         pdf_args = PDFArgs()
-        maxpage = 130
+        maxpage = 5
         pdf_args.arg_dict[MAXPAGE] = maxpage  #works
         pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
         IPCC_TEMP_CHAP6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
