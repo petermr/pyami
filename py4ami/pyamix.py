@@ -66,6 +66,7 @@ class PyAMI:
     SYSTEM_EXIT_OK = "SystemExitOK"
     SYSTEM_EXIT_FAIL = "SystemExitFail_"
     TEST = "test"
+    VERSION = "version"
     WIKIDATA_SPARQL = "wikidata_sparql"
     XPATH = "xpath"
     # apply methods 1:1 input-output
@@ -181,7 +182,7 @@ class PyAMI:
         # apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
         apply_choices = ConvType.list_values()
         self.logger.debug(f"ch {apply_choices}")
-        parser.add_argument('--version', action="store_true",
+        parser.add_argument('-v', '--version', action="store_true",
                             help=f"show version {version}")
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
         parser.description = textwrap.dedent(
@@ -444,10 +445,15 @@ class PyAMI:
         if self.PROJ in self.args:
             if self.SECT in self.args or self.GLOB in self.args or self.SPLIT in self.args:
                 self.run_project_workflow()
+        if self.VERSION in self.args:
+            self.print_version()
         # elif TestFile.TEST in self.args:
         #     self.logger.warning(f"TEST in **args {self.args}")
         #     TestFile.run_arg_tests(self.args)
         # TODO linkup with test arguments
+
+    def print_version(self):
+        print(f"version {self.version()}")
 
     def replace_single_values_in_self_args_with_list(self, key):
         """always returns list even for single arg

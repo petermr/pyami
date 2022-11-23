@@ -117,6 +117,13 @@ class TestPyami(AmiAnyTest):
         pyami.run_command(args)
         assert pyami.flag_dict.get("foo") == 42, f" foo shoule be 42"
 
+    def test_show_version(self):
+        """ensure version is shown
+        """
+        pyami = PyAMI()
+        args = "--version"
+        pyami.run_command(args)
+
 
     @unittest.skip("obsolete")
     def test_multiple_flags(self):

@@ -606,7 +606,7 @@ LTPage
         pdf_args.arg_dict[PAGES] = "1_10"
 
         print(f"arg_dict {pdf_args.arg_dict}")
-        outfile = pdf_args.convert_write()
+        outfile, _ = pdf_args.convert_write()
         if not outfile:
             print(f"no file written")
         else:
@@ -636,7 +636,7 @@ Uses:
         # print(f" converting {IPCC_CHAP6_PDF}")
         assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
         pdf_args = PDFArgs()
-        maxpage = 5
+        maxpage = 130
         pdf_args.arg_dict[MAXPAGE] = maxpage  #works
         pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
         IPCC_TEMP_CHAP6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
@@ -647,9 +647,9 @@ Uses:
         # pdf_args.arg_dict[PAGES] = [(1,3), (5,10)]
 
         print(f"arg_dict {pdf_args.arg_dict}")
-        outfile = Path(pdf_args.convert_write())
+        outfile, _ = pdf_args.convert_write()  # all the conversion happens here
         assert Path(outfile).exists()
-        assert str(outfile).endswith("temp/ipcc_chap6/flow.test5.html")
+        assert str(outfile).endswith(f"temp/ipcc_chap6/flow.test{maxpage}.html")
         if not outfile:
             print(f"no file written")
         else:
@@ -669,11 +669,13 @@ Uses:
         --maxpage is obsolete
 
         DOES NOT CREATE FLOW YET.
+
+
         """
         outfile = Path(Resources.IPCC_TEMP_CHAP06, "all.html")
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 9 11_15 217_ --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06}"
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfplumber"
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfminer"
+        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 9 11_15 217_ --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06}"
+        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfplumber"
+        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfminer"
         args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.IPCC_TEMP_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
         PyAMI().run_command(args)
         print(f"created outfile {outfile}")
@@ -761,7 +763,7 @@ Uses:
                 "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
             },
         }
-        pdf_args.convert_write()
+        _,_ = pdf_args.convert_write()
 
     @unittest.skipIf(LONG, "too long")
     # @unittest.skipIf(BUG, "page ranges have bug")
@@ -912,7 +914,7 @@ LTPage
         result = PDFArgs.convert_pdf(
             path=str(pathx),
             fmt="html",
-            caching=True,
+            # caching=True,
         )
         # output dir
         html_dir = Path(Resources.TEMP_DIR, "html")

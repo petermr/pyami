@@ -1044,6 +1044,8 @@ class PDFArgs(AbstractArgs):
         fp.close()
         device.close()
         retstr.close()
+        if text is None:
+            raise ValueError(f"Null text in convert_pdf()")
         return text
 
     # class PDFArgs:
@@ -1127,20 +1129,29 @@ class PDFArgs(AbstractArgs):
         """
         print(f"==============CONVERT================")
         self.process_args()
-        self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
-
-        if self.flow:
-            html_tidy = HtmlTidy()
-            self.html = self.tidy_flow(html_tidy, self.raw_html)
-            assert len(self.html) > 0
-            print(f"flow {len(self.raw_html)}")
+        if self.inpath is None:
+            raise ValueError("No input path in convert_write()")
+        out_html = self.pdf_to_raw_then_raw_to_tidy(pdf_path=self.inpath, flow=self.flow)
         if self.outpath is None:
             print(f"no outpath given")
             return None
         with open(str(self.outpath), "w") as f:
-            f.write(self.html)
+            f.write(out_html)
             print(f"wrote outpath {self.outpath}")
-        return self.outpath
+        return self.outpath, out_html
+
+    def pdf_to_raw_then_raw_to_tidy(self, pdf_path=None, flow=True):
+        """converts PDF to raw_html and (optionally raw_html to tidy_html
+        """
+        raw_html = PDFArgs.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
+        if raw_html is None:
+            raise ValueError(f"null raw_html in convert_write()")
+        if not flow:
+            return raw_html
+        html_tidy = HtmlTidy()
+        out_html = self.tidy_flow(html_tidy, raw_html)
+        assert len(out_html) > 0
+        print(f"flow {len(raw_html)} +> ")
 
     def tidy_flow(self,
                   html_tidy,
@@ -1148,8 +1159,41 @@ class PDFArgs(AbstractArgs):
                   ):
         # TODO check and move to instance of HtmlTidy
 
+        if raw_html is None:
+            raise ValueError("No HTML")
         tree = lxml.etree.parse(StringIO(raw_html), lxml.etree.HTMLParser())
+        result_elem = tree.xpath("/")
+        print(f"result {result_elem}")
         result_elem = tree.getroot()
+
+        # to be integrated
+        if False:
+            html_tidy.add_element(result_elem)
+            html_tidy.add_descendant_element_to_remove("br")
+            html_tidy.add_styles_to_remove(
+                [
+                    "position",
+                    # "left",
+                    "border",
+                    "writing-mode",
+                    "width",  # this disables flowing text
+                ]
+            )
+            html.add_id = True
+            html_tidy.add_empty_elements_to_remove(["span", "div"])
+            html_tidy.remove_lh_line_numbers = True
+            html_tidy.remove_large_fonted_elements = True
+            marker_xpath = ".//div[a[@name]]"
+            offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
+            HtmlUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
+            HtmlUtil.remove_style_attribute(result_elem, "top")
+            HtmlUtil.remove_style(result_elem, ["left", "height"])
+            HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
+            HtmlUtil.remove_newlines(result_elem)
+            HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
+            htmlstr = lxml.etree.tostring(result_elem).decode("UTF-8")
+
+
         HtmlUtil.add_ids(result_elem)
         # this is slightly tacky
         HtmlUtil.remove_descendant_elements_by_tag("br", result_elem)
