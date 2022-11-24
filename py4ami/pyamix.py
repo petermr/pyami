@@ -66,6 +66,7 @@ class PyAMI:
     SYSTEM_EXIT_OK = "SystemExitOK"
     SYSTEM_EXIT_FAIL = "SystemExitFail_"
     TEST = "test"
+    VERSION = "version"
     WIKIDATA_SPARQL = "wikidata_sparql"
     XPATH = "xpath"
     # apply methods 1:1 input-output
@@ -181,7 +182,7 @@ class PyAMI:
         # apply_choices = [self.PDF2TXT, self.PDF2SVG, self.SVG2XML, self.TXT2SENT, self.XML2HTML, self.XML2TXT]
         apply_choices = ConvType.list_values()
         self.logger.debug(f"ch {apply_choices}")
-        parser.add_argument('--version', action="store_true",
+        parser.add_argument('-v', '--version', action="store_true",
                             help=f"show version {version}")
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
         parser.description = textwrap.dedent(
@@ -429,6 +430,9 @@ class PyAMI:
 
     def run_core_mathods(self):
         logging.debug(f"run_core")
+        # mainly obsolete
+        if self.VERSION in self.args and self.args[self.VERSION] is not None:
+            self.print_version()
         if self.FLAGS in self.args and self.args[self.FLAGS] is not None:
             self.add_flags()
         if self.CONFIG in self.args and self.args[self.CONFIG] is not None:
@@ -1186,6 +1190,9 @@ class PyAMI:
         #             break
         # print(f"VERSION {version}")
         # return version
+
+    def print_version(self):
+        print(f"version: {self.version()}")
 
 
 class ContentStore:
