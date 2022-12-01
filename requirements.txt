@@ -11,12 +11,12 @@ python-rake
 setuptools~=60.3.1
 SPARQLWrapper==1.8.5
 tkinterhtml==0.7
-tkinterweb==3.5.0
+tkinterweb==3.10.7
 
 future~=0.18.2
 pdfplumber~=0.7.1
 requests~=2.27.1
-pip~=22.1.2
+pip~=22.2.2
 configparser~=5.0.2
 zlib~=1.2.11
 wheel~=0.35.1
