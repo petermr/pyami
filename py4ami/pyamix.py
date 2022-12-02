@@ -279,7 +279,7 @@ class PyAMI:
         dict_parser = AmiDictArgs().make_sub_parser(subparsers)
         gui_parser = GUIArgs().make_sub_parser(subparsers)
         html_parser = HTMLArgs().make_sub_parser(subparsers)
-        pdf_parser = PDFArgs().make_sub_parser(subparsers)
+        self.parser = PDFArgs().make_sub_parser(subparsers)
         project_parser = ProjectArgs().make_sub_parser(subparsers)
 
         parser.epilog = "other entry points run as 'python -m py4ami.ami_dict args' also ami_pdf, ami_project"
@@ -426,9 +426,9 @@ class PyAMI:
         if abstract_args:
             abstract_args.parse_and_process1(self.args)
         else:
-            self.run_core_mathods()
+            self.run_core_methods()
 
-    def run_core_mathods(self):
+    def run_core_methods(self):
         logging.debug(f"run_core")
         # mainly obsolete
         if self.VERSION in self.args and self.args[self.VERSION] is not None:
@@ -1175,21 +1175,27 @@ class PyAMI:
             return False
 
     def version(self):
-        """reads setup.py and extracts line of form version='0.0.29'"""
+        """reads setup.py and extracts line of form version='0.0.29'
+        :return: version
+        """
         import pkg_resources  # part of setuptools
-        version = pkg_resources.require("py4ami")[0].version
-        return version
-
-        # version = None
-        # with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
-        #     setup_lines = f.readlines()
-        #     for line in setup_lines:
-        #         match = re.match("\s*version\s*=\s*\'\s*(\d+\.\d+\.\d+)\s*\'\s*,", line)
-        #         if match:
-        #             version = match.group(1)
-        #             break
-        # print(f"VERSION {version}")
-        # return version
+        versionx = ">=0.0.42"
+        if False:
+            try:
+                pyami = pkg_resources.require("py4ami") # this crashes on PMR machine with incompatible libraries numbers
+                versionx = pyami[0].version
+            except Exception as e:
+                print(f"cannot extract version from setup/requirements {e}")
+                pass
+        else:
+            with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
+                setup_lines = f.readlines()
+                for line in setup_lines:
+                    match = re.match("\s*version\s*=\s*\'\s*(\d+\.\d+\.\d+)\s*\'\s*,", line)
+                    if match:
+                        versionx = match.group(1)
+                        break
+        return versionx
 
     def print_version(self):
         print(f"version: {self.version()}")

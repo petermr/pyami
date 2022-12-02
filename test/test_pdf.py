@@ -805,7 +805,7 @@ Uses:
             print(f"check {outfile.absolute()} exists")
             assert outfile.exists(), f"outfile {outfile} should exist"
 
-    @unittest.skipIf(NYI, "no code yet")
+    @unittest.skipIf(LONG, "doesn't obey --maxpage or --pages")
     def test_make_structured_html_cmdline_DEBUG(self):
         """
         Previous one gives:
@@ -825,6 +825,20 @@ Uses:
         indir=None, inpath=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/fulltext.pdf'],
          maxpage=[88], outdir=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/'],
          outform='html', outstem='fulltext.flow', resolution=400, template=None)"""
+
+        """
+        python -m py4ami.pyamix PDF --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17.pdf --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17/raw/"""
+        args = " PDF --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17.pdf" \
+               " --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17/raw/" \
+               " --pages 1_4"
+
+        pyami = PyAMI()
+        pyami.run_command(args)
+
+    def test_pdf_help(self):
+        args = "PDF"
+        pyami = PyAMI()
+        pyami.run_command(args)
 
     def test_make_ipcc_html_spans(self):
         """uses PDFMiner library (no coordinates I think)"""

@@ -33,8 +33,10 @@ requirements = [
 
  'future~=0.18.2',
  'pdfplumber',
- 'requests~=2.27.1',
- 'pip~=22.2.2',
+ # 'requests~=2.27.1',
+ 'requests',
+ # 'pip~=22.2.2',
+ # 'pip',
  'configparser~=5.0.2',
  #'zlib-state~=1.2.11',
  'wheel~=0.35.1',

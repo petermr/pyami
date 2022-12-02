@@ -209,6 +209,8 @@ class TestPyami(AmiAnyTest):
         parser.print_help()
         """usage: [-h] [--verbose] {extra-action,create,update} ...
 
+    
+    
 positional arguments:
   {extra-action,create,update}
                         Desired action to perform
@@ -228,3 +230,22 @@ optional arguments:
   -h, --help  show this help message and exit
   -p P        add db parameter
   """
+
+    def test_version(self):
+        """
+        tests whether version can be extracted fron setup.py
+        """
+        import pkg_resources  # part of setuptools
+
+        # pyami = pkg_resources.require("py4ami")
+        # print(f"pyami {pyami}")
+        # pyami0 = pyami[0]
+        # print(f"pyami0 {pyami0}")
+        # versionx = pyami0.version
+        # return versionx
+
+        pyami = PyAMI()
+        versionx = pyami.version()
+        assert versionx
+
+

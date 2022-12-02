@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 from lxml import etree as LXET
 from urllib.request import urlopen
-import lxml
+import lxml, lxml.etree
 import logging
 
 from py4ami.file_lib import FileLib
@@ -335,6 +335,25 @@ class XmlLib:
 class HtmlElement:
     """to provide fluent HTML builder and parser"""
     pass
+
+class HtmlLib:
+
+    @classmethod
+    def convert_character_entities_in_lxml_element_to_unicode_string(cls, element, encoding="UTF-8") -> str:
+        """
+        converts character entities in lxml element to Unicode
+        1) extract string as bytes
+        2) converts bytes to unicode with html.unescape()
+        (NOTE: may be able to use tostring to do this)
+
+
+        :param element: lxml element
+        :return: unicode string representation of element
+        """
+        import html
+        stringx = lxml.etree.tostring(element)
+        string_unicode = html.unescape(stringx.decode(encoding))
+        return string_unicode
 
 
 class DataTable:

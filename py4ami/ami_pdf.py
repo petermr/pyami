@@ -799,6 +799,7 @@ class PDFArgs(AbstractArgs):
         self.outstem = None
 
         self.pages = None
+        # self.parser = None
 
         self.pdf2html = None
         self.raw_html = None
@@ -826,8 +827,8 @@ class PDFArgs(AbstractArgs):
         # self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
         self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
         self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML, e.g. join l;ines, pages (heuristics)", default=True)
-        self.parser.add_argument("--footer", type=float, nargs=1, help="top margin (clip everythimg above)", default=80)
-        self.parser.add_argument("--header", type=float, nargs=1, help="bottom margin (clip everything below", default=80)
+        self.parser.add_argument("--footer", type=float, nargs=1, help="bottom margin (clip everythimg above)", default=80)
+        self.parser.add_argument("--header", type=float, nargs=1, help="top margin (clip everything below", default=80)
         self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
 
         self.parser.add_argument("--indir", type=str, nargs=1, help="input directory (might be calculated from inpath)")
@@ -869,7 +870,8 @@ class PDFArgs(AbstractArgs):
             self.read_from_arg_dict()
 
         if not self.check_input():
-            print(f"no input given")
+            # self.parser.print_help() # self.parser is null
+            print("for help, run 'py4ami PDF -h'")
             return
         self.check_output()
         self.calculate_headers_footers()
@@ -902,7 +904,7 @@ class PDFArgs(AbstractArgs):
         self.arg_dict[OUTSTEM] = Path(f"{self.inpath}").stem
         self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
         if not self.outdir:
-            self.outdir = self.arg_dict[OUTDIR]
+            self.outdir = self.arg_dict.get(OUTDIR)
 
         if not self.outpath:
             self.outpath = self.arg_dict.get(OUTPATH)
@@ -910,6 +912,10 @@ class PDFArgs(AbstractArgs):
         if not self.outdir:
             if self.outpath:
                 self.outdir = Path(self.outpath).parent
+        # if still no outdir create
+        if not self.outdir:
+            raise FileNotFoundError(f"output dir not given and cannot be generated")
+
         if not self.outdir:
             if self.inpath:
                 self.outdir = Path(self.inpath).parent
@@ -1153,7 +1159,9 @@ class PDFArgs(AbstractArgs):
 
     def markup_parentheses(self, result_elem):
         """iterate over parenthesised fields
-
+        iterates over HTML spans
+        NYI
+        should be in HTML
         """
         xpath = ".//span"
         spans = result_elem.xpath(xpath)

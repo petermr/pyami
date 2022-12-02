@@ -15,14 +15,13 @@ tkinterweb==3.10.7
 
 future~=0.18.2
 pdfplumber~=0.7.1
-requests~=2.27.1
-pip~=22.2.2
+# requests~=2.27.1
 configparser~=5.0.2
 zlib~=1.2.11
 wheel~=0.35.1
 openssl~=1.1.1
 cryptography~=37.0.2
-py~=1.9.0
+# py~=1.9.0
 keyring~=21.4.0
 cython~=0.29.21
 bs4~=0.0.1

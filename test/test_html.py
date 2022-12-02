@@ -1,22 +1,21 @@
 """Create, transform, markup up HTML, etc."""
-import lxml.etree
-from pathlib import Path
 import os
 import re
 import unittest
 from collections import Counter
+from pathlib import Path
 
-# local
-from test.resources import Resources
-from py4ami.ami_html import AmiHtml,HtmlUtil, H_A, H_BODY, H_DIV, H_SPAN, CSSStyle
-from py4ami.ami_bib import Reference, Biblioref
-from py4ami.util import Util
-from py4ami.ami_dict import AmiDictionary
+import lxml.etree
 
 import test
+from py4ami.ami_bib import Reference, Biblioref
+from py4ami.ami_dict import AmiDictionary
+# local
+from py4ami.ami_html import AmiHtml, HtmlUtil, H_SPAN, CSSStyle
+from py4ami.util import Util
+from py4ami.xml_lib import HtmlLib
 from test.resources import Resources
 from test.test_all import AmiAnyTest
-
 
 
 class HtmlTest(test.test_all.AmiAnyTest):
@@ -140,7 +139,7 @@ class HtmlTest(test.test_all.AmiAnyTest):
         counter = Counter()
         for biblioref in bibliorefs:
             ref = biblioref.first
-            if not ref in counter:
+            if ref not in counter:
                 counter[ref] = 0
             counter[ref] += 1
         assert len(counter) == 86
@@ -228,18 +227,18 @@ class HtmlTest(test.test_all.AmiAnyTest):
         span = div_elem.xpath("./span")[0]
 
         regex = Util.SINGLE_BRACKET_RE
-        spans,_ = HtmlUtil.split_span_at_match(span, regex)
+        spans, _ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is not None
         assert spans[1] is not None
         assert spans[2] is not None
 
         assert lxml.etree.tostring(div_elem).decode("UTF-8") == \
-            """<div><span class="re_pref">prefix the </span><span class="re_match">bracketed</span><span class="re_post"> string postfix</span></div>"""
+               """<div><span class="re_pref">prefix the </span><span class="re_match">bracketed</span><span class="re_post"> string postfix</span></div>"""
 
         # no leading string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed) string postfix</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans,_ = HtmlUtil.split_span_at_match(span, regex)
+        spans, _ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is None
         assert spans[1] is not None
         assert spans[2] is not None
@@ -247,7 +246,7 @@ class HtmlTest(test.test_all.AmiAnyTest):
         # no trailing string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed)</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans,_ = HtmlUtil.split_span_at_match(span, regex)
+        spans, _ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is not None
         assert spans[1] is not None
         assert spans[2] is None
@@ -255,16 +254,16 @@ class HtmlTest(test.test_all.AmiAnyTest):
         # no leading or trailing string
         div_elem = lxml.etree.fromstring("<div><span class='foo'>(bracketed)</span></div>")
         span = div_elem.xpath("./span")[0]
-        spans,_ = HtmlUtil.split_span_at_match(span, regex)
+        spans, _ = HtmlUtil.split_span_at_match(span, regex)
         assert spans[0] is None
         assert spans[1] is not None
         assert spans[2] is None
 
-
     def test_split_matched_string_in_span_recursively(self):
         """split string in span into 2n+1 using regex
         Tests: HtmlUtil.split_span_at_match"""
-        div_elem = lxml.etree.fromstring("<div><span class='foo'>prefix the (bracketed) and more (brackets) string postfix </span></div>")
+        div_elem = lxml.etree.fromstring(
+            "<div><span class='foo'>prefix the (bracketed) and more (brackets) string postfix </span></div>")
         span = div_elem.xpath("./span")[0]
 
         regex = Util.SINGLE_BRACKET_RE
@@ -294,7 +293,7 @@ class HtmlTest(test.test_all.AmiAnyTest):
             phrases.append(span.text)
         assert phrases == ['Box 6.2 Figure 1 Retirement of coal-fired power plants to limit warming to '
                            '1.5°C and likely 2°C. ', 'a', ' Historical facility age at retirement ', 'b',
-                           ' the vintage year of existing units, ','c',
+                           ' the vintage year of existing units, ', 'c',
                            ' global coal capacity under different plant lifetimes, compared to capacity '
                            'levels consistent with a well-below 2°C ', 'green', ' and 1.5°C', 'blue',
                            ' pathway assuming no new coal plants, and ', 'd',
@@ -361,9 +360,9 @@ class HtmlTest(test.test_all.AmiAnyTest):
 
         dict_path = Path(Resources.IPCC_CHAP06, "abbrev_as.xml")
         dict_path = Path(Resources.IPCC_CHAP06, "ipcc_ch6_rake.xml")
-        output_file = "chap6_marked.html"
+        # output_file = "chap6_marked.html"
         output_file = "chap6_raked.html"
-        ami_dict = AmiDictionary.create_from_xml_file(dict_path, ignorecase = False)
+        ami_dict = AmiDictionary.create_from_xml_file(dict_path, ignorecase=False)
         input_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
         # input_path = Path(Resources.IPCC_CHAP06, "chap6.flow.html")
         print(f"reading pdf_html {input_path}")
@@ -377,8 +376,6 @@ class HtmlTest(test.test_all.AmiAnyTest):
         assert chap6_marked_path.exists(), f"marked-up html in {chap6_marked_path}"
         with open(chap6_marked_path, "rb") as f:
             marked_elem = lxml.etree.parse(f)
-
-
 
     def test_extract_styles_as_css(self):
         """read dictionary file and index a set of spans
@@ -427,9 +424,9 @@ class HtmlTest(test.test_all.AmiAnyTest):
             if css_style:
                 css_style.extract_bold_italic_from_font_family()
 
-
     def test_join_spans(self):
         """join sibling spans with the same styles
+        IMPORTANT
         """
         html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow.html")
         html_element = lxml.etree.parse(str(html_path))
@@ -447,7 +444,6 @@ class HtmlTest(test.test_all.AmiAnyTest):
                     print(f"styles match")
                 last_span = span
                 last_style = style
-
 
     @unittest.skipUnless(USER, "claim paras")
     def test_make_ipcc_obsidian_md(self):
@@ -493,10 +489,35 @@ class HtmlTest(test.test_all.AmiAnyTest):
                         f.write("\n=======lesser claims==========\n")
                         f.write(tstr)
 
+    def test_unescape_xml_character_entity_to_unicode(self):
+        """
+        reads HTML with embedded character entities (e.g. "&#176;")
+        uses html.unescape() to convert to Unicode
 
+        """
+        # import HTMLParser
+        # h = HTMLParser.HTMLParser()
+        # h.unescape('&copy; 2010')  # u'\xa9 2010'
+        # h.unescape('&#169; 2010')  # u'\xa9 2010'
+        import html
+        copy = html.unescape('&copy; 2010')
+        degrees = html.unescape('&#176; 2010')
+        two = 2
+        print(f"\ncopy is {copy} on {two} December 18{degrees}")
+        degrees = html.unescape('document &#169; PMR 2022 18&#176;')
+        assert degrees == 'document © PMR 2022 18°'
 
+    def test_unescape_char_entities_in_div(self):
+        """
+        Reads first paragraph of IPCC Executive Summary and converts the HTML entities
+        """
+        in_file = str(Path(Resources.IPCC_CHAP06, "fulltext.html"))
+        html_entity = lxml.etree.parse(in_file)
 
+        # use first div paragraph chunk
+        div712 = html_entity.xpath("//div[@id='id712']")[0]
+        str_un = HtmlLib.convert_character_entities_in_lxml_element_to_unicode_string(div712)
 
+        assert str_un == '<div style="" id="id712"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id713">Warming cannot be limited to well below 2°C without rapid and deep reductions in energy system CO</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 6px;" id="id715">2</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id716"> and GHG emissions. </span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id717">In scenarios limiting likely warming to 1.5°C with limited overshoot (likely below 2°C), net energy system CO</span><span style="font-family: TimesNewRomanPSMT; font-size: 6px;" id="id719">2</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id720"> emissions (interquartile range) fall by 87% to 97%% (60% to 79%) in 2050. In 2030, in scenarios limiting warming to 1.5°C with no or limited overshoot, net CO2 and GHG emissions fall by 35-51% and 38-52% respectively. In scenarios limiting warming to 1.5°C with no or limited overshoot (likely below 2°C), net electricity sector CO</span><span style="font-family: TimesNewRomanPSMT; font-size: 6px;" id="id724">2</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id725"> emissions reach zero globally between 2045 and 2055 (2050 and 2080) </span><span style="font-family: TimesNewRomanPS-ItalicMT; font-size: 11px;" id="id727">(high confidence)</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id728"> {6.7}  </span></div>'
 
     # ========================================
-
