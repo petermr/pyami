@@ -2,6 +2,7 @@
 Should have relatively few dependencies"""
 import argparse
 from collections import defaultdict
+from io import StringIO
 import logging
 import lxml
 import lxml.etree
@@ -12,7 +13,7 @@ from pathlib import Path
 from sklearn.linear_model import LinearRegression
 # local
 # from py4ami.ami_dict import AmiDictionary
-from py4ami.util import SScript, AbstractArgs
+from py4ami.util import SScript, AbstractArgs, Util
 
 # HTML
 H_HTML = "html"
@@ -78,6 +79,16 @@ INPATH = "inpath"
 OUTDIR = "outdir"
 OUTPATH = "outpath"
 
+IPCC_CHAP_TOP_REC = re.compile(""
+                               "(Chapter\\s?\\d\\d?\\s?:.*$)|"
+                               "(Table\\s?of Contents.*)|"
+                               "(Executive [Ss]ummary.*)|"
+                               "(Frequently [Aa]sked.*)|"
+                               "(References)"
+                               )
+SECTIONS_DECIMAL_REC = re.compile("\\d+\\.\\d+$")
+SUBSECTS_DECIMAL_REC = re.compile("\\d+\\.\\d+\\.\\d+$")
+
 
 class AmiSpan:
     def __init__(self):
@@ -106,11 +117,106 @@ class AmiSpan:
         return html_span
 
 class HtmlTidy:
-    """for tidying PDF parsing
+    """for tidying PDF / SVG/ OCR parsing
+    takes raw HTML (probably scattered words or lines , possibly with coordinates and creates
+    flowing styled HTML with subscripts, font styles, etc.
     """
-    """might move to HtmlUtil or might make a stateful class"""
     def __init__(self):
-        pass
+        self.unwanteds = [] # not sure what this is
+        self.empty_elements_to_remove = []
+        self.styles_to_remove = []
+        self.descendants_to_remove = []
+        self.add_id = True
+        self.header = 80
+        self.footer = 80
+
+    def tidy_flow(self, raw_html):
+        """
+        converts raw html to tidy
+        """
+        # TODO check and move to instance of HtmlTidy
+
+        if raw_html is None:
+            raise ValueError("No HTML")
+        tree = lxml.etree.parse(StringIO(raw_html), lxml.etree.HTMLParser())
+        result_elem = tree.xpath("/")
+        print(f"result {result_elem}")
+        result_elem = tree.getroot()
+
+
+        # to be integrated
+        if False  or True:
+            self.add_element(result_elem)
+            self.add_descendant_element_to_remove("br")
+            self.add_styles_to_remove(
+                [
+                    "position",
+                    # "left",
+                    "border",
+                    "writing-mode",
+                    "width",  # this disables flowing text
+                ]
+            )
+            self.add_id = True
+            self.add_empty_elements_to_remove(["span", "div"])
+            self.remove_lh_line_numbers = True
+            self.remove_large_fonted_elements = True
+            marker_xpath = ".//div[a[@name]]"
+            offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
+            HtmlUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
+            HtmlUtil.remove_style_attribute(result_elem, "top")
+            HtmlUtil.remove_style(result_elem, ["left", "height"])
+            HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
+            HtmlUtil.remove_newlines(result_elem)
+            HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
+            htmlstr = lxml.etree.tostring(result_elem).decode("UTF-8")
+
+
+        HtmlUtil.add_ids(result_elem)
+
+        # this is slightly tacky
+        HtmlUtil.remove_descendant_elements_by_tag("br", result_elem)
+        HtmlUtil.remove_style(result_elem, [
+            "position",
+            # "left",
+            "border",
+            "writing-mode",
+            "width",  # this disables flowing text
+        ])
+        HtmlUtil.remove_empty_elements(result_elem, ["span"])
+        HtmlUtil.remove_empty_elements(result_elem, ["div"])
+        HtmlUtil.remove_lh_line_numbers(result_elem)
+        HtmlUtil.remove_large_fonted_elements(result_elem)
+        marker_xpath = ".//div[a[@name]]"
+        offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
+        HtmlUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
+        HtmlUtil.remove_style_attribute(result_elem, "top")
+        HtmlUtil.remove_style(result_elem, ["left", "height"])
+        HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
+        HtmlUtil.remove_newlines(result_elem)
+        HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
+        htmlstr = lxml.etree.tostring(result_elem).decode("UTF-8")
+        return htmlstr
+
+    def add_element(self, elem):
+        self.element = elem
+
+    def add_descendant_element_to_remove(self, descendant_elem):
+        HtmlTidy.add_elements_to_store(descendant_elem, self.descendants_to_remove)
+
+    def add_styles_to_remove(self, style):
+        self.styles_to_remove.append(style)
+
+    def add_empty_elements_to_remove(self, elems_to_remove):
+        HtmlTidy.add_elements_to_store(elems_to_remove, self.empty_elements_to_remove)
+
+    @classmethod
+    def add_elements_to_store(cls, elems_to_store, elem_storage):
+        if elems_to_store is not None:
+            if not type(elems_to_store) is list:
+                elems_to_store = list(elems_to_store)
+            elem_storage.extend(elems_to_store)
+
 
 class HtmlUtil:
     SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
@@ -437,7 +543,10 @@ class HtmlUtil:
                     coords.append(float(coord[:-2]))
                 except Exception:
                     print(f"cannot parse {coord} for {style}")
+        if not coords:
+            return None, None, []
         np_coords = np.array(coords)
+
         x = np.array(range(np_coords.size)).reshape((-1, 1))
         # print(x, coords)
         model = LinearRegression().fit(x, coords)
@@ -562,19 +671,33 @@ class HtmlTree:
         decimal_divs = cls.get_div_spans_with_decimals(elem, is_bold, font_size_range=font_size_range,
                                                        section_rec=rec, class_dict=class_dict)
         print(f"d_divs {len(decimal_divs)}")
+        cls.create_filename_and_output(decimal_divs, output_dir)
+
+    @classmethod
+    def create_filename_and_output(cls, decimal_divs, output_dir,
+                                   orig=" !\"#$%&'()*+,/:;<=>?@[\]^`{|}~", rep="_"):
+        """
+        create filename from section name, replace punct characters
+        """
         if output_dir:
             output_dir = Path(output_dir)
             if not output_dir.exists():
                 output_dir.mkdir()
+
+            punct_mask = Util.make_translate_mask_to_char(orig, rep)
             for i, child_div in enumerate(decimal_divs):
-                if HtmlUtil.MARKER in child_div.attrib:
-                    marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ",
-                                                                               "_").lower()  # name from text content
-                    marker.replace(":", "")  # BUG, extend this to all punctuation
-                    path = Path(output_dir, f"{marker}.html")
-                    with open(path, "wb") as f:
-                        f.write(lxml.etree.tostring(child_div, pretty_print=True))
+                cls.create_filename_remove_punct_and_output(child_div, output_dir, punct_mask)
             print(f"decimals: {len(decimal_divs)}")
+
+    @classmethod
+    def create_filename_remove_punct_and_output(cls, child_div, output_dir, punct_mask):
+        if HtmlUtil.MARKER in child_div.attrib:
+            marker = child_div.attrib[HtmlUtil.MARKER]
+            marker = marker.strip().lower()  # name from text content
+            marker.translate(punct_mask)
+            path = Path(output_dir, f"{marker}.html")
+            with open(path, "wb") as f:
+                f.write(lxml.etree.tostring(child_div, pretty_print=True))
 
     @classmethod
     def get_div_span_starting_with(cls, elem, strg, is_bold=False, font_size_range=None):
@@ -678,6 +801,13 @@ class HtmlTree:
         result = num_range[0] <= num <= num_range[1]
         return result
 
+RECS_BY_SECTION = {
+    HtmlTree.CHAP_TOP: IPCC_CHAP_TOP_REC,
+    HtmlTree.CHAP_SECTIONS: SECTIONS_DECIMAL_REC,
+    HtmlTree.CHAP_SUBSECTS: SUBSECTS_DECIMAL_REC,
+}
+
+
 class HTMLSearcher:
     """
     methods for finding chunks and strings in HTML elements
@@ -740,10 +870,13 @@ class HTMLSearcher:
                 # nodestr = self.select_chunks_subchunks_nodes(text)
 
 
-    def select_chunks_subchunks_nodes(self, text):
+    def select_chunks_subchunks_nodes(self, text, splitter_re=None, node_re=None):
         # chunk_re, splitter_re, node_re_liat, add_unmatched = False):
         """
         Move to a class and refactor to use dictionary
+        NOT YET USED
+        :param splitter_re: regex for splitting smaller chunks
+        :param node_re: regex to find hypernodes
         """
 
         chunk_res = self.chunk_dict.get(self.CHUNK_RE)

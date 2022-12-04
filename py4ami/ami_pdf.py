@@ -8,7 +8,7 @@ import statistics
 import sys
 import textwrap
 import traceback
-from io import BytesIO, StringIO
+from io import BytesIO
 from pathlib import Path
 from typing import Container
 
@@ -25,15 +25,15 @@ from pdfminer.layout import LTImage
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 
-# local
-
 from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY, HtmlTidy
-from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan
+from py4ami.ami_html import HtmlUtil, AmiSpan
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util, AbstractArgs
+
+# local
 
 # text attributes
 FACT = 2.8
@@ -84,22 +84,6 @@ P_Y1 = "y1"
 P_TEXT = "text"
 
 
-IPCC_CHAP_TOP_REC = re.compile(""
-                               "(Chapter\\s?\\d\\d?\\s?:.*$)|"
-                               "(Table\\s?of Contents.*)|"
-                               "(Executive [Ss]ummary.*)|"
-                               "(Frequently [Aa]sked.*)|"
-                               "(References)"
-                               )
-SECTIONS_DECIMAL_REC = re.compile("\\d+\\.\\d+$")
-SUBSECTS_DECIMAL_REC = re.compile("\\d+\\.\\d+\\.\\d+$")
-
-RECS_BY_SECTION = {
-    HtmlTree.CHAP_TOP: IPCC_CHAP_TOP_REC,
-    HtmlTree.CHAP_SECTIONS: SECTIONS_DECIMAL_REC,
-    HtmlTree.CHAP_SUBSECTS: SUBSECTS_DECIMAL_REC,
-}
-
 # coordinates
 X0 = 'x0'
 Y1 = 'y1'
@@ -138,6 +122,9 @@ class AmiPage:
         self.paragraphs = []
         # AmiSpans built from characters from pdf
         self.ami_spans = []
+        # not yet used
+        self.data = []
+
 
     @classmethod
     def create_page_from_ami_spans_from_pdf(cls, ami_spans, bboxes=None):
@@ -189,8 +176,8 @@ class AmiPage:
             elif self.data:  # not sure if this is used
                 self.page_element = lxml.etree.fromstring(self.data)
             else:
-                self.logger.warning("no svg file or data")
-                return
+                logging.warning("no svg file or data")
+                return []
             self.text_elements = self.page_element.findall(f"//{{{SVG_NS}}}text")
             self.create_text_spans_from_text_elements(content_box, rotated_text)
             for axis in sort_axes:
@@ -524,7 +511,7 @@ class AmiPage:
         uses AmiPage.chars_to_spans()
 
         :param bbox: clip page (default is none)
-        :param inout_pdf: required PDF
+        :param input_pdf: required PDF
         :param output_dir: output dicrectory
         :param output_stem: output filestem
         :param page_nos: list of 2-tuples containing allowed ranges (e.g.  [(2,3), (5, 12)]
@@ -879,11 +866,11 @@ class PDFArgs(AbstractArgs):
         if not self.check_input():
             print(f"no input given")
             return
-        self.check_output()
+        self.create_consistent_output_filenames_and_dirs()
         self.calculate_headers_footers()
 
         if self.pdf2html:
-            self.check_output()
+            self.create_consistent_output_filenames_and_dirs()
             # range_list = self.create_range_list()
             AmiPage.create_html_pages(
                           bbox=AmiPage.DEFAULT_BBOX,
@@ -905,31 +892,34 @@ class PDFArgs(AbstractArgs):
         self.indir = Path(self.inpath).parent
         return True
 
-    def check_output(self):
+    def create_consistent_output_filenames_and_dirs(self):
         logging.warning(f" *** ARG_DICT {self.arg_dict}")
         self.arg_dict[OUTSTEM] = Path(f"{self.inpath}").stem
-        self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
+        # self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
         if not self.outdir:
             self.outdir = self.arg_dict.get(OUTDIR)
 
         if not self.outpath:
             self.outpath = self.arg_dict.get(OUTPATH)
-        # if no outdir , create from outpath
+        # if no outdir , create from outpath NO NO NO
+        # if not self.outdir:
+        #     if self.outpath:
+        #         self.outdir = Path(self.outpath).parent
         if not self.outdir:
-            if self.outpath:
-                self.outdir = Path(self.outpath).parent
-        if not self.outdir:
-            if self.inpath:
-                self.outdir = Path(self.inpath).parent
-            else:
-                raise FileNotFoundError(f"output dir not given and cannot be generated")
+            # if self.inpath:
+            #     self.outdir = Path(self.inpath).parent
+            # else:
+            raise FileNotFoundError(f"output dir not given and cannot be generated")
+        if not self.outpath:
             self.outstem = self.arg_dict.get(OUTSTEM)
             if not self.outstem:
-                raise FileNotFoundError(f"output file not given and cannot be generated")
+                raise FileNotFoundError(f"output stem not given and cannot be generated")
             if not self.outform:
                 raise FileNotFoundError(f"no output format given")
+
             self.outpath = Path(self.outdir, f"{self.outstem}.{self.outform}")
-            logging.debug(f"outpath {self.outpath}")
+
+            logging.debug(f"outpath autogenerated as {self.outpath}")
         else:
             logging.debug(f"outdir {self.outdir}")
         if not Path(self.outdir).exists():
@@ -1143,82 +1133,22 @@ class PDFArgs(AbstractArgs):
         """converts PDF to raw_html and (optionally raw_html to tidy_html
         URGENT
         """
-        raw_html = PDFArgs.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
-        if raw_html is None:
+        raw_html_element = PDFArgs.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
+        if raw_html_element is None:
             raise ValueError(f"null raw_html in convert_write()")
         if not flow:
-            return raw_html
+            return raw_html_element
+        print(f"outpath {self.outpath}")
         html_tidy = HtmlTidy()
-        out_html = self.tidy_flow(html_tidy, raw_html)
-        assert len(out_html) > 0
-        print(f"flow {len(raw_html)} +> ")
-        return out_html
-
-    def tidy_flow(self,
-                  html_tidy,
-                  raw_html
-                  ):
-        # TODO check and move to instance of HtmlTidy
-
-        if raw_html is None:
-            raise ValueError("No HTML")
-        tree = lxml.etree.parse(StringIO(raw_html), lxml.etree.HTMLParser())
-        result_elem = tree.xpath("/")
-        print(f"result {result_elem}")
-        result_elem = tree.getroot()
-
-        # to be integrated
-        if False:
-            html_tidy.add_element(result_elem)
-            html_tidy.add_descendant_element_to_remove("br")
-            html_tidy.add_styles_to_remove(
-                [
-                    "position",
-                    # "left",
-                    "border",
-                    "writing-mode",
-                    "width",  # this disables flowing text
-                ]
-            )
-            html.add_id = True
-            html_tidy.add_empty_elements_to_remove(["span", "div"])
-            html_tidy.remove_lh_line_numbers = True
-            html_tidy.remove_large_fonted_elements = True
-            marker_xpath = ".//div[a[@name]]"
-            offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
-            HtmlUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
-            HtmlUtil.remove_style_attribute(result_elem, "top")
-            HtmlUtil.remove_style(result_elem, ["left", "height"])
-            HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
-            HtmlUtil.remove_newlines(result_elem)
-            HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
-            htmlstr = lxml.etree.tostring(result_elem).decode("UTF-8")
-
-
-        HtmlUtil.add_ids(result_elem)
-        # this is slightly tacky
-        HtmlUtil.remove_descendant_elements_by_tag("br", result_elem)
-        HtmlUtil.remove_style(result_elem, [
-            "position",
-            # "left",
-            "border",
-            "writing-mode",
-            "width",  # this disables flowing text
-        ])
-        HtmlUtil.remove_empty_elements(result_elem, ["span"])
-        HtmlUtil.remove_empty_elements(result_elem, ["div"])
-        HtmlUtil.remove_lh_line_numbers(result_elem)
-        HtmlUtil.remove_large_fonted_elements(result_elem)
-        marker_xpath = ".//div[a[@name]]"
-        offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
-        HtmlUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
-        HtmlUtil.remove_style_attribute(result_elem, "top")
-        HtmlUtil.remove_style(result_elem, ["left", "height"])
-        HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
-        HtmlUtil.remove_newlines(result_elem)
-        HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
-        htmlstr = lxml.etree.tostring(result_elem).decode("UTF-8")
-        return htmlstr
+        # might need a data tranfer object
+        html_tidy.header = self.header
+        html_tidy.footer = self.footer
+        html_tidy.unwanteds = self.unwanteds
+        html_tidy.outdir = self.outdir
+        out_html_element = html_tidy.tidy_flow(raw_html_element)
+        assert len(out_html_element) > 0
+        print(f"flow {len(raw_html_element)} +> ")
+        return out_html_element
 
     # class PDFArgs:
 

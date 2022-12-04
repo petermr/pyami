@@ -215,6 +215,25 @@ class Util:
                 return regex
         return None
 
+    @classmethod
+    def make_translate_mask_to_char(cls, orig, rep):
+        """
+        make mask to replace all characters in orig with rep character
+        :param orig: string of replaceable characters
+        :param rep: character to replac e them
+        :returns: dict mapping (see str.translate and str.make
+        """
+        if not orig or not rep:
+            return None
+        if len(rep) != 1:
+            logging.warning(f"rep should be single char, found {rep}")
+            return None
+        if len(orig) == 0:
+            logging.warning(f"orig should be len > 0")
+            return None
+        return str.maketrans(orig, rep * len(orig))
+
+
 class GithubDownloader:
     """Note: Github uses the old 'master' name but we have changed it to 'main'"""
 
@@ -293,6 +312,22 @@ As github API has rate limit of 5000 requests / hour, this might not be good for
                 print(f"\n===={path}====\n{content[:100]} ...\n")
         else:
             print(f"unknown type {json_page.keys()}")
+
+    @classmethod
+    def make_translate_mask_to_char(cls, punct, charx):
+        """
+        makes mask to translate all chars to a sigle replacmeny
+        uses str,maketrans()
+
+        Use:
+        mask = Util.make_translate_mask_to_char("=]%", "_""):
+        str1 = str0.translate(mask)
+        str1 is same length as str0
+        :param punct: string containing unwanted chars
+        :param charx: their single character replacement.
+        """
+        punct_mask = str.maketrans(punct, charx * len(punct))
+        return punct_mask
 
 
 class AbstractArgs(ABC):
@@ -455,6 +490,7 @@ class ArgParseBuilder:
         for param, param_val in param_dict.items():
             print(f"  {param}='{param_val}'")
 
+"!\"#$%&'()*+,/:;<=>?@[\]^`{|}~"
 
 class AmiLogger:
     """wrapper for logger to limit or condense voluminous output

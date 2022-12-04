@@ -17,10 +17,10 @@ from PIL import Image
 # local
 from py4ami.ami_bib import Publication
 
-from py4ami.ami_pdf import SVG_NS, SVGX_NS, CSSStyle, PDFArgs, PDFDebug
+from py4ami.ami_pdf import SVG_NS, SVGX_NS, PDFArgs, PDFDebug
 from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage
 from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS
-from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE
+from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE, CSSStyle
 from py4ami.ami_html import H_SPAN, H_BODY, H_P
 from py4ami.pyamix import PyAMI
 from py4ami.bbox_copy import BBox
@@ -720,6 +720,8 @@ Uses:
         """
         uses PDFMiner library (no coordinates I think)
         uses flow_tidy()
+        USED
+        MODEL
         """
 
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
