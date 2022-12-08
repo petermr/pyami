@@ -267,7 +267,9 @@ class XmlLib:
 
     @classmethod
     def get_text(cls, node):
-        """get text children as string"""
+        """
+        get text children as string
+        """
         return ''.join(node.itertext())
 
     @staticmethod

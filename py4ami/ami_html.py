@@ -13,6 +13,7 @@ from pathlib import Path
 from sklearn.linear_model import LinearRegression
 # local
 # from py4ami.ami_dict import AmiDictionary
+from py4ami.xml_lib import XmlLib
 from py4ami.util import SScript, AbstractArgs, Util
 
 # HTML
@@ -132,6 +133,7 @@ class HtmlTidy:
 
     def tidy_flow(self, raw_html):
         """
+        Need to capture page information to compute page coordinates, not document coordinates
         converts raw html to tidy
         """
         # TODO check and move to instance of HtmlTidy
@@ -139,59 +141,62 @@ class HtmlTidy:
         if raw_html is None:
             raise ValueError("No HTML")
         tree = lxml.etree.parse(StringIO(raw_html), lxml.etree.HTMLParser())
-        result_elem = tree.xpath("/")
-        print(f"result {result_elem}")
+        # result_elem = tree.xpath("/")
+        # print(f"result {result_elem}")
         result_elem = tree.getroot()
 
 
-        # to be integrated
-        if False  or True:
-            self.add_element(result_elem)
-            self.add_descendant_element_to_remove("br")
-            self.add_styles_to_remove(
-                [
-                    "position",
-                    # "left",
-                    "border",
-                    "writing-mode",
-                    "width",  # this disables flowing text
-                ]
-            )
-            self.add_id = True
-            self.add_empty_elements_to_remove(["span", "div"])
-            self.remove_lh_line_numbers = True
-            self.remove_large_fonted_elements = True
-            marker_xpath = ".//div[a[@name]]"
-            offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
-            HtmlUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
-            HtmlUtil.remove_style_attribute(result_elem, "top")
-            HtmlUtil.remove_style(result_elem, ["left", "height"])
-            HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
-            HtmlUtil.remove_newlines(result_elem)
-            HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
-            htmlstr = lxml.etree.tostring(result_elem).decode("UTF-8")
+        self.add_element(result_elem)
 
+        self.add_descendant_element_to_remove(["br"])
+        self.add_styles_to_remove(
+            [
+                "position",
+                # "left",
+                "border",
+                "writing-mode",
+                "width",  # this disables flowing text
+            ]
+        )
+        self.add_id = True
+        self.add_empty_elements_to_remove(["span", "div"])
+        self.remove_lh_line_numbers = True
+        self.remove_large_fonted_elements = True
+        self.style_attributes_to_remove=["top"]
+        self.marker_xpath = ".//div[a[@name]]"
+        self.style_attributes_to_remove = ["left", "height"]
 
-        HtmlUtil.add_ids(result_elem)
+        # HtmlUtil.remove_headers_and_footers_using_pdfminer_coords(result_elem, pagesize, self.header, self.footer, marker_xpath)
+        # HtmlUtil.remove_style_attribute(result_elem, "top")
+        # HtmlUtil.remove_style(result_elem, ["left", "height"])
+        # HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
+        # HtmlUtil.remove_newlines(result_elem)
+        # HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
+        # htmlstr = lxml.etree.tostring(result_elem).decode("UTF-8")
 
-        # this is slightly tacky
-        HtmlUtil.remove_descendant_elements_by_tag("br", result_elem)
-        HtmlUtil.remove_style(result_elem, [
-            "position",
-            # "left",
-            "border",
-            "writing-mode",
-            "width",  # this disables flowing text
-        ])
-        HtmlUtil.remove_empty_elements(result_elem, ["span"])
-        HtmlUtil.remove_empty_elements(result_elem, ["div"])
-        HtmlUtil.remove_lh_line_numbers(result_elem)
-        HtmlUtil.remove_large_fonted_elements(result_elem)
-        marker_xpath = ".//div[a[@name]]"
-        offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
-        HtmlUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
-        HtmlUtil.remove_style_attribute(result_elem, "top")
-        HtmlUtil.remove_style(result_elem, ["left", "height"])
+        if self.add_id:
+            HtmlUtil.add_ids(result_elem)
+        for tag in self.descendants_to_remove:
+            HtmlUtil.remove_descendant_elements_by_tag(tag, result_elem)
+        if self.remove_lh_line_numbers:
+            HtmlUtil.remove_lh_line_numbers(result_elem)
+        if self.remove_large_fonted_elements:
+            HtmlUtil.remove_large_fonted_elements(result_elem)
+        for tag in self.empty_elements_to_remove:
+            HtmlUtil.remove_empty_elements(result_elem, [tag])
+        for style in self.styles_to_remove:
+            HtmlUtil.remove_style(result_elem, [style])
+        pagesize = None
+        if self.marker_xpath:
+            offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, self.marker_xpath)
+        # HtmlUtil.remove_empty_elements(result_elem, ["span"])
+        # HtmlUtil.remove_empty_elements(result_elem, ["div"])
+        # HtmlUtil.remove_large_fonted_elements(result_elem)
+        # marker_xpath = ".//div[a[@name]]"
+        # offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
+            HtmlUtil.remove_headers_and_footers_using_pdfminer_coords(result_elem, pagesize, self.header, self.footer, self.marker_xpath)
+        for att in self.style_attributes_to_remove:
+            HtmlUtil.remove_style_attribute(result_elem, att)
         HtmlUtil.remove_unwanteds(result_elem, self.unwanteds)
         HtmlUtil.remove_newlines(result_elem)
         HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
@@ -482,18 +487,27 @@ class HtmlUtil:
                         cls.remove_elem_keep_tail(el)
 
     @classmethod
-    def remove_headers_and_footers(cls, ref_elem, pagesize, header_height, footer_height, marker_xpath):
+    def remove_headers_and_footers_using_pdfminer_coords(cls, ref_elem, pagesize, header_height, footer_height, marker_xpath):
         """
+        NOT COMPLETE - there are no footers because of the coordinate system.
+
         Maybe move to HTMLTidy
+
+        the @top represents the y-coordinate from the start of the document (pdfminer?).
+        this means we have to subtract pagesizes from it.
         """
 
         elems = ref_elem.xpath(marker_xpath)
 
         for elem in ref_elem.xpath("//*[@style]"):
             top = CSSStyle.create_css_style(elem).get_numeric_attval("top")  # the y-coordinate
+            # print(f"top {top}")
             if top:
                 top = top % pagesize
                 if top < header_height or top > pagesize - footer_height:
+                    text = XmlLib.get_text(elem)
+                    if len(text.strip()) > 0:
+                        logging.warning(f"removing top text {text}")
                     cls.remove_elem_keep_tail(elem)
 
     @classmethod
