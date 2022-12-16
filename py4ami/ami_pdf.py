@@ -540,7 +540,6 @@ class AmiPage:
                 print(f" wrote html {output_html}")
                 # assert output_html.exists()
 
-
 class AmiSect:
     """Transformation of an Html Page to sections
     NOT Yet tested
@@ -1118,6 +1117,7 @@ class PDFArgs(AbstractArgs):
         :return: outpath
         """
         print(f"==============CONVERT================")
+        # run the argument commands
         self.process_args()
         if self.inpath is None:
             raise ValueError("No input path in convert_write()")
@@ -1145,6 +1145,7 @@ class PDFArgs(AbstractArgs):
 <div style="position:absolute; border: textbox 1px solid; writing-mode:lr-tb; left:72px; top:6330px; width:141px; height:11px;"><span style="font-family: TimesNewRomanPSMT; font-size:11px">Final Government Distribution
 <br></span></div><div style="position:absolute; border: textbox 1px solid; writing-mode:lr-tb; left:276px; top:6330px; width:45px; height:11px;"><span style="font-family: TimesNewRomanPSMT; font-size:11px">Chapter 4
 
+    then make HtmlTidy and execute commands to clean
         URGENT
         """
         raw_html_element = PDFArgs.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
@@ -1153,7 +1154,7 @@ class PDFArgs(AbstractArgs):
         if not flow:
             return raw_html_element
         if write_raw:
-            outpath_raw = Path(Path(self.outpath).parent, "raw.html")
+            outpath_raw = Path(Path(self.outpath).parent, "raw20.html")
             with open(outpath_raw, "w") as f:
                 f.write(raw_html_element)
         print(f"outpath {self.outpath}")

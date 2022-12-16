@@ -719,8 +719,18 @@ Uses:
     # @unittest.skipIf(BUG, "page range bug")
     def test_make_ipcc_html_spans(self):
         """
+        read some/all PDF pages in chapter
+        parse with pdfplumber into raw_html
+
         uses PDFMiner library (no coordinates I think)
-        uses flow_tidy()
+        then
+        uses flow_tidy() to determine pages, wrap lines (span/div) in pages
+        join pages
+        trim headers and footers and sides
+        then
+        creates and HtmlTidy to remove or edit unwanted span/div/br
+
+
         USED
         MODEL
         """
@@ -728,14 +738,15 @@ Uses:
         chapter = "Chapter04"
         ipcc_dir = Path(Resources.IPCC_DIR)
         print(f"Converting chapter: {chapter}")
-        pdf_args = PDFArgs()
+        pdf_args = PDFArgs() # also supports commands
         chapter_dir = Path(ipcc_dir, chapter)
+        # populate arg commands
         pdf_args.arg_dict[INDIR] = chapter_dir
         assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
         inpath = Path(chapter_dir, "fulltext.pdf")
         pdf_args.arg_dict[INPATH] = inpath
         assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
-        pdf_args.arg_dict[MAXPAGE] = 20
+        pdf_args.arg_dict[MAXPAGE] = 200
         pdf_args.arg_dict[OUTFORM] = "flow.html"
         outdir = Path(Resources.TEMP_DIR, "ipcc_html")
         if not outdir.exists():
@@ -761,7 +772,7 @@ Uses:
                 "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
             },
         }
-        _,_ = pdf_args.convert_write()
+        _,_ = pdf_args.convert_write() # refactor, please
 
     @unittest.skipIf(LONG, "too long")
     # @unittest.skipIf(BUG, "page ranges have bug")

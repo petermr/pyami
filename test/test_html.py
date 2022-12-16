@@ -366,7 +366,7 @@ class HtmlTest(AmiAnyTest):
         assert dictionary_file.exists(), f"file should exist {dictionary_file}"
         ami_dict = AmiDictionary.create_from_xml_file(dictionary_file)
         ami_dict.ignorecase = False
-        inpath = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        inpath = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
         if not output_dir.exists():
             output_dir.mkdir()
@@ -386,7 +386,7 @@ class HtmlTest(AmiAnyTest):
         output_file = "chap6_marked.html"
         output_file = "chap6_raked.html"
         ami_dict = AmiDictionary.create_from_xml_file(dict_path, ignorecase=False)
-        input_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        input_path = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
         # input_path = Path(Resources.IPCC_CHAP06, "chap6.flow.html")
         print(f"reading pdf_html {input_path}")
         html_output_dir = Path(Resources.TEMP_DIR, "html")
@@ -406,7 +406,7 @@ class HtmlTest(AmiAnyTest):
         and add style
         and write result
         """
-        target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
         if not output_dir.exists():
             output_dir.mkdir()
@@ -450,7 +450,7 @@ class HtmlTest(AmiAnyTest):
     def test_join_spans(self):
         """join sibling spans with the same styles
         """
-        html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow.html")
+        html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow20.html")
         html_element = lxml.etree.parse(str(html_path))
         divs = html_element.xpath(".//div")
         assert len(divs) == 3221
@@ -468,12 +468,12 @@ class HtmlTest(AmiAnyTest):
                 last_style = style
 
     @unittest.skipUnless(USER, "claim paras")
-    @unittest.skipIf(BUG, "bad input file")
+    @unittest.skipIf(BUG and False, "bad input file")
     def test_make_ipcc_obsidian_md(self):
         """
         Read IPCC exec_summary Chapter and make obsidian MD.
-        Reads an executive.summary consisting of about 15 paras, each of which
-        has a bolds first sentence (main claim).
+        Reads an executive.summary consisting of about 20 paras, each of which
+        has a bold first sentence (main claim).
         Tries to split this into the main claim and subclaims.
 
         writes 1 file per paragraph into B_1.md, B_2.md, etc.
@@ -499,22 +499,22 @@ class HtmlTest(AmiAnyTest):
         assert path.exists(), f"{path} should exist"
         tree = lxml.etree.parse(str(path))
         ps = tree.findall(".//p")
-        assert len(ps) == 23
-        for i, p in enumerate(ps):
+        assert 23 <=len(ps) <= 50
+        i = 0
+        for p in ps:
             bs = p.xpath(".//b")
             if len(bs) > 0:
+                i += 1
                 for b in bs:
                     t = b.xpath('.//text()')
                     bstr = "__".join(t)
-
                     nonb = p.xpath(".//text()[not(ancestor::b)]")
                     tstr = "".join(nonb)
-                    file = Path(outdir, f"B_{i + 1}.md")
-                    print(f"writing {file}")
-                    with open(file, "w") as f:
-                        f.write(bstr)
-                        f.write("\n=======lesser claims==========\n")
-                        f.write(tstr)
+                file = Path(outdir, f"B_{i}.md")
+                print(f"writing {file}")
+                with open(file, "w") as f:
+                    f.write(bstr)
+                    f.write(tstr)
 
     def test_extract_ipcc_nodes_and_pointers_raw_format(self):
         """
@@ -536,17 +536,28 @@ class HtmlTest(AmiAnyTest):
 
     def test_extract_ipcc_bib_pointers(self):
         """
+        BEING DEVELOPED
+        find biblio refs in HTML
     (Peters et al., 2020; Jackson et al., 2019; Friedlingstein et al., 2020).
     Refactor and generalise to python dict
         """
-        xpath = "//div//text()[contains(., '(')]"
-
-        html_searcher = HTMLSearcher()
-        html_searcher.add_xpath("text_with_paren", "//*[contains(text(), '(')]")
+        # text_has_bracket_xpath = "//div//text()[contains(., '(')]"
+        D = "\\d"
+        S = "\\s"
+        LB = "\\("
+        RB = "\\)"
+        dictx = {
+            "xpath": "foo",
+        }
+        html_searcher = HTMLSearcher(dict=dictx)
+        descend_with_paren_in_text = "//*[contains(text(), '(')]"
+        html_searcher.add_xpath("text_with_paren", descend_with_paren_in_text)
         print(f"XPATH... {html_searcher.xpath_dict.keys()}")
-        html_searcher.add_chunk_re("\\(([^\\)]*)\\)")
-        html_searcher.add_splitter_re("\\s*[,;]\\s*")
-        html_searcher.add_subnode_key_re("ref", "([A-Z].*\\s+(20|19)\\d\\d[a-z]?)")
+        balanced_brackets = f"{LB}([^{RB}]*){RB}"
+        html_searcher.add_chunk_re(balanced_brackets)
+        comma_semicolon_chunks = f"{S}*[,;]{S}*"
+        html_searcher.add_splitter_re(comma_semicolon_chunks)
+        html_searcher.add_subnode_key_re("ref", f"([A-Z].*{S}+(20|19){D}{D}[a-z]?)")
         html_searcher.set_unmatched(False)
 
         html_path = Path(Resources.IPCC_CHAP02, "maintext_old.html")
