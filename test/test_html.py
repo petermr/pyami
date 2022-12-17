@@ -557,13 +557,14 @@ class HtmlTest(AmiAnyTest):
         }
         html_searcher = HTMLSearcher(xpath_dict=dictx)
         descend_with_paren_in_text = "//*[contains(text(), '(')]"
+        balanced_brackets = f"{LB}([^{RB}]*){RB}"
+        comma_semicolon_chunks = f"{S}*[,;]{S}*"
+        dates1920 = f"([A-Z].*{S}+(20|19){D}{D}[a-z]?)"
+
         html_searcher.add_xpath("text_with_paren", descend_with_paren_in_text)
         print(f"XPATH... {html_searcher.xpath_dict.keys()}")
-        balanced_brackets = f"{LB}([^{RB}]*){RB}"
         html_searcher.add_chunk_re(balanced_brackets)
-        comma_semicolon_chunks = f"{S}*[,;]{S}*"
         html_searcher.add_splitter_re(comma_semicolon_chunks)
-        dates1920 = f"([A-Z].*{S}+(20|19){D}{D}[a-z]?)"
         html_searcher.add_subnode_key_re("ref", dates1920)
         html_searcher.set_unmatched(False)
 
