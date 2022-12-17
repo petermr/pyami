@@ -7,7 +7,7 @@ from pathlib import Path
 # local
 from py4ami.ami_project import CProject, CTree, AmiProjects, CProjectTests, CSubDir, ProjectArgs
 from py4ami.pyamix import PyAMI
-from py4ami.util import Util
+from py4ami.file_lib import FileLib
 from test.resources import Resources
 
 
@@ -220,8 +220,8 @@ class TestCProjTree(unittest.TestCase):
 
         dirstr = str(cproject.dirx)
         print(f"dirstr: {dirstr}")
-        Util.copy_file('1758-2946-3-38.pdf', src, dst)
-        Util.copy_file('1758-2946-4-15.pdf', src, dst)
+        FileLib.copy_file('1758-2946-3-38.pdf', src, dst)
+        FileLib.copy_file('1758-2946-4-15.pdf', src, dst)
 
         PyAMI().run_command(
             ['PROJECT', '--project', dirstr, '--make', '--file', '1758-2946-3-38.pdf', '1758-2946-4-15.pdf'])
@@ -275,7 +275,7 @@ class TestCProjTree(unittest.TestCase):
         if dst.exists():
             shutil.rmtree(dst)
         if src:
-            Util.copyanything(src, dst)
+            FileLib.copyanything(src, dst)
         elif not dst.exists():
             os.mkdir(dst)
 

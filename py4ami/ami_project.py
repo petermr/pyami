@@ -14,6 +14,7 @@ from lxml import html
 
 from py4ami.ami_pdf import PDFArgs
 from py4ami.ami_sections import AMIFigure, AMIAbsSection
+from py4ami.file_lib import FileLib
 from py4ami.util import Util, AbstractArgs
 
 # local
@@ -317,7 +318,7 @@ class CProject(CContainer):
             src_file = Path(self.dirx, file)
 #            assert src_file.exists(), f"file should exist {src_file}" # problem
             dst_file = Path(ctree_dir, FULLTEXT + ".pdf")
-            Util.copyanything(src_file, dst_file)
+            FileLib.copyanything(src_file, dst_file)
 
     def add_underscore_extension(self, ctree_dir, max_flag, stem_dir):
         for flag in range(1, max_flag):
@@ -376,10 +377,14 @@ class CProject(CContainer):
 
     def pdf2htmlx(self, maxtree=9999, maxpage=9999):
         """converts PDF to HTML
+        Iterates over CTrees
         NOTE: based on IPCC reports. Needs generalising
+        USER facing
         """
         """ does the same as:
         python3 -m py4ami.ami_pdf --inpath ../pt195/PMC6747965/fulltext.pdf --outdir ../pt195/PMC6747965/out/ 
+        
+        Iterates over CTrees
         """
 
         for i, ctree in enumerate(self.get_ctrees()):
@@ -393,7 +398,7 @@ class CProject(CContainer):
                 outdir.mkdir()
             outstem = "fulltext"
             fmt = "HTML"
-            pdf_args.convert_write(outdir=outdir, outstem=outstem, inpath=inpath, flow=True, maxpage=maxpage)
+            outpath, out_html = pdf_args.convert_write(outdir=outdir, outstem=outstem, inpath=inpath, flow=True, maxpage=maxpage)
 
 
 class CTree(CContainer):

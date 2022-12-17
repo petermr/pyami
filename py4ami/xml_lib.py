@@ -267,7 +267,9 @@ class XmlLib:
 
     @classmethod
     def get_text(cls, node):
-        """get text children as string"""
+        """
+        get text children as string
+        """
         return ''.join(node.itertext())
 
     @staticmethod
@@ -330,6 +332,20 @@ class XmlLib:
     def xslt_transform_tostring(cls, data, xslt_file):
         root = cls.xslt_transform(data, xslt_file)
         return LXET.tostring(root).decode("UTF-8") if root is not None else None
+
+    @classmethod
+    def validate_xpath(cls, xpath):
+        """
+        crude syntax validation of xpath string.
+        tests xpath on a trivial element
+        :param xpath:
+        """
+        tree = lxml.etree.fromstring("<foo/>")
+        try:
+            tree.xpath(xpath)
+        except lxml.etree.XPathEvalError as e:
+            logging.error(f"bad XPath {xpath}, {e}")
+            raise e
 
 
 class HtmlElement:

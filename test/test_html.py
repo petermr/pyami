@@ -1,28 +1,50 @@
 """Create, transform, markup up HTML, etc."""
+import lxml.etree
+from pathlib import Path
 import os
 import re
 import unittest
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
+import lxml.etree
+
+from py4ami.ami_bib import Reference, Biblioref
+from py4ami.ami_dict import AmiDictionary
+# local
+from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HTMLSearcher
 import lxml.etree
 
 import test
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 # local
-from py4ami.ami_html import AmiHtml, HtmlUtil, H_SPAN, CSSStyle
+from py4ami.ami_html import AmiHtml, HtmlUtil, H_SPAN,ode CSSStyle
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
+PARA1 = """
+<span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id2507">First, the studies are relevant to different spatial levels, ranging from macro-scale regions with globally
+comprehensive coverage to national level (4.2.2.3) and subnational and company level in a few cases
+(4.2.3).  It  is  important  blah blah detailed  national  studies  (Bataille  et  al.  2016a)  and more blah (Deep  Decarbonization  Pathways  Project  2015;
+Roelfsema et al. 2020) and even more blah.
+</span>
+"""
 
-class HtmlTest(test.test_all.AmiAnyTest):
-    """ parsing , structuring linking in/to.form HTML
+HTML_SINGLE_REF = """<span>It  is  important  blah blah detailed  national  studies  (Bataille  et  al.  2016a)  and more blah </span>"""
+HTML_COMPOUND_REF = """<span>and more blah (Deep  Decarbonization  Pathways  Project  2015; Roelfsema et al. 2020)  and even more blah</span>"""
+HTML_SUBSECTION_REF = """<span>to national level (4.2.2.3) and subnational</span>"""
+
+
+class HtmlTest(AmiAnyTest):
+    """
+    parsing , structuring linking in/to.form HTML
     This will evolve into an ami_html.py module
     """
     # all are skipUnless
+
     ADMIN = True and AmiAnyTest.ADMIN
     CMD = True and AmiAnyTest.CMD
     DEBUG = True and AmiAnyTest.DEBUG
@@ -43,21 +65,27 @@ class HtmlTest(test.test_all.AmiAnyTest):
         self.html_subsection_ref = """<span>to national level (4.2.2.3) and subnational</span>"""
 
     def test_parse(self):
-        """tests that test reference compiles"""
-        html_span = lxml.etree.fromstring(self.html_single_ref)
+        """
+        tests that test reference compiles
+        """
+        html_span = lxml.etree.fromstring(HTML_SINGLE_REF)
         assert type(html_span) is lxml.etree._Element
         assert html_span.text == "It  is  important  blah blah detailed  national  studies  (Bataille  et  al.  2016a)  and more blah "
 
-        html_span = lxml.etree.fromstring(self.html_compound_ref)
+        html_span = lxml.etree.fromstring(HTML_COMPOUND_REF)
         assert type(html_span) is lxml.etree._Element
         assert html_span.text == "and more blah (Deep  Decarbonization  Pathways  Project  2015; Roelfsema et al. 2020)  and even more blah"
 
-        html_span = lxml.etree.fromstring(self.html_subsection_ref)
+        html_span = lxml.etree.fromstring(HTML_SUBSECTION_REF)
         assert type(html_span) is lxml.etree._Element
         assert html_span.text == "to national level (4.2.2.3) and subnational"
 
+    @unittest.skipIf(OLD, "use TextChunker")
     def test_find_single_brackets_in_span(self):
-        html_span = lxml.etree.fromstring(self.html_single_ref)
+        """
+        add docs here
+        """
+        html_span = lxml.etree.fromstring(HTML_SINGLE_REF)
         text = html_span.text
         rec = re.compile(Util.SINGLE_BRACKET_RE)
         match = rec.match(text)
@@ -70,8 +98,10 @@ class HtmlTest(test.test_all.AmiAnyTest):
         assert match.group(3) == "  and more blah "
 
     def test_find_single_biblio_ref_in_span(self):
-
-        html_span = lxml.etree.fromstring(self.html_single_ref)
+        """
+        need docs
+        """
+        html_span = lxml.etree.fromstring(HTML_SINGLE_REF)
         text = html_span.text
         match = Reference.SINGLE_REF_REC.match(text)
         assert match
@@ -88,15 +118,18 @@ class HtmlTest(test.test_all.AmiAnyTest):
         }
 
     def test_find_single_biblio_ref_in_span_add_links(self):
-
-        html_span = lxml.etree.fromstring(self.html_single_ref)
+        """
+        need docs
+        """
+        html_span = lxml.etree.fromstring(HTML_SINGLE_REF)
         text = html_span.text
         match = Reference.SINGLE_REF_REC.match(text)
         assert match
         assert len(match.groups()) == 3
 
     def test_find_brackets_in_text(self):
-        """read chunks of text and find brackets
+        """
+        read chunks of text and find brackets
         """
         chap444 = Path(Resources.IPCC_CHAP04, "4.4.html")
         chap444_elem = lxml.etree.parse(str(chap444))
@@ -112,7 +145,8 @@ class HtmlTest(test.test_all.AmiAnyTest):
         assert len(bodylist) == 114
 
     def test_find_bracketed_multiple_bibliorefs_in_text(self):
-        """read chunks of text and find biblioref brackets
+        """
+        read chunks of text and find biblioref brackets
         """
         chap444 = Path(Resources.IPCC_CHAP04, "4.4.html")
         chap444_elem = lxml.etree.parse(str(chap444))
@@ -132,7 +166,8 @@ class HtmlTest(test.test_all.AmiAnyTest):
         assert str(total_bibliorefs[1]) == 'Grubb et al.  2021 => Grubb| et al.  |2021'
 
     def test_make_biblioref_manager(self):
-        """read chunks of text and find biblioref brackets
+        """
+        read chunks of text and find biblioref brackets
         """
         chap444 = Path(Resources.IPCC_CHAP04, "4.4.html")
         bibliorefs = Biblioref.make_bibliorefs(chap444)
@@ -148,6 +183,9 @@ class HtmlTest(test.test_all.AmiAnyTest):
         assert counter['de Coninck'] == 2
 
     def test_exceptions_biblio_ref_in_span(self):
+        """
+        Need docs
+        """
         assert Reference.SINGLE_REF_REC.match("Foo bar (d'Arcy & other stuff in 2008) not a ref")
         assert Reference.SINGLE_REF_REC.match("Foo bar (de Sitter and other stuff in 2008) not a ref")
 
@@ -177,7 +215,7 @@ class HtmlTest(test.test_all.AmiAnyTest):
     def test_make_reference_class(self):
         """reads a references file and creates class"""
 
-        ami_html = AmiHtml()
+        # ami_html = AmiHtml()
         ref_path = Path(Resources.IPCC_CHAP04, "references.html")
         assert ref_path.exists()
         ref_elem = lxml.etree.parse(str(ref_path))
@@ -259,6 +297,7 @@ class HtmlTest(test.test_all.AmiAnyTest):
         assert spans[1] is not None
         assert spans[2] is None
 
+
     def test_split_matched_string_in_span_recursively(self):
         """split string in span into 2n+1 using regex
         Tests: HtmlUtil.split_span_at_match"""
@@ -301,7 +340,9 @@ class HtmlTest(test.test_all.AmiAnyTest):
                            'but those in planning or permitting stages are not built. ', 'Cui et al. 2019']
 
     def test_add_href_annotation(self):
-        """Add Href for annotated word"""
+        """
+        Add Href for annotated word
+        """
         s = f"We believe the GHG emissions are huge"
         rec = re.compile(r"(.*?)(\bGHG\b)(.*)")
         match = rec.search(s)
@@ -343,7 +384,7 @@ class HtmlTest(test.test_all.AmiAnyTest):
         assert dictionary_file.exists(), f"file should exist {dictionary_file}"
         ami_dict = AmiDictionary.create_from_xml_file(dictionary_file)
         ami_dict.ignorecase = False
-        inpath = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        inpath = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
         if not output_dir.exists():
             output_dir.mkdir()
@@ -382,8 +423,9 @@ class HtmlTest(test.test_all.AmiAnyTest):
         Test: ami_dict.markup_html_from_dictionary
         and add style
         and write result
+        USEFUL
         """
-        target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
         if not output_dir.exists():
             output_dir.mkdir()
@@ -428,10 +470,10 @@ class HtmlTest(test.test_all.AmiAnyTest):
         """join sibling spans with the same styles
         IMPORTANT
         """
-        html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow.html")
+        html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow20.html")
         html_element = lxml.etree.parse(str(html_path))
         divs = html_element.xpath(".//div")
-        assert len(divs) == 3221
+        assert 400 <= len(divs)
         last_div = None
         last_style = None
         for div in divs:
@@ -446,11 +488,12 @@ class HtmlTest(test.test_all.AmiAnyTest):
                 last_style = style
 
     @unittest.skipUnless(USER, "claim paras")
+    @unittest.skipIf(BUG and False, "bad input file")
     def test_make_ipcc_obsidian_md(self):
         """
         Read IPCC exec_summary Chapter and make obsidian MD.
-        Reads an executive.summary consisting of about 15 paras, each of which
-        has a bolds first sentence (main claim).
+        Reads an executive.summary consisting of about 20 paras, each of which
+        has a bold first sentence (main claim).
         Tries to split this into the main claim and subclaims.
 
         writes 1 file per paragraph into B_1.md, B_2.md, etc.
@@ -463,6 +506,10 @@ class HtmlTest(test.test_all.AmiAnyTest):
         BUGS: furst bold sentence missed out in B_10.md and B_20.md
         Maybe full-stop after italics is bold?
 
+        THIS USED A STYLE-NORMALISED FILE WHICH I THINK WAS CREARTED  BY ATOM.
+        THE FILE MAY BE LOST
+        BUG
+
         https://stackoverflow.com/questions/62472162/lxml-xpath-expression-for-selecting-all-text-under-a-given-child-node-including
         """
         in_file = Path(Resources.IPCC_CHAP02, "exec_summary.html")
@@ -472,28 +519,83 @@ class HtmlTest(test.test_all.AmiAnyTest):
         assert path.exists(), f"{path} should exist"
         tree = lxml.etree.parse(str(path))
         ps = tree.findall(".//p")
-        assert len(ps) == 23
-        for i, p in enumerate(ps):
+        assert 23 <=len(ps) <= 50
+        i = 0
+        for p in ps:
             bs = p.xpath(".//b")
             if len(bs) > 0:
+                i += 1
                 for b in bs:
                     t = b.xpath('.//text()')
                     bstr = "__".join(t)
-
                     nonb = p.xpath(".//text()[not(ancestor::b)]")
                     tstr = "".join(nonb)
-                    file = Path(outdir, f"B_{i + 1}.md")
-                    print(f"writing {file}")
-                    with open(file, "w") as f:
-                        f.write(bstr)
-                        f.write("\n=======lesser claims==========\n")
-                        f.write(tstr)
+                file = Path(outdir, f"B_{i}.md")
+                print(f"writing {file}")
+                with open(file, "w") as f:
+                    f.write(bstr)
+                    f.write(tstr)
 
+    def test_extract_ipcc_nodes_and_pointers_raw_format(self):
+        """
+        read (old style) raw html with IPCC nodes and node_pointers and convert to HTML@a elements
+        example
+        '(high confidence). {2.2.2, Table 2.1, Figure 2.5}' contains 3 node pointers
+        """
+        # html = "executive_summary_css.html"
+        # html = "executive_summary1.html"
+        exec_summ1 = Path(Resources.IPCC_CHAP02, "maintext_old.html")
+        assert exec_summ1.exists(), f"{exec_summ1} should exist"
+        tree = lxml.etree.parse(str(exec_summ1))
+        xpath = "//div//text()[contains(., '{')]"
+        texts = tree.xpath(xpath)
+        print(f"texts {len(texts)}")
+        node_dict_list_list = list()
+        for text in texts:
+            print(f"text: {text}")
+            node_dict_list = self.extract_ipcc_nodes(text)
+            print(f"node_dict_list {node_dict_list}")
+            node_dict_list_list.append(node_dict_list)
+        assert len(node_dict_list_list) == 21
+        # assert str(node_dict_list_list[0]) == "[defaultdict(<class 'list'>, {'Figure': ['2.5'],'Table': ['2.1'],\n 'unmatched': ['2.2.2']})]", f"found {node_dict_list_list[0]}"
     def test_unescape_xml_character_entity_to_unicode(self):
         """
         reads HTML with embedded character entities (e.g. "&#176;")
         uses html.unescape() to convert to Unicode
 
+         """
+        # import HTMLParser
+        # h = HTMLParser.HTMLParser()
+        # h.unescape('&copy; 2010')  # u'\xa9 2010'
+        # h.unescape('&#169; 2010')  # u'\xa9 2010'
+        import html
+        copy = html.unescape('&copy; 2010')
+        degrees = html.unescape('&#176; 2010')
+        two = 2
+        print(f"\ncopy is {copy} on {two} December 18{degrees}")
+        degrees = html.unescape('document &#169; PMR 2022 18&#176;')
+        assert degrees == 'document © PMR 2022 18°'
+
+    def test_extract_ipcc_bib_pointers(self):
+        """
+        BEING DEVELOPED
+        find biblio refs in HTML
+    (Peters et al., 2020; Jackson et al., 2019; Friedlingstein et al., 2020).
+    Refactor and generalise to python dict
+        """
+        # text_has_bracket_xpath = "//div//text()[contains(., '(')]"
+        D = "\\d"
+        S = "\\s"
+        LB = "\\("
+        RB = "\\)"
+        dictx = {
+            "xpath": "foo",
+        }
+        html_searcher = HTMLSearcher(xpath_dict=dictx)
+        descend_with_paren_in_text = "//*[contains(text(), '(')]"
+        balanced_brackets = f"{LB}([^{RB}]*){RB}"
+        comma_semicolon_chunks = f"{S}*[,;]{S}*"
+        dates1920 = f"([A-Z].*{S}+(20|19){D}{D}[a-z]?)"
         """
         # import HTMLParser
         # h = HTMLParser.HTMLParser()
@@ -513,11 +615,47 @@ class HtmlTest(test.test_all.AmiAnyTest):
         """
         in_file = str(Path(Resources.IPCC_CHAP06, "fulltext.html"))
         html_entity = lxml.etree.parse(in_file)
+        html_searcher.add_xpath("text_with_paren", descend_with_paren_in_text)
+        print(f"XPATH... {html_searcher.xpath_dict.keys()}")
+        html_searcher.add_chunk_re(balanced_brackets)
+        html_searcher.add_splitter_re(comma_semicolon_chunks)
+        html_searcher.add_subnode_key_re("ref", dates1920)
+        html_searcher.set_unmatched(False)
 
         # use first div paragraph chunk
         div712 = html_entity.xpath("//div[@id='id712']")[0]
         str_un = HtmlLib.convert_character_entities_in_lxml_element_to_unicode_string(div712)
 
         assert str_un == '<div style="" id="id712"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id713">Warming cannot be limited to well below 2°C without rapid and deep reductions in energy system CO</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 6px;" id="id715">2</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id716"> and GHG emissions. </span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id717">In scenarios limiting likely warming to 1.5°C with limited overshoot (likely below 2°C), net energy system CO</span><span style="font-family: TimesNewRomanPSMT; font-size: 6px;" id="id719">2</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id720"> emissions (interquartile range) fall by 87% to 97%% (60% to 79%) in 2050. In 2030, in scenarios limiting warming to 1.5°C with no or limited overshoot, net CO2 and GHG emissions fall by 35-51% and 38-52% respectively. In scenarios limiting warming to 1.5°C with no or limited overshoot (likely below 2°C), net electricity sector CO</span><span style="font-family: TimesNewRomanPSMT; font-size: 6px;" id="id724">2</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id725"> emissions reach zero globally between 2045 and 2055 (2050 and 2080) </span><span style="font-family: TimesNewRomanPS-ItalicMT; font-size: 11px;" id="id727">(high confidence)</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id728"> {6.7}  </span></div>'
+        html_path = Path(Resources.IPCC_CHAP02, "maintext_old.html")
+        html_searcher.search_path_chunk_node(html_path)
 
     # ========================================
+    def extract_ipcc_nodes(self, text) -> list:
+        """
+        Move to a class and refactor to use dictionary
+        """
+        regex1 = "{([^}]*)}"
+        regex2 = "\\s*[,;]\\s*"
+        regex3 = "(Table|Figure)\\s+(.*)"
+        ptr = 0
+        node_dict_list = list()
+        while True:
+            match = re.search(regex1, text[ptr:])
+            if not match:
+                break
+            ptr = match.span()[1]
+            nodestr = match.group(1)
+            nodes = re.split(regex2, nodestr)
+            node_dict = defaultdict(list)
+            node_dict_list.append(node_dict)
+            for node in nodes:
+                print(f"node: {node}")
+                m = re.match(regex3, node)
+                if m:
+                    node_dict[m.group(1)].append(m.group(2))
+                    continue
+                unmatched = "unmatched"
+                node_dict[unmatched].append(node)
+            print(f"node_dict: {node_dict.items()}")
+        return node_dict_list

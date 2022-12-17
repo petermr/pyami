@@ -42,6 +42,7 @@ class Resources:
     assert IPCC_CHAP04.exists()
     IPCC_CHAP06 = Path(IPCC_DIR, "Chapter06")
     assert IPCC_CHAP06.exists()
+    IPCC_TEMP_CHAP06 = Path(TEMP_DIR, "ipcc_chap6")
 
     if Path(LOCAL_IPCC_DIR).exists():
         IPCC_CHAP07 = Path(LOCAL_IPCC_DIR, "Chapter07")
@@ -53,14 +54,14 @@ class Resources:
         IPCC_CHAP07_MAN_DICT = Path(IPCC_CHAP07_DICT, "ip_3_7_agric_man.xml")
         assert IPCC_CHAP07_MAN_DICT.exists(), f"no dict {IPCC_CHAP07_MAN_DICT}"
 
-        IPCC_CHAP08 = Path(LOCAL_IPCC_DIR, "Chapter08")
-        assert IPCC_CHAP08.exists()
-        IPCC_CHAP08_DICT = Path(IPCC_CHAP08, "dict")
-        assert IPCC_CHAP08_DICT.exists()
-        IPCC_CHAP08_ABB_DICT = Path(IPCC_CHAP08_DICT, "ip_3_8_urban_abb.xml")
-        assert IPCC_CHAP08_ABB_DICT.exists()
-        IPCC_CHAP08_MAN_DICT = Path(IPCC_CHAP08_DICT, "ip_3_8_urban_man.xml")
-        assert IPCC_CHAP08_MAN_DICT.exists()
+    IPCC_CHAP08 = Path(IPCC_DIR, "Chapter08")
+    assert IPCC_CHAP08.exists()
+    IPCC_CHAP08_DICT = Path(IPCC_CHAP08, "dict")
+    assert IPCC_CHAP08_DICT.exists()
+    IPCC_CHAP08_ABB_DICT = Path(IPCC_CHAP08_DICT, "ip_3_8_urban_abb.xml")
+    assert IPCC_CHAP08_ABB_DICT.exists()
+    IPCC_CHAP08_MAN_DICT = Path(IPCC_CHAP08_DICT, "ip_3_8_urban_man.xml")
+    assert IPCC_CHAP08_MAN_DICT.exists()
 
     # pdfs
     PDFS_DIR = Path(TEST_RESOURCES_DIR, "pdfs")

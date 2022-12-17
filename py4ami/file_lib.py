@@ -4,6 +4,7 @@
 from braceexpand import braceexpand
 import copy
 from enum import Enum, auto
+import errno
 import glob
 from glob import glob
 import logging
@@ -374,6 +375,94 @@ class FileLib:
         _suffix = None if file is None else Path(file).suffix
         return _suffix
 
+    @staticmethod
+    def check_exists(file):
+        """
+        raise exception on null value or non-existent path
+        """
+        if file is None:
+            raise Exception("null path")
+
+        if os.path.isdir(file):
+            # print(path, "is directory")
+            pass
+        elif os.path.isfile(file):
+            # print(path, "is path")
+            pass
+        else:
+            try:
+                f = open(file, "r")
+                print("tried to open", file)
+                f.close()
+            except Exception:
+                raise FileNotFoundError(str(file) + " should exist")
+
+    @classmethod
+    def copyanything(cls, src, dst):
+        """copy file or directory
+        (from StackOverflow)
+        :param src: source file/directory
+        :param dst: destination
+        """
+        try:
+            shutil.copytree(src, dst)
+        except OSError as exc:  # python >2.5
+            if exc.errno in (errno.ENOTDIR, errno.EINVAL):
+                shutil.copy(src, dst)
+            else:
+                raise exc
+
+    @classmethod
+    def copy_file(cls, file, src, dst):
+        """
+        :param file: filename in src dir
+        :param src: source directory
+        :oaram dst: destinatiom diecrtory
+        """
+        FileLib.copyanything(Path(src, file), Path(dst, file))
+
+    @classmethod
+    def delete_directory_contents(cls, dirx):
+        for path in Path(dirx).glob("**/*"):
+            if path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                shutil.rmtree(path)
+
+    @classmethod
+    def delete_files(cls, dirx, globstr):
+        """
+        delete files in directory
+        :param dirx: directory containing files
+        :param globstr: glob string, e.g. "*.html"
+        :return: list of deleted files (Paths)
+
+        """
+        files = []
+        for path in Path(dirx).glob(globstr):
+            if path.is_file():
+                path.unlink()
+                files.append(path)
+        return files
+
+    @classmethod
+    def list_files(cls, dirx, globstr):
+        """
+        list files in directory
+        :param dirx: directory containing files
+        :param globstr: glob string, e.g. "*.html"
+        :return: list of files (Paths)
+        """
+        return [path for path in Path(dirx).glob(globstr) if path.is_file()]
+
+    @classmethod
+    def size(cls, file):
+        """
+        get size of file
+        :param file:
+        :return: file size bytes else None if not exist
+        """
+        return None if file is None or not file.exists() else os.path.getsize(file)
 
 # see https://realpython.com/python-pathlib/
 

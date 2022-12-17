@@ -693,6 +693,7 @@ class TestAmiDictionary(AmiAnyTest):
         assert len(_term_id_list) == 3
         assert _term_id_list[0] == ('GHG', ['Q167336'])
 
+#
     @unittest.skipUnless(VERYLONG, "lookup whole dictionaries")
     def test_lookup_missing_abbreviation_wikidata_ids_by_name(self):
         """
@@ -702,7 +703,7 @@ class TestAmiDictionary(AmiAnyTest):
         ami_dict = AmiDictionary.create_from_xml_file(Resources.IPCC_CHAP02_ABB_DICT)
         lookup = ami_dict.lookup_missing_wikidata_ids()
         pprint.PrettyPrinter(indent=4).pprint(lookup.hits_dict)
-        assert len(lookup.hits_dict) == 17
+        assert 15 <= len(lookup.hits_dict) <= 19
         """{   'Electric vehicles': {   'Q13629441': 'electric vehicle',
                              'Q17107666': 'Miles Electric Vehicles',
                              'Q1720353': 'Smith Electric Vehicles',
@@ -800,13 +801,18 @@ class TestSearchDictionary:
         assert ahref_dict == {'en': 'https://en.wikipedia.org/wiki/Azulene',
                               'de': 'https://de.wikipedia.org/wiki/Azulen'}
 
-    @unittest.skip("LONG DOWNLOAD")
+    @unittest.skipIf(False, "LONG DOWNLOAD")
     def test_create_dictionary_terpenes(self):
         words = ["limonene", "alpha-pinene", "Lantana camara"]
         description = "created from words"
         title = "test"
         dictionary, _ = AmiDictionary.create_dictionary_from_words(words, title=title, desc=description, wikidata=True)
         assert len(dictionary.entries) == 3
+        first_entry = dictionary.get_first_ami_entry()
+        term = first_entry.term
+        assert term == "limonene", f"first term is {term}"
+
+
 
     def test_get_property_ids(self):
         """gets properties af a dictionary entry"""
@@ -1044,6 +1050,15 @@ class TestSearchDictionary:
         assert len(abb_man_set) == 8, f"man2 set {len(abb_man_set)}"
         assert abb_man_set == {
             'GTP', 'FFI', 'GWP', 'UNFCCC', 'WMO', 'GWP100', 'CRF', 'LULUCF'}
+
+    def test_create_dictionary_from_csv(self):
+        csv_term_file = Path(Resources.IPCC_CHAP08_DICT, "urban_terms_5.csv")
+        assert os.path.exists(str(csv_term_file))
+        keyword_dict = AmiDictionary.create_dictionary_from_csv(csv_term_file, col_name='keyword/phrase', title="urban_terms_5")
+        entry = keyword_dict.get_first_ami_entry()
+        assert entry.get_term() == "urbanization"
+        assert entry.get_wikidata_id() == "Q161078"
+        assert len(keyword_dict.entries) == 5
 
 
 def main(argv=None):

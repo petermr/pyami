@@ -55,7 +55,6 @@ STOPWORDS_PUB = {
     "thank", "interest", "supported",
 
 }
-OIL186 = "/Users/pm286/projects/CEVOpen/searches/oil186"  # pmr only
 
 
 class ProjectCorpus:
@@ -101,15 +100,18 @@ class ProjectCorpus:
         project.read_analyze_child_documents()
         cls.logger.warning("end test")
 
-    @classmethod
-    def test_oil(cls):
-        cls.logger.warning("start test", OIL186)
-        assert (os.path.exists(OIL186))
-        project = ProjectCorpus(OIL186)
-        project.read_analyze_child_documents()
-        cls.logger.warning("end test")
+    # @classmethod
+    # @unittest.skipUnless(PMR)
+    # def test_oil(cls):
+    #     OIL186 = "/Users/pm286/projects/CEVOpen/searches/oil186"  # pmr only
+    #     cls.logger.warning("start test", OIL186)
+    #     assert (os.path.exists(OIL186))
+    #     project = ProjectCorpus(OIL186)
+    #     project.read_analyze_child_documents()
+    #     cls.logger.warning("end test")
 
     def __str__(self):
+        """self.sentences not defined NYI"""
         return " ".join(map(str, self.sentences))
 
 

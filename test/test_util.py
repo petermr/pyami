@@ -6,14 +6,13 @@ import unittest
 from pathlib import Path
 import shutil
 import csv
-import json
-import base64
-import time
 
 import requests
 # local
 
+from py4ami.file_lib import FileLib
 from py4ami.util import Util, GithubDownloader, ArgParseBuilder
+
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
@@ -63,7 +62,7 @@ class TestUtil(AmiAnyTest):
         dst = Path(Resources.TEMP_DIR, "tempzz")
         if dst.exists():
             shutil.rmtree(dst)
-        Util.copyanything(src, dst)
+        FileLib.copyanything(src, dst)
         assert Path(dst).exists()
 
     def test_create_name_value(self):

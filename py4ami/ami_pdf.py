@@ -35,6 +35,8 @@ from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WE
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util, AbstractArgs
 
+# local
+
 # text attributes
 FACT = 2.8
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -109,6 +111,7 @@ Y1 = 'y1'
 X1 = 'x1'
 Y0 = 'y0'
 
+MAX_MAXPAGE = 9999999
 
 class AmiPage:
     """Transformation of an SVG Page from PDFBox/Ami3
@@ -140,6 +143,9 @@ class AmiPage:
         self.paragraphs = []
         # AmiSpans built from characters from pdf
         self.ami_spans = []
+        # not yet used
+        self.data = []
+
 
     @classmethod
     def create_page_from_ami_spans_from_pdf(cls, ami_spans, bboxes=None):
@@ -523,11 +529,15 @@ class AmiPage:
         USED
         uses pdfminer routines (AmiPage.chars_to_spans)
         will need further tuning to generate structured HTML
+        uses AmiPage.chars_to_spans()
+
         :param bbox: clip page (default is none)
-        :param inout_pdf: required PDF
+        :param input_pdf: required PDF
         :param output_dir: output dicrectory
         :param output_stem: output filestem
         :param page_nos: list of 2-tuples containing allowed ranges (e.g.  [(2,3), (5, 12)]
+
+        creates Raw HTML
         """
         if not input_pdf or not Path(input_pdf).exists():
             logging.logger.error(f"must have not-null, existing pdf {input_pdf} ")
@@ -536,7 +546,9 @@ class AmiPage:
             output_dir.mkdir()
         with pdfplumber.open(input_pdf) as pdf:
             page_count = len(pdf.pages)
-        for page_no in range(page_count):  # 1-based page_no
+        for page_no in range(page_count):  # 0-based page_no
+            page_1based = page_no + 1 # 1-based
+
             logging.debug(f"testing page {page_no}")
         # for page_no in page_nos:
             if not Util.range_list_contains_int(page_no + 1, range_list):
@@ -548,7 +560,6 @@ class AmiPage:
                 f.write(lxml.etree.tostring(html))
                 print(f" wrote html {output_html}")
                 # assert output_html.exists()
-
 
 class AmiSect:
     """Transformation of an Html Page to sections
@@ -725,13 +736,15 @@ FOOTER = "footer"
 HEADER = "header"
 
 INDIR = "indir"
+INFILE = "infile"
 INFORM = "inform"
 INPATH = "inpath"
 INSTEM = "instem"
 
-ALL_PAGES = "all_pages"
+ALL_PAGES = ['1_9999999']
 MAXPAGE = "maxpage"
 
+OFFSET = "offset"
 OUTDIR = "outdir"
 OUTFORM = "outform"
 OUTPATH = "outpath"
@@ -799,7 +812,6 @@ class PDFArgs(AbstractArgs):
         self.outstem = None
 
         self.pages = None
-        # self.parser = None
 
         self.pdf2html = None
         self.raw_html = None
@@ -834,10 +846,12 @@ class PDFArgs(AbstractArgs):
         self.parser.add_argument("--indir", type=str, nargs=1, help="input directory (might be calculated from inpath)")
         self.parser.add_argument("--inform", type=str, nargs="+", help="input formats (might be calculated from inpath)")
         self.parser.add_argument("--inpath", type=str, nargs=1, help="input file or (NYI) url; might be calculated from dir/stem/form")
+        self.parser.add_argument("--infile", type=str, nargs=1, help="input file (synonym for inpath)")
         self.parser.add_argument("--instem", type=str, nargs=1, help="input stem (e.g. 'fulltext'); maybe calculated from 'inpath`")
 
         self.parser.add_argument("--maxpage", type=int, nargs=1, help="maximum number of pages (will be deprecated, use 'pages')", default=self.arg_dict.get(MAXPAGE))
 
+        self.parser.add_argument("--offset", type=int, nargs=1, help="number of pages before numbers page 1, default=0", default=0)
         self.parser.add_argument("--outdir", type=str, nargs=1, help="output directory")
         self.parser.add_argument("--outpath", type=str, nargs=1, help="output path (can be calculated from dir/stem/form)")
         self.parser.add_argument("--outstem", type=str, nargs=1, help="output stem", default="fulltext.flow")
@@ -873,11 +887,11 @@ class PDFArgs(AbstractArgs):
             # self.parser.print_help() # self.parser is null
             print("for help, run 'py4ami PDF -h'")
             return
-        self.check_output()
+        self.create_consistent_output_filenames_and_dirs()
         self.calculate_headers_footers()
 
         if self.pdf2html:
-            self.check_output()
+            self.create_consistent_output_filenames_and_dirs()
             # range_list = self.create_range_list()
             AmiPage.create_html_pages(
                           bbox=AmiPage.DEFAULT_BBOX,
@@ -895,42 +909,28 @@ class PDFArgs(AbstractArgs):
             return False
             # raise FileNotFoundError(f"input file not given")
         if not Path(self.inpath).exists():
-            raise FileNotFoundError(f"input file does not exist: ({self.inpath}")
+            raise FileNotFoundError(f"input file/path does not exist: ({self.inpath}")
         self.indir = Path(self.inpath).parent
         return True
 
-    def check_output(self):
+    def create_consistent_output_filenames_and_dirs(self):
         logging.warning(f" *** ARG_DICT {self.arg_dict}")
         self.arg_dict[OUTSTEM] = Path(f"{self.inpath}").stem
-        self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
+        # self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
         if not self.outdir:
             self.outdir = self.arg_dict.get(OUTDIR)
 
         if not self.outpath:
             self.outpath = self.arg_dict.get(OUTPATH)
         # if no outdir , create from outpath
-        if not self.outdir:
-            if self.outpath:
-                self.outdir = Path(self.outpath).parent
-        # if still no outdir create
-        if not self.outdir:
-            raise FileNotFoundError(f"output dir not given and cannot be generated")
-
-        if not self.outdir:
-            if self.inpath:
-                self.outdir = Path(self.inpath).parent
-            else:
-                raise FileNotFoundError(f"output dir not given and cannot be generated")
-            self.outstem = self.arg_dict.get(OUTSTEM)
-            if not self.outstem:
-                raise FileNotFoundError(f"output file not given and cannot be generated")
-            if not self.outform:
-                raise FileNotFoundError(f"no output format given")
-            self.outpath = Path(self.outdir, f"{self.outstem}.{self.outform}")
-            logging.debug(f"outpath {self.outpath}")
-        else:
-            logging.debug(f"outdir {self.outdir}")
         if not Path(self.outdir).exists():
+                raise FileNotFoundError(f"output stem not given and cannot be generated")
+
+
+            logging.debug(f"outpath autogenerated as {self.outpath}")
+
+        if self.outpath:
+            self.outdir = (Path(self.outpath).parent)
             Path(self.outdir).mkdir()
         elif not Path(self.outdir).is_dir():
             raise ValueError(f"output dir {self.outdir} is not a directory")
@@ -950,11 +950,17 @@ class PDFArgs(AbstractArgs):
             self.header = 80
 
         self.indir = self.arg_dict.get(INDIR)
+        self.infile = self.arg_dict.get(INFILE)
         self.inform = self.arg_dict.get(INFORM)
         self.inpath = self.arg_dict.get(INPATH)
+        self.inpath = self.infile if self.infile else self.inpath # infile takes precedence
         self.instem = self.arg_dict.get(INSTEM)
 
         self.maxpage = self.arg_dict.get(MAXPAGE)
+        if not self.maxpage:
+            maxpage = MAX_MAXPAGE
+
+        self.offset = self.arg_dict.get(OFFSET)
 
         self.outdir = self.arg_dict.get(OUTDIR)
         self.outform = self.arg_dict.get(OUTFORM)
@@ -963,7 +969,12 @@ class PDFArgs(AbstractArgs):
 
 #        logging.warning(f"ARG DICT {self.arg_dict}")
         pages = self.arg_dict.get(PAGES)
-        self.pages = PDFArgs.make_page_ranges(pages)
+        if not pages:
+            # create from maxpage
+            if self.maxpage:
+                pages = [f'1_{self.maxpage}']
+        self.pages = PDFArgs.make_page_ranges(pages, offset=self.arg_dict.get(OFFSET))
+        logging.info(f"pages {pages}")
 
         self.pdf2html = self.arg_dict.get(PDF2HTML)
 
@@ -1028,6 +1039,8 @@ class PDFArgs(AbstractArgs):
         fp.close()
         device.close()
         retstr.close()
+        if text is None:
+            raise ValueError(f"Null text in convert_pdf()")
         return text
 
     # class PDFArgs:
@@ -1110,50 +1123,58 @@ class PDFArgs(AbstractArgs):
         :return: outpath
         """
         print(f"==============CONVERT================")
+        # run the argument commands
         self.process_args()
-        self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
-
-        if self.flow:
-            self.html = self.tidy_flow()
-            assert len(self.html) > 0
-            print(f"flow {len(self.raw_html)}")
+        if self.inpath is None:
+            raise ValueError("No input path in convert_write()")
+        out_html = self.pdf_to_raw_then_raw_to_tidy(pdf_path=self.inpath, flow=self.flow)
+        if out_html is None:
+            raise ValueError(f" out_html is None")
         if self.outpath is None:
             print(f"no outpath given")
             return None
         with open(str(self.outpath), "w") as f:
-            f.write(self.html)
+            f.write(out_html)
             print(f"wrote outpath {self.outpath}")
-        return self.outpath
+        return self.outpath, out_html
 
-    def tidy_flow(self):
-        tree = lxml.etree.parse(StringIO(self.raw_html), lxml.etree.HTMLParser())
-        result_elem = tree.getroot()
-        HtmlUtil.add_ids(result_elem)
-        # this is slightly tacky
-        PDFUtil.remove_descendant_elements_by_tag("br", result_elem)
-        PDFUtil.remove_style(result_elem, [
-            "position",
-            # "left",
-            "border",
-            "writing-mode",
-            "width",  # this disables flowing text
-        ])
-        PDFUtil.remove_empty_elements(result_elem, ["span"])
-        PDFUtil.remove_empty_elements(result_elem, ["div"])
-        PDFUtil.remove_lh_line_numbers(result_elem)
-        PDFUtil.remove_large_fonted_elements(result_elem)
-        marker_xpath = ".//div[a[@name]]"
-        offset, pagesize, page_coords = PDFUtil.find_constant_coordinate_markers(result_elem, marker_xpath)
-        PDFUtil.remove_headers_and_footers(result_elem, pagesize, self.header, self.footer, marker_xpath)
-        PDFUtil.remove_style_attribute(result_elem, "top")
-        PDFUtil.remove_style(result_elem, ["left", "height"])
-        PDFUtil.remove_unwanteds(result_elem, self.unwanteds)
-        PDFUtil.remove_newlines(result_elem)
-        self.markup_parentheses(result_elem)
-        print(f"ref_counter {self.ref_counter}")
-        HtmlTree.make_sections_and_output(result_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
-        self.html = lxml.etree.tostring(result_elem).decode("UTF-8")
-        return self.html
+    def pdf_to_raw_then_raw_to_tidy(self, pdf_path=None, flow=True, write_raw=True):
+        """converts PDF to raw_html and (optionally raw_html to tidy_html
+        Uses PDFArgs.convert_pdf to create raw_html_element
+
+        raw_html_element is created by pdfplumber and contains Page information
+        Example at page break: We think pdfplumber emits "Page 1..." and this can be used for
+        finding page-relative coordinates rather than absolute ones
+
+<br><span style="position:absolute; border: gray 1px solid; left:0px; top:6293px; width:595px; height:841px;"></span>
+<div style="position:absolute; top:6293px;"><a name="8">Page 8</a></div>
+<div style="position:absolute; border: textbox 1px solid; writing-mode:lr-tb; left:72px; top:6330px; width:141px; height:11px;"><span style="font-family: TimesNewRomanPSMT; font-size:11px">Final Government Distribution
+<br></span></div><div style="position:absolute; border: textbox 1px solid; writing-mode:lr-tb; left:276px; top:6330px; width:45px; height:11px;"><span style="font-family: TimesNewRomanPSMT; font-size:11px">Chapter 4
+
+    then make HtmlTidy and execute commands to clean
+        URGENT
+        """
+        raw_html_element = PDFArgs.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
+        if raw_html_element is None:
+            raise ValueError(f"null raw_html in convert_write()")
+        if not flow:
+            return raw_html_element
+        if write_raw:
+            outpath_raw = Path(Path(self.outpath).parent, "raw20.html")
+            with open(outpath_raw, "w") as f:
+                f.write(raw_html_element)
+        print(f"outpath {self.outpath}")
+
+        html_tidy = HtmlTidy()
+        # might need a data tranfer object
+        html_tidy.header = self.header
+        html_tidy.footer = self.footer
+        html_tidy.unwanteds = self.unwanteds
+        html_tidy.outdir = self.outdir
+        out_html_element = html_tidy.tidy_flow(raw_html_element)
+        assert len(out_html_element) > 0
+        print(f"flow {len(raw_html_element)} +> ")
+        return out_html_element
 
     # class PDFArgs:
 
@@ -1237,23 +1258,34 @@ class PDFArgs(AbstractArgs):
     #     return range_list
 
     @classmethod
-    def make_page_ranges(cls, raw_pages):
+    def make_page_ranges(cls, raw_page_ranges, offset=0):
         """expand pages arg to list of ranges
         typical input _2 4_5 8 9_11 13 16_
         These are *inclusive* so expand to
         range(1,3) range(4,6) range(8,9) range (9,12) range(13,14) range(16-maxint)
         converts raw_pages to page ranges
         uses 1-based pages
+
+        :param raw_page_ranges: page ranges before expansion
+        :param offset: number of leading unnumbered pages (when page 1 is not the first)
+        :return: the list of page ranges (ranges are absolute numbers
         """
+        if not offset:
+            offset = 0
+        if not type(raw_page_ranges) is list:
+            strlist = []
+            strlist.append(raw_page_ranges)
+        else :
+            strlist = raw_page_ranges
         ranges = []
-        if raw_pages == ALL_PAGES:
-            raw_pages = "1_9999999"
-        if raw_pages:
-            logging.debug(f"**** raw pages: {raw_pages}")
-            if not hasattr(raw_pages, "__iter__"):
-                logging.error(f"{raw_pages} is not iterable {type(raw_pages)}")
+        if strlist == ALL_PAGES:
+            strlist = ['1_9999999']
+        if strlist:
+            logging.warning(f"**** raw pages: {raw_page_ranges}")
+            if not hasattr(strlist, "__iter__"):
+                logging.error(f"{raw_page_ranges} is not iterable {type(raw_page_ranges)}")
                 return
-            for chunk in raw_pages:
+            for chunk in strlist:
                 if not chunk == "":
                     chunk0 = chunk
                     try:
@@ -1265,7 +1297,8 @@ class PDFArgs(AbstractArgs):
                             chunk = f"{chunk}_{chunk}"
                         ints = chunk.split("_")
                         logging.debug(f"ints {ints}")
-                        rangex = range(int(ints[0]), (int(ints[1]) + 1))  # convert to upper-exclusive
+                        rangex = range(int(ints[0]) + int(offset), (int(ints[1]) + 1 + int(offset)))  # convert to upper-exclusive
+                        logging.info((f"ranges: {rangex}"))
                         ranges.append(rangex)
                     except Exception as e:
                         raise ValueError(f"Cannot parse {chunk0} as int range {e}")
@@ -1601,161 +1634,10 @@ class PDFParser:
 
 class PDFUtil:
     """utility routieses which need extracting into classes"""
+    """
+    Maybe move ALL to HTMLTidy
+    """
 
-    @classmethod
-    def remove_empty_elements(cls, elem, tag):
-        if tag:
-            if type(tag) is list:
-                for t in tag:
-                    cls.remove_empty_elements(elem, t)
-            else:
-                xp = f".//{tag}[normalize-space(.)='' and count({tag}/*) = 0]"
-                elems = elem.xpath(xp)
-                for el in elems:
-                    cls.remove_elem_keep_tail(el)
-
-    @classmethod
-    def remove_elem_keep_tail(cls, el):
-        parent = el.getparent()
-        tail = el.tail
-        if tail is not None and len(tail.strip()) > 0:
-            prev = el.getprevious()
-            if prev is not None:
-                prev.tail = (prev.tail or '') + el.tail
-            else:
-                parent.text = (parent.text or '') + el.tail
-
-        parent.remove(el)
-
-    @classmethod
-    def remove_descendant_elements_by_tag(cls, tag, result_elem):
-        lxml.etree.strip_tags(result_elem, tag)
-
-    @classmethod
-    def remove_style(cls, xpath_root_elem, names):
-        """removes name-value pairs from css-style and reapply to xpath'ed elements"""
-        xpath = f".//*[@style]"
-        # print(f"xpath: {xpath}")
-        try:
-            styled_elems = xpath_root_elem.xpath(xpath)
-        except lxml.etree.XPathEvalError as xpee:
-            raise ValueError(f"Bad xpath {xpath}")
-
-        print(f"styles {len(styled_elems)}")
-        for styled_elem in styled_elems:
-            css_style = CSSStyle.create_css_style(styled_elem)
-            css_style.remove(names)
-            css_style.apply_to(styled_elem)
-            style = styled_elem.attrib["style"]
-
-    @classmethod
-    def find_elements_with_style(cls, elem, xpath, condition=None, remove=False):
-        """remove all elements with style fulfilling condition
-        :param elem: root element for xpath
-        :param xpath: elements to scan , should normally contain the @style condition
-                          if None uses
-        :param condition: style condition primitive at present
-                          (variable, or variable  operator value (eval is evil)
-                          example "_font-size > 30" or "_position" (means has position)
-        :param remove: remove these elements (not their tail)
-        """
-        assert elem is not None, f"must have elem"
-        if xpath:
-            els = elem.xpath(xpath)
-        else:
-            els = [elem]
-        elems = []
-        for el in els:
-            css_style = CSSStyle.create_css_style(el)
-            if condition:
-                if css_style.obeys(condition):
-                    # print(f"{elem} obeys {condition}")
-                    if remove:
-                        cls.remove_elem_keep_tail(el)
-
-    @classmethod
-    def remove_headers_and_footers(cls, ref_elem, pagesize, header_height, footer_height, marker_xpath):
-        elems = ref_elem.xpath(marker_xpath)
-
-        for elem in ref_elem.xpath("//*[@style]"):
-            top = CSSStyle.create_css_style(elem).get_numeric_attval("top")  # the y-coordinate
-            if top:
-                top = top % pagesize
-                if top < header_height or top > pagesize - footer_height:
-                    cls.remove_elem_keep_tail(elem)
-
-    @classmethod
-    def remove_lh_line_numbers(cls, ref_elem):
-        cls.find_elements_with_style(ref_elem, ".//*[@style]", "left<49", remove=True)
-
-    @classmethod
-    def remove_style_attribute(cls, ref_elem, style_name):
-        elems = ref_elem.xpath(".//*")
-        for el in elems:
-            css_style = CSSStyle.create_css_style(el)
-            if css_style.name_value_dict.get(style_name):
-                css_style.name_value_dict.pop(style_name)
-                css_style.apply_to(el)
-
-    @classmethod
-    def remove_large_fonted_elements(cls, ref_elem):
-        cls.find_elements_with_style(ref_elem, ".//*[@style]", "font-size>30", remove=True)
-
-    @classmethod
-    def find_constant_coordinate_markers(cls, ref_elem, xpath, style="top"):
-        """
-        finds a line with constant difference from top of page
-<div style="top: 50px;"><a name="1">Page 1</a></div>
-        """
-
-        elems = ref_elem.xpath(xpath)
-        coords = []
-        for elem in elems:
-            css_style = CSSStyle.create_css_style(elem)
-            coord = css_style.name_value_dict.get(style)
-            if coord:
-                try:
-                    coords.append(float(coord[:-2]))
-                except Exception:
-                    print(f"cannot parse {coord} for {style}")
-        np_coords = np.array(coords)
-        x = np.array(range(np_coords.size)).reshape((-1, 1))
-        # print(x, coords)
-        model = LinearRegression().fit(x, coords)
-        r_sq = model.score(x, coords)
-        # print(f"coefficient of determination: {r_sq} intercept {model.intercept_} slope {model.coef_}")
-        if r_sq < 0.98:
-            print(f"cannot calculate offset reliably")
-        return model.intercept_, model.coef_, np_coords
-
-    @classmethod
-    def remove_unwanteds(cls, top_elem, unwanteds):
-        if not unwanteds:
-            print(f"no unwanteds to remove")
-            return
-        for key in unwanteds:
-            unwanted = unwanteds[key]
-            xpath = unwanted[U_XPATH]
-            if xpath:
-                regex = unwanted[U_REGEX]
-                regex_comp = re.compile(regex) if regex else None
-                elems = top_elem.xpath(xpath)
-                for elem in elems:
-                    text = ''.join(elem.itertext())
-                    matched = regex_comp.search(text) if regex_comp else True
-                    if matched:
-                        # print(f"deleted {xpath} {text}")
-                        cls.remove_elem_keep_tail(elem)
-
-    @classmethod
-    def remove_newlines(cls, elem):
-        """remove \n"""
-        for el in elem.xpath(".//*[not(*)]"):
-            text = ''.join(el.itertext())
-            text1 = text.replace('\n', '')
-            if text1 != text:
-                el.text = text1
-                # print(f"\n[[{text} => {''.join(el.itertext())}]]\n")
 
 class PDFImage:
     """utility class for tidying images from PDF
@@ -1815,7 +1697,7 @@ class SvgText:
             self.text_span.create_bbox()
         return self.text_span
 
-    # SvgText
+    # AmiText
 
     def create_text_style(self) -> TextStyle:
         """create TextStyle from style attributes"""
@@ -1889,7 +1771,7 @@ class SvgText:
     def get_font_family(self) -> str:
         """get font-family from SVG style
         No checking on values
-        :returns: font-maily or None
+        :returns: font-family or None
         """
 
         sd = self.extract_style_dict_from_svg()
@@ -1964,7 +1846,7 @@ def main(argv=None):
     typical:
     python -m py4ami.ami_pdf \
         --inpath /Users/pm286/workspace/pyami/test/resources/ipcc/Chapter06/fulltext.pdf \
-        --outdir /Users/pm286/workspace/pyami/temp_oldx/pdf/chap6/
+        --outdir /Users/pm286/workspace/pyami/temp/pdf/chap6/
         --maxpage 100
 
     """

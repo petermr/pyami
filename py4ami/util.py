@@ -1,16 +1,13 @@
 import argparse
 import ast
-import errno
 import logging
 import os
-import shutil
 import sys
 import csv
 import re
 from enum import Enum
 from abc import ABC, abstractmethod
 from collections import Counter
-from pathlib import Path
 import time
 import requests
 import json
@@ -59,28 +56,6 @@ class Util:
 
         _logger.debug(f"PyAMI {_logger.level}{_logger.name}")
         return _logger
-
-    @staticmethod
-    def check_exists(file):
-        """
-        raise exception on null value or non-existent path
-        """
-        if file is None:
-            raise Exception("null path")
-
-        if os.path.isdir(file):
-            # print(path, "is directory")
-            pass
-        elif os.path.isfile(file):
-            # print(path, "is path")
-            pass
-        else:
-            try:
-                f = open(file, "r")
-                print("tried to open", file)
-                f.close()
-            except Exception:
-                raise FileNotFoundError(str(file) + " should exist")
 
     @staticmethod
     def find_unique_keystart(keys, start):
@@ -154,38 +129,6 @@ class Util:
             print(f"should only extend default sys.argv (len=1), found {sys.argv}")
         sys.argv.extend(args)
 
-    @classmethod
-    def copyanything(cls, src, dst):
-        """copy file or directory
-        (from StackOverflow)
-        :param src: source file/directory
-        :param dst: destination
-        """
-        try:
-            shutil.copytree(src, dst)
-        except OSError as exc:  # python >2.5
-            if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-                shutil.copy(src, dst)
-            else:
-                raise exc
-
-    @classmethod
-    def copy_file(cls, file, src, dst):
-        """
-        :param file: filename in src dir
-        :param src: source directory
-        :oaram dst: destinatiom diecrtory
-        """
-        Util.copyanything(Path(src, file), Path(dst, file))
-
-
-    @classmethod
-    def delete_directory_contents(cls, dirx):
-        for path in Path(dirx).glob("**/*"):
-            if path.is_file():
-                path.unlink()
-            elif path.is_dir():
-                shutil.rmtree(path)
 
     @classmethod
     def create_name_value(cls, arg: str, delim: str = "=") -> tuple:
@@ -272,6 +215,23 @@ class Util:
                 return regex
         return None
 
+    @classmethod
+    def make_translate_mask_to_char(cls, orig, rep):
+        """
+        make mask to replace all characters in orig with rep character
+        :param orig: string of replaceable characters
+        :param rep: character to replac e them
+        :returns: dict mapping (see str.translate and str.make
+        """
+        if not orig or not rep:
+            return None
+        if len(rep) != 1:
+            logging.warning(f"rep should be single char, found {rep}")
+            return None
+        if len(orig) == 0:
+            logging.warning(f"orig should be len > 0")
+            return None
+        return str.maketrans(orig, rep * len(orig))
 
 
 class GithubDownloader:
@@ -352,6 +312,22 @@ As github API has rate limit of 5000 requests / hour, this might not be good for
                 print(f"\n===={path}====\n{content[:100]} ...\n")
         else:
             print(f"unknown type {json_page.keys()}")
+
+    @classmethod
+    def make_translate_mask_to_char(cls, punct, charx):
+        """
+        makes mask to translate all chars to a sigle replacmeny
+        uses str,maketrans()
+
+        Use:
+        mask = Util.make_translate_mask_to_char("=]%", "_""):
+        str1 = str0.translate(mask)
+        str1 is same length as str0
+        :param punct: string containing unwanted chars
+        :param charx: their single character replacement.
+        """
+        punct_mask = str.maketrans(punct, charx * len(punct))
+        return punct_mask
 
 
 class AbstractArgs(ABC):
@@ -514,6 +490,7 @@ class ArgParseBuilder:
         for param, param_val in param_dict.items():
             print(f"  {param}='{param_val}'")
 
+"!\"#$%&'()*+,/:;<=>?@[\]^`{|}~"
 
 class AmiLogger:
     """wrapper for logger to limit or condense voluminous output

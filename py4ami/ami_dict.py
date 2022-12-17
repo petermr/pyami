@@ -2,13 +2,13 @@ import argparse
 import ast
 import json
 import logging
-from enum import Enum
 
 from lxml import etree as ET
 from lxml import etree
 from lxml.etree import Element, _Element
 import lxml
 import os
+import pandas as pd
 import re
 import traceback
 import urllib.request
@@ -24,6 +24,7 @@ from py4ami.util import Util
 from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
 from py4ami.ami_html import HtmlUtil, CSSStyle, H_A, H_SPAN, H_BODY, H_DIV, H_UL, H_LI, A_ID, \
     A_HREF, A_NAME, A_TITLE, A_TERM
+from py4ami.file_lib import FileLib
 from py4ami.util import AbstractArgs
 from py4ami.wikimedia import WikidataSparql, WikidataLookup, WikidataPage
 
@@ -484,6 +485,27 @@ class AmiDictionary:
                 f.write(lxml.etree.tostring(dictionary.root))
 
         return dictionary, outpath
+
+    @classmethod
+    def create_dictionary_from_csv(cls, csv_term_file, col_name=None, title=None):
+        """
+        creates a dictionary from a column of terms in CSV file.
+        The file may be written by docanalysis
+        :param csv_term_file: filename with CSV data (mandatory)
+        :param col_name: name of column to extract (mandatory)
+        :param title: title of dictionary (NO spabes, [a-z_0-9] only)
+        :return: AmiDictionary
+        :except: file not exist, missing col_name, title
+        """
+        if col_name is None:
+            raise ValueError("must give column name")
+        if title is None:
+            raise ValueError("must give title")
+        df = pd.read_csv(csv_term_file)
+        keywords = df[col_name]
+        keyword_dict, _ = AmiDictionary.create_dictionary_from_words(keywords, title=title, wikidata=True)
+        return keyword_dict
+
 
     #    class AmiDictionary:
 
@@ -1433,7 +1455,7 @@ class AmiDictionaries:
         if key in self.dictionary_dict:
             raise Exception("duplicate dictionary key " +
                             key + " in " + str(self.dictionary_dict))
-        Util.check_exists(file)
+        FileLib.check_exists(file)
         try:
             dictionary = AmiDictionary.create_from_xml_file(file)
             self.dictionary_dict[key] = dictionary

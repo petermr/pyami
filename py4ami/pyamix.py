@@ -279,7 +279,7 @@ class PyAMI:
         dict_parser = AmiDictArgs().make_sub_parser(subparsers)
         gui_parser = GUIArgs().make_sub_parser(subparsers)
         html_parser = HTMLArgs().make_sub_parser(subparsers)
-        self.parser = PDFArgs().make_sub_parser(subparsers)
+        pdf_parser = PDFArgs().make_sub_parser(subparsers)
         project_parser = ProjectArgs().make_sub_parser(subparsers)
 
         parser.epilog = "other entry points run as 'python -m py4ami.ami_dict args' also ami_pdf, ami_project"
@@ -426,9 +426,9 @@ class PyAMI:
         if abstract_args:
             abstract_args.parse_and_process1(self.args)
         else:
-            self.run_core_methods()
+            self.run_core_mathods()
 
-    def run_core_methods(self):
+    def run_core_mathods(self):
         logging.debug(f"run_core")
         # mainly obsolete
         if self.VERSION in self.args and self.args[self.VERSION] is not None:
@@ -448,10 +448,15 @@ class PyAMI:
         if self.PROJ in self.args:
             if self.SECT in self.args or self.GLOB in self.args or self.SPLIT in self.args:
                 self.run_project_workflow()
+        if self.VERSION in self.args:
+            self.print_version()
         # elif TestFile.TEST in self.args:
         #     self.logger.warning(f"TEST in **args {self.args}")
         #     TestFile.run_arg_tests(self.args)
         # TODO linkup with test arguments
+
+    def print_version(self):
+        print(f"version {self.version()}")
 
     def replace_single_values_in_self_args_with_list(self, key):
         """always returns list even for single arg
@@ -1175,30 +1180,18 @@ class PyAMI:
             return False
 
     def version(self):
-        """reads setup.py and extracts line of form version='0.0.29'
-        :return: version
-        """
-        import pkg_resources  # part of setuptools
-        versionx = ">=0.0.42"
-        if False:
-            try:
-                pyami = pkg_resources.require("py4ami") # this crashes on PMR machine with incompatible libraries numbers
-                versionx = pyami[0].version
-            except Exception as e:
-                print(f"cannot extract version from setup/requirements {e}")
-                pass
-        else:
-            with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
-                setup_lines = f.readlines()
-                for line in setup_lines:
-                    match = re.match("\s*version\s*=\s*\'\s*(\d+\.\d+\.\d+)\s*\'\s*,", line)
-                    if match:
-                        versionx = match.group(1)
-                        break
-        return versionx
+        """reads setup.py and extracts line of form version='0.0.29'"""
 
-    def print_version(self):
-        print(f"version: {self.version()}")
+        version = None
+        with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
+            setup_lines = f.readlines()
+            for line in setup_lines:
+                match = re.match("\s*version\s*=\s*\'\s*(\d+\.\d+\.\d+)\s*\'\s*,", line)
+                if match:
+                    version = match.group(1)
+                    break
+        logging.warn(f"VERSION {version}")
+        return version
 
 
 class ContentStore:

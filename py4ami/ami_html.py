@@ -1,14 +1,22 @@
 """Supports parsing, editing, markup, restructing of HTML
 Should have relatively few dependencies"""
 import argparse
+import copy
+from collections import defaultdict
+from io import StringIO
 import logging
 import lxml
 import lxml.etree
+from lxml.etree import _Element
+import numpy as np
 import re
 from pathlib import Path
+from sklearn.linear_model import LinearRegression
 # local
 # from py4ami.ami_dict import AmiDictionary
-from py4ami.util import SScript, AbstractArgs
+from py4ami.bbox_copy import BBox
+from py4ami.xml_lib import XmlLib
+from py4ami.util import SScript, AbstractArgs, Util
 
 # HTML
 H_HTML = "html"
@@ -53,6 +61,10 @@ FONT_FAMILY = "font-family"
 FILL = "fill"
 STROKE = "stroke"
 
+# Unwanted sections
+U_XPATH = "xpath"
+U_REGEX = "regex"
+
 STYLES = [
     FONT_SIZE,
     FONT_STYLE,
@@ -69,6 +81,16 @@ DICT = "dict"
 INPATH = "inpath"
 OUTDIR = "outdir"
 OUTPATH = "outpath"
+
+IPCC_CHAP_TOP_REC = re.compile(""
+                               "(Chapter\\s?\\d\\d?\\s?:.*$)|"
+                               "(Table\\s?of Contents.*)|"
+                               "(Executive [Ss]ummary.*)|"
+                               "(Frequently [Aa]sked.*)|"
+                               "(References)"
+                               )
+SECTIONS_DECIMAL_REC = re.compile("\\d+\\.\\d+$")
+SUBSECTS_DECIMAL_REC = re.compile("\\d+\\.\\d+\\.\\d+$")
 
 
 class AmiSpan:
@@ -98,15 +120,306 @@ class AmiSpan:
         return html_span
 
 
-class AmiHtml:
+# should maybe be in PDF
+class PageBox:  # defined by pdfminer I think
+
+    """
+<br><span style="position:absolute; border: gray 1px solid; left:0px; top:941px; width:595px; height:841px;"></span>
+<div style="position:absolute; top:941px;"><a name="2">Page 2</a></div>
+
+for IPCC top(Page1) = 50
+top(Pagen) = 50 + (n - 1) * (841 + 47)
+
+    """
+
+    def __init__(self, css_style=None):
+        self.css_style = css_style
+        self.bbox = BBox()  # uninitialised
+        if self.css_style:
+            top = self.css_style.top
+            left = self.css_style.left
+            width = self.css_style.width
+            height = self.css_style.height
+            self.bbox.xy_ranges = [[left, left + width], [top, top + height]]
+        self.elem = None
+        self.int_number = None # pdfplumber integer page (1-based)
+        self.p_num_str = None # pdfplumber "Page 12"
+
+    @property
+    def page_number(self):
+        if not self.int_number:
+            self.int_number = None if self.elem is None else PageBox.extract_page_number_from_pdf_html(self.elem)
+        return self.int_number
+
+    @classmethod
+    def extract_page_number_from_pdf_html(cls, elem):
+        """
+        some elements ?spans) from pdf parsing have the form:
+        <div ...><a name="2">Page 2</a>
+
+        :param elem: contains page number
+        :return: page number or none
+        """
+        if elem is None:
+            return None
+        print(f"{lxml.etree.tostring(elem)}")
+        xpathx = ".//a/@name"
+        aname = elem.xpath(xpathx)
+        print(f"aname {len(aname)}")
+        # pageno = aname[0].attrib.get("name")
+        # return pageno
+
+    def add_style_span_and_page_number(self, elem):
+        """
+        add style span  and also get pagenumber from next element
+
+        typical trailing element
+        <div style="position:absolute; top:10753px;"><a name="13">Page 13</a></div>
+        """
+        self.elem = elem
+        page_div = elem.getnext()
+        n = page_div.xpath("./a/@name")
+        n = n[0] if len(n) == 1 else None
+        self.int_number = int(n)
+        p = page_div.xpath("./a[@name and contains(., 'Page')]")
+        self.p_num_str = p[0] if len(p) == 1 else None
+
+
+class HtmlTidy:
+    """for tidying PDF / SVG/ OCR parsing
+    takes raw HTML (probably scattered words or lines , possibly with coordinates and creates
+    flowing styled HTML with subscripts, font styles, etc.
+    """
+
+    MIN_PAGE_BOX_HEIGHT = 300 # allows for landscape
 
     def __init__(self):
-        pass
+        self.unwanteds = []  # not sure what this is
+        self.empty_elements_to_remove = []
+        self.styles_to_remove = []
+        self.descendants_to_remove = []
+        self.remove_lh_line_numbers = True
+        self.remove_large_fonted_elements = True
+        self.style_attributes_to_remove = []
+        self.marker_xpath = None
+        self.style_attributes_to_remove = []
+
+        self.add_id = True
+        self.header = 80
+        self.footer = 80
+        self.page_boxes = []
+        self.raw_elem = None
+        self.outdir = None
+
+    def tidy_flow(self, raw_html):
+        """
+        Need to capture page information to compute page coordinates, not document coordinates
+        converts raw html to tidy
+        """
+
+        # TODO check and move to instance of HtmlTidy
+
+        if raw_html is None:
+            raise ValueError("No HTML")
+        raw_tree = lxml.etree.parse(StringIO(raw_html), lxml.etree.HTMLParser())
+        self.raw_elem = raw_tree.getroot()
+        self.extract_page_boxes()
+
+        self.add_element(self.raw_elem)
+
+        # this is set by user
+        self.set_remove_flags()
+
+        self.remove_attributes_and_elements()
+        pagesize = None
+        if self.marker_xpath:
+            offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(self.raw_elem, self.marker_xpath)
+            HtmlUtil.remove_headers_and_footers_using_pdfminer_coords(self.raw_elem, pagesize, self.header, self.footer,
+                                                                      self.marker_xpath)
+        for att in self.style_attributes_to_remove:
+            HtmlUtil.remove_style_attribute(self.raw_elem, att)
+        HtmlUtil.remove_unwanteds(self.raw_elem, self.unwanteds)
+        HtmlUtil.remove_newlines(self.raw_elem)
+        HtmlTree.make_sections_and_output(self.raw_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
+        htmlstr = lxml.etree.tostring(self.raw_elem).decode("UTF-8")
+        return htmlstr
+
+    def remove_attributes_and_elements(self):
+        """
+        remove objects if flags have been set in self
+        """
+        if self.add_id:
+            HtmlUtil.add_ids(self.raw_elem)
+        for tag in self.descendants_to_remove:
+            HtmlUtil.remove_descendant_elements_by_tag(tag, self.raw_elem)
+        if self.remove_lh_line_numbers:
+            HtmlUtil.remove_lh_line_numbers(self.raw_elem)
+        if self.remove_large_fonted_elements:
+            HtmlUtil.remove_large_fonted_elements(self.raw_elem)
+        for tag in self.empty_elements_to_remove:
+            HtmlUtil.remove_empty_elements(self.raw_elem, [tag])
+        for style in self.styles_to_remove:
+            HtmlUtil.remove_style(self.raw_elem, [style])
+
+    def set_remove_flags(self):
+        """
+        set flags which direct removal of elements/attributes
+        normally under user control
+        """
+        self.add_descendant_element_to_remove(["br"])
+        self.add_styles_to_remove(
+            [
+                "position",
+                # "left",
+                "border",
+                "writing-mode",
+                "width",  # this disables flowing text
+            ]
+        )
+        self.add_id = True
+        self.add_empty_elements_to_remove(["span", "div"])
+        self.remove_lh_line_numbers = True  # x
+        self.remove_large_fonted_elements = True
+        self.style_attributes_to_remove = ["top"]
+        self.marker_xpath = ".//div[a[@name]]"
+        self.style_attributes_to_remove = ["left", "height"]
+
+    def extract_page_boxes(self, ranges=None):
+        """
+        Based on pdfplumber output
+        """
+        self.page_boxes = []  # pageBox may merge with AmiPage
+
+        if self.raw_elem is None:
+            return
+        style_spans = self.raw_elem.xpath("//span[contains(@style,'position:absolute')]")
+        print(f"page_spans {len(style_spans)}")
+        for style_span in style_spans:
+            css_style = CSSStyle.create_css_style(style_span)
+            if css_style.height > self.MIN_PAGE_BOX_HEIGHT:
+                page_box = PageBox(css_style=css_style)
+                page_box.add_style_span_and_page_number(style_span)
+                self.page_boxes.append(page_box)
+        print(f"large PageBoxes {len(self.page_boxes)}")
+        for page_box in self.page_boxes:
+            print(f"page_box {page_box.page_number}", )
+
+        self.extract_page_numbers()
+        print(f"======================")
+        self.print_pages_div(ranges)
+
+    def extract_page_numbers(self):
+        pageno_xpath = "//span/div/a[@name]"  # page number boxes; the parent span is horrid
+        elem_with_pagenos = self.raw_elem.xpath(pageno_xpath)
+        print(f"{pageno_xpath} {len(elem_with_pagenos)}")
+        css_last = None
+        """<br></span><span style="font-family: Calibri; font-size:10px"> 
+                <br><span style="position:absolute; border: gray 1px solid; left:0px; top:941px; width:595px; height:841px;"></span>
+                
+                <div style="position:absolute; top:941px;"><a name="2">Page 2</a></div>
+                """
+        for elem_with_pageno in elem_with_pagenos:
+            getparent = elem_with_pageno.getparent()
+            css = CSSStyle.create_css_style(getparent)
+            prev_elem = getparent.getprevious()
+            height = -1 if css_last is None else css.top - css_last.top
+            prev_style = CSSStyle.create_css_style(prev_elem)
+            if not prev_style:
+                print(f" no previous style")
+            bbox = None if prev_style is None else prev_style.create_bbox()
+            print(f" ++++ {css.top} {height} {bbox}/ {elem_with_pageno.text} / {elem_with_pageno.attrib.get('name')}")
+            css_last = css
+        return elem_with_pagenos
+
+        """
+<br></span><span style="font-family: Calibri; font-size:10px"> *** THIS SPAN WRAPS ALL REMAMING PAGERS???
+<br><span style="position:absolute; border: gray 1px solid; left:0px; top:941px; width:595px; height:841px;"></span>
+        """
+
+    def print_pages_div(self, ranges=None):
+        """
+        maybe just a debugger
+        """
+
+        if ranges:
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span", title="direct spans under body ", range=ranges[0]),
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span[div]", title="top-level spans with divs?", range=ranges[1])
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span/div", title="the divs in stop-level spans", range=ranges[2])
+            """
+                <div style="position:absolute; top:4509px;"><a name="6">Page 6</a></div>
+            """
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/div[@style and a]", title="page number boxes under body", range=ranges[3])
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body//div[@style and a[contains(., 'Page')]]", title="page number boxes under body/span", range=ranges[4])
+
+    @classmethod
+    def debug_by_xpath(cls, elem, xpath, title=None, range=None) -> int:
+        """
+        applies xpath and prints debug9
+        assert
+        :param elem: to debug
+        :param xpath: to debug with
+        :return: xpath count
+        """
+        spans = elem.xpath(xpath)
+        print(f"count: {xpath}: {len(spans)}")
+        if range:
+            assert range[0] <= len(spans) <= range[1], f"{'' if not title else title}: found: {len(spans)}"
+        return len(spans)
+
+    def add_element(self, elem):
+        self.element = elem
+
+    def add_descendant_element_to_remove(self, descendant_elem):
+        HtmlTidy.add_elements_to_store(descendant_elem, self.descendants_to_remove)
+
+    def add_styles_to_remove(self, style):
+        self.styles_to_remove.append(style)
+
+    def add_empty_elements_to_remove(self, elems_to_remove):
+        HtmlTidy.add_elements_to_store(elems_to_remove, self.empty_elements_to_remove)
+
+    @classmethod
+    def add_elements_to_store(cls, elems_to_store, elem_storage):
+        if elems_to_store is not None:
+            if not type(elems_to_store) is list:
+                elems_to_store = list(elems_to_store)
+            elem_storage.extend(elems_to_store)
 
 
 class HtmlUtil:
     SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
     MARKER = "marker"
+
+    @classmethod
+    def remove_empty_elements(cls, elem, tag):
+        """
+        Maybe move to HTMLTidy
+        """
+        if tag:
+            if type(tag) is list:
+                for t in tag:
+                    cls.remove_empty_elements(elem, t)
+            else:
+                xp = f".//{tag}[normalize-space(.)='' and count({tag}/*) = 0]"
+                elems = elem.xpath(xp)
+                for el in elems:
+                    cls.remove_elem_keep_tail(el)
+
+    @classmethod
+    def remove_elem_keep_tail(cls, el):
+        """
+        Maybe move to HTMLTidy
+        """
+        parent = el.getparent()
+        tail = el.tail
+        if tail is not None and len(tail.strip()) > 0:
+            prev = el.getprevious()
+            if prev is not None:
+                prev.tail = (prev.tail or '') + el.tail
+            else:
+                parent.text = (parent.text or '') + el.tail
+
+        parent.remove(el)
 
     @classmethod
     def split_span_at_match(cls, elemx, regex, copy_atts=True, recurse=True, id_root=None, id_counter=0,
@@ -263,6 +576,9 @@ class HtmlUtil:
 
     @classmethod
     def get_text_content(cls, elem):
+        """
+        avoids having to remember join/itertext
+        """
         return ''.join(elem.itertext())
 
     @classmethod
@@ -275,9 +591,11 @@ class HtmlUtil:
             el.attrib[A_ID] = A_ID + str(i)
 
     def join_spans_in_div(self, html):
-        """joint <span>...</span><span>...</span> into <span>...</span> recursively
+        """
+        NYI
+        joint <span>...</span><span>...</span> into <span>...</span> recursively
         this structure arises when PDF or images is parsed and spans have the same styles (size/style/weight) and can be merged
-        :param div: contains the sibling spans
+        :param html: contains the sibling spans
         """
         print(f" NYI")
 
@@ -303,6 +621,183 @@ class HtmlUtil:
         body = lxml.etree.Element(H_BODY)
         html.append(body)
         return html
+
+    @classmethod
+    def find_elements_with_style(cls, elem, xpath, condition=None, remove=False):
+        """remove all elements with style fulfilling condition
+        :param elem: root element for xpath
+        :param xpath: elements to scan , should normally contain the @style condition
+                          if None uses
+        :param condition: style condition primitive at present
+                          (variable, or variable  operator value (eval is evil)
+                          example "_font-size > 30" or "_position" (means has position)
+        :param remove: remove these elements (not their tail)
+        """
+        """
+        Maybe move to HTMLTidy
+        """
+        assert elem is not None, f"must have elem"
+        if xpath:
+            els = elem.xpath(xpath)
+        else:
+            els = [elem]
+        elems = []
+        for el in els:
+            css_style = CSSStyle.create_css_style(el)
+            if condition:
+                if css_style.obeys(condition):
+                    # print(f"{elem} obeys {condition}")
+                    if remove:
+                        cls.remove_elem_keep_tail(el)
+
+    @classmethod
+    def remove_headers_and_footers_using_pdfminer_coords(cls, ref_elem, pagesize, header_height, footer_height,
+                                                         marker_xpath):
+        """
+        NOT COMPLETE - there are no footers because of the coordinate system.
+
+        Maybe move to HTMLTidy
+
+        the @top represents the y-coordinate from the start of the document (pdfminer?).
+        this means we have to subtract pagesizes from it.
+        """
+
+        elems = ref_elem.xpath(marker_xpath)
+
+        for elem in ref_elem.xpath("//*[@style]"):
+            top = CSSStyle.create_css_style(elem).get_numeric_attval("top")  # the y-coordinate
+            # print(f"top {top}")
+            if top:
+                top = top % pagesize
+                if top < header_height or top > pagesize - footer_height:
+                    text = XmlLib.get_text(elem)
+                    if len(text.strip()) > 0:
+                        logging.warning(f"removing top text {text}")
+                    cls.remove_elem_keep_tail(elem)
+
+    @classmethod
+    def remove_lh_line_numbers(cls, ref_elem):
+        cls.find_elements_with_style(ref_elem, ".//*[@style]", "left<49", remove=True)
+        """
+        Maybe move to HTMLTidy
+        """
+
+    @classmethod
+    def remove_style_attribute(cls, ref_elem, style_name):
+        """
+        Maybe move to HTMLTidy
+        """
+
+        elems = ref_elem.xpath(".//*")
+        for el in elems:
+            css_style = CSSStyle.create_css_style(el)
+            if css_style.name_value_dict.get(style_name):
+                css_style.name_value_dict.pop(style_name)
+                css_style.apply_to(el)
+
+    @classmethod
+    def remove_large_fonted_elements(cls, ref_elem):
+        """
+        Maybe move to HTMLTidy
+        """
+        cls.find_elements_with_style(ref_elem, ".//*[@style]", "font-size>30", remove=True)
+
+    @classmethod
+    def find_constant_coordinate_markers(cls, ref_elem, xpath, style="top"):
+        """
+        finds a line with constant difference from top of page
+<div style="top: 50px;"><a name="1">Page 1</a></div>
+        """
+        """
+        Maybe move to HTMLTidy
+        """
+
+        elems = ref_elem.xpath(xpath)
+        coords = []
+        for elem in elems:
+            css_style = CSSStyle.create_css_style(elem)
+            coord = css_style.name_value_dict.get(style)
+            if coord:
+                try:
+                    coords.append(float(coord[:-2]))
+                except Exception:
+                    print(f"cannot parse {coord} for {style}")
+        if not coords:
+            return None, None, []
+        np_coords = np.array(coords)
+
+        x = np.array(range(np_coords.size)).reshape((-1, 1))
+        # print(x, coords)
+        model = LinearRegression().fit(x, coords)
+        r_sq = model.score(x, coords)
+        # print(f"coefficient of determination: {r_sq} intercept {model.intercept_} slope {model.coef_}")
+        if r_sq < 0.98:
+            print(f"cannot calculate offset reliably")
+        return model.intercept_, model.coef_, np_coords
+
+    @classmethod
+    def remove_unwanteds(cls, top_elem, unwanteds):
+        """
+        Maybe move to HTMLTidy
+        """
+        if not unwanteds:
+            print(f"no unwanteds to remove")
+            return
+        for key in unwanteds:
+            unwanted = unwanteds[key]
+            xpath = unwanted[U_XPATH]
+            if xpath:
+                regex = unwanted[U_REGEX]
+                regex_comp = re.compile(regex) if regex else None
+                elems = top_elem.xpath(xpath)
+                for elem in elems:
+                    text = ''.join(elem.itertext())
+                    matched = regex_comp.search(text) if regex_comp else True
+                    if matched:
+                        # print(f"deleted {xpath} {text}")
+                        cls.remove_elem_keep_tail(elem)
+
+    @classmethod
+    def remove_newlines(cls, elem):
+        """remove \n"""
+        """
+        Maybe move to HTMLTidy
+        """
+
+        for el in elem.xpath(".//*[not(*)]"):
+            text = ''.join(el.itertext())
+            text1 = text.replace('\n', '')
+            if text1 != text:
+                el.text = text1
+                # print(f"\n[[{text} => {''.join(el.itertext())}]]\n")
+
+    @classmethod
+    def remove_descendant_elements_by_tag(cls, tag, result_elem):
+        """
+        Maybe move to HTMLTidy
+        """
+        lxml.etree.strip_tags(result_elem, tag)
+
+    @classmethod
+    def remove_style(cls, xpath_root_elem, names):
+        """removes name-value pairs from css-style and reapply to xpath'ed elements"""
+        """
+        Maybe move to HTMLTidy
+        """
+
+        xpath = f".//*[@style]"
+        # print(f"xpath: {xpath}")
+        try:
+            styled_elems = xpath_root_elem.xpath(xpath)
+        except lxml.etree.XPathEvalError as xpee:
+            raise ValueError(f"Bad xpath {xpath}")
+
+        print(f"styles {len(styled_elems)}")
+        for styled_elem in styled_elems:
+            css_style = CSSStyle.create_css_style(styled_elem)
+            css_style.remove(names)
+            css_style.apply_to(styled_elem)
+            style = styled_elem.attrib["style"]
 
 
 class HtmlTree:
@@ -345,7 +840,7 @@ class HtmlTree:
             marked_div, divs = cls.get_div_span_starting_with(elem, marker, is_bold, font_size_range=font_size_range)
             if marked_div is not None:
                 ld = len(divs) if divs else 0
-                print(f"Cannot find marker {marker} found {ld} markers")
+                print(f"Cannot find marker [{marker}] found {ld} markers")
 
         class_dict = {cls.CHAPSEC: cls.PRE_CHAPSEC,
                       cls.TOP_DIV: cls.TREE_ROOT, }
@@ -355,19 +850,33 @@ class HtmlTree:
         decimal_divs = cls.get_div_spans_with_decimals(elem, is_bold, font_size_range=font_size_range,
                                                        section_rec=rec, class_dict=class_dict)
         print(f"d_divs {len(decimal_divs)}")
+        cls.create_filename_and_output(decimal_divs, output_dir)
+
+    @classmethod
+    def create_filename_and_output(cls, decimal_divs, output_dir,
+                                   orig=" !\"#$%&'()*+,/:;<=>?@[\]^`{|}~", rep="_"):
+        """
+        create filename from section name, replace punct characters
+        """
         if output_dir:
             output_dir = Path(output_dir)
             if not output_dir.exists():
                 output_dir.mkdir()
+
+            punct_mask = Util.make_translate_mask_to_char(orig, rep)
             for i, child_div in enumerate(decimal_divs):
-                if HtmlUtil.MARKER in child_div.attrib:
-                    marker = child_div.attrib[HtmlUtil.MARKER].strip().replace(" ",
-                                                                               "_").lower()  # name from text content
-                    marker.replace(":", "")  # BUG, extend this to all punctuation
-                    path = Path(output_dir, f"{marker}.html")
-                    with open(path, "wb") as f:
-                        f.write(lxml.etree.tostring(child_div, pretty_print=True))
+                cls.create_filename_remove_punct_and_output(child_div, output_dir, punct_mask)
             print(f"decimals: {len(decimal_divs)}")
+
+    @classmethod
+    def create_filename_remove_punct_and_output(cls, child_div, output_dir, punct_mask):
+        if HtmlUtil.MARKER in child_div.attrib:
+            marker = child_div.attrib[HtmlUtil.MARKER]
+            marker = marker.strip().lower()  # name from text content
+            marker.translate(punct_mask)
+            path = Path(output_dir, f"{marker}.html")
+            with open(path, "wb") as f:
+                f.write(lxml.etree.tostring(child_div, pretty_print=True))
 
     @classmethod
     def get_div_span_starting_with(cls, elem, strg, is_bold=False, font_size_range=None):
@@ -472,6 +981,184 @@ class HtmlTree:
         return result
 
 
+RECS_BY_SECTION = {
+    HtmlTree.CHAP_TOP: IPCC_CHAP_TOP_REC,
+    HtmlTree.CHAP_SECTIONS: SECTIONS_DECIMAL_REC,
+    HtmlTree.CHAP_SUBSECTS: SUBSECTS_DECIMAL_REC,
+}
+
+
+class HTMLSearcher:
+    """
+    methods for finding chunks and strings in HTML elements
+
+    Example text:
+    <span>observed increases in the most recent years (Minx et al., 2021; UNEP, 2020a).
+    2019 GHG emissions levels were higher compared to 10 and 30 years ago (high confidence): about 12% (6.5 GtCO2eq)
+    higher than in 2010 (53±5.7 GtCO2eq) (AR5 reference year) and about 54% (21 GtCO2eq) higher than in 1990
+    (38±4.8 GtCO2eq) (Kyoto Protocol reference year and frequent NDC reference)</span>
+    """
+    """
+    """
+
+    # for text search
+    DEFAULT_XPATH = "//text()"
+    CHUNK_RE = "chunk_re"  # finds text chunks in text
+    SPLITTER_RE = "splitter_re"  # splits those chunks (e,g, comma-separated lists
+    SUBNODE_RE = "sub_node_re_list"  # matches the components of the split lists
+    UNMATCHED = "unmatched"  # adds unmatched nodes
+    XPATH = "xpath"
+
+    def __init__(self, xpath_dict=None, dictx=None):
+        self.xpath_dict = dict() if xpath_dict is None else copy.deepcopy(xpath_dict)
+        self.chunk_dict = dict()
+        self.splitter_dict = dict()
+        self.subnode_dict = dict()
+        self.dictx = dict() if dictx is None else copy.deepcopy(dictx)
+
+    def search_path_chunk_node(self, html_path):
+        assert html_path.exists(), f"{html_path} should exist"
+        tree = lxml.etree.parse(str(html_path))
+
+        self.xpaths = self.xpath_dict.get(self.XPATH)
+        print(f"dict {self.xpath_dict}")
+        if not self.xpaths:
+            raise ValueError(f"ERROR must give xpath")
+        for xpath in self.xpaths:
+            print(f" XPATH {xpath}")
+            try:
+                match_elements = tree.xpath(xpath)
+            except Exception as e:
+                raise ValueError(f"ERROR xpath {xpath} {e}")
+
+        self.element_list = list()
+        for xpath in self.xpaths:
+            match_elements = tree.xpath(xpath)
+            for match_element in match_elements:
+                t = type(match_element)
+                if t is not _Element:
+                    raise ValueError(f"not an element {t} {match_element}")
+                self.element_list.append(match_element)
+
+        for element in self.element_list:
+            for text in element.xpath("./text()"):
+                print(f"TEXT {len(text)} {text}")
+                # nodestr = self.select_chunks_subchunks_nodes(text)
+
+    def select_chunks_subchunks_nodes(self, text, splitter_re=None, node_re=None):
+        # chunk_re, splitter_re, node_re_liat, add_unmatched = False):
+        """
+        Move to a class and refactor to use dictionary
+        NOT YET USED
+        :param splitter_re: regex for splitting smaller chunks
+        :param node_re: regex to find hypernodes
+        """
+
+        chunk_res = self.chunk_dict.get(self.CHUNK_RE)
+        splitter_res = self.splitter_dict.get(self.SPLITTER_RE)
+        node_res = self.chunk_node_dict.get(self.SUBNODE_RE)
+        # self.validate_re(chunk_re)
+
+        add_unmatched = self.chunk_node_dict.get(self.UNMATCHED)
+        ptr = 0
+        while True:
+            for chunk_re in chunk_res:
+                match = re.search(chunk_re, text[ptr:])
+                if not match:
+                    break
+                ptr += match.span()[1]
+                nodestr = match.group(1)
+
+                nodes = re.split(splitter_re, nodestr)
+                node_dict = defaultdict(list)
+                for node in nodes:
+                    m = re.search(node_re, node)
+                    if m:
+                        node_dict[node_re].append(node)
+                    if not m and add_unmatched:
+                        node_dict[self.UNMATCHED].append(node)
+                for item in node_dict.items():
+                    print(f"item {item}")
+
+    def add_xpath(self, title, xpath):
+        """
+        set xpath for extracting HTML nodes.
+        :param title: title of xpath
+        :param xpath: acts on current nodeset
+        """
+        XmlLib.validate_xpath(xpath)
+
+        self.add_item_to_array_dict(self.xpath_dict, title, xpath)
+        # self.add_item_to_array_dict(self.xpath_dict, title, "./a/b/zzz")
+        # print(f"XPATH DICT {self.xpath_dict}")
+        # self.add_item_to_array_dict(self.xpath_dict, "foo", "/boo/bar")
+        # print(f"XPATH DICT {self.xpath_dict}")
+
+    def validate_xpath(self, xpath):
+        """
+        crude syntax validation of xpath string.
+        tests xpath on a trivial element
+        :param xpath:
+        """
+        tree = lxml.etree.fromstring("<foo/>")
+        try:
+            tree.xpath(xpath)
+        except lxml.etree.XPathEvalError as e:
+            logging.error(f"bad XPath {xpath}, {e}")
+            raise e
+
+    def add_chunk_re(self, chunk_re):
+        """
+        add chunk regex for extracting chunks.
+        :param chunk_re: acts on current nodeset
+        """
+        self.add_item_to_array_dict(self.chunk_dict, self.CHUNK_RE, chunk_re)
+        self.validate_re(chunk_re)
+
+    def add_splitter_re(self, splitter_re):
+        """
+        add splitter regex for extracting lists in chunks.
+        :param splitter_re: acts on current nodeset
+        """
+        self.add_item_to_array_dict(self.splitter_dict, self.SPLITTER_RE, splitter_re)
+        self.validate_re(splitter_re)
+
+    def add_subnode_key_re(self, name, subnode_re):
+        """
+        add named subnode regex for parsing list items from splitting
+        :param name: name of re in dict
+        :param subnode_re: regex to store
+        """
+        self.add_named_value(name, subnode_re)
+
+    def add_named_value(self, name, subnode_re):
+        self.add_item_to_array_dict(self.chunk_dict, name, subnode_re)
+        self.validate_re(subnode_re)
+
+    def set_unmatched(self, unmatched):
+        """
+        set UNMATCHED boolean. If true adds all unmatched values to dict under UNMATCHED
+        :param unmatched: acts on current nodeset
+        """
+        self.chunk_dict[self.UNMATCHED] = unmatched
+
+    def validate_re(self, regex):
+        """
+        :param regex: regex to be validated
+        :except: throws Exception for bad regex
+        """
+        try:
+            re.compile(regex)
+        except Exception as e:
+            logging.error(f"bad regex {regex}")
+            raise e
+
+    def add_item_to_array_dict(self, the_dict, key, value):
+        if not the_dict.get(key):
+            the_dict[key] = []
+        the_dict[key].append(value)
+
+
 class HTMLArgs(AbstractArgs):
     """Parse args to analyze, edit and annotate HTML"""
 
@@ -570,12 +1257,18 @@ class HTMLArgs(AbstractArgs):
 
 
 class CSSStyle:
+    """
+    common subset of CSS styles/commands
+    """
     BOLD = "Bold"
+    BORDER = "border"
     BOTTOM = "bottom"
     DOT_B = ".B"
     FONT_FAMILY = "font-family"
     FONT_SIZE = "font-size"
+    HEIGHT = "height"
     LEFT = "left"
+    POSITION = "position"
     PX = "px"
     STYLE = "style"
     TOP = "top"
@@ -599,6 +1292,9 @@ class CSSStyle:
         """create CSSStyle object from elem
         :param elem:
         """
+        if elem is None:
+            return None
+        assert type(elem) is _Element, f"found {type(elem)}"
         css_style = CSSStyle()
         style_attval = elem.get(CSSStyle.STYLE)
         css_style.name_value_dict = cls.create_dict_from_string(style_attval)
@@ -672,6 +1368,10 @@ class CSSStyle:
     @property
     def width(self):
         return self.get_numeric_attval(CSSStyle.WIDTH)
+
+    @property
+    def height(self):
+        return self.get_numeric_attval(CSSStyle.HEIGHT)
 
     @classmethod
     def add_name_value(cls, elem, css_name, css_value):
@@ -777,7 +1477,7 @@ class CSSStyle:
         font-family: TimesNewRomanPS-BoldMT; => font-family: TimesNewRomanPSMT; font_weight: bold
         font-family: TimesNewRomanPS-ItalicMT; => font-family: TimesNewRomanPSMT; font_style: italic
         the overwrite_* determine whetehr existing components will be overwritten
-        :param overwrite_weight: create font_weight:bold regardless of previous weight
+        :param overwrite_bold: create font_weight:bold regardless of previous weight
         :param overwrite_style: create font_style:bold regardless of previous style
         :param overwrite_family: edit font-family to remove style/weight info (hacky)
         :param style_regex=
@@ -800,3 +1500,13 @@ class CSSStyle:
         else:
             value = None
         return family, value
+
+    def create_bbox(self):
+        """
+        create bounding box from left, width, top, height
+        :return: None if any attributes missing
+        """
+        bbox = None
+        if self.top is not None and self.height is not None and self.left is not None and self.width is not None:
+            bbox = BBox(xy_ranges=[[self.left, self.left + self.width], [self.top, self.top + self.height]])
+        return bbox
