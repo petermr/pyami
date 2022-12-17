@@ -16,7 +16,7 @@ tkinterweb==3.5.0
 future~=0.18.2
 pdfplumber~=0.7.1
 requests~=2.27.1
-pip~=22.1.2
+# pip~=22.1.2
 configparser~=5.0.2
 zlib~=1.2.11
 wheel~=0.35.1

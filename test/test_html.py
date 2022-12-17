@@ -386,7 +386,7 @@ class HtmlTest(AmiAnyTest):
         output_file = "chap6_marked.html"
         output_file = "chap6_raked.html"
         ami_dict = AmiDictionary.create_from_xml_file(dict_path, ignorecase=False)
-        input_path = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
+        input_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
         # input_path = Path(Resources.IPCC_CHAP06, "chap6.flow.html")
         print(f"reading pdf_html {input_path}")
         html_output_dir = Path(Resources.TEMP_DIR, "html")
@@ -449,11 +449,12 @@ class HtmlTest(AmiAnyTest):
 
     def test_join_spans(self):
         """join sibling spans with the same styles
+
         """
         html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow20.html")
         html_element = lxml.etree.parse(str(html_path))
         divs = html_element.xpath(".//div")
-        assert len(divs) == 3221
+        assert 400 <= len(divs)
         last_div = None
         last_style = None
         for div in divs:
@@ -530,9 +531,14 @@ class HtmlTest(AmiAnyTest):
         xpath = "//div//text()[contains(., '{')]"
         texts = tree.xpath(xpath)
         print(f"texts {len(texts)}")
+        node_dict_list_list = list()
         for text in texts:
             print(f"text: {text}")
-            nodestr = self.extract_ipcc_nodes(text)
+            node_dict_list = self.extract_ipcc_nodes(text)
+            print(f"node_dict_list {node_dict_list}")
+            node_dict_list_list.append(node_dict_list)
+        assert len(node_dict_list_list) == 21
+        # assert str(node_dict_list_list[0]) == "[defaultdict(<class 'list'>, {'Figure': ['2.5'],'Table': ['2.1'],\n 'unmatched': ['2.2.2']})]", f"found {node_dict_list_list[0]}"
 
     def test_extract_ipcc_bib_pointers(self):
         """
@@ -549,7 +555,7 @@ class HtmlTest(AmiAnyTest):
         dictx = {
             "xpath": "foo",
         }
-        html_searcher = HTMLSearcher(dict=dictx)
+        html_searcher = HTMLSearcher(xpath_dict=dictx)
         descend_with_paren_in_text = "//*[contains(text(), '(')]"
         html_searcher.add_xpath("text_with_paren", descend_with_paren_in_text)
         print(f"XPATH... {html_searcher.xpath_dict.keys()}")
@@ -557,32 +563,39 @@ class HtmlTest(AmiAnyTest):
         html_searcher.add_chunk_re(balanced_brackets)
         comma_semicolon_chunks = f"{S}*[,;]{S}*"
         html_searcher.add_splitter_re(comma_semicolon_chunks)
-        html_searcher.add_subnode_key_re("ref", f"([A-Z].*{S}+(20|19){D}{D}[a-z]?)")
+        dates1920 = f"([A-Z].*{S}+(20|19){D}{D}[a-z]?)"
+        html_searcher.add_subnode_key_re("ref", dates1920)
         html_searcher.set_unmatched(False)
 
         html_path = Path(Resources.IPCC_CHAP02, "maintext_old.html")
         html_searcher.search_path_chunk_node(html_path)
 
     # ========================================
-    def extract_ipcc_nodes(self, text) -> None:
+    def extract_ipcc_nodes(self, text) -> list:
         """
         Move to a class and refactor to use dictionary
         """
+        regex1 = "{([^}]*)}"
+        regex2 = "\\s*[,;]\\s*"
+        regex3 = "(Table|Figure)\\s+(.*)"
         ptr = 0
+        node_dict_list = list()
         while True:
-            match = re.search("{([^}]*)}", text[ptr:])
+            match = re.search(regex1, text[ptr:])
             if not match:
                 break
             ptr = match.span()[1]
             nodestr = match.group(1)
-            # print(f"match: {nodestr} =========")
-            nodes = re.split("\\s*[,;]\\s*", nodestr)
+            nodes = re.split(regex2, nodestr)
             node_dict = defaultdict(list)
+            node_dict_list.append(node_dict)
             for node in nodes:
                 print(f"node: {node}")
-                m = re.match("(Table|Figure)\\s+(.*)", node)
+                m = re.match(regex3, node)
                 if m:
                     node_dict[m.group(1)].append(m.group(2))
                     continue
-                node_dict["other"].append(node)
+                unmatched = "unmatched"
+                node_dict[unmatched].append(node)
             print(f"node_dict: {node_dict.items()}")
+        return node_dict_list

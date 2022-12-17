@@ -1009,19 +1009,21 @@ class HTMLSearcher:
     UNMATCHED = "unmatched"  # adds unmatched nodes
     XPATH = "xpath"
 
-    def __init__(self, xpath_dict=None):
+    def __init__(self, xpath_dict=None, dictx=None):
         self.xpath_dict = dict() if xpath_dict is None else copy.deepcopy(xpath_dict)
         self.chunk_dict = dict()
         self.splitter_dict = dict()
         self.subnode_dict = dict()
+        self.dictx = dict() if dictx is None else copy.deepcopy(dictx)
 
     def search_path_chunk_node(self, html_path):
         assert html_path.exists(), f"{html_path} should exist"
         tree = lxml.etree.parse(str(html_path))
 
         self.xpaths = self.xpath_dict.get(self.XPATH)
+        print(f"dict {self.xpath_dict}")
         if not self.xpaths:
-            raise FileNotFoundError(f"ERROR must give xpath")
+            raise ValueError(f"ERROR must give xpath")
         for xpath in self.xpaths:
             print(f" XPATH {xpath}")
             try:

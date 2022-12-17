@@ -693,7 +693,8 @@ class TestAmiDictionary(AmiAnyTest):
         assert len(_term_id_list) == 3
         assert _term_id_list[0] == ('GHG', ['Q167336'])
 
-#    @unittest.skipUnless(VERYLONG, "lookup whole dictionaries")
+#
+    @unittest.skipUnless(VERYLONG, "lookup whole dictionaries")
     def test_lookup_missing_abbreviation_wikidata_ids_by_name(self):
         """
         scans dictionary for missing @wikidataID and searches wikidata by name/term
