@@ -135,7 +135,7 @@ dmypy.json
 
 # pyami
 temp/solvents.xml
-
+temp/
 
 temp/parkinsons.xml
 

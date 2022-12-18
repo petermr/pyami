@@ -19,7 +19,7 @@ import test
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 # local
-from py4ami.ami_html import AmiHtml, HtmlUtil, H_SPAN,ode CSSStyle
+from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib
 from test.resources import Resources
@@ -46,6 +46,7 @@ class HtmlTest(AmiAnyTest):
     # all are skipUnless
 
     ADMIN = True and AmiAnyTest.ADMIN
+    BUG = True and AmiAnyTest.BUG
     CMD = True and AmiAnyTest.CMD
     DEBUG = True and AmiAnyTest.DEBUG
     LONG = True and AmiAnyTest.LONG
@@ -576,6 +577,22 @@ class HtmlTest(AmiAnyTest):
         degrees = html.unescape('document &#169; PMR 2022 18&#176;')
         assert degrees == 'document © PMR 2022 18°'
 
+
+    def test_unescape_xml_entities_old(self):
+        """
+        """
+        # import HTMLParser
+        # h = HTMLParser.HTMLParser()
+        # h.unescape('&copy; 2010')  # u'\xa9 2010'
+        # h.unescape('&#169; 2010')  # u'\xa9 2010'
+        import html
+        copy = html.unescape('&copy; 2010')
+        degrees = html.unescape('&#176; 2010')
+        two = 2
+        print(f"\ncopy is {copy} on {two} December 18{degrees}")
+        degrees = html.unescape('document &#169; PMR 2022 18&#176;')
+        assert degrees == 'document © PMR 2022 18°'
+
     def test_extract_ipcc_bib_pointers(self):
         """
         BEING DEVELOPED
@@ -596,23 +613,7 @@ class HtmlTest(AmiAnyTest):
         balanced_brackets = f"{LB}([^{RB}]*){RB}"
         comma_semicolon_chunks = f"{S}*[,;]{S}*"
         dates1920 = f"([A-Z].*{S}+(20|19){D}{D}[a-z]?)"
-        """
-        # import HTMLParser
-        # h = HTMLParser.HTMLParser()
-        # h.unescape('&copy; 2010')  # u'\xa9 2010'
-        # h.unescape('&#169; 2010')  # u'\xa9 2010'
-        import html
-        copy = html.unescape('&copy; 2010')
-        degrees = html.unescape('&#176; 2010')
-        two = 2
-        print(f"\ncopy is {copy} on {two} December 18{degrees}")
-        degrees = html.unescape('document &#169; PMR 2022 18&#176;')
-        assert degrees == 'document © PMR 2022 18°'
 
-    def test_unescape_char_entities_in_div(self):
-        """
-        Reads first paragraph of IPCC Executive Summary and converts the HTML entities
-        """
         in_file = str(Path(Resources.IPCC_CHAP06, "fulltext.html"))
         html_entity = lxml.etree.parse(in_file)
         html_searcher.add_xpath("text_with_paren", descend_with_paren_in_text)
