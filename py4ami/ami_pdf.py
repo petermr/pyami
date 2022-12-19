@@ -28,7 +28,7 @@ from pdfminer.pdfpage import PDFPage
 from sklearn.linear_model import LinearRegression
 
 from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
-from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan
+from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
 # local
@@ -919,17 +919,19 @@ class PDFArgs(AbstractArgs):
         # self.arg_dict[OUTPATH] = Path(Path(self.inpath).parent, f"{self.arg_dict[OUTSTEM]}.{self.arg_dict[OUTFORM]}")
         if not self.outdir:
             self.outdir = self.arg_dict.get(OUTDIR)
-
         if not self.outpath:
             self.outpath = self.arg_dict.get(OUTPATH)
-        # if no outdir , create from outpath
-        if not Path(self.outdir).exists():
-            raise FileNotFoundError(f"output stem not given and cannot be generated")
 
-        if self.outpath:
+        # # if no outdir , create from outpath
+        # if not Path(self.outdir).exists():
+        #     raise FileNotFoundError(f"output stem not given and cannot be generated")
+
+        if self.outpath and not self.outdir:
             self.outdir = (Path(self.outpath).parent)
-            Path(self.outdir).mkdir()
-        elif not Path(self.outdir).is_dir():
+        if not self.outdir:
+            raise FileNotFoundError("No outdir given")
+        Path(self.outdir).mkdir(exist_ok=True)
+        if not Path(self.outdir).is_dir():
             raise ValueError(f"output dir {self.outdir} is not a directory")
         else:
             logging.debug(f"output dir {self.outdir}")
@@ -1157,8 +1159,15 @@ class PDFArgs(AbstractArgs):
         if not flow:
             return raw_html_element
         if write_raw:
-            outpath_raw = Path(Path(self.outpath).parent, "raw20.html")
-            with open(outpath_raw, "w") as f:
+            if not self.outpath and not self.outdir:
+                raise FileNotFoundError(f"self.outpath and self.outdir are None")
+            if self.outpath and not self.outdir:
+                self.outdir = Path(self.outpath).parent
+            if not self.outdir.exists():
+                self.outdir.mkdir(exist_ok=True)
+            if not self.outpath:
+                self.outpath = Path(self.outdir, "raw20.html") # bad hardcoding
+            with open(self.outpath, "w") as f:
                 f.write(raw_html_element)
         print(f"outpath {self.outpath}")
 

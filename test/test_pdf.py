@@ -944,6 +944,7 @@ Uses:
         if not outdir.exists():
             outdir.mkdir()
         pdf_args.arg_dict[OUTDIR] = outdir
+        pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
         print(f"arg_dict {pdf_args.arg_dict}")
 
         pdf_args.unwanteds = {
