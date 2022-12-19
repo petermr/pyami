@@ -451,10 +451,10 @@ class HtmlTest(AmiAnyTest):
         """join sibling spans with the same styles
 
         """
-        html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow20.html")
+        html_path = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
         html_element = lxml.etree.parse(str(html_path))
         divs = html_element.xpath(".//div")
-        assert 400 <= len(divs)
+        assert 59 <= len(divs)
         last_div = None
         last_style = None
         for div in divs:
