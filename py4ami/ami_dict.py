@@ -447,7 +447,14 @@ class AmiDictionary:
         if not os.path.exists(xml_file):
             logging.warning("cannot find dictionary path " + str(xml_file))
             return None
-        xml_tree = ET.parse(str(xml_file), parser=ET.XMLParser(encoding="utf-8"))
+        try:
+            xml_tree = ET.parse(str(xml_file), parser=ET.XMLParser(encoding="utf-8"))
+        except lxml.etree.XMLSyntaxError as e:
+            print(f"Cannot parse xml file {xml_file} because {e}")
+            return None
+        except Exception as e:
+            print(f"error parsing {xml_file} {e}")
+
         dictionary = AmiDictionary.create_from_xml_object(xml_tree, ignorecase=ignorecase)
         dictionary.xml_content = xml_tree
         dictionary.file = xml_file
@@ -1573,6 +1580,7 @@ class AmiDictArgs(AbstractArgs):
             else:
                 print(f"VALIDATING {self.ami_dict}")
                 status = self.validate_dict()
+                print(f"validation finished")
 
         if self.wikidata:
             self.add_wikidata_to_dict()

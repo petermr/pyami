@@ -1180,17 +1180,21 @@ class PyAMI:
             return False
 
     def version(self):
-        """reads setup.py and extracts line of form version='0.0.29'"""
+        """
+        reads setup.py and extracts line of form version='0.0.29'
+        This is still a mess. We need to set the versiom once somewhere.
+        """
 
-        version = None
-        with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
-            setup_lines = f.readlines()
-            for line in setup_lines:
-                match = re.match("\s*version\s*=\s*\'\s*(\d+\.\d+\.\d+)\s*\'\s*,", line)
-                if match:
-                    version = match.group(1)
-                    break
-        logging.warn(f"VERSION {version}")
+        version = '0.0.45'
+        if False: # this fails - it gets the python distrib
+            with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
+                setup_lines = f.readlines()
+                for line in setup_lines:
+                    match = re.match("\s*version\s*=\s*\'\s*(\d+\.\d+\.\d+)\s*\'\s*,", line)
+                    if match:
+                        version = match.group(1)
+                        break
+        # logging.warn(f"VERSION {version}")
         return version
 
 

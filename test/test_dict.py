@@ -345,6 +345,10 @@ class TestAmiDictionary(AmiAnyTest):
         assert amidict.get_version() == STARTING_VERSION
 
     def test_add_entry_with_term_to_zero_entry_dict(self):
+        """
+        Creates minimal dictionary with no entries and adds one entry
+        tests its components
+        """
         amidict = AmiDictionary.create_minimal_dictionary()
         entry = amidict.create_and_add_entry_with_term("foo")
         assert etree.tostring(entry) == b'<entry term="foo"/>'
@@ -787,12 +791,6 @@ class TestAmiDictionary(AmiAnyTest):
 
     # =====helpers======
 
-    def teardown(self):
-        dict1_root = None
-
-
-class TestSearchDictionary:
-
     def test_parse_wikidata_page(self):
         qitem = "Q144362"  # azulene
         wpage = WikidataPage(qitem)
@@ -1059,6 +1057,43 @@ class TestSearchDictionary:
         assert entry.get_term() == "urbanization"
         assert entry.get_wikidata_id() == "Q161078"
         assert len(keyword_dict.entries) == 5
+
+    def test_validate_linked_dict(self):
+        """
+        tests a veriety of exploratory concepts such as inter- and intra-dictionary links
+        DEVELOP 2022-12
+        """
+        dict_path = Path(Resources.IPCC_DICT_DIR, "linked_dict.xml")
+        assert dict_path.exists(), f"{dict_path} should exist"
+        dictx = AmiDictionary.create_from_xml_file(dict_path)
+        assert dictx is not None
+        assert dictx.get_entry_count() == 17, f"dictionary has {dictx.get_entry_count()} entries"
+        assert dictx.get_version() == '0.0.5', f"dictionary has version {dictx.get_version()}"
+        terms = dictx.get_terms()
+        assert len(terms) > 0, f"found {len(terms)}"
+        assert terms == ['carbon budget',
+ 'ffi',
+ 'folu',
+ 'fluorinated gas',
+ 'carbon pricing',
+ 'edgar',
+ 'cait',
+ 'ceds',
+ 'crf',
+ 'emissions factor',
+ 'emission inventory',
+ 'emission sectors',
+ 'gwp100',
+ 'slcf',
+ 'cgtp',
+ 'co2-equivalent emission',
+ 'baseline scenario'], f'found {terms}'
+
+# ==== helpers ====
+    def teardown(self):
+        dict1_root = None
+
+
 
 
 def main(argv=None):

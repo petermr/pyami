@@ -3,7 +3,7 @@
 ```
 cd pyami
 rm -rf dist
-# EDIT VERSION NUMBER IN setup.py (or it clashes)
+# EDIT VERSION NUMBER IN setup.py AND py4ami.pyamix.PyAMI.version()
 python setup.py sdist
 twine upload dist/* # <login is pypi, not github>
 pip uninstall py4ami

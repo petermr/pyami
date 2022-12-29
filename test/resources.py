@@ -27,6 +27,7 @@ class Resources:
 
     # ipcc and html
     IPCC_DIR = Path(TEST_RESOURCES_DIR, "ipcc")
+    IPCC_DICT_DIR = Path(IPCC_DIR, "dict")
     LOCAL_IPCC_DIR = "/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3" # PMR debugging
 
     IPCC_CHAP02 = Path(IPCC_DIR, "Chapter02")

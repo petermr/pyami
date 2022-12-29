@@ -57,7 +57,7 @@ requirements = [
 setup(
     name='py4ami',
     url='https://github.com/petermr/pyami',
-    version='0.0.44',
+    version='0.0.45',
     description='Semantic Reader of the Scientific Literature.',
     long_description_content_type='text/markdown',
     long_description=readme,
