@@ -10,7 +10,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import requests
-from lxml import html
 
 from py4ami.ami_pdf import PDFArgs
 from py4ami.ami_sections import AMIFigure, AMIAbsSection
@@ -244,37 +243,49 @@ class CProject(CContainer):
         return self.name
 
     @classmethod
-    def make_cproject_from_hrefs_in_url(cls, weburl=None, target_dir=None, suffix="pdf", maxsave=100, sleep=5,
-                                        skip_exists=True):
-        """Extracts href targets from a webpage/html, downloads them to given """
+    def download_hrefs_in_url(cls,
+                              weburl=None,
+                              target_dir=None,
+                              suffixes="pdf",
+                              maxsave=100,
+                              printfile=True,
+                              sleep=5,
+                              skip_exists=True):
+        """
+        Extracts href targets from a webpage/html, downloads them to target_dir
+        :param weburl: URL page containing hrefs
+        :param target_dir: download directory (may be, or become, CProject directory
+        :param suffixes: list of (or single)suffixes without period (case sensitive)
+        :param maxsave: maximum documents to download (default == 100)
+        :param print: print record of downloading (default = True)
+        :param sleep: seconds to wait between downl;oads (default = 5)
+        :param skip_exists: If True don't download existing files
+        :return: None
 
-        page = requests.get(weburl)
-        tree = html.fromstring(page.content)
-        ahrefs = tree.xpath(".//a[@href]")
-        urls = [ahref.attrib["href"] for ahref in ahrefs if ahref.attrib["href"].endswith(suffix)]
-        for url in urls[:maxsave]:
-            stem = url.split("/")[-1]
-            if not target_dir.exists():
-                target_dir.mkdir()
-            path = Path(target_dir, stem)
-            if skip_exists and path.exists():
-                print(f"file exists, skipped {path}")
-            else:
-                content = requests.get(url).content
-                with open(path, "wb") as f:
-                    print(f"wrote url: {path}")
-                    f.write(content)
-                time.sleep(sleep)
+        """
+        if not type(suffixes) is list:
+            suffixes = [suffixes]
+        urls = Util.get_urls_from_webpage(suffixes, weburl)
+        Util.download_urls(urls=urls, target_dir=target_dir, maxsave=maxsave, printfile=printfile, skip_exists=skip_exists)
+        return None
+
+    @classmethod
+    def make_cproject_and_fulltexts_from_hrefs_in_url(cls,
+                                                      weburl=None,
+                                                      target_dir=None,
+                                                      suffix="pdf",
+                                                      maxsave=100,
+                                                      sleep=5,
+                                                      keep=True,
+                                                      max_ctree_len=50,
+                                                      max_flag=20,
+                                                      skip_exists=True):
+        CProject.download_hrefs_in_url(weburl=weburl, target_dir=target_dir, suffixes=suffix,
+                                                  maxsave=maxsave, sleep=sleep,
+                                                  skip_exists=skip_exists)
         project = CProject(target_dir)
         return project
 
-    @classmethod
-    def make_cproject_and_fulltexts_from_hrefs_in_url(cls, weburl=None, target_dir=None, suffix="pdf", maxsave=100,
-                                                      sleep=5,
-                                                      keep=True, max_ctree_len=50, max_flag=20, skip_exists=True):
-        cproject = CProject.make_cproject_from_hrefs_in_url(weburl=weburl, target_dir=target_dir, suffix=suffix,
-                                                            maxsave=maxsave, sleep=sleep,
-                                                            skip_exists=skip_exists)
         cproject.make_cproject_from_pdfs(keep=keep, max_ctree_len=max_ctree_len, max_flag=max_flag)
 
         cproject.pdf2htmlx()

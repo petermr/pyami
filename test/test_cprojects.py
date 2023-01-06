@@ -8,7 +8,12 @@ from pathlib import Path
 from py4ami.ami_project import CProject, CTree, AmiProjects, CProjectTests, CSubDir, ProjectArgs
 from py4ami.pyamix import PyAMI
 from py4ami.file_lib import FileLib
+from py4ami.util import Util
 from test.resources import Resources
+
+WG3_URL = "https://www.ipcc.ch/report/ar6/wg3/"
+
+DOWNLOAD_IPCC_DIR = Path(Resources.TEMP_DIR, "wg3a") # make projects
 
 
 class TestCProjTree(unittest.TestCase):
@@ -138,7 +143,7 @@ class TestCProjTree(unittest.TestCase):
         """find main directories and files in climate10
         this has only one CTree
         exercises simple CProject/CTree navigation"""
-        cproj = CProject(Resources.CLIMATE_10_PROJ_DIR)
+        cproj = CProject(Resources.TEST_CLIMATE_10_PROJ_DIR)
         ctree_list = cproj.get_ctrees()
         assert len(ctree_list) == 1
         ctree = cproj.get_ctree("climate10")
@@ -153,7 +158,7 @@ class TestCProjTree(unittest.TestCase):
     def test_find_sub_trees(self):
         """find files in parts of CTree
         """
-        cproj = CProject(Resources.CLIMATE_10_PROJ_DIR)
+        cproj = CProject(Resources.TEST_CLIMATE_10_PROJ_DIR)
         svg_dir = cproj.get_ctree("climate10").get_existing_reserved_directory(CTree.SVG_DIR)
         svg_subtree = CSubDir(svg_dir)
         svg_child_files = svg_subtree.get_child_files()
@@ -166,7 +171,7 @@ class TestCProjTree(unittest.TestCase):
 
         Note the escaping in the basename. This gets all files
         """
-        cproj = CProject(Resources.CLIMATE_10_PROJ_DIR)
+        cproj = CProject(Resources.TEST_CLIMATE_10_PROJ_DIR)
         svg_dir = cproj.get_ctree("climate10").get_existing_reserved_directory(CTree.SVG_DIR)
 
         svg_child_files = CSubDir(svg_dir).get_child_files_by_name(r"fulltext-page\.[2-5]\.svg")
@@ -175,9 +180,9 @@ class TestCProjTree(unittest.TestCase):
     def test_make_cproject_from_pdfs(self):
         """makes a CProject from pdf files
         shows the adjustment of filenames to be unique"""
-        assert Resources.PDFS_DIR.exists()
+        assert Resources.TEST_PDFS_DIR.exists()
         dst = Resources.TEMP_PDFS_DIR
-        src = Resources.PDFS_DIR
+        src = Resources.TEST_PDFS_DIR
         cproject = CProject(Resources.TEMP_PDFS_DIR)
         # names are short enough and uniue
         self.clean_directories(src, dst)
@@ -193,9 +198,9 @@ class TestCProjTree(unittest.TestCase):
     def test_make_cproject_from_pdf_list(self):
         """makes a CProject from pdf files
         shows the adjustment of filenames to be unique"""
-        assert Resources.PDFS_DIR.exists()
+        assert Resources.TEST_PDFS_DIR.exists()
         dst = Resources.TEMP_PDFS_DIR
-        src = Resources.PDFS_DIR
+        src = Resources.TEST_PDFS_DIR
         self.clean_directories(src, dst)
         cproject = CProject(Resources.TEMP_PDFS_DIR)
         # names are short enough and uniue
@@ -212,9 +217,9 @@ class TestCProjTree(unittest.TestCase):
     def test_make_cproject_from_pdf_list_cmd(self):
         """makes a CProject from pdf files commandline
         shows the adjustment of filenames to be unique"""
-        assert Resources.PDFS_DIR.exists()
+        assert Resources.TEST_PDFS_DIR.exists()
         dst = Resources.TEMP_PDFS_DIR
-        src = Resources.PDFS_DIR
+        src = Resources.TEST_PDFS_DIR
         cproject = CProject(dirx=Resources.TEMP_PDFS_DIR)
         self.clean_directories(None, dst)
 
@@ -231,16 +236,24 @@ class TestCProjTree(unittest.TestCase):
         assert file_3_38.exists(), f"file should exist {file_3_38}"
         print(f"PDFS dir {Resources.TEMP_PDFS_DIR}")
 
-    @unittest.skip("VERY LONG, DOWNLOADS")
+    @unittest.skipUnless(DOWNLOAD_IPCC_DIR, "VERY LONG, DOWNLOADS")
+    def test_download_pdfs_from_hrefs_in_url(self):
+        # Util.delete
+        CProject.download_hrefs_in_url(weburl=WG3_URL,
+                                       target_dir=DOWNLOAD_IPCC_DIR,
+                                       maxsave=5,
+                                       skip_exists=True)
+
+    @unittest.skipUnless(DOWNLOAD_IPCC_DIR, "VERY LONG, DOWNLOADS")
     def test_make_cproject_from_webpage(self):
-        CProject.make_cproject_from_hrefs_in_url(weburl="https://www.ipcc.ch/report/ar6/wg3/",
-                                                 target_dir=Path(Resources.TEMP_DIR, "wg3"), skip_exists=True)
+        """
+        download whole of IPCC WG3 into CProject
+        I
+        """
+        CProject.make_cproject_and_fulltexts_from_hrefs_in_url(weburl=WG3_URL,
+                                                               target_dir=DOWNLOAD_IPCC_DIR,
+                                                               skip_exists=True)
 
-
-    @unittest.skip("VERY LONG, DOWNLOADS")
-    def test_make_cproject_and_fulltexts_from_webpage_wg3(self):
-        project = CProject.make_cproject_and_fulltexts_from_hrefs_in_url(weburl="https://www.ipcc.ch/report/ar6/wg3/",
-                                                 target_dir=Path(Resources.TEMP_DIR, "wg3"), skip_exists=True)
 
 
     @unittest.skip("VERY LONG")
@@ -281,7 +294,7 @@ class TestCProjTree(unittest.TestCase):
 
     @classmethod
     def assert_exists(cls, cproj_dir, file_list):
-        assert cproj_dir.exists(), f"cproj {cproj_dir} should exists"
+        assert cproj_dir.exists(), f"cproj {cproj_dir} should exist"
         for file in file_list:
             f = Path(cproj_dir, file)
             assert f.exists() and f.is_dir(), f"{f} should be existing dir"

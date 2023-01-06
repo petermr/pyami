@@ -8,6 +8,8 @@ import re
 from enum import Enum
 from abc import ABC, abstractmethod
 from collections import Counter
+from lxml import html
+from  pathlib import Path
 import time
 import requests
 import json
@@ -15,6 +17,7 @@ import base64
 
 logger = logging.getLogger("py4ami.util")
 
+HREF = "href"
 
 class Util:
     """Utilities, mainly staticmethod or classmethod and not tightly linked to AMI"""
@@ -60,7 +63,8 @@ class Util:
     @staticmethod
     def find_unique_keystart(keys, start):
         """finds keys that start with 'start'
-        return a list, empty if none found or null args"""
+        return a list, empty if none found or null args
+        """
         return [] if keys is None or start is None else [k for k in keys if k.startswith(start)]
 
     @staticmethod
@@ -232,6 +236,74 @@ class Util:
             logging.warning(f"orig should be len > 0")
             return None
         return str.maketrans(orig, rep * len(orig))
+
+    @classmethod
+    def get_urls_from_webpage(cls, suffixes, weburl):
+
+        page = requests.get(weburl)
+        tree = html.fromstring(page.content)
+        ahrefs = tree.xpath(f".//a[@{HREF}]")
+        urls = []
+        for sf in suffixes:
+            sf_ = [ahref.attrib[HREF] for ahref in ahrefs if ahref.attrib[HREF].endswith(f".{sf}")]
+            urls.extend(sf_)
+        return urls
+
+    @classmethod
+    def download_urls(cls,  urls=None, target_dir=None, maxsave=100, printfile=True, skip_exists=True, sleep=5):
+        """
+        download list of urls
+        :param urls: urls to download
+        :param target_dir: directry to receive urls
+        :param maxsave: maximum number to download (note: can be used tyo dowwnload in batches) default = 100
+        :param printfile: prints download or skip (default = True)
+        :param skip_exists: If true does not overwrite existuing file (default = True)
+        :param sleep: seconds to wait  between downloads (default = 5)
+        """
+        if urls is None:
+            print(f"no url list to download")
+            return None
+        if type(urls) is not list:
+            urls = [urls]
+        if target_dir is None:
+            print(f"no traget_dir to download into")
+            return None
+        for url in urls[:maxsave]:
+            stem = url.split("/")[-1]
+            if not target_dir.exists():
+                target_dir.mkdir()
+            path = Path(target_dir, stem)
+            if skip_exists and path.exists():
+                if printfile:
+                    print(f"file exists, skipped {path}")
+            else:
+                try:
+                    content = requests.get(url).content
+                except Exception as e:
+                    print(f"cannot get content from url {url}")
+                    continue
+                with open(path, "wb") as f:
+                    if printfile:
+                        print(f"wrote url: {path}")
+                    f.write(content)
+                time.sleep(sleep)
+        return None
+
+    @classmethod
+    def get_file_from_url(cls, url):
+        """
+        takes last slash-separated field in url as pseudo filename
+        url to parse of form https://foo.nar/plugh/bloop.xml
+        :param url: url to parse
+        :return: file after last slash (i.e. bloop.xml) or None
+        """
+        if url is None:
+            return None
+        rindex = url.rfind('/')
+        if rindex == -1:
+            return None
+        return url[rindex + 1:]
+
 
 
 class GithubDownloader:

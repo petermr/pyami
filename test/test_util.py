@@ -58,7 +58,7 @@ class TestUtil(AmiAnyTest):
 
     @classmethod
     def test_copy_anything(cls):
-        src = Resources.CLIMATE_10_SVG_DIR
+        src = Resources.TEST_CLIMATE_10_SVG_DIR
         dst = Path(Resources.TEMP_DIR, "tempzz")
         if dst.exists():
             shutil.rmtree(dst)
@@ -159,6 +159,12 @@ class TestUtil(AmiAnyTest):
         assert not Util.range_list_contains_int(0, range_list)
         range_list = range(1,3)
         assert not Util.range_list_contains_int(None, range_list)
+
+    def test_get_file_from_url(self):
+        url = None
+        assert Util.get_file_from_url(url) == None
+        url = "https://foo.bar/plugh/bloop.xml"
+        assert Util.get_file_from_url(url) == "bloop.xml"
 
 
 class TestGithubDownloader(AmiAnyTest):

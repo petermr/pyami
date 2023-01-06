@@ -132,7 +132,7 @@ class HtmlTest(AmiAnyTest):
         """
         read chunks of text and find brackets
         """
-        chap444 = Path(Resources.IPCC_CHAP04, "4.4.html")
+        chap444 = Path(Resources.TEST_IPCC_CHAP04, "4.4.html")
         chap444_elem = lxml.etree.parse(str(chap444))
         div_spans = chap444_elem.xpath(".//div[span]")
         bodylist = []
@@ -149,7 +149,7 @@ class HtmlTest(AmiAnyTest):
         """
         read chunks of text and find biblioref brackets
         """
-        chap444 = Path(Resources.IPCC_CHAP04, "4.4.html")
+        chap444 = Path(Resources.TEST_IPCC_CHAP04, "4.4.html")
         chap444_elem = lxml.etree.parse(str(chap444))
         div_spans = chap444_elem.xpath(".//div[span]")
         total_bibliorefs = []
@@ -170,7 +170,7 @@ class HtmlTest(AmiAnyTest):
         """
         read chunks of text and find biblioref brackets
         """
-        chap444 = Path(Resources.IPCC_CHAP04, "4.4.html")
+        chap444 = Path(Resources.TEST_IPCC_CHAP04, "4.4.html")
         bibliorefs = Biblioref.make_bibliorefs(chap444)
         counter = Counter()
         for biblioref in bibliorefs:
@@ -196,7 +196,7 @@ class HtmlTest(AmiAnyTest):
     def test_markup_dois_in_references_(self):
         """reads a references file and creates active hyperlinks to referenced articles"""
 
-        ref_path = Path(Resources.IPCC_CHAP04, "references.html")
+        ref_path = Path(Resources.TEST_IPCC_CHAP04, "references.html")
         assert ref_path.exists()
         ref_elem = lxml.etree.parse(str(ref_path))
         ref_divs = ref_elem.xpath("body/div")
@@ -217,7 +217,7 @@ class HtmlTest(AmiAnyTest):
         """reads a references file and creates class"""
 
         # ami_html = AmiHtml()
-        ref_path = Path(Resources.IPCC_CHAP04, "references.html")
+        ref_path = Path(Resources.TEST_IPCC_CHAP04, "references.html")
         assert ref_path.exists()
         ref_elem = lxml.etree.parse(str(ref_path))
         ref_divs = ref_elem.xpath("body/div")
@@ -381,11 +381,11 @@ class HtmlTest(AmiAnyTest):
         and add style
         and write result
         """
-        dictionary_file = Path(Resources.IPCC_CHAP06, "abbrev_as.xml")
+        dictionary_file = Path(Resources.TEST_IPCC_CHAP06, "abbrev_as.xml")
         assert dictionary_file.exists(), f"file should exist {dictionary_file}"
         ami_dict = AmiDictionary.create_from_xml_file(dictionary_file)
         ami_dict.ignorecase = False
-        inpath = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
+        inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow20.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
         if not output_dir.exists():
             output_dir.mkdir()
@@ -400,12 +400,12 @@ class HtmlTest(AmiAnyTest):
         TODO USE THIS!
         """
 
-        dict_path = Path(Resources.IPCC_CHAP06, "abbrev_as.xml")
-        dict_path = Path(Resources.IPCC_CHAP06, "ipcc_ch6_rake.xml")
+        dict_path = Path(Resources.TEST_IPCC_CHAP06, "abbrev_as.xml")
+        dict_path = Path(Resources.TEST_IPCC_CHAP06, "ipcc_ch6_rake.xml")
         # output_file = "chap6_marked.html"
         output_file = "chap6_raked.html"
         ami_dict = AmiDictionary.create_from_xml_file(dict_path, ignorecase=False)
-        input_path = Path(Resources.IPCC_CHAP06, "fulltext.flow.html")
+        input_path = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow.html")
         # input_path = Path(Resources.IPCC_CHAP06, "chap6.flow.html")
         print(f"reading pdf_html {input_path}")
         html_output_dir = Path(Resources.TEMP_DIR, "html")
@@ -426,7 +426,7 @@ class HtmlTest(AmiAnyTest):
         and write result
         USEFUL
         """
-        target_path = Path(Resources.IPCC_CHAP06, "fulltext.flow20.html")
+        target_path = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow20.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
         if not output_dir.exists():
             output_dir.mkdir()
@@ -471,7 +471,7 @@ class HtmlTest(AmiAnyTest):
         """join sibling spans with the same styles
         IMPORTANT
         """
-        html_path = Path(Resources.IPCC_CHAP04, "fulltext.flow20.html")
+        html_path = Path(Resources.TEST_IPCC_CHAP04, "fulltext.flow20.html")
         html_element = lxml.etree.parse(str(html_path))
         divs = html_element.xpath(".//div")
         assert 400 <= len(divs)
@@ -513,7 +513,7 @@ class HtmlTest(AmiAnyTest):
 
         https://stackoverflow.com/questions/62472162/lxml-xpath-expression-for-selecting-all-text-under-a-given-child-node-including
         """
-        in_file = Path(Resources.IPCC_CHAP02, "exec_summary.html")
+        in_file = Path(Resources.TEST_IPCC_CHAP02, "exec_summary.html")
         outdir = Path(Resources.TEMP_DIR, "obsidian")
         os.makedirs(outdir, exist_ok=True)
         path = Path(in_file)
@@ -545,7 +545,7 @@ class HtmlTest(AmiAnyTest):
         """
         # html = "executive_summary_css.html"
         # html = "executive_summary1.html"
-        exec_summ1 = Path(Resources.IPCC_CHAP02, "maintext_old.html")
+        exec_summ1 = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
         assert exec_summ1.exists(), f"{exec_summ1} should exist"
         tree = lxml.etree.parse(str(exec_summ1))
         xpath = "//div//text()[contains(., '{')]"
@@ -614,7 +614,7 @@ class HtmlTest(AmiAnyTest):
         comma_semicolon_chunks = f"{S}*[,;]{S}*"
         dates1920 = f"([A-Z].*{S}+(20|19){D}{D}[a-z]?)"
 
-        in_file = str(Path(Resources.IPCC_CHAP06, "fulltext.html"))
+        in_file = str(Path(Resources.TEST_IPCC_CHAP06, "fulltext.html"))
         html_entity = lxml.etree.parse(in_file)
         html_searcher.add_xpath("text_with_paren", descend_with_paren_in_text)
         print(f"XPATH... {html_searcher.xpath_dict.keys()}")
@@ -628,7 +628,7 @@ class HtmlTest(AmiAnyTest):
         str_un = HtmlLib.convert_character_entities_in_lxml_element_to_unicode_string(div712)
 
         assert str_un == '<div style="" id="id712"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id713">Warming cannot be limited to well below 2°C without rapid and deep reductions in energy system CO</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 6px;" id="id715">2</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id716"> and GHG emissions. </span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id717">In scenarios limiting likely warming to 1.5°C with limited overshoot (likely below 2°C), net energy system CO</span><span style="font-family: TimesNewRomanPSMT; font-size: 6px;" id="id719">2</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id720"> emissions (interquartile range) fall by 87% to 97%% (60% to 79%) in 2050. In 2030, in scenarios limiting warming to 1.5°C with no or limited overshoot, net CO2 and GHG emissions fall by 35-51% and 38-52% respectively. In scenarios limiting warming to 1.5°C with no or limited overshoot (likely below 2°C), net electricity sector CO</span><span style="font-family: TimesNewRomanPSMT; font-size: 6px;" id="id724">2</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id725"> emissions reach zero globally between 2045 and 2055 (2050 and 2080) </span><span style="font-family: TimesNewRomanPS-ItalicMT; font-size: 11px;" id="id727">(high confidence)</span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id728"> {6.7}  </span></div>'
-        html_path = Path(Resources.IPCC_CHAP02, "maintext_old.html")
+        html_path = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
         html_searcher.search_path_chunk_node(html_path)
 
     # ========================================

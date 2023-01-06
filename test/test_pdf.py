@@ -32,8 +32,8 @@ from test.test_all import AmiAnyTest
 # class PDFTest:
 
 FINAL_DRAFT_DIR = "/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg"  # PMR only
-PAGE_9 = Path(Resources.CLIMATE_10_SVG_DIR, "fulltext-page.9.svg")
-PAGE_6 = Path(Resources.CLIMATE_10_SVG_DIR, "fulltext-page.6.svg")
+PAGE_9 = Path(Resources.TEST_CLIMATE_10_SVG_DIR, "fulltext-page.9.svg")
+PAGE_6 = Path(Resources.TEST_CLIMATE_10_SVG_DIR, "fulltext-page.6.svg")
 CURRENT_RANGE = range(1, 20)
 # CHAPTER_RANGE = range(1, 200)
 CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
@@ -80,9 +80,9 @@ def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=
         raise Exception("must have SVG from ami3")
     for page_index in CURRENT_RANGE:
         page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-        html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-        if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
-            Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
+        html_path = Path(Resources.TEST_CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+        if not Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.exists():
+            Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir()
         ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
         ami_page.write_html(html_path, pretty_print, use_lines)
 
@@ -124,7 +124,7 @@ class PDFTest(test.test_all.AmiAnyTest):
     def test_pdfbox_output_exists(self):
         """check CLIMATE dir exists
         """
-        assert Resources.CLIMATE_10_PROJ_DIR.exists(), f"{Resources.CLIMATE_10_PROJ_DIR} should exist"
+        assert Resources.TEST_CLIMATE_10_PROJ_DIR.exists(), f"{Resources.TEST_CLIMATE_10_PROJ_DIR} should exist"
 
     @unittest.skipUnless("enviroment", ADMIN)
     def test_findall_svg_and_find_texts(self):
@@ -215,8 +215,8 @@ class PDFTest(test.test_all.AmiAnyTest):
         """
         pretty_print = True
         use_lines = True
-        svg_dir = Resources.CLIMATE_10_SVG_DIR
-        html_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        svg_dir = Resources.TEST_CLIMATE_10_SVG_DIR
+        html_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
         for page_index in range(1, 9):
             page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_dir, f"page.{page_index}.html")
@@ -237,7 +237,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         page_selection = range(1, 50)
         counter = 0
         counter_tick = 20
-        html_out_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        html_out_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
         for page_index in page_selection:
             if counter % counter_tick == 0:
                 print(f".", end="")
@@ -256,7 +256,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         use_lines = True
         make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
         selection = CURRENT_RANGE
-        temp_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        temp_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
         for page_index in selection:
             html_path = Path(temp_dir, f"page.{page_index}.html")
             with open(html_path, "r") as h:
@@ -282,13 +282,13 @@ class PDFTest(test.test_all.AmiAnyTest):
     @unittest.skipUnless(SVG, "svg")
     @unittest.skipUnless(CMD, "command")
     def test_svg2page(self):
-        proj = Resources.CLIMATE_10_PROJ_DIR
+        proj = Resources.TEST_CLIMATE_10_PROJ_DIR
         args = f"--proj {proj} --apply svg2page"
         PyAMI().run_command(args)
 
     @unittest.skipIf(NYI, "page2sect")
     def test_page2chap(self):
-        proj = Resources.CLIMATE_10_PROJ_DIR
+        proj = Resources.TEST_CLIMATE_10_PROJ_DIR
         args = f"--proj {proj} --apply page2sect"
         PyAMI().run_command(args)
 
@@ -588,7 +588,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         USEFUL
 
         """
-        dirx = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
+        dirx = Path(Resources.TEST_IPCC_CHAP06, "image_bmp_jpg")
         outdir = Path(Resources.TEMP_DIR, "ipcc_chap6", "png")
         if not dirx.exists():
             print(f"no directory {dirx}")
@@ -607,11 +607,11 @@ class PDFTest(test.test_all.AmiAnyTest):
         creates coordinate data for images (20 pp doc) and also reads existing coord data from file
         (? from AMI3-java or previous run) and tries to match them
         """
-        png_dir = Path(Resources.IPCC_CHAP06, "images")
-        bmp_jpg_dir = Path(Resources.IPCC_CHAP06, "image_bmp_jpg")
-        coord_file = Path(Resources.IPCC_CHAP06, "image_coords.txt")
+        png_dir = Path(Resources.TEST_IPCC_CHAP06, "images")
+        bmp_jpg_dir = Path(Resources.TEST_IPCC_CHAP06, "image_bmp_jpg")
+        coord_file = Path(Resources.TEST_IPCC_CHAP06, "image_coords.txt")
         print(f"input {coord_file}")
-        outdir = Path(Resources.IPCC_CHAP06, "images_new")
+        outdir = Path(Resources.TEST_IPCC_CHAP06, "images_new")
         if not outdir.exists():
             outdir.mkdir()
         with open(coord_file, "r") as f:
@@ -782,7 +782,7 @@ LTPage
         pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
         pdf_args.arg_dict[MAXPAGE] = 10
         pdf_args.arg_dict[PAGES] = "1_10"
-        pdf_args.arg_dict[OUTPATH] = Path(Resources.IPCC_TEMP_CHAP06, "pdf.html")
+        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEST_IPCC_TEMP_CHAP06, "pdf.html")
 
         print(f"arg_dict {pdf_args.arg_dict}")
         outfile, _ = pdf_args.convert_write()
@@ -852,11 +852,11 @@ Uses:
 
 
         """
-        outfile = Path(Resources.IPCC_TEMP_CHAP06, "all.html")
+        outfile = Path(Resources.TEST_IPCC_TEMP_CHAP06, "all.html")
         # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 9 11_15 217_ --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06}"
         # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfplumber"
         # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfminer"
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.IPCC_TEMP_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.TEST_IPCC_TEMP_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
         PyAMI().run_command(args)
         print(f"created outfile {outfile}")
         # assert outfile.exists(), f"{outfile} should exist"
@@ -867,11 +867,11 @@ Uses:
 
         """
         assert Path(IPCC_CHAP6_PDF).exists(), f"expected {IPCC_CHAP6_PDF}"
-        assert Path(Resources.IPCC_TEMP_CHAP06).exists(), f"expected {Resources.IPCC_TEMP_CHAP06}"
+        assert Path(Resources.TEST_IPCC_TEMP_CHAP06).exists(), f"expected {Resources.TEST_IPCC_TEMP_CHAP06}"
 
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.IPCC_TEMP_CHAP06} --flow True"
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.TEST_IPCC_TEMP_CHAP06} --flow True"
         PyAMI().run_command(args)
-        outpath = Path(Resources.IPCC_TEMP_CHAP06, "fulltext.flow_4.html")
+        outpath = Path(Resources.TEST_IPCC_TEMP_CHAP06, "fulltext.flow_4.html")
         assert outpath.exists(), f"{outpath} should be created"
 
     @unittest.skipIf(LONG, "doesn't obey --maxpage or --pages")
@@ -928,7 +928,7 @@ Uses:
         """
 
         chapter = "Chapter04"
-        ipcc_dir = Path(Resources.IPCC_DIR)
+        ipcc_dir = Path(Resources.TEST_IPCC_DIR)
         print(f"Converting chapter: {chapter}")
         pdf_args = PDFArgs() # also supports commands
         chapter_dir = Path(ipcc_dir, chapter)
@@ -1132,7 +1132,7 @@ LTPage
         assert 76000 < os.path.getsize(path) < 77000, f"size should be in range , was {os.path.getsize(path)}"
 
     def test_make_composite_lines_from_pdf_chap_6_3_toc(self):
-        path = Path(Resources.IPCC_CHAP06, "html", "chap6_3.html")
+        path = Path(Resources.TEST_IPCC_CHAP06, "html", "chap6_3.html")
         assert path.exists(), f"path exists {path}"
         AmiPage.create_page_from_pdf_html(path)
 
@@ -1146,7 +1146,7 @@ LTPage
 
     def test_subcommands(self):
         # run args
-        inpath = Path(Resources.PDFS_DIR, "1758-2946-3-44.pdf")
+        inpath = Path(Resources.TEST_PDFS_DIR, "1758-2946-3-44.pdf")
         outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-44")
         PyAMI().run_command(
             ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
@@ -1161,8 +1161,8 @@ LTPage
         """
         # run args
 
-        inpath = Path(Resources.IPCC_CHAP06, "fulltext.pdf")
-        outdir = Path(Resources.IPCC_TEMP_CHAP06)
+        inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.pdf")
+        outdir = Path(Resources.TEST_IPCC_TEMP_CHAP06)
         htmls = FileLib.delete_files(outdir, "*.html")
         out2 = Path(outdir, "fulltext.flow_2.html")
         assert not out2.exists()
@@ -1213,9 +1213,9 @@ class PDF_SVGTest(test.test_all.AmiAnyTest):
             raise Exception("must have SVG from ami3")
         for page_index in CURRENT_RANGE:
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-            html_path = Path(Resources.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-            if not Resources.CLIMATE_10_HTML_TEMP_DIR.exists():
-                Resources.CLIMATE_10_HTML_TEMP_DIR.mkdir()
+            html_path = Path(Resources.TEST_CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+            if not Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.exists():
+                Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir()
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
             ami_page.write_html(html_path, pretty_print, use_lines)
 
@@ -1308,8 +1308,8 @@ class PDF_SVGTest(test.test_all.AmiAnyTest):
         """
         pretty_print = True
         use_lines = True
-        svg_dir = Resources.CLIMATE_10_SVG_DIR
-        html_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        svg_dir = Resources.TEST_CLIMATE_10_SVG_DIR
+        html_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
         for page_index in range(1, 9):
             page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_dir, f"page.{page_index}.html")
@@ -1330,7 +1330,7 @@ class PDF_SVGTest(test.test_all.AmiAnyTest):
         page_selection = range(1, 50)
         counter = 0
         counter_tick = 20
-        html_out_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        html_out_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
         for page_index in page_selection:
             if counter % counter_tick == 0:
                 print(f".", end="")
@@ -1349,7 +1349,7 @@ class PDF_SVGTest(test.test_all.AmiAnyTest):
         use_lines = True
         self.make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
         selection = CURRENT_RANGE
-        temp_dir = Resources.CLIMATE_10_HTML_TEMP_DIR
+        temp_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
         for page_index in selection:
             html_path = Path(temp_dir, f"page.{page_index}.html")
             with open(html_path, "r") as h:
@@ -1375,7 +1375,7 @@ class PDF_SVGTest(test.test_all.AmiAnyTest):
     @unittest.skipUnless(SVG, "svg")
     @unittest.skipUnless(CMD, "command")
     def test_svg2page(self):
-        proj = Resources.CLIMATE_10_PROJ_DIR
+        proj = Resources.TEST_CLIMATE_10_PROJ_DIR
         args = f"--proj {proj} --apply svg2page"
         PyAMI().run_command(args)
 

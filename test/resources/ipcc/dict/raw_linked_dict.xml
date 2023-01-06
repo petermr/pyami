@@ -11,7 +11,7 @@
     </source>
   </entry>
 
-  <entry term="FOLU" name="forestry and other land-use" wikidataID="Q3348639"
+  <entry id="folu" term="FOLU" name="forestry and other land-use" wikidataID="Q3348639"
          wikipediaPage="https://en.wikipedia.org/wiki/Land_use,_land-use_change,_and_forestry"
          desc="Greenhouse gas inventory sector that covers emissions and removals of greenhouse gases resulting
                from direct human-induced land use">
@@ -50,7 +50,7 @@
 
   <entry term="CEDS" name="A Community Emissions Data System for Historical Emissions" wikidataID="" desc="" descPage=""/>
 
-  <entry term="CRF" name="common reporting format" wikidataID="" desc=""/>
+  <entry term="CRF" name="common reporting format" wikidataID="NOT_LOOKED_UP" desc=""/>
 
   <entry term="emissions factor" wikidataID="" wikipediaPage=""
          desc="An emissions factor is a representative value that attempts to relate

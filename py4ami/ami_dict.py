@@ -6,6 +6,7 @@ import logging
 from lxml import etree as ET
 from lxml import etree
 from lxml.etree import Element, _Element
+from enum import Enum
 import lxml
 import os
 import pandas as pd
@@ -21,7 +22,7 @@ from shutil import copyfile
 # local
 # from py4ami.wikimedia import WikidataLookup, WikidataPage
 from py4ami.util import Util
-from py4ami.constants import CEV_OPEN_DICT_DIR, OV21_DIR, DICT_AMI3
+from py4ami.constants import LOCAL_CEV_OPEN_DICT_DIR, LOCAL_OV21_DIR, LOCAL_DICT_AMI3
 from py4ami.ami_html import HtmlUtil, CSSStyle, H_A, H_SPAN, H_BODY, H_DIV, H_UL, H_LI, A_ID, \
     A_HREF, A_NAME, A_TITLE, A_TERM
 from py4ami.file_lib import FileLib
@@ -72,6 +73,13 @@ LANG_UR = "ur"
 # elements
 
 logger = logging.getLogger("ami_dict")
+
+# class syntax
+class DictValue(Enum):
+    NOT_LOOKED_UP = "notLookedUp",
+    NOT_FOUND = "notFound",
+    AMBIGUOUS = "ambiguous",
+
 
 """
 work with lxml Elements as far as possible, and only wrap as Ami* objects when thos functions
@@ -407,6 +415,7 @@ class AmiDictionary:
         self.logger = logger
         self.xml_content = None
         self.entries = []
+        self.entry_by_id = dict()
         self.entry_by_term = dict()
         self.entry_by_wikidata_id = {}
         self.file = None
@@ -645,6 +654,11 @@ class AmiDictionary:
 
     @classmethod
     def create_dictionary_from_url(cls, xml_url):
+        """
+        Create dictionary from (the content and filename) of a URL
+        See also AmiDictionary.read_dictionary
+
+        """
         assert xml_url is not None
         try:
             with urllib.request.urlopen(xml_url) as f:
@@ -657,6 +671,8 @@ class AmiDictionary:
         assert element.tag == AmiDictionary.TAG
         amidict = AmiDictionary.create_from_xml_object(element)
         amidict.url = xml_url
+        # save filename  in dictionary
+        amidict.file = Util.get_file_from_url(amidict.url)
         return amidict
 
     #    class AmiDictionary:
@@ -779,6 +795,9 @@ class AmiDictionary:
         """
         entry = self.get_lxml_entry(term)
         return None if entry is None else AmiEntry.create_from_element(entry)
+
+    def get_ami_entry_by_id(self, id):
+        pass
 
     def get_entry_count(self):
         assert self.entry_by_term is not None
@@ -1382,25 +1401,25 @@ class AmiDictionaries:
 
         # / Users / pm286 / projects / CEVOpen / dictionary / eoActivity / eo_activity / Activity.xml
         self.add_with_check(AmiDictionaries.ACTIVITY,
-                            os.path.join(CEV_OPEN_DICT_DIR, "eoActivity", "eo_activity", "activity.xml"))
+                            os.path.join(LOCAL_CEV_OPEN_DICT_DIR, "eoActivity", "eo_activity", "activity.xml"))
         self.add_with_check(AmiDictionaries.COUNTRY,
-                            os.path.join(OV21_DIR, "country", "country.xml"))
+                            os.path.join(LOCAL_OV21_DIR, "country", "country.xml"))
         self.add_with_check(AmiDictionaries.DISEASE,
-                            os.path.join(OV21_DIR, "disease", "disease.xml"))
+                            os.path.join(LOCAL_OV21_DIR, "disease", "disease.xml"))
         self.add_with_check(AmiDictionaries.COMPOUND,
-                            os.path.join(CEV_OPEN_DICT_DIR, "eoCompound", "plant_compound.xml"))
+                            os.path.join(LOCAL_CEV_OPEN_DICT_DIR, "eoCompound", "plant_compound.xml"))
         self.add_with_check(AmiDictionaries.PLANT,
-                            os.path.join(CEV_OPEN_DICT_DIR, "eoPlant", "plant.xml"))
+                            os.path.join(LOCAL_CEV_OPEN_DICT_DIR, "eoPlant", "plant.xml"))
         self.add_with_check(AmiDictionaries.PLANT_GENUS,
-                            os.path.join(CEV_OPEN_DICT_DIR, "plant_genus", "plant_genus.xml"))
+                            os.path.join(LOCAL_CEV_OPEN_DICT_DIR, "plant_genus", "plant_genus.xml"))
         self.add_with_check(AmiDictionaries.ORGANIZATION,
-                            os.path.join(OV21_DIR, "organization", "organization.xml"))
+                            os.path.join(LOCAL_OV21_DIR, "organization", "organization.xml"))
         self.add_with_check(AmiDictionaries.PLANT_COMPOUND,
-                            os.path.join(CEV_OPEN_DICT_DIR, "eoCompound", "plant_compound.xml"))
+                            os.path.join(LOCAL_CEV_OPEN_DICT_DIR, "eoCompound", "plant_compound.xml"))
         self.add_with_check(AmiDictionaries.PLANT_PART,
-                            os.path.join(CEV_OPEN_DICT_DIR, "eoPlantPart", "eoplant_part.xml"))
+                            os.path.join(LOCAL_CEV_OPEN_DICT_DIR, "eoPlantPart", "eoplant_part.xml"))
         self.add_with_check(AmiDictionaries.INVASIVE_PLANT,
-                            os.path.join(CEV_OPEN_DICT_DIR, "Invasive_species", "invasive_plant.xml"))
+                            os.path.join(LOCAL_CEV_OPEN_DICT_DIR, "Invasive_species", "invasive_plant.xml"))
 
         self.make_ami3_dictionaries()
 
@@ -1417,41 +1436,41 @@ class AmiDictionaries:
     def make_ami3_dictionaries(self):
 
         self.ami3_dict_index = {
-            AmiDictionaries.ANIMAL_TEST: os.path.join(DICT_AMI3, "animaltest.xml"),
-            AmiDictionaries.COCHRANE: os.path.join(DICT_AMI3, "cochrane.xml"),
-            AmiDictionaries.COMP_CHEM: os.path.join(DICT_AMI3, "compchem.xml"),
-            AmiDictionaries.CRISPR: os.path.join(DICT_AMI3, "crispr.xml"),
-            AmiDictionaries.CRYSTAL: os.path.join(DICT_AMI3, "crystal.xml"),
-            AmiDictionaries.DISTRIBUTION: os.path.join(DICT_AMI3, "distributions.xml"),
-            AmiDictionaries.DITERPENE: os.path.join(DICT_AMI3, "diterpene.xml"),
-            AmiDictionaries.DRUG: os.path.join(DICT_AMI3, "drugs.xml"),
-            AmiDictionaries.EDGE_MAMMAL: os.path.join(DICT_AMI3, "edgemammals.xml"),
-            AmiDictionaries.ETHICS: os.path.join(DICT_AMI3, "ethics.xml"),
-            AmiDictionaries.CHEM_ELEMENT: os.path.join(DICT_AMI3, "elements.xml"),
-            AmiDictionaries.EPIDEMIC: os.path.join(DICT_AMI3, "epidemic.xml"),
-            AmiDictionaries.EUROFUNDER: os.path.join(DICT_AMI3, "eurofunders.xml"),
-            AmiDictionaries.ILLEGAL_DRUG: os.path.join(DICT_AMI3, "illegaldrugs.xml"),
-            AmiDictionaries.INN: os.path.join(DICT_AMI3, "inn.xml"),
-            AmiDictionaries.INSECTICIDE: os.path.join(DICT_AMI3, "insecticide.xml"),
-            AmiDictionaries.MAGNETISM: os.path.join(DICT_AMI3, "magnetism.xml"),
-            AmiDictionaries.MONOTERPENE: os.path.join(DICT_AMI3, "monoterpene.xml"),
-            AmiDictionaries.NAL: os.path.join(DICT_AMI3, "nal.xml"),
-            AmiDictionaries.NMR: os.path.join(DICT_AMI3, "nmrspectroscopy.xml"),
-            AmiDictionaries.OBESITY: os.path.join(DICT_AMI3, "obesity.xml"),
-            AmiDictionaries.OPTOGENETICS: os.path.join(DICT_AMI3, "optogenetics.xml"),
-            AmiDictionaries.PECTIN: os.path.join(DICT_AMI3, "pectin.xml"),
-            AmiDictionaries.PHOTOSYNTH: os.path.join(DICT_AMI3, "photosynth.xml"),
-            AmiDictionaries.PLANT_DEV: os.path.join(DICT_AMI3, "plantDevelopment.xml"),
-            AmiDictionaries.POVERTY: os.path.join(DICT_AMI3, "poverty.xml"),
-            AmiDictionaries.PROT_STRUCT: os.path.join(DICT_AMI3, "proteinstruct.xml"),
-            AmiDictionaries.PROT_PRED: os.path.join(DICT_AMI3, "protpredict.xml"),
-            AmiDictionaries.REFUGEE: os.path.join(DICT_AMI3, "refugeeUNHCR.xml"),
-            AmiDictionaries.SESQUITERPENE: os.path.join(DICT_AMI3, "sesquiterpene.xml"),
-            AmiDictionaries.SOLVENT: os.path.join(DICT_AMI3, "solvents.xml"),
-            AmiDictionaries.STATISTICS: os.path.join(DICT_AMI3, "statistics.xml"),
-            AmiDictionaries.TROPICAL_VIRUS: os.path.join(DICT_AMI3, "tropicalVirus.xml"),
-            AmiDictionaries.WETLANDS: os.path.join(DICT_AMI3, "wetlands.xml"),
-            AmiDictionaries.WILDLIFE: os.path.join(DICT_AMI3, "wildlife.xml"),
+            AmiDictionaries.ANIMAL_TEST: os.path.join(LOCAL_DICT_AMI3, "animaltest.xml"),
+            AmiDictionaries.COCHRANE: os.path.join(LOCAL_DICT_AMI3, "cochrane.xml"),
+            AmiDictionaries.COMP_CHEM: os.path.join(LOCAL_DICT_AMI3, "compchem.xml"),
+            AmiDictionaries.CRISPR: os.path.join(LOCAL_DICT_AMI3, "crispr.xml"),
+            AmiDictionaries.CRYSTAL: os.path.join(LOCAL_DICT_AMI3, "crystal.xml"),
+            AmiDictionaries.DISTRIBUTION: os.path.join(LOCAL_DICT_AMI3, "distributions.xml"),
+            AmiDictionaries.DITERPENE: os.path.join(LOCAL_DICT_AMI3, "diterpene.xml"),
+            AmiDictionaries.DRUG: os.path.join(LOCAL_DICT_AMI3, "drugs.xml"),
+            AmiDictionaries.EDGE_MAMMAL: os.path.join(LOCAL_DICT_AMI3, "edgemammals.xml"),
+            AmiDictionaries.ETHICS: os.path.join(LOCAL_DICT_AMI3, "ethics.xml"),
+            AmiDictionaries.CHEM_ELEMENT: os.path.join(LOCAL_DICT_AMI3, "elements.xml"),
+            AmiDictionaries.EPIDEMIC: os.path.join(LOCAL_DICT_AMI3, "epidemic.xml"),
+            AmiDictionaries.EUROFUNDER: os.path.join(LOCAL_DICT_AMI3, "eurofunders.xml"),
+            AmiDictionaries.ILLEGAL_DRUG: os.path.join(LOCAL_DICT_AMI3, "illegaldrugs.xml"),
+            AmiDictionaries.INN: os.path.join(LOCAL_DICT_AMI3, "inn.xml"),
+            AmiDictionaries.INSECTICIDE: os.path.join(LOCAL_DICT_AMI3, "insecticide.xml"),
+            AmiDictionaries.MAGNETISM: os.path.join(LOCAL_DICT_AMI3, "magnetism.xml"),
+            AmiDictionaries.MONOTERPENE: os.path.join(LOCAL_DICT_AMI3, "monoterpene.xml"),
+            AmiDictionaries.NAL: os.path.join(LOCAL_DICT_AMI3, "nal.xml"),
+            AmiDictionaries.NMR: os.path.join(LOCAL_DICT_AMI3, "nmrspectroscopy.xml"),
+            AmiDictionaries.OBESITY: os.path.join(LOCAL_DICT_AMI3, "obesity.xml"),
+            AmiDictionaries.OPTOGENETICS: os.path.join(LOCAL_DICT_AMI3, "optogenetics.xml"),
+            AmiDictionaries.PECTIN: os.path.join(LOCAL_DICT_AMI3, "pectin.xml"),
+            AmiDictionaries.PHOTOSYNTH: os.path.join(LOCAL_DICT_AMI3, "photosynth.xml"),
+            AmiDictionaries.PLANT_DEV: os.path.join(LOCAL_DICT_AMI3, "plantDevelopment.xml"),
+            AmiDictionaries.POVERTY: os.path.join(LOCAL_DICT_AMI3, "poverty.xml"),
+            AmiDictionaries.PROT_STRUCT: os.path.join(LOCAL_DICT_AMI3, "proteinstruct.xml"),
+            AmiDictionaries.PROT_PRED: os.path.join(LOCAL_DICT_AMI3, "protpredict.xml"),
+            AmiDictionaries.REFUGEE: os.path.join(LOCAL_DICT_AMI3, "refugeeUNHCR.xml"),
+            AmiDictionaries.SESQUITERPENE: os.path.join(LOCAL_DICT_AMI3, "sesquiterpene.xml"),
+            AmiDictionaries.SOLVENT: os.path.join(LOCAL_DICT_AMI3, "solvents.xml"),
+            AmiDictionaries.STATISTICS: os.path.join(LOCAL_DICT_AMI3, "statistics.xml"),
+            AmiDictionaries.TROPICAL_VIRUS: os.path.join(LOCAL_DICT_AMI3, "tropicalVirus.xml"),
+            AmiDictionaries.WETLANDS: os.path.join(LOCAL_DICT_AMI3, "wetlands.xml"),
+            AmiDictionaries.WILDLIFE: os.path.join(LOCAL_DICT_AMI3, "wildlife.xml"),
         }
 
         for item in self.ami3_dict_index.items():
@@ -1690,35 +1709,51 @@ class AmiDictValidator:
     def __init__(self, dictionary=None, path=None):
         if not dictionary:
             raise ValueError("no dictionary")
-        self.dictionary = dictionary
+        assert type(dictionary) is AmiDictionary
+        self.ami_dictionary = dictionary
         assert dictionary.root is not None
         assert str(type(dictionary.root)) == "<class 'lxml.etree._Element'>", f"found: {type(dictionary.root)}"
         self.path = path
 
+
     def get_error_list(self):
-        """aggregates all errors into single list"""
+        """
+        aggregates all errors into single list
+        """
         error_list = []
         error_list.extend(self.get_xml_declaration_error_list())
-        error_list.extend(self.get_title_error_list())
+        error_list.extend(self.get_dictionary_element_error_list())
+        print (f"errors: {error_list}")
+        return error_list
 
     def get_xml_declaration_error_list(self):
-        tree = lxml.etree.ElementTree(self.dictionary.root)
+        tree = lxml.etree.ElementTree(self.ami_dictionary.root)
         info = tree.docinfo
-        error_list = []
+        error_list1 = []
         if "1.0" != info.xml_version:
-            error_list.append(f"unsupported xml_version: {info.xml_version}")
+            error_list1.append(f"unsupported xml_version: {info.xml_version}")
         if info.encoding is None or info.encoding.upper() != "UTF-8":
-            error_list.append(f"unsupported encoding: {info.encoding}")
+            error_list1.append(f"unsupported encoding: {info.encoding}")
         if info.doctype is not None and info.doctype != '':
-            error_list.append(f"DOCTYPE unsupported {info.doctype}")
-        return error_list
+            error_list1.append(f"DOCTYPE unsupported {info.doctype}")
+        return error_list1
 
-    def get_title_error_list(self):
-        error_list = []
-        title = self.dictionary.title
+    def get_dictionary_element_error_list(self):
+        """
+        Validate <dictionary> element and return errors
+        """
+        error_list1 = []
+        title = self.ami_dictionary.title
         if not title:
-            error_list.append(f"Dictionary does not have title")
-        return error_list
+            error_list1.append(f"Dictionary does not have title")
+        if not self.ami_dictionary.file:
+            error_list1.append(f"Dictionary does not have file")
+        if self.ami_dictionary.file != self.ami_dictionary.file:
+            error_list1.append(f"Dictionary file {self.ami_dictionary.file} does not match title {self.ami_dictionary.title}")
+        attribs = self.ami_dictionary.root.attrib
+        print (f"dictionary attributes {attribs}")
+
+        return error_list1
 
 
 # ====================
