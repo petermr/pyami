@@ -233,6 +233,17 @@ class Util:
             return None
         return str.maketrans(orig, rep * len(orig))
 
+    @classmethod
+    def print_stacktrace(cls, ex):
+        """
+        prints traceback
+        :param ex: the exception
+        """
+        if ex:
+            traceback = ex.__traceback__
+            while traceback:
+                print(f"{traceback.tb_frame.f_code.co_filename}: {traceback.tb_lineno}")
+                traceback = traceback.tb_next
 
 class GithubDownloader:
     """Note: Github uses the old 'master' name but we have changed it to 'main'"""
