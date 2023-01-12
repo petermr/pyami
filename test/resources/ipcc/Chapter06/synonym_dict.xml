@@ -1,0 +1,31 @@
+<dictionary title="abbrev_as">
+    <entry name="carbon capture and storage" wikidataID="">
+  	
+    </entry>
+    <entry term="DACCS" name="direct air carbon capture and storage" count="7" wikidataID="Q60761394">
+  	
+    </entry>
+  <entry term="sustainable development goals" count="10" wikidataID="Q7649586">
+	  <synonym type="abbreviation">SDG</synonym>
+  </entry>
+  <entry term="green infrastructure" name="Green Infrastructure" count="0" wikidataID="Q3427027"></entry>
+  <entry term="bioenergy produced through biomass gasification with CCS" name="" wikidataID="">
+	  <synonym type="abbreviation">BECCS</synonym>
+  </entry>
+  <entry term="energy system" name="" wikidataID="">
+  </entry>
+  <entry term="net zero" name="" wikidataID="">
+  </entry>
+  <entry term="greenhouse gas" name="" wikidataID="">
+	  <synonym type="abbreviation">GHG</synonym>
+  </entry>
+  <entry term="solar PV" name="" wikidataID="">
+  </entry>
+  
+  <entry term="photovoltaic" name="" wikidataID="">
+	  <synonym type="abbreviation">PV</synonym>
+  </entry>
+    <entry term="Energy return on investment" wikidataID="Q1361106">
+        <synonym type="abbreviation">EROI</synonym>
+    </entry>
+</dictionary>
