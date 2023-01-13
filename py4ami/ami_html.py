@@ -1464,9 +1464,15 @@ class CSSStyle:
     def cmky_to_rgb(cls, c, m, k, y):
         return cls.cmyk_to_rgb(c, m, y, k)
 
-    def extract_bold_italic_from_font_family(self, overwrite_bold=False, overwrite_style=False, overwrite_family=True,
-                                             style_regex=STYLE_RE, weight_regex=WEIGHT_RE):
-        """heuristics to find bold and italic in font names and try to normalise
+    def extract_bold_italic_from_font_family(
+            self,
+            overwrite_bold=False,
+            overwrite_style=False,
+            overwrite_family=True,
+            style_regex=STYLE_RE,
+            weight_regex=WEIGHT_RE):
+        """
+        heuristics to find bold and italic in font names and try to normalise
         e.g.
         font-family: TimesNewRomanPS-BoldMT; => font-family: TimesNewRomanPSMT; font_weight: bold
         font-family: TimesNewRomanPS-ItalicMT; => font-family: TimesNewRomanPSMT; font_style: italic

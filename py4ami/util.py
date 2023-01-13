@@ -238,6 +238,17 @@ class Util:
         return str.maketrans(orig, rep * len(orig))
 
     @classmethod
+    def print_stacktrace(cls, ex):
+        """
+        prints traceback
+        :param ex: the exception
+        """
+        if ex:
+            traceback = ex.__traceback__
+            while traceback:
+                print(f"{traceback.tb_frame.f_code.co_filename}: {traceback.tb_lineno}")
+                traceback = traceback.tb_next
+    @classmethod
     def get_urls_from_webpage(cls, suffixes, weburl):
 
         page = requests.get(weburl)

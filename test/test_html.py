@@ -12,6 +12,7 @@ import lxml.etree
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 # local
+from py4ami.pyamix import PyAMI
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HTMLSearcher
 import lxml.etree
 
@@ -80,6 +81,27 @@ class HtmlTest(AmiAnyTest):
         html_span = lxml.etree.fromstring(HTML_SUBSECTION_REF)
         assert type(html_span) is lxml.etree._Element
         assert html_span.text == "to national level (4.2.2.3) and subnational"
+
+    def test_parse_commandline(self):
+        """
+        Simulate running from commandline
+        """
+        infile = Path(Resources.IPCC_CHAP06, "fulltext.html")
+        assert infile.exists()
+        outpath = Path(Resources.IPCC_TEMP_CHAP06, 'fulltext.annot.html')
+        if outpath.exists():
+            os.remove(outpath)
+        dictfile = Path(Resources.IPCC_CHAP06, 'abbrev_as.xml')
+        assert dictfile.exists()
+        args = f"HTML --inpath {infile} --outpath {outpath} --annotate --dict {dictfile} --color YELLOW"
+        PyAMI().run_command(args)
+        assert outpath.exists(), f"outpath {outpath} should exist"
+        element = lxml.etree.parse(str(outpath))
+        # crude count of success
+        xpath ="//*[@href]"
+        href_elems = element.xpath(xpath)
+        assert len(href_elems) == 3, f"expected 3 hrefs, found {len(href_elems)}"
+
 
     @unittest.skipIf(OLD, "use TextChunker")
     def test_find_single_brackets_in_span(self):
