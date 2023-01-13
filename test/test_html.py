@@ -660,3 +660,13 @@ class HtmlTest(AmiAnyTest):
                 node_dict[unmatched].append(node)
             print(f"node_dict: {node_dict.items()}")
         return node_dict_list
+
+class TestCSSStyle:
+
+    def test_extract_character_style(self):
+        """
+        Test extract character info and separate the rest
+        creates 2 substyles
+        """
+        css = CSSStyle.create_css_style_from_css_string("font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
+        font_style, rest_style = css.extract_substyles(["font-weight", "font-family", "font-size", "color"])

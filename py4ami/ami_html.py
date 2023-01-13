@@ -251,7 +251,7 @@ class HtmlTidy:
         if self.add_id:
             HtmlUtil.add_ids(self.raw_elem)
         for tag in self.descendants_to_remove:
-            HtmlUtil.remove_descendant_elements_by_tag(tag, self.raw_elem)
+            lxml.etree.strip_tags(elem, self.raw_elem)
         if self.remove_lh_line_numbers:
             HtmlUtil.remove_lh_line_numbers(self.raw_elem)
         if self.remove_large_fonted_elements:
@@ -772,15 +772,9 @@ class HtmlUtil:
                 # print(f"\n[[{text} => {''.join(el.itertext())}]]\n")
 
     @classmethod
-    def remove_descendant_elements_by_tag(cls, tag, result_elem):
-        """
-        Maybe move to HTMLTidy
-        """
-        lxml.etree.strip_tags(result_elem, tag)
-
-    @classmethod
     def remove_style(cls, xpath_root_elem, names):
-        """removes name-value pairs from css-style and reapply to xpath'ed elements"""
+        """
+        removes name-value pairs from css-style and reapply to xpath'ed elements"""
         """
         Maybe move to HTMLTidy
         """
