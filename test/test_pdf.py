@@ -782,7 +782,7 @@ LTPage
         pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
         pdf_args.arg_dict[MAXPAGE] = 10
         pdf_args.arg_dict[PAGES] = "1_10"
-        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEST_IPCC_TEMP_CHAP06, "pdf.html")
+        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_IPCC_CHAP06, "pdf.html")
 
         print(f"arg_dict {pdf_args.arg_dict}")
         outfile, _ = pdf_args.convert_write()
@@ -852,11 +852,11 @@ Uses:
 
 
         """
-        outfile = Path(Resources.TEST_IPCC_TEMP_CHAP06, "all.html")
+        outfile = Path(Resources.TEMP_IPCC_CHAP06, "all.html")
         # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 9 11_15 217_ --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06}"
         # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfplumber"
         # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfminer"
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.TEST_IPCC_TEMP_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.TEMP_IPCC_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
         PyAMI().run_command(args)
         print(f"created outfile {outfile}")
         # assert outfile.exists(), f"{outfile} should exist"
@@ -867,11 +867,11 @@ Uses:
 
         """
         assert Path(IPCC_CHAP6_PDF).exists(), f"expected {IPCC_CHAP6_PDF}"
-        assert Path(Resources.TEST_IPCC_TEMP_CHAP06).exists(), f"expected {Resources.TEST_IPCC_TEMP_CHAP06}"
+        assert Path(Resources.TEMP_IPCC_CHAP06).exists(), f"expected {Resources.TEMP_IPCC_CHAP06}"
 
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.TEST_IPCC_TEMP_CHAP06} --flow True"
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.TEMP_IPCC_CHAP06} --flow True"
         PyAMI().run_command(args)
-        outpath = Path(Resources.TEST_IPCC_TEMP_CHAP06, "fulltext.flow_4.html")
+        outpath = Path(Resources.TEMP_IPCC_CHAP06, "fulltext.flow_4.html")
         assert outpath.exists(), f"{outpath} should be created"
 
     @unittest.skipIf(LONG, "doesn't obey --maxpage or --pages")
@@ -1162,7 +1162,7 @@ LTPage
         # run args
 
         inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.pdf")
-        outdir = Path(Resources.TEST_IPCC_TEMP_CHAP06)
+        outdir = Path(Resources.TEMP_IPCC_CHAP06)
         htmls = FileLib.delete_files(outdir, "*.html")
         out2 = Path(outdir, "fulltext.flow_2.html")
         assert not out2.exists()

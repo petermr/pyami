@@ -1,6 +1,4 @@
 """Create, transform, markup up HTML, etc."""
-import lxml.etree
-from pathlib import Path
 import os
 import re
 import unittest
@@ -8,19 +6,16 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import lxml.etree
-
-from py4ami.ami_bib import Reference, Biblioref
-from py4ami.ami_dict import AmiDictionary
-# local
-from py4ami.pyamix import PyAMI
-from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HTMLSearcher
+import lxml.etree
 import lxml.etree
 
-import test
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
+from py4ami.ami_html import HTMLSearcher
 # local
-from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle
+from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, CSSConverter, HtmlTidy
+# local
+from py4ami.pyamix import PyAMI
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib
 from test.resources import Resources
@@ -86,22 +81,21 @@ class HtmlTest(AmiAnyTest):
         """
         Simulate running from commandline
         """
-        infile = Path(Resources.IPCC_CHAP06, "fulltext.html")
+        infile = Path(Resources.TEST_IPCC_CHAP06, "fulltext.html")
         assert infile.exists()
-        outpath = Path(Resources.IPCC_TEMP_CHAP06, 'fulltext.annot.html')
+        outpath = Path(Resources.TEMP_DIR, "html", 'fulltext.annot.html')
         if outpath.exists():
             os.remove(outpath)
-        dictfile = Path(Resources.IPCC_CHAP06, 'abbrev_as.xml')
+        dictfile = Path(Resources.TEST_IPCC_CHAP06, 'abbrev_as.xml')
         assert dictfile.exists()
         args = f"HTML --inpath {infile} --outpath {outpath} --annotate --dict {dictfile} --color YELLOW"
         PyAMI().run_command(args)
         assert outpath.exists(), f"outpath {outpath} should exist"
         element = lxml.etree.parse(str(outpath))
         # crude count of success
-        xpath ="//*[@href]"
+        xpath = "//*[@href]"
         href_elems = element.xpath(xpath)
         assert len(href_elems) == 3, f"expected 3 hrefs, found {len(href_elems)}"
-
 
     @unittest.skipIf(OLD, "use TextChunker")
     def test_find_single_brackets_in_span(self):
@@ -319,7 +313,6 @@ class HtmlTest(AmiAnyTest):
         assert spans[0] is None
         assert spans[1] is not None
         assert spans[2] is None
-
 
     def test_split_matched_string_in_span_recursively(self):
         """split string in span into 2n+1 using regex
@@ -542,7 +535,7 @@ class HtmlTest(AmiAnyTest):
         assert path.exists(), f"{path} should exist"
         tree = lxml.etree.parse(str(path))
         ps = tree.findall(".//p")
-        assert 23 <=len(ps) <= 50
+        assert 23 <= len(ps) <= 50
         i = 0
         for p in ps:
             bs = p.xpath(".//b")
@@ -581,6 +574,7 @@ class HtmlTest(AmiAnyTest):
             node_dict_list_list.append(node_dict_list)
         assert len(node_dict_list_list) == 21
         # assert str(node_dict_list_list[0]) == "[defaultdict(<class 'list'>, {'Figure': ['2.5'],'Table': ['2.1'],\n 'unmatched': ['2.2.2']})]", f"found {node_dict_list_list[0]}"
+
     def test_unescape_xml_character_entity_to_unicode(self):
         """
         reads HTML with embedded character entities (e.g. "&#176;")
@@ -598,7 +592,6 @@ class HtmlTest(AmiAnyTest):
         print(f"\ncopy is {copy} on {two} December 18{degrees}")
         degrees = html.unescape('document &#169; PMR 2022 18&#176;')
         assert degrees == 'document © PMR 2022 18°'
-
 
     def test_unescape_xml_entities_old(self):
         """
@@ -683,6 +676,101 @@ class HtmlTest(AmiAnyTest):
             print(f"node_dict: {node_dict.items()}")
         return node_dict_list
 
+class TestHtmlTidy:
+
+    def test_html_good(self):
+        """
+        ensures valid html passes
+        """
+        # ideal file html-head-body
+        html_ideal = """
+        <html>
+          <!-- ideal file -->
+          <head>
+          </head>
+          <body>
+            <ul>
+              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+              <li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+            </ul>
+          </body>
+        </html>
+            """
+        html_raw = lxml.etree.fromstring(html_ideal)
+        html_new = HtmlTidy._ensure_html_root(html_raw)
+        assert len(html_new.xpath("/html")) == 1
+        assert len(html_new.xpath("/*/html")) == 0
+
+    def test_html_ok(self):
+        """
+        various allowable but non-ideal html
+        """
+        # ok file html-body
+        html_body_only = """
+        <html>
+          <!-- no head -->
+          <body>
+            <ul>
+              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+              <li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+            </ul>
+          </body>
+        </html>
+            """
+        html_raw = lxml.etree.fromstring(html_body_only)
+        html_new = HtmlTidy._ensure_html_root(html_raw)
+        assert len(html_new.xpath("/html")) == 1
+        assert len(html_new.xpath("/*/html")) == 0
+
+        # ok file html-no-body
+        html_body_only = """
+        <html>
+          <!-- no head -->
+          <ul>
+            <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+            <li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+          </ul>
+        </html>
+            """
+        html_raw = lxml.etree.fromstring(html_body_only)
+        html_new = HtmlTidy._ensure_html_root(html_raw)
+        assert len(html_new.xpath("/html")) == 1
+        assert len(html_new.xpath("/*/html")) == 0
+
+    def test_wrap_element_html(self):
+        """
+        wraps element in <html>. Adds <head> and <body>
+        """
+        # no html head and implied body
+        html_body_only = """<ul><li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li><li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li></ul>
+            """
+        html_raw = lxml.etree.fromstring(html_body_only)
+        html_new = HtmlTidy.ensure_html_head_body(html_raw)
+        assert len(html_new.xpath("/html")) == 1
+        assert len(html_new.xpath("/html/head")) == 1
+        assert len(html_new.xpath("/html/body")) == 1
+        html_s = lxml.etree.tostring(html_new).decode('UTF-8')
+        assert """<html><head/><body><ul><li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li><li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li></ul></body></html>""" == html_s, f"found {html_s}"
+
+        # html but no explicit head and or body; wraps p, ul in body and wraps style in head
+        html_only = """<html><style>p {color: green}</style><p>should be green</p><ul><li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li><li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li></ul></html>"""
+        html_raw = lxml.etree.fromstring(html_only)
+        html_new = HtmlTidy.ensure_html_head_body(html_raw)
+        assert len(html_new.xpath("/html")) == 1
+        assert len(html_new.xpath("/html/head")) == 1
+        assert len(html_new.xpath("/html/body")) == 1
+        html_s = lxml.etree.tostring(html_new).decode('UTF-8')
+        assert """<html><head><style>p {color: green}</style></head><body><p>should be green</p><ul><li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li><li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li></ul></body></html>""" == html_s, f"found {html_s}"
+        # for display
+        html_dir = Path(Resources.TEMP_DIR, "html")
+        html_dir.mkdir(exist_ok=True)
+        assert html_dir.exists(), f"{html_dir} must exist"
+        with open(Path(html_dir, "html_only.html"), "w") as f:
+            f.write(html_only)
+        with open(Path(html_dir, "html_tidied.html"), "w") as f:
+            f.write(html_s)
+
+
 class TestCSSStyle:
 
     def test_extract_character_style(self):
@@ -690,5 +778,56 @@ class TestCSSStyle:
         Test extract character info and separate the rest
         creates 2 substyles
         """
-        css = CSSStyle.create_css_style_from_css_string("font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
-        font_style, rest_style = css.extract_substyles(["font-weight", "font-family", "font-size", "color"])
+        css = CSSStyle.create_css_style_from_css_string(
+            "font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
+        (extracted, retained) = font_style, rest_style = css.extract_substyles(
+            [CSSStyle.FONT_STYLE, CSSStyle.FONT_WEIGHT, CSSStyle.FONT_FAMILY, CSSStyle.FONT_SIZE, CSSStyle.COLOR])
+        assert extracted == CSSStyle.create_css_style_from_css_string(
+            "font-weight: bold; font-family: monospace; font-size: 13px; color: blue;")
+        assert retained == CSSStyle.create_css_style_from_css_string("bottom: 10px")
+
+    def test_extract_text_styles_into_html_style(self):
+        """
+        Extracts named styled components into new styles and creates HtmlStyle
+        """
+        css = CSSStyle.create_css_style_from_css_string(
+            "font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
+        extracted_style, _ = css.extract_text_styles()
+        class_locator = "l1"
+        html_style_elem = extracted_style.create_html_style(class_locator)
+        ss = lxml.etree.tostring(html_style_elem).decode("UTF-8")
+        assert ss == "<style>l1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue;}</style>", f"expected {ss}"
+
+    def test_extract_many_text_styles_into_html_style(self):
+        """
+        Extracts named styled components into new styles with locators and creates HtmlStyle
+        """
+        html_s = """
+        <html>
+          <head>
+          </head>
+          <body>
+            <ul>
+              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+              <li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+              <li style="font-weight: bold; font-family: monospace; font-size: 10px; color: red; left: 10px;">foo</li>
+              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+            </ul>
+          </body>
+        </html>
+            """
+        html_elem = lxml.etree.fromstring(html_s)
+        converter = CSSConverter()
+        converter.read_html_element(html_elem)
+
+
+
+
+        # css = CSSStyle.create_css_style_from_css_string(
+        #     "font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
+        # extracted_style, _ = css.extract_text_styles()
+        # locator = "l1"
+        # html_style_elem = extracted_style.create_html_style(locator)
+        # ss = lxml.etree.tostring(html_style_elem).decode("UTF-8")
+        # assert ss == "<style>l1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue; }</style>", f"expected {ss}"

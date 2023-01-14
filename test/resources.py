@@ -77,7 +77,7 @@ class Resources:
     assert TEST_IPCC_CHAP04.exists()
     TEST_IPCC_CHAP06 = Path(TEST_IPCC_DIR, "Chapter06")
     assert TEST_IPCC_CHAP06.exists()
-    TEST_IPCC_TEMP_CHAP06 = Path(TEMP_DIR, "ipcc_chap6")
+    TEMP_IPCC_CHAP06 = Path(TEMP_DIR, "ipcc_chap6")
 
     TEST_IPCC_CHAP08 = Path(TEST_IPCC_DIR, "Chapter08")
     assert TEST_IPCC_CHAP08.exists()

@@ -142,8 +142,8 @@ top(Pagen) = 50 + (n - 1) * (841 + 47)
             height = self.css_style.height
             self.bbox.xy_ranges = [[left, left + width], [top, top + height]]
         self.elem = None
-        self.int_number = None # pdfplumber integer page (1-based)
-        self.p_num_str = None # pdfplumber "Page 12"
+        self.int_number = None  # pdfplumber integer page (1-based)
+        self.p_num_str = None  # pdfplumber "Page 12"
 
     @property
     def page_number(self):
@@ -191,7 +191,8 @@ class HtmlTidy:
     flowing styled HTML with subscripts, font styles, etc.
     """
 
-    MIN_PAGE_BOX_HEIGHT = 300 # allows for landscape
+    MIN_PAGE_BOX_HEIGHT = 300  # allows for landscape
+    HEAD_ELEMS_IN_XPATH = "meta | title | script | style"
 
     def __init__(self):
         self.unwanteds = []  # not sure what this is
@@ -251,7 +252,7 @@ class HtmlTidy:
         if self.add_id:
             HtmlUtil.add_ids(self.raw_elem)
         for tag in self.descendants_to_remove:
-            lxml.etree.strip_tags(elem, self.raw_elem)
+            lxml.etree.strip_tags(self.raw_elem, [tag])
         if self.remove_lh_line_numbers:
             HtmlUtil.remove_lh_line_numbers(self.raw_elem)
         if self.remove_large_fonted_elements:
@@ -342,14 +343,19 @@ class HtmlTidy:
         """
 
         if ranges:
-            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span", title="direct spans under body ", range=ranges[0]),
-            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span[div]", title="top-level spans with divs?", range=ranges[1])
-            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span/div", title="the divs in stop-level spans", range=ranges[2])
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span", title="direct spans under body ",
+                                    range=ranges[0]),
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span[div]", title="top-level spans with divs?",
+                                    range=ranges[1])
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/span/div", title="the divs in stop-level spans",
+                                    range=ranges[2])
             """
                 <div style="position:absolute; top:4509px;"><a name="6">Page 6</a></div>
             """
-            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/div[@style and a]", title="page number boxes under body", range=ranges[3])
-            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body//div[@style and a[contains(., 'Page')]]", title="page number boxes under body/span", range=ranges[4])
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body/div[@style and a]", title="page number boxes under body",
+                                    range=ranges[3])
+            HtmlTidy.debug_by_xpath(self.raw_elem, "/html/body//div[@style and a[contains(., 'Page')]]",
+                                    title="page number boxes under body/span", range=ranges[4])
 
     @classmethod
     def debug_by_xpath(cls, elem, xpath, title=None, range=None) -> int:
@@ -384,6 +390,55 @@ class HtmlTidy:
             if not type(elems_to_store) is list:
                 elems_to_store = list(elems_to_store)
             elem_storage.extend(elems_to_store)
+
+    @classmethod
+    def ensure_html_head_body(cls, html_elem):
+        """
+        adds <html>, <head>, <body> if not present
+        Move to HTMLTidy
+        """
+        html_elem = cls._ensure_html_root(html_elem)
+        html_with_head = cls._ensure_headbody(html_elem, "head", 0)
+        html_with_head_body = cls._ensure_headbody(html_with_head, "body", 1)
+        html_ideal = cls._tidy_non_head_body_children(html_with_head_body)
+        return html_ideal
+
+    @classmethod
+    def _ensure_headbody(cls, html_root, tag, pos):
+        descends = len(html_root.xpath(f".//{tag}"))
+        if descends > 1:
+            logging.warning(f"more than 1 {tag}; cannot process")
+        elif descends == 1:
+            # one tag, ok
+            pass
+        elif descends == 0:
+            head = lxml.etree.Element(tag)
+            html_root.insert(pos, head)
+        return html_root
+
+    @classmethod
+    def _ensure_html_root(cls, html_elem):
+        htmls = html_elem.xpath("/html")
+        if len(htmls) == 0:
+            logging.warning("wrapping in <html>")
+            html_root = lxml.etree.Element("html")
+            html_root.insert(0, html_elem)
+            return html_root
+        return html_elem
+
+    @classmethod
+    def _tidy_non_head_body_children(cls, html_with_head_body):
+
+        head_elems = html_with_head_body.xpath(HtmlTidy.HEAD_ELEMS_IN_XPATH)
+        head = html_with_head_body.xpath("head")[0]
+        for elem in head_elems:
+            head.append(elem)
+        rest_elems = html_with_head_body.xpath("*[not(name()='head') and not(name()='body')]")
+        body = html_with_head_body.xpath("body")[0]
+        for elem in rest_elems:
+            body.append(elem)
+        return html_with_head_body
+
 
 
 class HtmlUtil:
@@ -1257,11 +1312,15 @@ class CSSStyle:
     BOLD = "Bold"
     BORDER = "border"
     BOTTOM = "bottom"
+    COLOR = "color"
     DOT_B = ".B"
     FONT_FAMILY = "font-family"
     FONT_SIZE = "font-size"
+    FONT_STYLE = "font-style"
+    FONT_WEIGHT = "font-weight"
     HEIGHT = "height"
     LEFT = "left"
+    OPACITY = "opacity"
     POSITION = "position"
     PX = "px"
     STYLE = "style"
@@ -1270,6 +1329,8 @@ class CSSStyle:
 
     WEIGHT_RE = "([-.]?Bold|[.][Bb]$)"
     STYLE_RE = "([-.]?Ital(:?ic)|[-.]?Oblique|[.][Ii]$)"
+
+    TEXT_STYLE_COMPONENTS = [FONT_STYLE, FONT_WEIGHT, FONT_FAMILY, FONT_SIZE, COLOR, OPACITY]
 
     def __init__(self):
         self.name_value_dict = dict()
@@ -1298,10 +1359,14 @@ class CSSStyle:
     def create_dict_from_string(cls, style_attval):
         name_value_dict = dict()
         if style_attval:
+            style_attval = style_attval.strip()
             styles = style_attval.split(";")
             for style in styles:
-                if len(style.strip()) > 0:
+                style = style.strip()
+                if len(style) > 0:
                     ss = style.split(":")
+                    if len(ss) != 2:
+                        raise KeyError(f"bad style {style} in CSS: {style_attval}")
                     name = ss[0].strip()
                     if name in name_value_dict:
                         raise KeyError(f"{name} duplicated in CSS: {style_attval}")
@@ -1317,7 +1382,18 @@ class CSSStyle:
             css_style.name_value_dict = cls.create_dict_from_string(css_string)
         return css_style
 
+    def __eq__(self, other):
+        """
+        tests whether self and other have equal dictionaries
+        """
+        if type(other) is CSSStyle:
+            return self.name_value_dict == other.name_value_dict
+        return False
+
     def remove(self, name):
+        """
+        removes named item from CSSStyle
+        """
         if type(name) is list:
             for n in name:
                 self.remove(n)
@@ -1325,10 +1401,16 @@ class CSSStyle:
             self.name_value_dict.pop(name, None)
 
     def apply_to(self, elem):
+        """
+
+        """
         css_str = self.generate_css_value()
-        elem.attrib["style"] = css_str
+        elem.attrib[CSSStyle.STYLE] = css_str
 
     def generate_css_value(self):
+        """
+        generates css string without quoted names and values
+        """
         s = ""
         for key in self.name_value_dict:
             val = self.name_value_dict[key]
@@ -1417,7 +1499,7 @@ class CSSStyle:
                 if not value1:
                     print(f"{lhs} not in style attribute {self.name_value_dict}")
                     return False
-                if value1.endswith("px"):
+                if value1.endswith(CSSStyle.PX):
                     value1 = value1[:-2]
                 try:
                     value1 = float(value1)
@@ -1425,7 +1507,7 @@ class CSSStyle:
                     print(f"not a number {value1}")
                     return False
 
-                if rhs.endswith("px"):
+                if rhs.endswith(CSSStyle.PX):
                     rhs = rhs[:-2]
                 try:
                     value2 = float(rhs)
@@ -1510,3 +1592,61 @@ class CSSStyle:
         if self.top is not None and self.height is not None and self.left is not None and self.width is not None:
             bbox = BBox(xy_ranges=[[self.left, self.left + self.width], [self.top, self.top + self.height]])
         return bbox
+
+    def extract_substyles(self, css_names):
+        """
+        Create 2 new CSSSstyles , the first with names in "styles" and the second the rest.
+            if None, retruns None,None
+        :param css_names: list of CSS names (e.g. "font-family"). If na name not found, no action
+        :return 2 CSSStyle objects, the first with extracted names, the second the rest;
+            either/both may be empty CSSStyle.
+        """
+        if css_names is None:
+            return None, None
+        css_retained = copy.deepcopy(self)
+        css_found = CSSStyle()
+
+        keys = css_retained.name_value_dict.keys()
+        for name in css_names:
+            if name in css_retained.name_value_dict:
+                value = css_retained.name_value_dict.pop(name)
+                if value:  # transfer item over
+                    css_found.name_value_dict[name] = value
+        return (css_found, css_retained)
+
+    def create_html_style(self, html_class):
+        """
+        Creates string for HTML style
+        """
+        s = html_class + " " + "{" + self.generate_css_value().strip() + "}"
+        elem = lxml.etree.Element(CSSStyle.STYLE)
+        elem.text = s
+        return elem
+
+    def extract_text_styles(self):
+        """
+        extract text components from style (font-*, color, etc) into new style, returning tuple of
+        new style and style from remaining components
+        """
+        (extracted_style, retained) = font_style, rest_style = self.extract_substyles(
+            CSSStyle.TEXT_STYLE_COMPONENTS
+        )
+        return (extracted_style, retained)
+
+
+class CSSConverter:
+    """
+    turns CCS styles into html classes
+    """
+    def __init__(self):
+        pass
+
+    def read_html_element(self, html_elem):
+        """
+        reads and converts html element.
+        adds <html> as root if not present
+        """
+        self.html_elem = html_elem
+        self.html_elem = HtmlTidy.ensure_html_head_body(self.html_elem)
+
+
