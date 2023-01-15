@@ -459,10 +459,10 @@ class AmiDictionary:
         try:
             xml_tree = ET.parse(str(xml_file), parser=ET.XMLParser(encoding="utf-8"))
         except lxml.etree.XMLSyntaxError as e:
-            print(f"Cannot parse xml file {xml_file} because {e}")
+            logging.error(f"Cannot parse xml file {xml_file} because {e}")
             return None
         except Exception as e:
-            print(f"error parsing {xml_file} {e}")
+            logging.warning(f"error parsing {xml_file} {e}")
 
         dictionary = AmiDictionary.create_from_xml_object(xml_tree, ignorecase=ignorecase)
         dictionary.xml_content = xml_tree
@@ -984,10 +984,10 @@ class AmiDictionary:
             self.lookup_and_add_wikidata_to_entry(entry, allowed_descriptions="")
             wikidata_id = AmiDictionary.get_wikidata_id(entry)
             if wikidata_id is None:
-                print(f"no wikidata entry for {term}")
+                # print(f"no wikidata entry for {term}")
                 entry.attrib[WIKIDATA_ID] = AmiDictionary.NOT_FOUND
             else:
-                print(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
+                logging.debug(f"found {wikidata_id} for {term} desc = {entry.get('desc')}")
 
     def get_disambiguated_raw_wikidata_ids(self):
         """

@@ -715,16 +715,15 @@ class WikidataSparql:
         for result in self.sparql_result_list:
             # TODO fix syntax
             # bindings = result.findall(SPQ_BINDING + "[@name='%s']/" + SPQ_URI % id_element, NS_MAP)
-            print(f"NS_MAP {NS_MAP}")
-            print(f"result {result} {ET.tostring(result)}")
+            # print(f"NS_MAP {NS_MAP}")
+            # print(f"result {result} {ET.tostring(result)}")
             spq_uri = SPQ_BINDING + f"[@name='{id_element}']/" + SPQ_URI
-            print(spq_uri)
+            # print(spq_uri)
             bindings = result.findall(spq_uri, namespaces=NS_MAP)
-            print(f"bindings {bindings}")
             if len(bindings) == 0:
-                print(f"no bindings for {id_element}")
+                # print(f"no bindings for {id_element}")
+                pass
             else:
-                print(f"found item {id_element}")
                 uri = list(bindings)[0]
                 wikidata_id = uri.text.split("/")[-1]
                 if wikidata_id not in self.sparql_result_by_wikidata_id:

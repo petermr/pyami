@@ -108,11 +108,10 @@ class AmiSpan:
         if div is not None:
             html_span = lxml.etree.SubElement(div, "span")
             html_span.text = self.string
-            html_span.attrib["style"] = self.text_style.create_css_string()
+            HtmlUtil.set_style(html_span, self.text_style.create_css_string())
             if len(self.xx) > 0:
                 html_span.attrib["x"] = self.xx[0]
             if self.x0:
-                # print(f"x0 {self.x0}")
                 html_span.attrib["x0"] = str(self.x0)
             if self.x1:
                 html_span.attrib["x1"] = str(self.x1)
@@ -162,12 +161,9 @@ top(Pagen) = 50 + (n - 1) * (841 + 47)
         """
         if elem is None:
             return None
-        print(f"{lxml.etree.tostring(elem)}")
         xpathx = ".//a/@name"
         aname = elem.xpath(xpathx)
-        print(f"aname {len(aname)}")
-        # pageno = aname[0].attrib.get("name")
-        # return pageno
+        return aname
 
     def add_style_span_and_page_number(self, elem):
         """
@@ -294,25 +290,18 @@ class HtmlTidy:
         if self.raw_elem is None:
             return
         style_spans = self.raw_elem.xpath("//span[contains(@style,'position:absolute')]")
-        print(f"page_spans {len(style_spans)}")
         for style_span in style_spans:
             css_style = CSSStyle.create_css_style(style_span)
             if css_style.height > self.MIN_PAGE_BOX_HEIGHT:
                 page_box = PageBox(css_style=css_style)
                 page_box.add_style_span_and_page_number(style_span)
                 self.page_boxes.append(page_box)
-        print(f"large PageBoxes {len(self.page_boxes)}")
-        for page_box in self.page_boxes:
-            print(f"page_box {page_box.page_number}", )
 
         self.extract_page_numbers()
-        print(f"======================")
-        self.print_pages_div(ranges)
 
     def extract_page_numbers(self):
         pageno_xpath = "//span/div/a[@name]"  # page number boxes; the parent span is horrid
         elem_with_pagenos = self.raw_elem.xpath(pageno_xpath)
-        print(f"{pageno_xpath} {len(elem_with_pagenos)}")
         css_last = None
         """<br></span><span style="font-family: Calibri; font-size:10px"> 
                 <br><span style="position:absolute; border: gray 1px solid; left:0px; top:941px; width:595px; height:841px;"></span>
@@ -326,9 +315,8 @@ class HtmlTidy:
             height = -1 if css_last is None else css.top - css_last.top
             prev_style = CSSStyle.create_css_style(prev_elem)
             if not prev_style:
-                print(f" no previous style")
+                logging.warning(f" no previous style")
             bbox = None if prev_style is None else prev_style.create_bbox()
-            print(f" ++++ {css.top} {height} {bbox}/ {elem_with_pageno.text} / {elem_with_pageno.attrib.get('name')}")
             css_last = css
         return elem_with_pagenos
 
@@ -367,7 +355,6 @@ class HtmlTidy:
         :return: xpath count
         """
         spans = elem.xpath(xpath)
-        print(f"count: {xpath}: {len(spans)}")
         if range:
             assert range[0] <= len(spans) <= range[1], f"{'' if not title else title}: found: {len(spans)}"
         return len(spans)
@@ -492,7 +479,7 @@ class HtmlUtil:
         if not new_tags:
             new_tags = [H_SPAN, H_SPAN, H_SPAN]
         assert elemx is not None
-        textx = ''.join(elemx.itertext())
+        textx = HtmlUtil.get_text_content(elemx)
         rec = re.compile(regex)
         match = rec.match(textx)
         new_elems = [None, None, None]
@@ -509,7 +496,6 @@ class HtmlUtil:
                 new_elems[0].attrib["class"] = "re_pref"
                 id_counter = cls.add_id_increment_counter(id_counter, id_root, elemx)
             new_elems[1] = HtmlUtil.add_sibling_after(elemx, new_tags[1], copy_atts=copy_atts, text=match.group(2))
-            # print(f" match 2 {match.group(2)}")
             new_elems[1].attrib["class"] = "re_match"
             id_counter = cls.add_id_increment_counter(id_counter, id_root, new_elems[1])
             if match.group(3) != "":  # don't add empty string
@@ -569,7 +555,7 @@ class HtmlUtil:
         span = lxml.etree.SubElement(div, H_SPAN)
         if style:
             css_style = CSSStyle.create_css_style_from_css_string("font-size:12; font-weight: bold;")
-            span.attrib["style"] = css_style.generate_css_value()
+            HtmlUtil.set_style(span, css_style.generate_css_value())
         span.text = text
         return div, span
 
@@ -632,7 +618,7 @@ class HtmlUtil:
     @classmethod
     def get_text_content(cls, elem):
         """
-        avoids having to remember join/itertext
+        convenience method; avoids having to remember join/itertext
         """
         return ''.join(elem.itertext())
 
@@ -652,7 +638,7 @@ class HtmlUtil:
         this structure arises when PDF or images is parsed and spans have the same styles (size/style/weight) and can be merged
         :param html: contains the sibling spans
         """
-        print(f" NYI")
+        logging.warning(f"join_spans_in_div NYI")
 
     @classmethod
     def create_skeleton_html(cls):
@@ -701,7 +687,6 @@ class HtmlUtil:
             css_style = CSSStyle.create_css_style(el)
             if condition:
                 if css_style.obeys(condition):
-                    # print(f"{elem} obeys {condition}")
                     if remove:
                         cls.remove_elem_keep_tail(el)
 
@@ -721,7 +706,6 @@ class HtmlUtil:
 
         for elem in ref_elem.xpath("//*[@style]"):
             top = CSSStyle.create_css_style(elem).get_numeric_attval("top")  # the y-coordinate
-            # print(f"top {top}")
             if top:
                 top = top % pagesize
                 if top < header_height or top > pagesize - footer_height:
@@ -776,18 +760,16 @@ class HtmlUtil:
                 try:
                     coords.append(float(coord[:-2]))
                 except Exception:
-                    print(f"cannot parse {coord} for {style}")
+                    logging.warning(f"cannot parse {coord} for {style}")
         if not coords:
             return None, None, []
         np_coords = np.array(coords)
 
         x = np.array(range(np_coords.size)).reshape((-1, 1))
-        # print(x, coords)
         model = LinearRegression().fit(x, coords)
         r_sq = model.score(x, coords)
-        # print(f"coefficient of determination: {r_sq} intercept {model.intercept_} slope {model.coef_}")
         if r_sq < 0.98:
-            print(f"cannot calculate offset reliably")
+            logging.warning(f"cannot calculate offset reliably")
         return model.intercept_, model.coef_, np_coords
 
     @classmethod
@@ -796,7 +778,7 @@ class HtmlUtil:
         Maybe move to HTMLTidy
         """
         if not unwanteds:
-            print(f"no unwanteds to remove")
+            logging.warning(f"no unwanteds to remove")
             return
         for key in unwanteds:
             unwanted = unwanteds[key]
@@ -806,10 +788,9 @@ class HtmlUtil:
                 regex_comp = re.compile(regex) if regex else None
                 elems = top_elem.xpath(xpath)
                 for elem in elems:
-                    text = ''.join(elem.itertext())
+                    text = HtmlUtil.get_text_content(elem)
                     matched = regex_comp.search(text) if regex_comp else True
                     if matched:
-                        # print(f"deleted {xpath} {text}")
                         cls.remove_elem_keep_tail(elem)
 
     @classmethod
@@ -820,11 +801,10 @@ class HtmlUtil:
         """
 
         for el in elem.xpath(".//*[not(*)]"):
-            text = ''.join(el.itertext())
+            text = HtmlUtil.get_text_content(el)
             text1 = text.replace('\n', '')
             if text1 != text:
                 el.text = text1
-                # print(f"\n[[{text} => {''.join(el.itertext())}]]\n")
 
     @classmethod
     def remove_style(cls, xpath_root_elem, names):
@@ -835,18 +815,58 @@ class HtmlUtil:
         """
 
         xpath = f".//*[@style]"
-        # print(f"xpath: {xpath}")
         try:
             styled_elems = xpath_root_elem.xpath(xpath)
         except lxml.etree.XPathEvalError as xpee:
             raise ValueError(f"Bad xpath {xpath}")
 
-        print(f"styles {len(styled_elems)}")
         for styled_elem in styled_elems:
             css_style = CSSStyle.create_css_style(styled_elem)
             css_style.remove(names)
             css_style.apply_to(styled_elem)
-            style = styled_elem.attrib["style"]
+            style = HtmlUtil.get_style(styled_elem)
+
+    @classmethod
+    def get_style(cls, elem):
+        """
+        convenience method to get element style
+        :param elem: to get style from
+        :return: style or None
+        """
+        return elem.attrib.get("style")
+
+    @classmethod
+    def set_style(cls, elem, value):
+        """
+        convenience method to set style on element
+        :param elem:element to set style on
+        :param value: css string
+        """
+        if elem is not None and value:
+            elem.attrib["style"] = value
+
+    @classmethod
+    def get_class(cls, elem):
+        """
+        convenience method to get element style
+        :param elem: to get style from
+        :return: style or None
+        """
+        return elem.attrib.get("class")
+
+    @classmethod
+    def set_class(cls, elem, value, replace=True):
+        """
+        convenience method to set class on element
+        :param elem:element to set class on
+        :param value: html class
+        :param replace:if True replace, else add to existing attribute
+        """
+        if elem is not None and value:
+            if not replace:
+                old_class = HtmlUtil.get_class(elem)
+                zzz
+            elem.attrib["class"] = value
 
 
 class HtmlTree:
@@ -889,16 +909,14 @@ class HtmlTree:
             marked_div, divs = cls.get_div_span_starting_with(elem, marker, is_bold, font_size_range=font_size_range)
             if marked_div is not None:
                 ld = len(divs) if divs else 0
-                print(f"Cannot find marker [{marker}] found {ld} markers")
+                logging.warning(f"Cannot find marker [{marker}] found {ld} markers")
 
         class_dict = {cls.CHAPSEC: cls.PRE_CHAPSEC,
                       cls.TOP_DIV: cls.TREE_ROOT, }
         rec = recs_by_section.get(cls.CHAP_TOP)
         assert rec, f"wanted {cls.CHAP_TOP} rec"
-        print(f"using rec {rec}")
         decimal_divs = cls.get_div_spans_with_decimals(elem, is_bold, font_size_range=font_size_range,
                                                        section_rec=rec, class_dict=class_dict)
-        print(f"d_divs {len(decimal_divs)}")
         cls.create_filename_and_output(decimal_divs, output_dir)
 
     @classmethod
@@ -915,7 +933,6 @@ class HtmlTree:
             punct_mask = Util.make_translate_mask_to_char(orig, rep)
             for i, child_div in enumerate(decimal_divs):
                 cls.create_filename_remove_punct_and_output(child_div, output_dir, punct_mask)
-            print(f"decimals: {len(decimal_divs)}")
 
     @classmethod
     def create_filename_remove_punct_and_output(cls, child_div, output_dir, punct_mask):
@@ -931,12 +948,10 @@ class HtmlTree:
     def get_div_span_starting_with(cls, elem, strg, is_bold=False, font_size_range=None):
         result = None
         xpath = f".//div[span[starts-with(.,'{strg}')]]"
-        print(f"xpath {xpath}")
         divs = elem.xpath(xpath)
         if len(divs) == 0:
-            print(f"No divs with {strg}")
+            logging.warning(f"No divs with {strg}")
             return result, None
-        print(f"found divs {len(divs)}")
         new_divs = []
         for div in divs:
             spans = div.xpath("./span")
@@ -951,12 +966,11 @@ class HtmlTree:
         divs = new_divs
         # also test font here NYI
         if len(divs) == 0:
-            print(f"cannot find div: len={len(divs)}")
+            logging.warning(f"cannot find div: len={len(divs)}")
         elif len(divs) > 1:
-            print(f"too many divs: len={len(divs)}")
+            logging.warning(f"too many divs: len={len(divs)}")
         else:
             result = divs[0]
-            print(f"marked with {strg} : {''.join(result.itertext())}")
             result.attrib["marker"] = strg
         return result, divs
 
@@ -969,8 +983,6 @@ class HtmlTree:
         # first add all matching numbered divs to pre_chapsec
         if not class_dict:
             raise ValueError(f"missing class_dict")
-        print(f"class_div for annotating sections/divs with @class")
-        # top_div/pre_chapsec collect the relevant divs (I think)
         top_div = lxml.etree.SubElement(elem, H_DIV)
         top_div.attrib[cls.CLASS] = class_dict.get(HtmlTree.TOP_DIV)
         pre_chapsec = lxml.etree.SubElement(top_div, H_DIV)
@@ -979,7 +991,6 @@ class HtmlTree:
 
         # iterate over all divs, only append those with decimal
         divs = elem.xpath(cls.ALL_DIV_XPATHS)
-        print(f"found divs {len(divs)}")
         decimal_count = 0
         texts = []  # just a check at present
         for div in divs:
@@ -987,16 +998,16 @@ class HtmlTree:
             if not spans:
                 # no spans, concatenate with siblings
                 if div == current_div:
-                    print("f cannot append div {div} to itself")
+                    logging.warning("f cannot append div {div} to itself")
                 else:
                     try:
                         current_div.append(div)
                     except ValueError as ve:
-                        print(f"Error {ve}")
+                        logging.error(f"Error {ve}")
                 try:
                     current_div.append(div)
                 except Exception as e:
-                    print(f"BUG skipped")
+                    logging.error(f"BUG skipped")
                 continue
             css_style = CSSStyle.create_css_style(spans[0])  # normally comes first
             # check weight, if none append to siblings
@@ -1008,7 +1019,7 @@ class HtmlTree:
                 current_div.append(div)
                 continue
             # span content
-            text = ''.join(spans[0].itertext())
+            text = HtmlUtil.get_text_content(spans[0])
             matched = False
             if section_rec.match(text):
                 top_div.append(current_div)
@@ -1059,6 +1070,7 @@ class HTMLSearcher:
     XPATH = "xpath"
 
     def __init__(self, xpath_dict=None, dictx=None):
+        self.chunk_node_dict = dict()
         self.xpath_dict = dict() if xpath_dict is None else copy.deepcopy(xpath_dict)
         self.chunk_dict = dict()
         self.splitter_dict = dict()
@@ -1070,11 +1082,9 @@ class HTMLSearcher:
         tree = lxml.etree.parse(str(html_path))
 
         self.xpaths = self.xpath_dict.get(self.XPATH)
-        print(f"dict {self.xpath_dict}")
         if not self.xpaths:
             raise ValueError(f"ERROR must give xpath")
         for xpath in self.xpaths:
-            print(f" XPATH {xpath}")
             try:
                 match_elements = tree.xpath(xpath)
             except Exception as e:
@@ -1091,7 +1101,7 @@ class HTMLSearcher:
 
         for element in self.element_list:
             for text in element.xpath("./text()"):
-                print(f"TEXT {len(text)} {text}")
+                pass
                 # nodestr = self.select_chunks_subchunks_nodes(text)
 
     def select_chunks_subchunks_nodes(self, text, splitter_re=None, node_re=None):
@@ -1106,7 +1116,6 @@ class HTMLSearcher:
         chunk_res = self.chunk_dict.get(self.CHUNK_RE)
         splitter_res = self.splitter_dict.get(self.SPLITTER_RE)
         node_res = self.chunk_node_dict.get(self.SUBNODE_RE)
-        # self.validate_re(chunk_re)
 
         add_unmatched = self.chunk_node_dict.get(self.UNMATCHED)
         ptr = 0
@@ -1127,7 +1136,8 @@ class HTMLSearcher:
                     if not m and add_unmatched:
                         node_dict[self.UNMATCHED].append(node)
                 for item in node_dict.items():
-                    print(f"item {item}")
+                    # print(f"item {item}")
+                    pass
 
     def add_xpath(self, title, xpath):
         """
@@ -1136,12 +1146,7 @@ class HTMLSearcher:
         :param xpath: acts on current nodeset
         """
         XmlLib.validate_xpath(xpath)
-
         self.add_item_to_array_dict(self.xpath_dict, title, xpath)
-        # self.add_item_to_array_dict(self.xpath_dict, title, "./a/b/zzz")
-        # print(f"XPATH DICT {self.xpath_dict}")
-        # self.add_item_to_array_dict(self.xpath_dict, "foo", "/boo/bar")
-        # print(f"XPATH DICT {self.xpath_dict}")
 
     def validate_xpath(self, xpath):
         """
@@ -1254,7 +1259,7 @@ class HTMLArgs(AbstractArgs):
         """
 
         if not self.arg_dict:
-            print(f"no arg_dict given, no action")
+            logging.warning(f"no arg_dict given, no action")
             return
 
         self.annotate = self.arg_dict.get(ANNOTATE)
@@ -1288,7 +1293,6 @@ class HTMLArgs(AbstractArgs):
         if not self.dictfile:
             logging.error(f"no dictionary given")
             return
-        print(f"dictfile {self.dictfile}")
         if not self.inpath:
             logging.error(f"no input file to annotate given")
             return
@@ -1487,24 +1491,23 @@ class CSSStyle:
         if condition:
             ss = re.split('(>|<|==|!=)', condition)
             if len(ss) != 3:
-                print(f"Cannot parse as condition {condition}")
+                logging.warning(f"Cannot parse as condition {condition}")
             else:
                 lhs = ss[0].strip()
                 rhs = ss[2].strip()
 
-                # print(f"condition: {ss}")
                 if lhs not in self.name_value_dict:
                     return False
                 value1 = self.name_value_dict.get(lhs)
                 if not value1:
-                    print(f"{lhs} not in style attribute {self.name_value_dict}")
+                    logging.warning(f"{lhs} not in style attribute {self.name_value_dict}")
                     return False
                 if value1.endswith(CSSStyle.PX):
                     value1 = value1[:-2]
                 try:
                     value1 = float(value1)
                 except Exception:
-                    print(f"not a number {value1}")
+                    logging.warning(f"not a number {value1}")
                     return False
 
                 if rhs.endswith(CSSStyle.PX):
@@ -1512,7 +1515,7 @@ class CSSStyle:
                 try:
                     value2 = float(rhs)
                 except Exception:
-                    print(f"not a number {rhs}")
+                    logging.warning(f"not a number {rhs}")
                     return False
                 oper = ss[1]
                 if oper == ">":
@@ -1526,7 +1529,6 @@ class CSSStyle:
                 else:
                     raise ValueError(f"bad operator: {oper}")
                 if result:
-                    # print(f"condition TRUE {condition}")
                     pass
         return result
 
@@ -1570,7 +1572,6 @@ class CSSStyle:
             return
         family, value1 = self.match_weight_style(family, style_regex, value="I", mark="SS")
         family, value2 = self.match_weight_style(family, weight_regex, value="B", mark="WW")
-        print(f"{family} {value1} {value2}")
 
     def match_weight_style(self, family, weight_regex, value=None, mark=None):
         weight_rec = re.compile(weight_regex) if weight_regex else None
@@ -1614,7 +1615,7 @@ class CSSStyle:
                     css_found.name_value_dict[name] = value
         return (css_found, css_retained)
 
-    def create_html_style(self, html_class):
+    def create_html_style_element(self, html_class):
         """
         Creates string for HTML style
         """
@@ -1648,7 +1649,7 @@ class CSSStyle:
         :return: 3-tuple of (extracted_style_element, retained_style_string, new classs_string)
         """
         extracted_style, retained_style = self.extract_text_styles()
-        extracted_html_style_element = extracted_style.create_html_style(class_name)
+        extracted_html_style_element = extracted_style.create_html_style_element(class_name)
         retained_style_attval = retained_style.generate_css_value()
         html_class_val = CSSStyle.create_html_class_val(class_name, old_class_val=old_classstr)
         return extracted_html_style_element, retained_style_attval, html_class_val

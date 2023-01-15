@@ -964,7 +964,6 @@ class TestAmiDictionary(AmiAnyTest):
         rename_file = False
 
         sparql_files = glob.glob(os.path.join(SPARQL_DIR, "sparql_6.xml"))
-
         sparql_files.sort()
         sparql2amidict_dict = {
             "image": {

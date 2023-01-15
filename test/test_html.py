@@ -567,12 +567,12 @@ class HtmlTest(AmiAnyTest):
         tree = lxml.etree.parse(str(exec_summ1))
         xpath = "//div//text()[contains(., '{')]"
         texts = tree.xpath(xpath)
-        print(f"texts {len(texts)}")
+        # print(f"texts {len(texts)}")
         node_dict_list_list = list()
         for text in texts:
-            print(f"text: {text}")
+            # print(f"text: {text}")
             node_dict_list = self.extract_ipcc_nodes(text)
-            print(f"node_dict_list {node_dict_list}")
+            # print(f"node_dict_list {node_dict_list}")
             node_dict_list_list.append(node_dict_list)
         assert len(node_dict_list_list) == 21
         # assert str(node_dict_list_list[0]) == "[defaultdict(<class 'list'>, {'Figure': ['2.5'],'Table': ['2.1'],\n 'unmatched': ['2.2.2']})]", f"found {node_dict_list_list[0]}"
@@ -668,14 +668,14 @@ class HtmlTest(AmiAnyTest):
             node_dict = defaultdict(list)
             node_dict_list.append(node_dict)
             for node in nodes:
-                print(f"node: {node}")
+                # print(f"node: {node}")
                 m = re.match(regex3, node)
                 if m:
                     node_dict[m.group(1)].append(m.group(2))
                     continue
                 unmatched = "unmatched"
                 node_dict[unmatched].append(node)
-            print(f"node_dict: {node_dict.items()}")
+            # print(f"node_dict: {node_dict.items()}")
         return node_dict_list
 
 class TestHtmlTidy:
@@ -857,11 +857,11 @@ class TestCSSStyle:
         assert len(styled_elems) == 5
         for i, styled_elem in enumerate(styled_elems):
             class_locator = f"s{i}"
-            elem_style = styled_elem.attrib["style"]
+            elem_style = HtmlUtil.get_style(styled_elem)
             css = CSSStyle.create_css_style_from_css_string(elem_style)
             extracted_style_elem, remaining_style, new_class = css.extract_text_styles_into_class(class_locator)
             styled_elem.attrib["style"] = remaining_style
-            old_class = styled_elem.attrib.get("class")
+            old_class = HtmlUtil.get_class(styled_elem)
             styled_elem.attrib["class"] = class_locator if not old_class else old_class+" "+class_locator
             print (f"{lxml.etree.tostring(extracted_style_elem).decode('UTF-8')}")
             head.append(extracted_style_elem)
