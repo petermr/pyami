@@ -355,9 +355,19 @@ class XmlLib:
         if len(e1) != len(e2): return False
         return all(cls.elements_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
+    @classmethod
+    def write_xml(cls, elem, path, encoding="UTF-8"):
+        """
+        Writes XML to file
+        :param elem: xml element to write
+        :param path: path to write to
+        """
+        with open(path, "w") as f:
+            f.write(lxml.etree.tostring(elem).decode(encoding))
+
 
 class HtmlElement:
-    """to provide fluent HTML builder and parser"""
+    """to provide fluent HTML builder and parser NYI"""
     pass
 
 class HtmlLib:

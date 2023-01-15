@@ -17,7 +17,7 @@ from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, CSSConverter, HtmlTidy
 # local
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
-from py4ami.xml_lib import HtmlLib
+from py4ami.xml_lib import HtmlLib, XmlLib
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
@@ -33,6 +33,8 @@ HTML_SINGLE_REF = """<span>It  is  important  blah blah detailed  national  stud
 HTML_COMPOUND_REF = """<span>and more blah (Deep  Decarbonization  Pathways  Project  2015; Roelfsema et al. 2020)  and even more blah</span>"""
 HTML_SUBSECTION_REF = """<span>to national level (4.2.2.3) and subnational</span>"""
 
+# chunk of HTML from pdf2html on IPCC chapter
+MINI_IPCC_PATH = Path(Resources.TEST_IPCC_CHAP06, "mini.html")
 
 class HtmlTest(AmiAnyTest):
     """
@@ -770,6 +772,15 @@ class TestHtmlTidy:
         with open(Path(html_dir, "html_tidied.html"), "w") as f:
             f.write(html_s)
 
+    def test_normalize_pdf2html_ipcc(self):
+        """
+        output of pdf2html normalized to have head and body
+        """
+        html_elem = lxml.etree.parse(str(MINI_IPCC_PATH))
+        html_tidy_elem = HtmlTidy.ensure_html_head_body(html_elem)
+        path = Path(Resources.TEMP_DIR, "html", "tidy_mini.html")
+        XmlLib.write_xml(html_tidy_elem, path)
+
 
 class TestCSSStyle:
 
@@ -782,21 +793,42 @@ class TestCSSStyle:
             "font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
         (extracted, retained) = font_style, rest_style = css.extract_substyles(
             [CSSStyle.FONT_STYLE, CSSStyle.FONT_WEIGHT, CSSStyle.FONT_FAMILY, CSSStyle.FONT_SIZE, CSSStyle.COLOR])
+        assert type(extracted) is CSSStyle
+        assert type(retained) is CSSStyle
         assert extracted == CSSStyle.create_css_style_from_css_string(
             "font-weight: bold; font-family: monospace; font-size: 13px; color: blue;")
         assert retained == CSSStyle.create_css_style_from_css_string("bottom: 10px")
 
-    def test_extract_text_styles_into_html_style(self):
+    def test_extract_text_styles(self):
         """
         Extracts named styled components into new styles and creates HtmlStyle
         """
         css = CSSStyle.create_css_style_from_css_string(
             "font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
-        extracted_style, _ = css.extract_text_styles()
-        class_locator = "l1"
-        html_style_elem = extracted_style.create_html_style(class_locator)
-        ss = lxml.etree.tostring(html_style_elem).decode("UTF-8")
-        assert ss == "<style>l1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue;}</style>", f"expected {ss}"
+        extracted_style, retained_style = css.extract_text_styles()
+        assert extracted_style == CSSStyle.create_css_style_from_css_string(
+            "font-weight: bold; font-family: monospace; font-size: 13px; color: blue;")
+        assert retained_style == CSSStyle.create_css_style_from_css_string("bottom: 10px")
+
+    def test_extract_text_styles_into_html_style(self):
+        """
+        Extracts text style components into new <style>, updated class, remaining style value
+        """
+        css = CSSStyle.create_css_style_from_css_string(
+            "font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
+        class_name = "s1"
+        old_class_name = "foo bar"
+        new_html_style_element, retained_style_string, html_class_val = \
+            css.extract_text_styles_into_class(class_name, old_classstr=old_class_name)
+        assert new_html_style_element.text  == ".s1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue;}"
+        assert retained_style_string == "bottom: 10px;"
+        assert html_class_val  == "foo bar s1"
+
+
+        #
+        # assert ext_s == "<style>l1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue;}</style>", f"found {ext_s}"
+        # ret_s = lxml.etree.tostring(retained_style_element).decode("UTF-8")
+        # assert ret_s == "bottom: 10px;", f"found {ret_s}"
 
     def test_extract_many_text_styles_into_html_style(self):
         """
@@ -805,29 +837,45 @@ class TestCSSStyle:
         html_s = """
         <html>
           <head>
+            <style>.pink {background-color: pink;}</style>
           </head>
           <body>
             <ul>
-              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
-              <li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
-              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
-              <li style="font-weight: bold; font-family: monospace; font-size: 10px; color: red; left: 10px;">foo</li>
-              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li>
+              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">13px bold</li>
+              <li class="pink" style="font-family: monospace; font-size: 30px; color: purple; left: 10px;">purple on pink background</li>
+              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">bold blue</li>
+              <li style="font-style: italic; font-family: monospace; font-size: 20px; color: red; left: 10px;">italic red</li>
+              <li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">same as 3</li>
             </ul>
           </body>
         </html>
             """
         html_elem = lxml.etree.fromstring(html_s)
-        converter = CSSConverter()
-        converter.read_html_element(html_elem)
+        html_elem = HtmlTidy.ensure_html_head_body(html_elem) # redundant as tidy already
+        head = html_elem.xpath("/html/head")[0]
+        styled_elems = html_elem.xpath(".//*[@style]")
+        assert len(styled_elems) == 5
+        for i, styled_elem in enumerate(styled_elems):
+            class_locator = f"s{i}"
+            elem_style = styled_elem.attrib["style"]
+            css = CSSStyle.create_css_style_from_css_string(elem_style)
+            extracted_style_elem, remaining_style, new_class = css.extract_text_styles_into_class(class_locator)
+            styled_elem.attrib["style"] = remaining_style
+            old_class = styled_elem.attrib.get("class")
+            styled_elem.attrib["class"] = class_locator if not old_class else old_class+" "+class_locator
+            print (f"{lxml.etree.tostring(extracted_style_elem).decode('UTF-8')}")
+            head.append(extracted_style_elem)
+        print(f"ss {lxml.etree.tostring(head)} \n ... {lxml.etree.tostring(html_elem)}")
+        html_dir = Path(Resources.TEMP_DIR, "html")
+        html_dir.mkdir(exist_ok=True)
+        with open (str(Path(html_dir, "styles.html")), "w") as f:
+            f.write(lxml.etree.tostring(html_elem).decode('UTF-8'))
 
+    def test_extract_styles_from_document(self):
+        """
+        start of IPCC WG3 Chapter06
+        identifies all styles and extacts into <head><style>s
+        """
+        html_elem = lxml.etree.parse(str(MINI_IPCC_PATH))
+        html_tidy = HtmlTidy.ensure_html_head_body(html_elem)
 
-
-
-        # css = CSSStyle.create_css_style_from_css_string(
-        #     "font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
-        # extracted_style, _ = css.extract_text_styles()
-        # locator = "l1"
-        # html_style_elem = extracted_style.create_html_style(locator)
-        # ss = lxml.etree.tostring(html_style_elem).decode("UTF-8")
-        # assert ss == "<style>l1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue; }</style>", f"expected {ss}"

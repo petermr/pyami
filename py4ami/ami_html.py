@@ -1598,7 +1598,7 @@ class CSSStyle:
         Create 2 new CSSSstyles , the first with names in "styles" and the second the rest.
             if None, retruns None,None
         :param css_names: list of CSS names (e.g. "font-family"). If na name not found, no action
-        :return 2 CSSStyle objects, the first with extracted names, the second the rest;
+        :return 2-tuple of 1) CSSStyle object with extracted names 2) CSSStyle of the remainder;
             either/both may be empty CSSStyle.
         """
         if css_names is None:
@@ -1618,7 +1618,8 @@ class CSSStyle:
         """
         Creates string for HTML style
         """
-        s = html_class + " " + "{" + self.generate_css_value().strip() + "}"
+        DOT = "."
+        s = DOT + html_class + " " + "{" + self.generate_css_value().strip() + "}"
         elem = lxml.etree.Element(CSSStyle.STYLE)
         elem.text = s
         return elem
@@ -1632,6 +1633,43 @@ class CSSStyle:
             CSSStyle.TEXT_STYLE_COMPONENTS
         )
         return (extracted_style, retained)
+
+    def extract_text_styles_into_class(self, class_name, old_classstr=""):
+        """
+        extracts text class name-value into new CSSStyle, and creates updated class_string
+        Example:
+            element has style attribute with several text components (e.g. font-weight, font-size)
+            This creates a new <style> Element (extracted) with just these components
+                and puts the unextracted style componeents into new style space-separated string (remainned)
+            It uses the class_name to update the old_classstr string
+                e.g. class_name="s1" and old_classstr="foo bar" => "foo bar s1"
+        :param class_name: name oif new class (author must ensure uniqueness)
+        :param old_classstr: old classname (defaults to "")
+        :return: 3-tuple of (extracted_style_element, retained_style_string, new classs_string)
+        """
+        extracted_style, retained_style = self.extract_text_styles()
+        extracted_html_style_element = extracted_style.create_html_style(class_name)
+        retained_style_attval = retained_style.generate_css_value()
+        html_class_val = CSSStyle.create_html_class_val(class_name, old_class_val=old_classstr)
+        return extracted_html_style_element, retained_style_attval, html_class_val
+
+
+    @classmethod
+    def create_html_class_val(cls, new_class, old_class_val=None):
+        """
+        creates or edits a class string to accept a new value
+        no-op if new_class is already in old_class_val
+        e.g. None + "foo" => "foo"
+        "foo" + "bar plugh" => "bar plugh foo"
+        "foo" + "bar foo plugh" => "bar foo plugh"
+        :param new_class: class to add
+        :param old_class_val: space-separated list of existing classes
+        :return: new class string
+        """
+        old_classes = [] if not old_class_val else old_class_val.split()
+        if new_class not in old_classes:
+            old_classes.append(new_class)
+        return Util.create_string_separated_list(old_classes)
 
 
 class CSSConverter:
@@ -1648,5 +1686,6 @@ class CSSConverter:
         """
         self.html_elem = html_elem
         self.html_elem = HtmlTidy.ensure_html_head_body(self.html_elem)
+        return self.html_elem
 
 

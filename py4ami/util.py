@@ -315,6 +315,14 @@ class Util:
             return None
         return url[rindex + 1:]
 
+    @classmethod
+    def create_string_separated_list(cls, listx):
+        """
+        create string separated list , e.g. [1,2,3] => "1 2 3"
+        :param listx: list of objects
+        :return" space-separaated list
+        """
+        return " ".join(list(map(str, listx))) if listx else ""
 
 
 class GithubDownloader:
