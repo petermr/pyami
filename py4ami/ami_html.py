@@ -12,6 +12,8 @@ import numpy as np
 import re
 from pathlib import Path
 from sklearn.linear_model import LinearRegression
+from collections import defaultdict
+
 # local
 # from py4ami.ami_dict import AmiDictionary
 from py4ami.bbox_copy import BBox
@@ -108,7 +110,7 @@ class AmiSpan:
         if div is not None:
             html_span = lxml.etree.SubElement(div, "span")
             html_span.text = self.string
-            HtmlUtil.set_style(html_span, self.text_style.create_css_string())
+            HtmlStyle.set_style(html_span, self.text_style.create_css_string())
             if len(self.xx) > 0:
                 html_span.attrib["x"] = self.xx[0]
             if self.x0:
@@ -555,7 +557,7 @@ class HtmlUtil:
         span = lxml.etree.SubElement(div, H_SPAN)
         if style:
             css_style = CSSStyle.create_css_style_from_css_string("font-size:12; font-weight: bold;")
-            HtmlUtil.set_style(span, css_style.generate_css_value())
+            HtmlStyle.set_style(span, css_style.generate_css_value())
         span.text = text
         return div, span
 
@@ -824,7 +826,12 @@ class HtmlUtil:
             css_style = CSSStyle.create_css_style(styled_elem)
             css_style.remove(names)
             css_style.apply_to(styled_elem)
-            style = HtmlUtil.get_style(styled_elem)
+            style = HtmlStyle.get_style(styled_elem)
+
+class HtmlStyle:
+    """
+    methods to process style attributes and <style> elements
+    """
 
     @classmethod
     def get_style(cls, elem):
@@ -840,22 +847,234 @@ class HtmlUtil:
         """
         convenience method to set style on element
         :param elem:element to set style on
-        :param value: css string
+        :param value: css string; if "" or None remlves attribute
         """
-        if elem is not None and value:
-            elem.attrib["style"] = value
+        if elem is not None:
+            XmlLib.set_attname_value(elem, "style", value)
 
     @classmethod
-    def get_class(cls, elem):
+    def extract_all_text_styles_to_head(cls, html_elem):
+        """
+        Finds all elements with @style attribute and extacts the tdxt styles to <head>
+        :param html_elem: total html object to normalize. Must have <head> and <body>
+        """
+        HtmlStyle.remove_empty_styles(html_elem)
+        styled_elems = html_elem.xpath(".//*[@style]")
+        for i, styled_elem in enumerate(styled_elems):
+            class_locator = f"s{i}"
+            HtmlStyle.add_element_with_style(class_locator, html_elem, styled_elem)
+
+    @classmethod
+    def add_element_with_style(cls, class_locator, html_elem, styled_elem):
+        """
+        adds
+        """
+        head = html_elem.xpath("/html/head")[0]
+        elem_style = HtmlStyle.get_style(styled_elem)
+        if elem_style is None or elem_style == "":
+            return
+        css = CSSStyle.create_css_style_from_css_string(elem_style)
+
+        extracted_style_elem, remaining_style, new_class = css.extract_text_styles_into_class(class_locator)
+        HtmlStyle.set_style(styled_elem, remaining_style)
+        HtmlClass.set_class_on_element(styled_elem, class_locator, replace=False)
+        head.append(extracted_style_elem)
+
+    @classmethod
+    def remove_empty_styles(cls, html_elem):
+        """
+        removes all empty style attributes (style="")
+        """
+        empty_styled_elems = html_elem.xpath(".//*[normalize-space(@style)='']")
+        for elem in empty_styled_elems:
+            HtmlStyle.delete_style(elem)
+
+    @classmethod
+    def delete_style(cls, elem):
+        """
+        conveniennce method to delete style attribute
+        """
+        XmlLib.remove_attribute(elem, "style")
+
+    # THESE CAN BECOME INSTANCE METHODS
+
+    @classmethod
+    def normalize_head_styles(cls, elem):
+        """
+        creates multidict fot head styles
+        :param elem: document to analyse
+        :return: dict of locator_sets indexed by style strings
+
+        e.g. item {font-family: TimesNewRomanPSMT; font-size: 6px;}: ['.s17', '.s19', '.s21', '.s27', '.s5', '.s7']
+        """
+        style_to_locator_set = defaultdict(set)
+        head_styles = elem.xpath("/html/head/style")
+        for style in head_styles:
+            style_s = style.text.strip();
+            locator = style_s.split()[0]
+            value = style_s[len(locator):].strip()
+            style.attrib["locator"] = locator
+            style_to_locator_set[value].add(locator)
+        return style_to_locator_set
+
+    @classmethod
+    def extract_styles_and_normalize_locators(cls, html_elem):
+        """
+        Extract styles from document
+        move to head and normalize locators
+        delete redundant locators and styles
+        map document instamces of styles onto normalized locators
+        :param html_elem: html document to normalize
+
+        Should be in an object
+
+
+        """
+        cls.extract_all_text_styles_to_head(html_elem)
+        style_to_locator_set = cls.normalize_head_styles(html_elem)
+        locator_index = cls.create_locator_index(style_to_locator_set)
+        deletable_locators = cls.get_redundant_locators(locator_index)
+        cls.delete_redundant_styles(deletable_locators, html_elem)
+        cls.normalize_locators_on_elements(html_elem, locator_index)
+
+    @classmethod
+    def normalize_locators_on_elements(cls, html_elem, locator_index):
+        """
+        Finds all elments with @class attribute and normalize to minimal set
+        """
+        classed_elems = html_elem.xpath("//*[@class]")
+        for classed_elem in classed_elems:
+            html_class = HtmlClass.create_from_classed_element(classed_elem)
+            locator = html_class.create_locator()
+            normalized_locator = HtmlClass.remove_dot(locator_index.get(locator))
+            locator = HtmlClass.remove_dot(locator)
+            if normalized_locator != locator:
+                html_class.replace_class(locator, normalized_locator)
+                if html_class.class_string:
+                    HtmlClass.set_class_on_element(classed_elem, html_class.class_string)
+
+    @classmethod
+    def delete_redundant_styles(cls, deletable_locators, html_elem):
+        """
+        deletes redundant <style>s in head
+        """
+        styles_with_locators = html_elem.xpath("/html/head/style[@locator]")
+        for style in styles_with_locators:
+            locator = style.attrib.get("locator")
+            if locator in deletable_locators:
+                XmlLib.remove_element(style)
+
+    @classmethod
+    def get_redundant_locators(cls, locator_index):
+        """
+        makes list of redundant locators
+        :param locator_index: dictionary mapping locators onto normalized locator
+        :return: list of redundant locators
+        """
+        redundant_locators = []
+        for item in locator_index.items():
+            if item[0] != item[1]:
+                redundant_locators.append(item[0])
+        return redundant_locators
+
+    @classmethod
+    def create_locator_index(cls, style_to_locator_set):
+        """
+        maps all items in locator sets onto (arbitrarily) the first
+        :param style_to_locator_set: locator_sets mmapped by style value
+        :return:dict mapping redundant locators onto normalized locator
+        May benefit from being in a class
+        """
+        locator_index = dict()
+        for item in style_to_locator_set.items():
+            locator_list = list(sorted(item[1]))
+            locator0 = list(locator_list)[0]
+            for locator in locator_list:
+                locator_index[locator] = locator0
+        return locator_index
+
+
+class HtmlClass:
+    """
+    methods to process class attributes and sync with style
+    Initially mainly @classmethod but adding instamces to manage editing
+    the @class attribute
+    """
+
+    def __init__(self, classstr=None):
+
+        self.classes = set()
+        if classstr:
+            if type(classstr) is str:
+                self.classes.update(classstr.split())
+            else:
+                raise ValueError(f"can only create HtmlClass from strings, found {type(classstr)} : {classstr}")
+
+    @classmethod
+    def create_from_classed_element(cls, elem):
+        """
+        get class value from element and ccreate HtmlClass
+        :param elem: elements with @class attribute
+        :return: HtmlClass element or None
+        """
+        clazz = HtmlClass.get_class_string_on_element(elem)
+        return None if not clazz else HtmlClass(clazz)
+
+    @property
+    def class_string(self):
+        """
+        return the class_string (creates from latest self.classes)
+        :return: string of alphabeticcally sorted spece-separated classes
+        """
+        return "" if not self.classes else " ".join(sorted(list(self.classes)))
+
+    def add_class(self, clazz):
+        """
+        add class to class_string
+        :param clazz: class to add (must be non-empty string
+        if clazz is
+        """
+        if clazz and len(clazz.strip()) > 0 and clazz not in self.classes:
+            self.classes.add(clazz.strip())
+
+    def has_class(self, clazz):
+        """
+        does class exist in classes
+        :param clazz:
+        """
+        return clazz in self.classes
+
+    def replace_class(self, clazz_old, clazz=None):
+        """
+        remove clazz_old ; if clazz is not None add it
+        (if clazz is already present, no-op)
+        """
+        if clazz_old in self.classes:
+            self.remove(clazz_old)
+            if clazz:
+                self.add_class(clazz)
+
+    def remove(self, clazz):
+        """
+        remove class from string
+        :param clazz: class string to remove
+        if  not present, no-op
+        """
+        if clazz in self.classes:
+            self.classes.remove(clazz)
+
+    @classmethod
+    def get_class_string_on_element(cls, elem):
         """
         convenience method to get element style
         :param elem: to get style from
         :return: style or None
         """
-        return elem.attrib.get("class")
+
+        return elem.attrib.get("class") if type(elem) is _Element else None
 
     @classmethod
-    def set_class(cls, elem, value, replace=True):
+    def set_class_on_element(cls, elem, value, replace=True):
         """
         convenience method to set class on element
         :param elem:element to set class on
@@ -864,9 +1083,26 @@ class HtmlUtil:
         """
         if elem is not None and value:
             if not replace:
-                old_class = HtmlUtil.get_class(elem)
-                zzz
+                old_class = HtmlClass.get_class_string_on_element(elem)
+                if old_class:
+                    if value not in old_class:
+                        old_class += " " + value
+            else:
+                old_class = value
             elem.attrib["class"] = value
+
+    def create_locator(self):
+        """
+        create locator string (prepend ".")
+        """
+        return "." + self.class_string
+
+    @classmethod
+    def remove_dot(self, string):
+        """
+        remove dot (".")
+        """
+        return string[1:] if string and string[:1] == "." else string
 
 
 class HtmlTree:

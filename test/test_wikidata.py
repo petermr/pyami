@@ -579,7 +579,7 @@ entry like:
                   f"&format=json"
         response = requests.get(url_str)
         js = response.json()
-        print(pprint.pformat(js))
+        # print(pprint.pformat(js))
 
     def test_wikidata_id_lookup(self):
         """test query wikidata by ID

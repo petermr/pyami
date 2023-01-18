@@ -683,6 +683,7 @@ LTPage
       LTChar                   KAAHHD+Calibri,Itali o
       LTChar                   KAAHHD+Calibri,Itali u
         """
+        MAXITEM = 2
         from pathlib import Path
         from typing import Iterable, Any
 
@@ -707,7 +708,7 @@ LTPage
                 )
 
             if isinstance(o, Iterable):
-                for i in o:
+                for i in list(o)[:MAXITEM]:
                     show_ltitem_hierarchy(i, depth=depth + 1)
 
         def get_indented_name(o: Any, depth: int) -> str:
@@ -1056,6 +1057,7 @@ LTPage
 
         def show_ltitem_hierarchy(o: Any, depth=0):
             """Show location and text of LTItem and all its descendants"""
+            MAXITEM = 2
             if depth == 0:
                 print('element                        fontname             text')
                 print('------------------------------ -------------------- -----')
@@ -1067,7 +1069,7 @@ LTPage
             )
 
             if isinstance(o, Iterable):
-                for i in o:
+                for i in list(o)[:MAXITEM]:
                     show_ltitem_hierarchy(i, depth=depth + 1)
 
         def get_indented_name(o: Any, depth: int) -> str:

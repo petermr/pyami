@@ -365,6 +365,41 @@ class XmlLib:
         with open(path, "w") as f:
             f.write(lxml.etree.tostring(elem).decode(encoding))
 
+    @classmethod
+    def remove_attribute(cls, elem, att):
+        """
+        removes at attribute (by name) if it exists
+        :param elem: element with the attribute
+        :param att: att_name to delete
+        """
+        if elem is not None and att in elem.attrib:
+            del elem.attrib[att]
+
+    @classmethod
+    def set_attname_value(cls, elem, attname, value):
+        """
+        set attribute, if value==None remove attribute
+        :param elem: element with attribute
+        :param attname: attribute name
+        :param value: attribute value; if "" or None remove attribute
+        """
+        if value is None or value is "":
+            XmlLib.remove_attribute(elem, attname)
+        else:
+            elem.attrib[attname] = value
+
+    @classmethod
+    def remove_element(cls, elem):
+        """
+        remove an element
+        :param elem: to remove; if None or no parent, no-op
+        does not remove tail (I don't think)
+        """
+        if elem is not None:
+            parent = elem.getparent()
+            if parent is not None:
+                parent.remove(elem)
+
 
 class HtmlElement:
     """to provide fluent HTML builder and parser NYI"""

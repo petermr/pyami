@@ -13,7 +13,7 @@ from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 from py4ami.ami_html import HTMLSearcher
 # local
-from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, CSSConverter, HtmlTidy
+from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, CSSConverter, HtmlTidy, HtmlStyle, HtmlClass
 # local
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
@@ -36,7 +36,8 @@ HTML_SUBSECTION_REF = """<span>to national level (4.2.2.3) and subnational</span
 # chunk of HTML from pdf2html on IPCC chapter
 MINI_IPCC_PATH = Path(Resources.TEST_IPCC_CHAP06, "mini.html")
 
-class HtmlTest(AmiAnyTest):
+
+class TestHtml(AmiAnyTest):
     """
     parsing , structuring linking in/to.form HTML
     This will evolve into an ami_html.py module
@@ -678,6 +679,7 @@ class HtmlTest(AmiAnyTest):
             # print(f"node_dict: {node_dict.items()}")
         return node_dict_list
 
+
 class TestHtmlTidy:
 
     def test_html_good(self):
@@ -820,10 +822,9 @@ class TestCSSStyle:
         old_class_name = "foo bar"
         new_html_style_element, retained_style_string, html_class_val = \
             css.extract_text_styles_into_class(class_name, old_classstr=old_class_name)
-        assert new_html_style_element.text  == ".s1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue;}"
+        assert new_html_style_element.text == ".s1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue;}"
         assert retained_style_string == "bottom: 10px;"
-        assert html_class_val  == "foo bar s1"
-
+        assert html_class_val == "foo bar s1"
 
         #
         # assert ext_s == "<style>l1 {font-weight: bold; font-family: monospace; font-size: 13px; color: blue;}</style>", f"found {ext_s}"
@@ -851,24 +852,12 @@ class TestCSSStyle:
         </html>
             """
         html_elem = lxml.etree.fromstring(html_s)
-        html_elem = HtmlTidy.ensure_html_head_body(html_elem) # redundant as tidy already
-        head = html_elem.xpath("/html/head")[0]
-        styled_elems = html_elem.xpath(".//*[@style]")
-        assert len(styled_elems) == 5
-        for i, styled_elem in enumerate(styled_elems):
-            class_locator = f"s{i}"
-            elem_style = HtmlUtil.get_style(styled_elem)
-            css = CSSStyle.create_css_style_from_css_string(elem_style)
-            extracted_style_elem, remaining_style, new_class = css.extract_text_styles_into_class(class_locator)
-            styled_elem.attrib["style"] = remaining_style
-            old_class = HtmlUtil.get_class(styled_elem)
-            styled_elem.attrib["class"] = class_locator if not old_class else old_class+" "+class_locator
-            print (f"{lxml.etree.tostring(extracted_style_elem).decode('UTF-8')}")
-            head.append(extracted_style_elem)
-        print(f"ss {lxml.etree.tostring(head)} \n ... {lxml.etree.tostring(html_elem)}")
+        html_elem = HtmlTidy.ensure_html_head_body(html_elem)  # redundant as tidy already
+        HtmlStyle.extract_all_text_styles_to_head(html_elem)
+        print(f"ss {lxml.etree.tostring(html_elem.xpath('/html/head')[0])} \n ... {lxml.etree.tostring(html_elem)}")
         html_dir = Path(Resources.TEMP_DIR, "html")
         html_dir.mkdir(exist_ok=True)
-        with open (str(Path(html_dir, "styles.html")), "w") as f:
+        with open(str(Path(html_dir, "styles.html")), "w") as f:
             f.write(lxml.etree.tostring(html_elem).decode('UTF-8'))
 
     def test_extract_styles_from_document(self):
@@ -876,6 +865,104 @@ class TestCSSStyle:
         start of IPCC WG3 Chapter06
         identifies all styles and extacts into <head><style>s
         """
+        html_dir = Path(Resources.TEMP_DIR, "html")
+        html_dir.mkdir(exist_ok=True)
         html_elem = lxml.etree.parse(str(MINI_IPCC_PATH))
-        html_tidy = HtmlTidy.ensure_html_head_body(html_elem)
+        html_elem = HtmlTidy.ensure_html_head_body(html_elem)
+        with open(str(Path(html_dir, "ipcc_styles0.html")), "w") as f:
+            f.write(lxml.etree.tostring(html_elem).decode('UTF-8'))
 
+        HtmlStyle.extract_styles_and_normalize_locators(html_elem)
+
+        with open(str(Path(html_dir, "ipcc_styles2.html")), "wb") as f:
+            f.write(lxml.etree.tostring(html_elem))
+
+
+
+class TestHtmlClass:
+
+    def test_minimal(self):
+        """
+        empty HtmlClass object
+        """
+        html_class = HtmlClass()
+        assert html_class.classes == set()
+        assert html_class.class_string == ""
+        assert not html_class.has_class("foo")
+
+    def test_single_class(self):
+        """
+        HtmlClass object with single class
+        """
+        html_class = HtmlClass("foo")
+        assert html_class.classes == {"foo"}
+        assert html_class.class_string == "foo"
+        assert html_class.has_class("foo")
+
+    def test_multiple_class(self):
+        """
+        HtmlClass object with multiple classes
+        """
+        html_class = HtmlClass("foo bar")
+        assert html_class.classes == {"foo", "bar"}
+        assert html_class.class_string == "bar foo"
+        assert html_class.has_class("foo")
+        assert html_class.has_class("bar")
+
+    def test_add_class(self):
+        """
+        add classes to HtmlClass object
+        """
+        html_class = HtmlClass("")
+        html_class.add_class("foo")
+        assert html_class.classes == {"foo"}
+        html_class.add_class("bar")
+        assert html_class.classes == {"foo", "bar"}
+        assert html_class.class_string == "bar foo"
+        assert html_class.has_class("foo")
+        assert html_class.has_class("bar")
+
+    def test_remove_class(self):
+        """
+        remove classes from HtmlClass object
+        """
+        html_class = HtmlClass("foo bar")
+        assert html_class.has_class("foo")
+        assert html_class.has_class("bar")
+
+        html_class.remove("foo")
+        assert html_class.classes == {"bar"}
+        assert not html_class.has_class("foo")
+        assert html_class.has_class("bar")
+
+        html_class.add_class("foo")
+        assert html_class.classes == {"foo", "bar"}
+        assert html_class.class_string == "bar foo"
+        assert html_class.has_class("foo")
+        assert html_class.has_class("bar")
+
+        html_class.remove("baz") # should be no effect
+        assert html_class.classes == {"foo", "bar"}
+        assert html_class.class_string == "bar foo"
+        assert html_class.has_class("foo")
+        assert html_class.has_class("bar")
+
+
+    def test_replace(self):
+        """
+        replace existing class
+        """
+        html_class = HtmlClass("foo bar")
+
+        html_class.replace_class("foo", "plugh")
+        assert html_class.classes == {"bar", "plugh"}
+        assert not html_class.has_class("foo")
+        assert html_class.has_class("bar")
+        assert html_class.has_class("plugh")
+        assert html_class.class_string == "bar plugh"
+
+        html_class.add_class("foo")
+        assert html_class.classes == {"foo", "bar", "plugh"}
+        assert html_class.class_string == "bar foo plugh"
+        html_class.replace_class("foo", "plugh") # contains existing class, so should equal remove
+        assert html_class.class_string == "bar plugh"
