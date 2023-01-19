@@ -1167,6 +1167,20 @@ class TestAmiDictionary(AmiAnyTest):
             except Exception as e:
                 print(f"cannot read dictionary {dict_file} beacuse {e}")
 
+    def test_entry_id(self):
+        """
+        Tests whether entries have ids, and (later) creates default values
+        """
+        dict_dir = Path(Resources.TEST_RESOURCES_DIR, "eoCompound")
+        assert dict_dir.exists(), f"{dict_dir} should exist"
+        ambig_dict_file = Path(dict_dir, "disambig.xml")
+        assert ambig_dict_file.exists(), f"{ambig_dict_file} should exist"
+        disambig_dict = AmiDictionary.create_from_xml_file(ambig_dict_file)
+        assert disambig_dict is not None
+
+        assert disambig_dict.get_entry_count() == 9, f"dictionary should have 9 entries"
+        assert disambig_dict.get_entry_ids() == ['____alloaromadendrene']
+
     # ==== helpers ====
     def teardown(self):
         dict1_root = None

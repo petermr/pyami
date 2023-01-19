@@ -1325,6 +1325,20 @@ class AmiDictionary:
                 missing_wikidata_entries.append(entry)
         return missing_wikidata_entries
 
+    def get_entry_ids(self):
+        """
+        gets list of ids of <entry>s
+        :return: list of ids (may be empty)
+        """
+        lxml_entries = self.get_lxml_entries()
+        id_list = list()
+        for entry in lxml_entries:
+            id = entry.attrib.get("id")
+            if id is not None:
+                id_list.append(id)
+        return id_list
+
+
 
 class AmiSynonym:
     TAG = "synonym"
