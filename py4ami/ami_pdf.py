@@ -1162,7 +1162,7 @@ class PDFArgs(AbstractArgs):
             if not self.outpath and not self.outdir:
                 raise FileNotFoundError(f"self.outpath and self.outdir are None")
             if self.outpath and not self.outdir:
-                self.outdir = Path(self.outpath).parent
+                self.outdir = Path(Path(self.outpath).parent)
             if not self.outdir.exists():
                 self.outdir.mkdir(exist_ok=True)
             if not self.outpath:
