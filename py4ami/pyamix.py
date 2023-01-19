@@ -1182,10 +1182,10 @@ class PyAMI:
     def version(self):
         """
         reads setup.py and extracts line of form version='0.0.29'
-        This is still a mess. We need to set the versiom once somewhere.
+        This is still a mess. We need to set the version once somewhere.
         """
 
-        version = '0.0.45'
+        version = '0.0.46' # 2023-01-19
         if False: # this fails - it gets the python distrib
             with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
                 setup_lines = f.readlines()
