@@ -94,6 +94,13 @@ IPCC_CHAP_TOP_REC = re.compile(""
 SECTIONS_DECIMAL_REC = re.compile("\\d+\\.\\d+$")
 SUBSECTS_DECIMAL_REC = re.compile("\\d+\\.\\d+\\.\\d+$")
 
+CLASSREF = "classref"
+
+"""
+NOTE. the use of classname, classref and similar is inconsistent. We want to have:
+s1  to mean class name (classname)
+.s1 to mean a reference to a classname (only used in <style> elements but involved in conversions
+"""
 
 class AmiSpan:
     def __init__(self):
@@ -861,11 +868,11 @@ class HtmlStyle:
         HtmlStyle.remove_empty_styles(html_elem)
         styled_elems = html_elem.xpath(".//*[@style]")
         for i, styled_elem in enumerate(styled_elems):
-            class_locator = f"s{i}"
-            HtmlStyle.add_element_with_style(class_locator, html_elem, styled_elem)
+            classref = f"s{i}"
+            HtmlStyle.add_element_with_style(classref, html_elem, styled_elem)
 
     @classmethod
-    def add_element_with_style(cls, class_locator, html_elem, styled_elem):
+    def add_element_with_style(cls, classref, html_elem, styled_elem):
         """
         adds
         """
@@ -875,9 +882,9 @@ class HtmlStyle:
             return
         css = CSSStyle.create_css_style_from_css_string(elem_style)
 
-        extracted_style_elem, remaining_style, new_class = css.extract_text_styles_into_class(class_locator)
+        extracted_style_elem, remaining_style, new_class = css.extract_text_styles_into_class(classref)
         HtmlStyle.set_style(styled_elem, remaining_style)
-        HtmlClass.set_class_on_element(styled_elem, class_locator, replace=False)
+        HtmlClass.set_class_on_element(styled_elem, classref, replace=False)
         head.append(extracted_style_elem)
 
     @classmethod
@@ -903,27 +910,27 @@ class HtmlStyle:
         """
         creates multidict fot head styles
         :param elem: document to analyse
-        :return: dict of locator_sets indexed by style strings
+        :return: dict of classref_sets indexed by style strings
 
         e.g. item {font-family: TimesNewRomanPSMT; font-size: 6px;}: ['.s17', '.s19', '.s21', '.s27', '.s5', '.s7']
         """
-        style_to_locator_set = defaultdict(set)
+        style_to_classref_set = defaultdict(set)
         head_styles = elem.xpath("/html/head/style")
         for style in head_styles:
             style_s = style.text.strip();
-            locator = style_s.split()[0]
-            value = style_s[len(locator):].strip()
-            style.attrib["locator"] = locator
-            style_to_locator_set[value].add(locator)
-        return style_to_locator_set
+            classref = style_s.split()[0]
+            value = style_s[len(classref):].strip()
+            style.attrib[CLASSREF] = classref
+            style_to_classref_set[value].add(classref)
+        return style_to_classref_set
 
     @classmethod
-    def extract_styles_and_normalize_locators(cls, html_elem):
+    def extract_styles_and_normalize_classrefs(cls, html_elem):
         """
         Extract styles from document
-        move to head and normalize locators
-        delete redundant locators and styles
-        map document instamces of styles onto normalized locators
+        move to head and normalize classrefs
+        delete redundant classrefs and styles
+        map document instamces of styles onto normalized classrefs
         :param html_elem: html document to normalize
 
         Should be in an object
@@ -931,67 +938,67 @@ class HtmlStyle:
 
         """
         cls.extract_all_text_styles_to_head(html_elem)
-        style_to_locator_set = cls.normalize_head_styles(html_elem)
-        locator_index = cls.create_locator_index(style_to_locator_set)
-        deletable_locators = cls.get_redundant_locators(locator_index)
-        cls.delete_redundant_styles(deletable_locators, html_elem)
-        cls.normalize_locators_on_elements(html_elem, locator_index)
+        style_to_classref_set = cls.normalize_head_styles(html_elem)
+        classref_index = cls.create_classref_index(style_to_classref_set)
+        deletable_classrefs = cls.get_redundant_classrefs(classref_index)
+        cls.delete_redundant_styles(deletable_classrefs, html_elem)
+        cls.normalize_classrefs_on_elements(html_elem, classref_index)
 
     @classmethod
-    def normalize_locators_on_elements(cls, html_elem, locator_index):
+    def normalize_classrefs_on_elements(cls, html_elem, classref_index):
         """
         Finds all elments with @class attribute and normalize to minimal set
         """
         classed_elems = html_elem.xpath("//*[@class]")
         for classed_elem in classed_elems:
             html_class = HtmlClass.create_from_classed_element(classed_elem)
-            locator = html_class.create_locator()
-            normalized_locator = HtmlClass.remove_dot(locator_index.get(locator))
-            locator = HtmlClass.remove_dot(locator)
-            if normalized_locator != locator:
-                html_class.replace_class(locator, normalized_locator)
+            classref = html_class.create_classref()
+            normalized_classref = HtmlClass.remove_dot(classref_index.get(classref))
+            classref = HtmlClass.remove_dot(classref)
+            if normalized_classref != classref:
+                html_class.replace_class(classref, normalized_classref)
                 if html_class.class_string:
                     HtmlClass.set_class_on_element(classed_elem, html_class.class_string)
 
     @classmethod
-    def delete_redundant_styles(cls, deletable_locators, html_elem):
+    def delete_redundant_styles(cls, deletable_classrefs, html_elem):
         """
         deletes redundant <style>s in head
         """
-        styles_with_locators = html_elem.xpath("/html/head/style[@locator]")
-        for style in styles_with_locators:
-            locator = style.attrib.get("locator")
-            if locator in deletable_locators:
+        styles_with_classrefs = html_elem.xpath("/html/head/style[@classref]")
+        for style in styles_with_classrefs:
+            classref = style.attrib.get(CLASSREF)
+            if classref in deletable_classrefs:
                 XmlLib.remove_element(style)
 
     @classmethod
-    def get_redundant_locators(cls, locator_index):
+    def get_redundant_classrefs(cls, classref_index):
         """
-        makes list of redundant locators
-        :param locator_index: dictionary mapping locators onto normalized locator
-        :return: list of redundant locators
+        makes list of redundant classrefs
+        :param classref_index: dictionary mapping classrefs onto normalized classref
+        :return: list of redundant classrefs
         """
-        redundant_locators = []
-        for item in locator_index.items():
+        redundant_classrefs = []
+        for item in classref_index.items():
             if item[0] != item[1]:
-                redundant_locators.append(item[0])
-        return redundant_locators
+                redundant_classrefs.append(item[0])
+        return redundant_classrefs
 
     @classmethod
-    def create_locator_index(cls, style_to_locator_set):
+    def create_classref_index(cls, style_to_classref_set):
         """
-        maps all items in locator sets onto (arbitrarily) the first
-        :param style_to_locator_set: locator_sets mmapped by style value
-        :return:dict mapping redundant locators onto normalized locator
+        maps all items in classref sets onto (arbitrarily) the first
+        :param style_to_classref_set: classref_sets mmapped by style value
+        :return:dict mapping redundant classrefs onto normalized classref
         May benefit from being in a class
         """
-        locator_index = dict()
-        for item in style_to_locator_set.items():
-            locator_list = list(sorted(item[1]))
-            locator0 = list(locator_list)[0]
-            for locator in locator_list:
-                locator_index[locator] = locator0
-        return locator_index
+        classref_index = dict()
+        for item in style_to_classref_set.items():
+            classref_list = list(sorted(item[1]))
+            classref0 = list(classref_list)[0]
+            for classref in classref_list:
+                classref_index[classref] = classref0
+        return classref_index
 
 
 class HtmlClass:
@@ -1091,9 +1098,9 @@ class HtmlClass:
                 old_class = value
             elem.attrib["class"] = value
 
-    def create_locator(self):
+    def create_classref(self):
         """
-        create locator string (prepend ".")
+        create classref string (prepend ".")
         """
         return "." + self.class_string
 
@@ -1275,6 +1282,27 @@ class HtmlTree:
         assert float(num_range[0])
         result = num_range[0] <= num <= num_range[1]
         return result
+
+    @classmethod
+    def get_decimal_sections(cls, html_elem, xpath=None, regex=None):
+        """
+        gets decimal sections in elems of form 1.2, etc
+        :param html_elem: element to search for sections
+        :param xpath: sectins may have been labelled with @class or similar
+        :param regex: sections may be discoverable by regex+content
+        :return: list of sections (may be empty) or None
+        It is likely that a combination of xpath and regex will be used as xpath
+        may not have regex
+        """
+        if html_elem is None:
+            return None
+        sections = []
+        if xpath:
+            sections = html_elem.xpath(xpath)
+        if regex:
+            logging.warning(f"regex not yet developed for sections")
+        return sections
+
 
 
 RECS_BY_SECTION = {

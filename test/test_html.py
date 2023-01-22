@@ -6,12 +6,11 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import lxml.etree
-import lxml.etree
-import lxml.etree
+from lxml.etree import ElementTree, Element
 
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
-from py4ami.ami_html import HTMLSearcher
+from py4ami.ami_html import HTMLSearcher, HtmlTree
 # local
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, CSSConverter, HtmlTidy, HtmlStyle, HtmlClass
 # local
@@ -35,6 +34,14 @@ HTML_SUBSECTION_REF = """<span>to national level (4.2.2.3) and subnational</span
 
 # chunk of HTML from pdf2html on IPCC chapter
 MINI_IPCC_PATH = Path(Resources.TEST_IPCC_CHAP06, "mini.html")
+
+"""
+see ami_html
+
+NOTE. the use of classname, classref and similar is inconsistent. We want to have:
+s1  to mean class name (classname)
+.s1 to mean a reference to a classname (only used in <style> elements but involved in conversions
+"""
 
 
 class TestHtml(AmiAnyTest):
@@ -833,7 +840,7 @@ class TestCSSStyle:
 
     def test_extract_many_text_styles_into_html_style(self):
         """
-        Extracts named styled components into new styles with locators and creates HtmlStyle
+        Extracts named styled components into new styles with classrefs and creates HtmlStyle
         """
         html_s = """
         <html>
@@ -860,23 +867,55 @@ class TestCSSStyle:
         with open(str(Path(html_dir, "styles.html")), "w") as f:
             f.write(lxml.etree.tostring(html_elem).decode('UTF-8'))
 
-    def test_extract_styles_from_document(self):
+    def test_extract_styles_from_document_example(self):
         """
         start of IPCC WG3 Chapter06
-        identifies all styles and extacts into <head><style>s
+        identifies all styles and extacts into <head><style>s and replaces @style with @class
         """
         html_dir = Path(Resources.TEMP_DIR, "html")
         html_dir.mkdir(exist_ok=True)
         html_elem = lxml.etree.parse(str(MINI_IPCC_PATH))
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)
-        with open(str(Path(html_dir, "ipcc_styles0.html")), "w") as f:
-            f.write(lxml.etree.tostring(html_elem).decode('UTF-8'))
+        assert len(html_elem.xpath("/html/head/style")) == 0, f"no head styles in original"
+        assert len(html_elem.xpath("/html/body//*[not(normalize-space(@style))='']")) == 50,\
+            f"raw document should have 50 elements with non-empty @style attributes"
+        # this is so HTML browsers can see the initial file
+        with open(str(Path(html_dir, "ipcc_styles0.html")), "wb") as f:
+            f.write(lxml.etree.tostring(html_elem))
 
-        HtmlStyle.extract_styles_and_normalize_locators(html_elem)
+        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
 
         with open(str(Path(html_dir, "ipcc_styles2.html")), "wb") as f:
             f.write(lxml.etree.tostring(html_elem))
 
+        assert len(html_elem.xpath("/html/head/style")) == 7, f"7 head styles"
+        assert len(html_elem.xpath("/html/body//*[@class]")) == 51,\
+            f"new document should have 51 elements with @class attributes"
+
+    def test_extract_normalize_styles_old_chapter_example(self):
+        """
+        Old chapter still with header/footer.
+        example mainly to find styles
+        """
+        output_html_dir = Path(Resources.TEMP_DIR, "html")
+        output_html_dir.mkdir(exist_ok=True)
+        html_elem = lxml.etree.parse(str(Path(Resources.TEST_IPCC_CHAP04, "fulltext_old.html")))
+        html_elem = HtmlTidy.ensure_html_head_body(html_elem)
+        assert len(html_elem.xpath("/html/head/style")) == 0, f"no head styles in original"
+        assert len(html_elem.xpath("/html/body//*[not(normalize-space(@style))='']")) == 2302,\
+            f"raw document should have 50 elements with non-empty @style attributes"
+        # this is so HTML browsers can see the initial file
+        with open(str(Path(output_html_dir, "ipcc_fulltext_styles0.html")), "wb") as f:
+            f.write(lxml.etree.tostring(html_elem))
+
+        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
+
+        with open(str(Path(output_html_dir, "ipcc_fulltext_styles2.html")), "wb") as f:
+            f.write(lxml.etree.tostring(html_elem))
+
+        assert len(html_elem.xpath("/html/head/style")) == 23, f"23 head styles"
+        assert len(html_elem.xpath("/html/body//*[@class]")) == 2304,\
+            f"new document should have 2304 elements with @class attributes"
 
 
 class TestHtmlClass:
@@ -966,3 +1005,113 @@ class TestHtmlClass:
         assert html_class.class_string == "bar foo plugh"
         html_class.replace_class("foo", "plugh") # contains existing class, so should equal remove
         assert html_class.class_string == "bar plugh"
+
+class TestHtmlTree:
+    """
+    makes sections from unstructured text
+    """
+
+    def test_nest_decimal_sections(self):
+        """
+        nests decimal sections (1.2.3, 3.4, etc.) into a tree
+        """
+        html_elem = lxml.etree.parse(str(Path(Resources.TEST_IPCC_CHAP04, "ipcc_fulltext_styles.html")))
+        #  "<span id="id1521" class="s0 dec2">4.1</span>")
+        xpath = (".//div/span["
+                 "contains(@class, 'dec1') "
+            "or contains(@class, 'dec2') "
+            "or contains(@class, 'dec3') "
+            "or contains(@class, 'dec4')]")
+        decimal_sections = HtmlTree.get_decimal_sections(html_elem, xpath=xpath)
+
+        hierarchy = Hierachy()
+        hierarchy.add_sections(decimal_sections)
+        hierarchy.sort_sections()
+
+
+class Hierachy:
+    """
+    builds and queries hierarchical sections
+    """
+
+    ID = "id"
+    CLASS = 'class'
+    DOT = "."
+    MISSING = "missing"
+    SECT = "sect"
+
+    def __init__(self):
+        pass
+
+    def add_sections(self, decimal_sections):
+        sections_by_level = self.create_sections_by_level(decimal_sections)
+        parent_dict = self.create_parent_dict(sections_by_level)
+        parent_dict.pop("Chapter 4:")  # remove non-numeric item
+        root = Element(self.SECT)
+        root.attrib[self.ID] = "4"
+        print(f"root {lxml.etree.tostring(root, pretty_print=True)}")
+        for sect_id in parent_dict.keys():
+            self.ensure_element(root, sect_id, parent_dict)
+        print(f"tree:\n {lxml.etree.tostring(root, pretty_print=True).decode('UTF-8')}")
+
+    def create_parent_dict(self, sections_by_level):
+        parent_dict = dict()
+        for level in sections_by_level.keys():
+            sect_ids = self.add_parents(level, sections_by_level, parent_dict)
+        return parent_dict
+
+    def create_sections_by_level(self, decimal_sections):
+        sections_by_level = defaultdict(list)
+        for section in decimal_sections:
+            level = section.attrib.get(self.CLASS).split()[1]
+            sections_by_level[level].append(section.text)
+        return sections_by_level
+
+    def add_parents(self, level, multidict, parent_dict):
+        level_sects = multidict[level]
+        for level_sect in level_sects:
+            parent = self.get_parent(level_sect)
+            parent_dict[level_sect] = parent
+
+    def get_parent(self, level_sect):
+        bits = level_sect.split(".")
+        parent = None if len(bits) == 1 else self.DOT.join(bits[:-1])
+        return parent
+
+    def ensure_element(self, root, sect_id, parent_dict):
+        if sect_id == "":
+            print(f"RAN OFF TOP")
+            return None
+        xpath = f"//{self.SECT}[@id='{sect_id}']"
+        elems = root.xpath(xpath)
+        if len(elems) == 0:
+            parent_id = parent_dict.get(sect_id)
+            missing = False
+            if parent_id is None:
+                print(f" missing parent section {sect_id}")
+                missing = True
+                spl = sect_id.split(self.DOT)
+                split_ = spl[:-1]
+                parent_id = self.DOT.join(split_)
+            if parent_id == "":
+                print(f" skip root...")
+            elem = self.ensure_element(root, parent_id, parent_dict)
+            if elem is not None:
+                sect_xml = lxml.etree.SubElement(elem, self.SECT)
+                sect_xml.attrib[self.ID] = sect_id
+                if missing:
+                    sect_xml.attrib[self.MISSING] = "Y"
+                return sect_xml
+        elif len(elems) > 1:
+            print(f" duplicate ids: {sect_id}")
+            return None
+        else:
+            return elems[0]
+
+    def sort_sections(self):
+
+        pass
+
+    @classmethod
+    def sort_ids(cls):
+        pass
