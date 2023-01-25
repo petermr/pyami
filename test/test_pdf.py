@@ -1,3 +1,4 @@
+import logging
 import os
 import pprint
 import sys
@@ -20,7 +21,7 @@ from py4ami.ami_bib import Publication
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, PDFArgs, PDFDebug
 from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage
 from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS
-from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE, CSSStyle
+from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE
 from py4ami.ami_html import H_SPAN, H_BODY, H_P
 from py4ami.pyamix import PyAMI
 from py4ami.bbox_copy import BBox
@@ -108,7 +109,7 @@ class PDFTest(test.test_all.AmiAnyTest):
     NYI = True and AmiAnyTest.NYI
     USER = True and AmiAnyTest.USER
 
-    #skipIf
+    # skipIf
     BUG = True and AmiAnyTest.BUG
 
     VERYLONG = False or AmiAnyTest.VERYLONG
@@ -125,15 +126,6 @@ class PDFTest(test.test_all.AmiAnyTest):
         """check CLIMATE dir exists
         """
         assert Resources.TEST_CLIMATE_10_PROJ_DIR.exists(), f"{Resources.TEST_CLIMATE_10_PROJ_DIR} should exist"
-
-    @unittest.skipUnless("enviroment", ADMIN)
-    def test_findall_svg_and_find_texts(self):
-        """find climate10_:text elements
-        """
-        assert PAGE_9.exists(), f"{PAGE_9} should exist"
-        page9_elem = lxml.etree.parse(str(PAGE_9))
-        texts = page9_elem.findall(f"//{{{SVG_NS}}}text")
-        assert len(texts) == 108
 
     @unittest.skipUnless(SVG, "svg")
     def test_get_text_attribs(self):
@@ -208,90 +200,6 @@ class PDFTest(test.test_all.AmiAnyTest):
         page.create_text_spans(sort_axes=SORT_XY)
         assert 70 >= len(page.text_spans) >= 60
 
-    @unittest.skipUnless(SVG, "svg")
-    def test_create_html_from_svg(self):
-        """
-        Test 10 pages
-        """
-        pretty_print = True
-        use_lines = True
-        svg_dir = Resources.TEST_CLIMATE_10_SVG_DIR
-        html_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
-        for page_index in range(1, 9):
-            page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
-            html_path = Path(html_dir, f"page.{page_index}.html")
-            if not html_dir.exists():
-                html_dir.mkdir()
-            ami_page = AmiPage.create_page_from_svg(page_path)
-            ami_page.write_html(html_path, pretty_print, use_lines)
-            assert html_path.exists(), f"{html_path} exists"
-
-    @unittest.skipUnless(SVG, "svg")
-    def test_create_html_in_selection_from_svg(self):
-        """
-        Test 10 pages
-        """
-        pretty_print = True
-        use_lines = True
-        # selection = range(1, 2912)
-        page_selection = range(1, 50)
-        counter = 0
-        counter_tick = 20
-        html_out_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
-        for page_index in page_selection:
-            if counter % counter_tick == 0:
-                print(f".", end="")
-            page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-            html_path = Path(html_out_dir, f"page.{page_index}.html")
-            if not html_out_dir.exists():
-                html_out_dir.mkdir()
-            ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
-            ami_page.write_html(html_path, pretty_print, use_lines)
-            counter += 1
-            assert html_path.exists(), f"{html_path} exists"
-
-    @unittest.skipUnless(SVG, "svg")
-    def test_create_chapters_through_svg(self):
-        pretty_print = True
-        use_lines = True
-        make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
-        selection = CURRENT_RANGE
-        temp_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
-        for page_index in selection:
-            html_path = Path(temp_dir, f"page.{page_index}.html")
-            with open(html_path, "r") as h:
-                xml = h.read()
-            root = lxml.etree.fromstring(xml)
-            spans = root.findall(f"./{H_BODY}/{H_P}/{H_SPAN}")
-            assert type(spans[0]) is lxml.etree._Element, f"expected str got {type(spans[0])}"
-            assert len(HtmlUtil.get_text_content(spans[0])) > 0
-            span = None
-            chapter = ""
-            # bug in parsing line 0
-            if Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[0])):
-                span = spans[0]
-            if span is None and Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[1])):
-                span = spans[1]
-            if span is None:
-                print(f"p:{page_index}, {HtmlUtil.get_text_content(spans[0])}, {HtmlUtil.get_text_content(spans[1])}")
-            else:
-                chapter = HtmlUtil.get_text_content(span)
-                print("CHAP ", chapter)
-
-    @unittest.skip("obsolete")
-    @unittest.skipUnless(SVG, "svg")
-    @unittest.skipUnless(CMD, "command")
-    def test_svg2page(self):
-        proj = Resources.TEST_CLIMATE_10_PROJ_DIR
-        args = f"--proj {proj} --apply svg2page"
-        PyAMI().run_command(args)
-
-    @unittest.skipIf(NYI, "page2sect")
-    def test_page2chap(self):
-        proj = Resources.TEST_CLIMATE_10_PROJ_DIR
-        args = f"--proj {proj} --apply page2sect"
-        PyAMI().run_command(args)
-
     @unittest.skipUnless(USER, "page2sect")
     def test_make_ami_pages_with_spans_from_charstream_ipcc_chap6(self):
         """
@@ -313,6 +221,597 @@ class PDFTest(test.test_all.AmiAnyTest):
                                   range_list=[range(3, 8), range(129, 131)])
         assert output_dir.exists()
         assert Path(output_dir, f"{output_stem}_{5}.html").exists()
+
+    def test_bmp_png_to_png(self):
+        """
+        convert bmp, jpgs, etc to PNG
+        results in temp/ipcc_chap6/png/
+        checks existence on created PNG
+        uses: pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
+        USEFUL
+
+        """
+        dirx = Path(Resources.TEST_IPCC_CHAP06, "image_bmp_jpg")
+        outdir = Path(Resources.TEMP_DIR, "ipcc_chap6", "png")
+        if not dirx.exists():
+            print(f"no directory {dirx}")
+            return
+        pdf_image = PDFImage()
+        pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
+        pngs = [
+            "Im1.png", "Im0.1.png", "Im0.2.png", "Im1.4.png", "Im1.5.png", "Im0.1.png",
+            "Im0.0.png", "Im1.png", "Im3.png", "Im0.2.png", "Im0.3.png", "Im2.png",
+        ]
+        for png in pngs:
+            assert Path(outdir, png).exists()
+
+    def test_merge_pdf2txt_bmp_jpg_with_coords(self):
+        """
+        creates coordinate data for images (20 pp doc) and also reads existing coord data from file
+        (? from AMI3-java or previous run) and tries to match them
+        """
+        png_dir = Path(Resources.TEST_IPCC_CHAP06, "images")
+        bmp_jpg_dir = Path(Resources.TEST_IPCC_CHAP06, "image_bmp_jpg")
+        coord_file = Path(Resources.TEST_IPCC_CHAP06, "image_coords.txt")
+        print(f"input {coord_file}")
+        outdir = Path(Resources.TEST_IPCC_CHAP06, "images_new")
+        if not outdir.exists():
+            outdir.mkdir()
+        with open(coord_file, "r") as f:
+            coord_list = f.readlines()
+        assert len(coord_list) == 14
+
+        coord_list = [c.strip() for c in coord_list]
+        wh_counter = Counter()
+        coords_by_width_height = dict()
+        for coord in coord_list:
+            # image_9_0_80_514_72_298
+            coords = coord.split("_")
+            assert len(coords) == 7
+            bbox = BBox(xy_ranges=[[coords[3], coords[4]], [coords[5], coords[6]]])
+            print(f"coord {coord} {bbox} {bbox.width},{bbox.height}")
+            wh_tuple = bbox.width, bbox.height
+            print(f"wh {wh_tuple}")
+            wh_counter[wh_tuple] += 1
+            if coords_by_width_height.get(wh_tuple) is None:
+                coords_by_width_height[wh_tuple] = [coord]
+            else:
+                coords_by_width_height.get(wh_tuple).append(coord)
+        print(f"counter {wh_counter}")
+        print(f"coords_by_wh {coords_by_width_height}")
+
+        bmp_jpg_images = os.listdir(bmp_jpg_dir)
+        for bmp_jpg_image in bmp_jpg_images:
+            if Path(bmp_jpg_image).suffix == ".png":
+                print(f"png {bmp_jpg_image}")
+                with Image.open(str(Path(bmp_jpg_dir, bmp_jpg_image))) as image:
+                    wh_tuple = image.width, image.height
+                    print(f"wh ... {wh_tuple}")
+                    print(f"coords {coords_by_width_height.get(wh_tuple)}")
+
+    # See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
+
+    # https://towardsdatascience.com/pdf-text-extraction-in-python-5b6ab9e92dd
+
+    @unittest.skipIf(LONG, "doesn't obey --maxpage or --pages")
+    def test_make_structured_html_cmdline_DEBUG(self):
+        """
+        Previous one gives:
+        arg_dict {'convert': 'html', 'flow': True, 'footer': 80, 'header': 80, 'indir': None,
+        'inpath': PosixPath('/Users/pm286/workspace/pyami/test/resources/ipcc/Chapter06/fulltext.pdf'),
+        'maxpage': 10, 'outdir': None, 'outform': 'html', 'outstem': 'fulltext'}
+
+        Tried to run:
+        python -m py4ami.ami_pdf
+        --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/fulltext.pdf
+        --maxpage 88 --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/
+
+        which didn't give flow html, but sections.
+        Its debug
+
+        Namespace(convert=None, debug=None, flow=True, footer=80, header=80, imagedir=None,
+        indir=None, inpath=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/fulltext.pdf'],
+         maxpage=[88], outdir=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/'],
+         outform='html', outstem='fulltext.flow', resolution=400, template=None)"""
+
+        """
+        python -m py4ami.pyamix PDF --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17.pdf --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17/raw/"""
+        args = " PDF --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17.pdf" \
+               " --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17/raw/" \
+               " --pages 1_4"
+
+        pyami = PyAMI()
+        pyami.run_command(args)
+
+    def test_make_ipcc_html_spans(self):
+        """
+        read some/all PDF pages in chapter
+        parse with pdfplumber into raw_html
+
+        uses PDFMiner library (no coordinates I think)
+        then
+        uses flow_tidy() to determine pages, wrap lines (span/div) in pages
+        join pages
+        trim headers and footers and sides
+        then
+        creates and HtmlTidy to remove or edit unwanted span/div/br
+
+
+        USED
+        MODEL
+        """
+
+        chapter = "Chapter04"
+        ipcc_dir = Path(Resources.TEST_IPCC_DIR)
+        print(f"Converting chapter: {chapter}")
+        pdf_args = PDFArgs()  # also supports commands
+        chapter_dir = Path(ipcc_dir, chapter)
+        # populate arg commands
+        pdf_args.arg_dict[INDIR] = chapter_dir
+        assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
+        inpath = Path(chapter_dir, "fulltext.pdf")
+        pdf_args.arg_dict[INPATH] = inpath
+        assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
+        pdf_args.arg_dict[MAXPAGE] = 20
+        pdf_args.arg_dict[OUTFORM] = "flow.html"
+        outdir = Path(Resources.TEMP_DIR, "ipcc_html")
+        if not outdir.exists():
+            outdir.mkdir()
+        pdf_args.arg_dict[OUTDIR] = outdir
+        pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
+        print(f"arg_dict {pdf_args.arg_dict}")
+
+        pdf_args.unwanteds = {
+            "chapter": {
+                "xpath": ".//div/span",
+                "regex": "^Chapter\\s+\\d+\\s*$"
+            },
+            "final_gov": {
+                "xpath": ".//div/span",
+                "regex": "^\\s*Final Government Distribution\\s*$"
+            },
+            "page": {
+                "xpath": ".//div/a",
+                "regex": "^\\s*Page\\s*\\d+\\s*$",
+            },
+            "wg3": {
+                "xpath": ".//div/span",
+                "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
+            },
+        }
+        _, _ = pdf_args.convert_write()  # refactor, please
+
+    def test_make_composite_lines_from_pdf_chap_6_3_toc(self):
+        path = Path(Resources.TEST_IPCC_CHAP06, "html", "chap6_3.html")
+        assert path.exists(), f"path exists {path}"
+        AmiPage.create_page_from_pdf_html(path)
+
+
+class PDFChapterTest(test.test_all.AmiAnyTest):
+    """
+    processes part or whole of a chapter
+    """
+
+    @unittest.skipUnless(PDFTest.VERYLONG, "processes Chapters 04, 05, 16, 17")
+    def test_make_ipcc_html(self):
+        """not really a test"""
+        sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
+        if not sem_clim_dir.exists():
+            print(f"no ipcc dir {sem_clim_dir}, so skipping")
+            return
+        ipcc_dir = Path(sem_clim_dir, "ipcc", "ar6", "wg3")
+        assert ipcc_dir.exists(), f"ipcc_dir {ipcc_dir} does not exist"
+        chapters = [
+            # "Chapter01",
+            "Chapter04",
+            # "Chapter06",
+            # "Chapter07",
+            # "Chapter15",
+            # "Chapter16",
+        ]
+        for chapter in chapters:
+            print(f"Converting chapter: {chapter}")
+            pdf_args = PDFArgs()
+            chapter_dir = Path(ipcc_dir, chapter)
+            pdf_args.arg_dict[INDIR] = chapter_dir
+            assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
+            inpath = Path(chapter, "fulltext.pdf")
+            pdf_args.arg_dict[INPATH] = Path(chapter_dir, "fulltext.pdf")
+            assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
+            pdf_args.arg_dict[MAXPAGE] = 200
+            pdf_args.arg_dict[OUTFORM] = "flow.html"
+            outdir = Path(Resources.TEMP_DIR, "ipcc_html")
+            if not outdir.exists():
+                outdir.mkdir()
+            pdf_args.arg_dict[OUTDIR] = outdir
+            print(f"arg_dict {pdf_args.arg_dict}")
+
+            unwanteds = {
+                "chapter": {
+                    "xpath": ".//div/span",
+                    "regex": "^Chapter\\s+\\d+\\s*$"
+                },
+                "final_gov": {
+                    "xpath": ".//div/span",
+                    "regex": "^\\s*Final Government Distribution\\s*$"
+                },
+                "page": {
+                    "xpath": ".//div/a",
+                    "regex": "^\\s*Page\\s*\\d+\\s*$",
+                },
+                "wg3": {
+                    "xpath": ".//div/span",
+                    "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
+                },
+            }
+            pdf_args.convert_write(
+                # unwanteds=unwanteds
+            )
+
+    def test_convert_pdf_to_html_and_save(self):
+        """Uses PDFArgs.convert_pdf to convert PDF to HTML and save
+        to temp (/Users/pm286/workspace/pyami/temp/html/pmc4121.xml)
+        This is raw output with <br> between lines and mirrors the layout of
+        """
+        # Use `pip3 install pdfminer.six` for python3
+
+        """reading py4ami/resources/projects/liion4/PMC4391421/fulltext.pdf"""
+        pathx = Path(PMC1421)
+
+        # convert PDF to html
+        result = PDFArgs.convert_pdf(
+            path=str(pathx),
+            fmt="html",
+            caching=True,
+        )
+        # output dir
+        html_dir = Path(Resources.TEMP_DIR, "html")
+        if not html_dir.exists():
+            html_dir.mkdir()
+        # ouytput file
+        path = Path(html_dir, "pmc4121.xml")
+        # clean because text requires new file
+        if path.exists():
+            os.remove(path)
+        with open(path, "w") as f:
+            f.write(result)
+            print(f"wrote {f}")
+        assert path.exists(), f"should output html to {path}"
+        assert 76000 < os.path.getsize(path) < 77000, f"size should be in range , was {os.path.getsize(path)}"
+
+    def test_make_structured_html_MAIN(self):
+        """
+        structures the flat HTML from pdfplumber, but no coordinates
+        Can still be used for word frequency, etc.
+        USER
+        uses tidy_flow()
+        """
+
+        print(f" converting {IPCC_CHAP6_PDF}")
+        assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
+        pdf_args = PDFArgs()
+        pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
+        pdf_args.arg_dict[MAXPAGE] = 10
+        pdf_args.arg_dict[PAGES] = "1_10"
+        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_IPCC_CHAP06, "pdf.html")
+
+        print(f"arg_dict {pdf_args.arg_dict}")
+        outfile, _ = pdf_args.convert_write()
+        if not outfile:
+            print(f"no file written")
+        else:
+            print(f"check {outfile} exists")
+            assert outfile.exists(), f"outfile {outfile} should exist"
+
+    @unittest.skipUnless(PDFTest.HTML, "create running text")
+    @unittest.skipUnless(PDFTest.USER, "develop for commandline")
+    # @unittest.skipIf(BUG, "bad parsing of page ranges")
+    def test_convert_to_raw_html_chap6_maxpage_example(self):
+        """structures the flat HTML from pdfplumber into a running stream, but no coordinates
+        the only test that uses tidy_flow()
+        Can still be used for word frequency, etc.
+
+Uses:
+    self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
+
+    if self.flow:
+        self.html = self.tidy_flow()
+
+        creates single file ~/pyami/temp/ipcc_chap6/flow.test4.html (concatenated pages in WRONG ORDER)
+        /pyami/temp/ipcc_chap6/chapter_6:.html - seems to be Chapter/author page.
+
+
+        """
+
+        # print(f" converting {IPCC_CHAP6_PDF}")
+        assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
+        pdf_args = PDFArgs()
+        maxpage = 5
+        pdf_args.arg_dict[MAXPAGE] = maxpage  # works
+        pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
+        IPCC_TEMP_CHAP6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
+        pdf_args.arg_dict[OUTPATH] = Path(IPCC_TEMP_CHAP6, f"flow.test{maxpage}.html")
+        pdf_args.arg_dict[PDF2HTML] = PDFPLUMBER
+
+        pprint.pprint(pdf_args.arg_dict)
+        # pdf_args.arg_dict[PAGES] = [(1,3), (5,10)]
+
+        print(f"arg_dict {pdf_args.arg_dict}")
+        outfile, _ = pdf_args.convert_write()  # all the conversion happens here
+        assert Path(outfile).exists()
+        assert str(outfile).endswith(f"temp/ipcc_chap6/flow.test{maxpage}.html")
+        if not outfile:
+            print(f"no file written")
+        else:
+            print(f"check {outfile.absolute()} exists")
+            assert outfile.exists(), f"outfile {outfile} should exist"
+            size = outfile.stat().st_size
+            if maxpage == 4:
+                assert size > 15000, f"size {outfile} {size}"
+
+    @unittest.skipUnless(PDFTest.CMD, "command")
+    def test_convert_to_raw_html_chap6_page_ranges(self):
+        """
+        converts complete chapter to raw HTML.
+        outputs each page as
+        .../pyami/temp/ipcc_chap6/fulltext.flow_5.html
+        and also concatenates into .../pyami/temp/ipcc_chap6/flow.test.html
+        If --maxpage or --pages is used then only output specific pages
+        --maxpage is obsolete
+
+        DOES NOT CREATE FLOW YET.
+
+
+        """
+        outfile = Path(Resources.TEMP_IPCC_CHAP06, "all.html")
+        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 9 11_15 217_ --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06}"
+        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfplumber"
+        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfminer"
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.TEMP_IPCC_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
+        PyAMI().run_command(args)
+        print(f"created outfile {outfile}")
+        # assert outfile.exists(), f"{outfile} should exist"
+
+    def test_read_ipcc_chapter(self):
+        """read multipage document and extract properties
+
+        """
+        assert IPCC_GLOSSARY.exists(), f"{IPCC_GLOSSARY} should exist"
+        max_page = PDFTest.MAX_PAGE
+        # max_page = 999999
+        options = [WORDS, ANNOTS]
+        # max_page = 100  # increase this if yu want more output
+
+        for (pdf_file, page_count) in [
+            # (IPCC_GLOSSARY, 51),
+            (IPCC_CHAP6_PDF, 219)
+        ]:
+            pdf_debug = PDFDebug()
+            with pdfplumber.open(pdf_file) as pdf:
+                print(f"file {pdf_file}")
+                pages = list(pdf.pages)
+                assert len(pages) == page_count
+                for page in pages[:max_page]:
+                    pdf_debug.debug_page_properties(page, debug=options)
+
+    def test_extract_single_page_ipcc_toc_chap6(self):
+        """
+        extract a single page which is the TableOfContents
+
+        """
+        assert Path(IPCC_CHAP6_PDF).exists(), f"expected {IPCC_CHAP6_PDF}"
+        assert Path(Resources.TEMP_IPCC_CHAP06).exists(), f"expected {Resources.TEMP_IPCC_CHAP06}"
+
+        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.TEMP_IPCC_CHAP06} --flow True"
+        PyAMI().run_command(args)
+        outpath = Path(Resources.TEMP_IPCC_CHAP06, "fulltext.flow_4.html")
+        assert outpath.exists(), f"{outpath} should be created"
+
+
+class PDFCharacterTest(test.test_all.AmiAnyTest):
+    """
+    tests which cover the creation of character stream by PDF parsers
+    (pdfminer and pdflumber)
+    """
+
+    def test_pdfminer_debug_LTTextLine_LTTextBox_PMC1421(self):
+        """read PDF and chunk into text_lines and text_boxes
+        Keeps box coordinates but loses style"""
+        from pdfminer.layout import LTTextLineHorizontal, LTTextBoxHorizontal
+        # need to pass in laparams, otherwise pdfplumber page would not
+        # have high level pdfminer layout objects, only LTChars.
+        assert Path(PMC1421).exists()
+        logging.warn(f"PMC1421 is {PMC1421}")
+        pdf = pdfplumber.open(PMC1421, laparams={})
+        assert len(pdf.pages) == 5, f"expected 5 pages"
+        page_layout = pdf.pages[0].layout
+        for element in page_layout:
+            if isinstance(element, LTTextLineHorizontal):
+                # currently only seems to detect newline
+                print(f"textlinehorizontal: ({element.bbox}):{element.get_text()}:", end="")
+            if isinstance(element, LTTextBoxHorizontal):
+                print(f">>start_text_box")
+                for text_line in element:
+                    # print(f"dir: {text_line.__dir__()}")
+                    print(f"....textboxhorizontal: ({text_line.bbox}): {text_line.get_text()}", end="")
+                    pass
+                print(f"<<end_text_box")
+
+    # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
+
+    @unittest.skipUnless(PDFTest.DEBUG, "too much output")
+    def test_pdfminer_font_and_character_output(self):
+        """Examines every character and annotates it
+        Typical:
+LTPage
+  LTTextBoxHorizontal                               Journal of Medicine and Life Volume 7, Special Issue 3, 2014
+    LTTextLineHorizontal                            Journal of Medicine and Life Volume 7, Special Issue 3, 2014
+      LTChar                   KAAHHD+Calibri,Itali J
+      LTChar                   KAAHHD+Calibri,Itali o
+      LTChar                   KAAHHD+Calibri,Itali u
+        """
+        MAXITEM = 2
+        from pathlib import Path
+        from typing import Iterable, Any
+
+        from pdfminer.high_level import extract_pages
+
+        # recursive
+        def show_ltitem_hierarchy(o: Any, depth=0):
+            """Show location and text of LTItem and all its descendants"""
+            debug = False
+            debug = True
+            if depth == 0:
+                print('element                        fontname             text')
+                print('------------------------------ -------------------- -----')
+
+            name = get_indented_name(o, depth)
+            print(f"name: {name}")
+            if debug or name.strip() == "LTTextLineHorizontal":
+                print(
+                    f'{name :<30.30s} '
+                    f'{get_optional_fontinfo(o):<20.20s} '
+                    f'{get_optional_text(o)}'
+                )
+
+            if isinstance(o, Iterable):
+                for i in list(o)[:MAXITEM]:
+                    show_ltitem_hierarchy(i, depth=depth + 1)
+
+        def get_indented_name(o: Any, depth: int) -> str:
+            """Indented name of class"""
+            return '  ' * depth + o.__class__.__name__
+
+        def get_optional_fontinfo(o: Any) -> str:
+            """Font info of LTChar if available, otherwise empty string"""
+            name = o.__class__.__name__
+            if hasattr(o, 'fontname') and hasattr(o, 'size'):
+                if name == "LTChar":
+                    dummy = ['_text', 'matrix', 'fontname', 'ncs', 'graphicstate', 'adv', 'upright', 'x0', 'y0', 'x1',
+                             'y1',
+                             'width', 'height', 'bbox', 'size', '__module__', '__doc__', '__init__', '__repr__',
+                             'get_text',
+                             'is_compatible', '__lt__', '__le__', '__gt__', '__ge__', 'set_bbox', 'is_empty',
+                             'is_hoverlap',
+                             'hdistance', 'hoverlap', 'is_voverlap', 'vdistance', 'voverlap', 'analyze', '__dict__',
+                             '__weakref__', '__hash__', '__str__', '__getattribute__', '__setattr__', '__delattr__',
+                             '__eq__',
+                             '__ne__', '__new__', '__reduce_ex__', '__reduce__', '__subclasshook__',
+                             '__init_subclass__',
+                             '__format__', '__sizeof__', '__dir__', '__class__']
+                    print(f"LTChar {o.__dir__()}")
+                return f'{o.fontname} {round(o.size)}pt'
+            return ''
+
+        def get_optional_text(o: Any) -> str:
+            """Text of LTItem if available, otherwise empty string"""
+            if hasattr(o, 'get_text'):
+                return o.get_text().strip()
+            return ''
+
+        path = Path(PMC1421)
+        pages = list(extract_pages(path))
+        # this next debugs the character_stream
+        show_ltitem_hierarchy(pages[0])
+
+    @unittest.skip("LONG; other methods may be better")
+    def test_pdfminer_images(self):
+        import pdfminer
+        from pdfminer.image import ImageWriter
+        from pdfminer.high_level import extract_pages
+
+        path = Path(IPCC_CHAP6_PDF)
+        pages = list(extract_pages(path))
+        page = pages[10]
+
+        def get_image(layout_object):
+            if isinstance(layout_object, pdfminer.layout.LTImage):
+                print(f"LTImage {layout_object.__dir__()}")
+                return layout_object
+            if isinstance(layout_object, pdfminer.layout.LTContainer):
+                for child in layout_object:
+                    return get_image(child)
+            else:
+                return None
+
+        def save_images_from_page(page: pdfminer.layout.LTPage):
+            images = list(filter(bool, map(get_image, page)))
+            outdir = Path(Resources.TEMP_DIR, "pdf", "chap6", "pdf miner")
+            iw = ImageWriter(str(outdir))
+            for image in images:
+                iw.export_image(image)
+                print(f" image {image}")
+
+        save_images_from_page(page)
+
+    def test_pdfminer_style(self):
+        """Examines every character and annotates it
+        Typical:
+LTPage
+  LTTextBoxHorizontal                               Journal of Medicine and Life Volume 7, Special Issue 3, 2014
+    LTTextLineHorizontal                            Journal of Medicine and Life Volume 7, Special Issue 3, 2014
+      LTChar                   KAAHHD+Calibri,Itali J
+      LTChar                   KAAHHD+Calibri,Itali o
+      LTChar                   KAAHHD+Calibri,Itali u
+        """
+        from pathlib import Path
+        from typing import Iterable, Any
+
+        from pdfminer.high_level import extract_pages
+
+        def show_ltitem_hierarchy(o: Any, depth=0):
+            """Show location and text of LTItem and all its descendants"""
+            MAXITEM = 2
+            if depth == 0:
+                print('element                        fontname             text')
+                print('------------------------------ -------------------- -----')
+
+            print(
+                f'{get_indented_name(o, depth):<30.30s} '
+                f'{get_optional_fontinfo(o):<20.20s} '
+                f'{get_optional_text(o)}'
+            )
+
+            if isinstance(o, Iterable):
+                for i in list(o)[:MAXITEM]:
+                    show_ltitem_hierarchy(i, depth=depth + 1)
+
+        def get_indented_name(o: Any, depth: int) -> str:
+            """Indented name of class"""
+            return '  ' * depth + o.__class__.__name__
+
+        def get_optional_fontinfo(o: Any) -> str:
+            """Font info of LTChar if available, otherwise empty string"""
+            if hasattr(o, 'fontname') and hasattr(o, 'size'):
+                return f'{o.fontname} {round(o.size)}pt'
+            return ''
+
+        def get_optional_text(o: Any) -> str:
+            """Text of LTItem if available, otherwise empty string"""
+            if hasattr(o, 'get_text'):
+                return o.get_text().strip()
+            return ''
+
+        path = Path(PMC1421)
+        pages = list(extract_pages(path))
+        # this next debugs the character_stream
+        show_ltitem_hierarchy(pages[0])
+
+    def test_pdfminer_text_html_xml(self):
+        # Use `pip3 install pdfminer.six` for python3
+        """runs pdfinterpreter/converter over 5-page article and creates html and xml versions"""
+        fmt = "html"
+        maxpages = 0
+        path = Path(PMC1421)
+        result = PDFArgs.convert_pdf(
+            path=str(path),
+            fmt=fmt,
+            maxpages=maxpages
+        )
+        html_dir = make_html_dir()
+        with open(Path(html_dir, f"pmc4121.{fmt}"), "w") as f:
+            f.write(result)
+            print(f"wrote {f.name}")
 
     def test_pdfplumber_full_page_info(self):
         """The definitive catalog of all objects on a page"""
@@ -500,7 +999,7 @@ class PDFTest(test.test_all.AmiAnyTest):
             for ch in first_page.chars:  # prints all text as a single line
                 print(ch.get("text"), end="")
 
-    def test_debug_page_properties_chap6(self):
+    def test_debug_page_properties_chap6_word_count_and_images_data_example(self):
         """debug the PDF objects (crude)
         outputs wordcount for page, and any image data.
         Would ber better if we knew hoe to read PDFStream"""
@@ -523,36 +1022,6 @@ class PDFTest(test.test_all.AmiAnyTest):
             ((1466, 655), 122016): (8, (72.0, 523.3), (203.73, 405.38)),
             ((1634, 854), 204349): (9, (80.9, 514.25), (543.43, 769.92))
         }
-
-    @unittest.skip("LONG; other methods may be better")
-    def test_pdfminer_images(self):
-        import pdfminer
-        from pdfminer.image import ImageWriter
-        from pdfminer.high_level import extract_pages
-
-        path = Path(IPCC_CHAP6_PDF)
-        pages = list(extract_pages(path))
-        page = pages[10]
-
-        def get_image(layout_object):
-            if isinstance(layout_object, pdfminer.layout.LTImage):
-                print(f"LTImage {layout_object.__dir__()}")
-                return layout_object
-            if isinstance(layout_object, pdfminer.layout.LTContainer):
-                for child in layout_object:
-                    return get_image(child)
-            else:
-                return None
-
-        def save_images_from_page(page: pdfminer.layout.LTPage):
-            images = list(filter(bool, map(get_image, page)))
-            outdir = Path(Resources.TEMP_DIR, "pdf", "chap6", "pdf miner")
-            iw = ImageWriter(str(outdir))
-            for image in images:
-                iw.export_image(image)
-                print(f" image {image}")
-
-        save_images_from_page(page)
 
     def test_debug_page_properties(self):
         """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
@@ -579,618 +1048,8 @@ class PDFTest(test.test_all.AmiAnyTest):
                 pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES])
             print(f"images: {pdf_debug.image_dict.keys()}")
 
-    def test_bmp_png_to_png(self):
-        """
-        convert bmp, jpgs, etc to PNG
-        results in temp/ipcc_chap6/png/
-        checks existence on created PNG
-        uses: pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
-        USEFUL
 
-        """
-        dirx = Path(Resources.TEST_IPCC_CHAP06, "image_bmp_jpg")
-        outdir = Path(Resources.TEMP_DIR, "ipcc_chap6", "png")
-        if not dirx.exists():
-            print(f"no directory {dirx}")
-            return
-        pdf_image = PDFImage()
-        pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
-        pngs = [
-            "Im1.png", "Im0.1.png", "Im0.2.png", "Im1.4.png", "Im1.5.png", "Im0.1.png",
-            "Im0.0.png", "Im1.png", "Im3.png", "Im0.2.png", "Im0.3.png", "Im2.png",
-        ]
-        for png in pngs:
-            assert Path(outdir, png).exists()
-
-    def test_merge_pdf2txt_bmp_jpg_with_coords(self):
-        """
-        creates coordinate data for images (20 pp doc) and also reads existing coord data from file
-        (? from AMI3-java or previous run) and tries to match them
-        """
-        png_dir = Path(Resources.TEST_IPCC_CHAP06, "images")
-        bmp_jpg_dir = Path(Resources.TEST_IPCC_CHAP06, "image_bmp_jpg")
-        coord_file = Path(Resources.TEST_IPCC_CHAP06, "image_coords.txt")
-        print(f"input {coord_file}")
-        outdir = Path(Resources.TEST_IPCC_CHAP06, "images_new")
-        if not outdir.exists():
-            outdir.mkdir()
-        with open(coord_file, "r") as f:
-            coord_list = f.readlines()
-        assert len(coord_list) == 14
-
-        coord_list = [c.strip() for c in coord_list]
-        wh_counter = Counter()
-        coords_by_width_height = dict()
-        for coord in coord_list:
-            # image_9_0_80_514_72_298
-            coords = coord.split("_")
-            assert len(coords) == 7
-            bbox = BBox(xy_ranges=[[coords[3], coords[4]], [coords[5], coords[6]]])
-            print(f"coord {coord} {bbox} {bbox.width},{bbox.height}")
-            wh_tuple = bbox.width, bbox.height
-            print(f"wh {wh_tuple}")
-            wh_counter[wh_tuple] += 1
-            if coords_by_width_height.get(wh_tuple) is None:
-                coords_by_width_height[wh_tuple] = [coord]
-            else:
-                coords_by_width_height.get(wh_tuple).append(coord)
-        print(f"counter {wh_counter}")
-        print(f"coords_by_wh {coords_by_width_height}")
-
-        bmp_jpg_images = os.listdir(bmp_jpg_dir)
-        for bmp_jpg_image in bmp_jpg_images:
-            if Path(bmp_jpg_image).suffix == ".png":
-                print(f"png {bmp_jpg_image}")
-                with Image.open(str(Path(bmp_jpg_dir, bmp_jpg_image))) as image:
-                    wh_tuple = image.width, image.height
-                    print(f"wh ... {wh_tuple}")
-                    print(f"coords {coords_by_width_height.get(wh_tuple)}")
-
-    # See https://pypi.org/project/depdf/0.2.2/ for paragraphs?
-
-    # https://towardsdatascience.com/pdf-text-extraction-in-python-5b6ab9e92dd
-
-    def test_pdfminer_debug_LTTextLine_LTTextBox_PMC1421(self):
-        """read PDF and chunk into text_lines and text_boxes
-        Keeps box coordinates but loses style"""
-        from pdfminer.layout import LTTextLineHorizontal, LTTextBoxHorizontal
-        # need to pass in laparams, otherwise pdfplumber page would not
-        # have high level pdfminer layout objects, only LTChars.
-        pdf = pdfplumber.open(PMC1421, laparams={})
-        page = pdf.pages[0].layout
-        for element in page:
-            if isinstance(element, LTTextLineHorizontal):
-                # currently only seems to detect newline
-                print(f"textlinehorizontal: ({element.bbox}):{element.get_text()}:", end="")
-            if isinstance(element, LTTextBoxHorizontal):
-                print(f">>start_text_box")
-                for text_line in element:
-                    # print(f"dir: {text_line.__dir__()}")
-                    # print(f"....textboxhorizontal: ({text_line.bbox}): {text_line.get_text()}", end="")
-                    pass
-                print(f"<<end_text_box")
-
-    # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
-
-    @unittest.skipUnless(DEBUG, "too much output")
-    def test_pdfminer_font_and_character_output(self):
-        """Examines every character and annotates it
-        Typical:
-LTPage
-  LTTextBoxHorizontal                               Journal of Medicine and Life Volume 7, Special Issue 3, 2014
-    LTTextLineHorizontal                            Journal of Medicine and Life Volume 7, Special Issue 3, 2014
-      LTChar                   KAAHHD+Calibri,Itali J
-      LTChar                   KAAHHD+Calibri,Itali o
-      LTChar                   KAAHHD+Calibri,Itali u
-        """
-        MAXITEM = 2
-        from pathlib import Path
-        from typing import Iterable, Any
-
-        from pdfminer.high_level import extract_pages
-
-        # recursive
-        def show_ltitem_hierarchy(o: Any, depth=0):
-            """Show location and text of LTItem and all its descendants"""
-            debug = False
-            debug = True
-            if depth == 0:
-                print('element                        fontname             text')
-                print('------------------------------ -------------------- -----')
-
-            name = get_indented_name(o, depth)
-            print(f"name: {name}")
-            if debug or name.strip() == "LTTextLineHorizontal":
-                print(
-                    f'{name :<30.30s} '
-                    f'{get_optional_fontinfo(o):<20.20s} '
-                    f'{get_optional_text(o)}'
-                )
-
-            if isinstance(o, Iterable):
-                for i in list(o)[:MAXITEM]:
-                    show_ltitem_hierarchy(i, depth=depth + 1)
-
-        def get_indented_name(o: Any, depth: int) -> str:
-            """Indented name of class"""
-            return '  ' * depth + o.__class__.__name__
-
-        def get_optional_fontinfo(o: Any) -> str:
-            """Font info of LTChar if available, otherwise empty string"""
-            name = o.__class__.__name__
-            if hasattr(o, 'fontname') and hasattr(o, 'size'):
-                if name == "LTChar":
-                    dummy = ['_text', 'matrix', 'fontname', 'ncs', 'graphicstate', 'adv', 'upright', 'x0', 'y0', 'x1',
-                             'y1',
-                             'width', 'height', 'bbox', 'size', '__module__', '__doc__', '__init__', '__repr__',
-                             'get_text',
-                             'is_compatible', '__lt__', '__le__', '__gt__', '__ge__', 'set_bbox', 'is_empty',
-                             'is_hoverlap',
-                             'hdistance', 'hoverlap', 'is_voverlap', 'vdistance', 'voverlap', 'analyze', '__dict__',
-                             '__weakref__', '__hash__', '__str__', '__getattribute__', '__setattr__', '__delattr__',
-                             '__eq__',
-                             '__ne__', '__new__', '__reduce_ex__', '__reduce__', '__subclasshook__',
-                             '__init_subclass__',
-                             '__format__', '__sizeof__', '__dir__', '__class__']
-                    print(f"LTChar {o.__dir__()}")
-                return f'{o.fontname} {round(o.size)}pt'
-            return ''
-
-        def get_optional_text(o: Any) -> str:
-            """Text of LTItem if available, otherwise empty string"""
-            if hasattr(o, 'get_text'):
-                return o.get_text().strip()
-            return ''
-
-        path = Path(PMC1421)
-        pages = list(extract_pages(path))
-        # this next debugs the character_stream
-        show_ltitem_hierarchy(pages[0])
-
-    def test_read_ipcc_chapter(self):
-        """read multipage document and extract properties
-
-        """
-        assert IPCC_GLOSSARY.exists(), f"{IPCC_GLOSSARY} should exist"
-        max_page = PDFTest.MAX_PAGE
-        # max_page = 999999
-        options = [WORDS, ANNOTS]
-        # max_page = 100  # increase this if yu want more output
-
-        for (pdf_file, page_count) in [
-            # (IPCC_GLOSSARY, 51),
-            (IPCC_CHAP6_PDF, 219)
-        ]:
-            pdf_debug = PDFDebug()
-            with pdfplumber.open(pdf_file) as pdf:
-                print(f"file {pdf_file}")
-                pages = list(pdf.pages)
-                assert len(pages) == page_count
-                for page in pages[:max_page]:
-                    pdf_debug.debug_page_properties(page, debug=options)
-
-    def test_make_structured_html_MAIN(self):
-        """
-        structures the flat HTML from pdfplumber, but no coordinates
-        Can still be used for word frequency, etc.
-        USER
-        uses tidy_flow()
-        """
-
-        print(f" converting {IPCC_CHAP6_PDF}")
-        assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
-        pdf_args = PDFArgs()
-        pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
-        pdf_args.arg_dict[MAXPAGE] = 10
-        pdf_args.arg_dict[PAGES] = "1_10"
-        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_IPCC_CHAP06, "pdf.html")
-
-        print(f"arg_dict {pdf_args.arg_dict}")
-        outfile, _ = pdf_args.convert_write()
-        if not outfile:
-            print(f"no file written")
-        else:
-            print(f"check {outfile} exists")
-            assert outfile.exists(), f"outfile {outfile} should exist"
-
-    @unittest.skipUnless(HTML, "create running text")
-    @unittest.skipUnless(USER, "develop for commandline")
-    # @unittest.skipIf(BUG, "bad parsing of page ranges")
-    def test_convert_to_raw_html_chap6_maxpage(self):
-        """structures the flat HTML from pdfplumber into a running stream, but no coordinates
-        the only test that uses tidy_flow()
-        Can still be used for word frequency, etc.
-
-Uses:
-    self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
-
-    if self.flow:
-        self.html = self.tidy_flow()
-
-        creates single file ~/pyami/temp/ipcc_chap6/flow.test4.html (concatenated pages in WRONG ORDER)
-        /pyami/temp/ipcc_chap6/chapter_6:.html - seems to be Chapter/author page.
-
-
-        """
-
-        # print(f" converting {IPCC_CHAP6_PDF}")
-        assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
-        pdf_args = PDFArgs()
-        maxpage = 5
-        pdf_args.arg_dict[MAXPAGE] = maxpage  #works
-        pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
-        IPCC_TEMP_CHAP6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
-        pdf_args.arg_dict[OUTPATH] = Path(IPCC_TEMP_CHAP6, f"flow.test{maxpage}.html")
-        pdf_args.arg_dict[PDF2HTML] = PDFPLUMBER
-
-        pprint.pprint(pdf_args.arg_dict)
-        # pdf_args.arg_dict[PAGES] = [(1,3), (5,10)]
-
-        print(f"arg_dict {pdf_args.arg_dict}")
-        outfile, _ = pdf_args.convert_write()  # all the conversion happens here
-        assert Path(outfile).exists()
-        assert str(outfile).endswith(f"temp/ipcc_chap6/flow.test{maxpage}.html")
-        if not outfile:
-            print(f"no file written")
-        else:
-            print(f"check {outfile.absolute()} exists")
-            assert outfile.exists(), f"outfile {outfile} should exist"
-            size = outfile.stat().st_size
-            if maxpage == 4:
-                assert size > 15000, f"size {outfile} {size}"
-
-    @unittest.skipUnless(CMD, "command")
-    def test_convert_to_raw_html_chap6_page_ranges(self):
-        """
-        converts complete chapter to raw HTML.
-        outputs each page as
-        .../pyami/temp/ipcc_chap6/fulltext.flow_5.html
-        and also concatenates into .../pyami/temp/ipcc_chap6/flow.test.html
-        If --maxpage or --pages is used then only output specific pages
-        --maxpage is obsolete
-
-        DOES NOT CREATE FLOW YET.
-
-
-        """
-        outfile = Path(Resources.TEMP_IPCC_CHAP06, "all.html")
-        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 9 11_15 217_ --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06}"
-        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfplumber"
-        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfminer"
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.TEMP_IPCC_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
-        PyAMI().run_command(args)
-        print(f"created outfile {outfile}")
-        # assert outfile.exists(), f"{outfile} should exist"
-
-    def test_extract_single_page_ipcc_toc_chap6(self):
-        """
-        extract a single page which is the TableOfContents
-
-        """
-        assert Path(IPCC_CHAP6_PDF).exists(), f"expected {IPCC_CHAP6_PDF}"
-        assert Path(Resources.TEMP_IPCC_CHAP06).exists(), f"expected {Resources.TEMP_IPCC_CHAP06}"
-
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.TEMP_IPCC_CHAP06} --flow True"
-        PyAMI().run_command(args)
-        outpath = Path(Resources.TEMP_IPCC_CHAP06, "fulltext.flow_4.html")
-        assert outpath.exists(), f"{outpath} should be created"
-
-    @unittest.skipIf(LONG, "doesn't obey --maxpage or --pages")
-    def test_make_structured_html_cmdline_DEBUG(self):
-        """
-        Previous one gives:
-        arg_dict {'convert': 'html', 'flow': True, 'footer': 80, 'header': 80, 'indir': None,
-        'inpath': PosixPath('/Users/pm286/workspace/pyami/test/resources/ipcc/Chapter06/fulltext.pdf'),
-        'maxpage': 10, 'outdir': None, 'outform': 'html', 'outstem': 'fulltext'}
-
-        Tried to run:
-        python -m py4ami.ami_pdf
-        --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/fulltext.pdf
-        --maxpage 88 --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/
-
-        which didn't give flow html, but sections.
-        Its debug
-
-        Namespace(convert=None, debug=None, flow=True, footer=80, header=80, imagedir=None,
-        indir=None, inpath=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/fulltext.pdf'],
-         maxpage=[88], outdir=['/Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter02/'],
-         outform='html', outstem='fulltext.flow', resolution=400, template=None)"""
-
-        """
-        python -m py4ami.pyamix PDF --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17.pdf --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17/raw/"""
-        args = " PDF --inpath /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17.pdf" \
-               " --outdir /Users/pm286/projects/semanticClimate/ipcc/ar6/wg3/Chapter17/raw/" \
-               " --pages 1_4"
-
-        pyami = PyAMI()
-        pyami.run_command(args)
-
-    def test_pdf_help(self):
-        args = "PDF"
-        pyami = PyAMI()
-        pyami.run_command(args)
-
-    def test_make_ipcc_html_spans(self):
-        """
-        read some/all PDF pages in chapter
-        parse with pdfplumber into raw_html
-
-        uses PDFMiner library (no coordinates I think)
-        then
-        uses flow_tidy() to determine pages, wrap lines (span/div) in pages
-        join pages
-        trim headers and footers and sides
-        then
-        creates and HtmlTidy to remove or edit unwanted span/div/br
-
-
-        USED
-        MODEL
-        """
-
-        chapter = "Chapter04"
-        ipcc_dir = Path(Resources.TEST_IPCC_DIR)
-        print(f"Converting chapter: {chapter}")
-        pdf_args = PDFArgs() # also supports commands
-        chapter_dir = Path(ipcc_dir, chapter)
-        # populate arg commands
-        pdf_args.arg_dict[INDIR] = chapter_dir
-        assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
-        inpath = Path(chapter_dir, "fulltext.pdf")
-        pdf_args.arg_dict[INPATH] = inpath
-        assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
-        pdf_args.arg_dict[MAXPAGE] = 20
-        pdf_args.arg_dict[OUTFORM] = "flow.html"
-        outdir = Path(Resources.TEMP_DIR, "ipcc_html")
-        if not outdir.exists():
-            outdir.mkdir()
-        pdf_args.arg_dict[OUTDIR] = outdir
-        pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
-        print(f"arg_dict {pdf_args.arg_dict}")
-
-        pdf_args.unwanteds = {
-            "chapter": {
-                "xpath": ".//div/span",
-                "regex": "^Chapter\\s+\\d+\\s*$"
-            },
-            "final_gov": {
-                "xpath": ".//div/span",
-                "regex": "^\\s*Final Government Distribution\\s*$"
-            },
-            "page": {
-                "xpath": ".//div/a",
-                "regex": "^\\s*Page\\s*\\d+\\s*$",
-            },
-            "wg3": {
-                "xpath": ".//div/span",
-                "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
-            },
-        }
-        _,_ = pdf_args.convert_write() # refactor, please
-
-    @unittest.skipUnless(VERYLONG, "processes Chapters 04, 05, 16, 17")
-    def test_make_ipcc_html(self):
-        """not really a test"""
-        sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
-        if not sem_clim_dir.exists():
-            print(f"no ipcc dir {sem_clim_dir}, so skipping")
-            return
-        ipcc_dir = Path(sem_clim_dir, "ipcc", "ar6", "wg3")
-        assert ipcc_dir.exists(), f"ipcc_dir {ipcc_dir} does not exist"
-        chapters = [
-            # "Chapter01",
-            "Chapter04",
-            # "Chapter06",
-            # "Chapter07",
-            # "Chapter15",
-            # "Chapter16",
-        ]
-        for chapter in chapters:
-            print(f"Converting chapter: {chapter}")
-            pdf_args = PDFArgs()
-            chapter_dir = Path(ipcc_dir, chapter)
-            pdf_args.arg_dict[INDIR] = chapter_dir
-            assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
-            inpath = Path(chapter, "fulltext.pdf")
-            pdf_args.arg_dict[INPATH] = Path(chapter_dir, "fulltext.pdf")
-            assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
-            pdf_args.arg_dict[MAXPAGE] = 200
-            pdf_args.arg_dict[OUTFORM] = "flow.html"
-            outdir = Path(Resources.TEMP_DIR, "ipcc_html")
-            if not outdir.exists():
-                outdir.mkdir()
-            pdf_args.arg_dict[OUTDIR] = outdir
-            print(f"arg_dict {pdf_args.arg_dict}")
-
-            unwanteds = {
-                "chapter": {
-                    "xpath": ".//div/span",
-                    "regex": "^Chapter\\s+\\d+\\s*$"
-                },
-                "final_gov": {
-                    "xpath": ".//div/span",
-                    "regex": "^\\s*Final Government Distribution\\s*$"
-                },
-                "page": {
-                    "xpath": ".//div/a",
-                    "regex": "^\\s*Page\\s*\\d+\\s*$",
-                },
-                "wg3": {
-                    "xpath": ".//div/span",
-                    "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
-                },
-            }
-            pdf_args.convert_write(
-                # unwanteds=unwanteds
-            )
-
-    def test_pdfminer_text_html_xml(self):
-        # Use `pip3 install pdfminer.six` for python3
-        """runs pdfinterpreter/converter over 5-page article and creates html and xml versions"""
-        fmt = "html"
-        maxpages = 0
-        path = Path(PMC1421)
-        result = PDFArgs.convert_pdf(
-            path=str(path),
-            fmt=fmt,
-            maxpages=maxpages
-        )
-        html_dir = make_html_dir()
-        with open(Path(html_dir, f"pmc4121.{fmt}"), "w") as f:
-            f.write(result)
-            print(f"wrote {f.name}")
-
-    def test_pdfminer_style(self):
-        """Examines every character and annotates it
-        Typical:
-LTPage
-  LTTextBoxHorizontal                               Journal of Medicine and Life Volume 7, Special Issue 3, 2014
-    LTTextLineHorizontal                            Journal of Medicine and Life Volume 7, Special Issue 3, 2014
-      LTChar                   KAAHHD+Calibri,Itali J
-      LTChar                   KAAHHD+Calibri,Itali o
-      LTChar                   KAAHHD+Calibri,Itali u
-        """
-        from pathlib import Path
-        from typing import Iterable, Any
-
-        from pdfminer.high_level import extract_pages
-
-        def show_ltitem_hierarchy(o: Any, depth=0):
-            """Show location and text of LTItem and all its descendants"""
-            MAXITEM = 2
-            if depth == 0:
-                print('element                        fontname             text')
-                print('------------------------------ -------------------- -----')
-
-            print(
-                f'{get_indented_name(o, depth):<30.30s} '
-                f'{get_optional_fontinfo(o):<20.20s} '
-                f'{get_optional_text(o)}'
-            )
-
-            if isinstance(o, Iterable):
-                for i in list(o)[:MAXITEM]:
-                    show_ltitem_hierarchy(i, depth=depth + 1)
-
-        def get_indented_name(o: Any, depth: int) -> str:
-            """Indented name of class"""
-            return '  ' * depth + o.__class__.__name__
-
-        def get_optional_fontinfo(o: Any) -> str:
-            """Font info of LTChar if available, otherwise empty string"""
-            if hasattr(o, 'fontname') and hasattr(o, 'size'):
-                return f'{o.fontname} {round(o.size)}pt'
-            return ''
-
-        def get_optional_text(o: Any) -> str:
-            """Text of LTItem if available, otherwise empty string"""
-            if hasattr(o, 'get_text'):
-                return o.get_text().strip()
-            return ''
-
-        path = Path(PMC1421)
-        pages = list(extract_pages(path))
-        # this next debugs the character_stream
-        show_ltitem_hierarchy(pages[0])
-
-    def test_css_parse(self):
-        css_str = "height: 22; width: 34;"
-        css_style = CSSStyle.create_dict_from_string(css_str)
-        assert css_style
-        assert "height" in css_style
-        assert css_style.get("height") == "22"
-        assert "width" in css_style
-        assert css_style.get("width") == "34"
-
-    def test_convert_pdf_to_html_and_save(self):
-        """Uses PDFArgs.convert_pdf to convert PDF to HTML and save
-        to temp (/Users/pm286/workspace/pyami/temp/html/pmc4121.xml)
-        This is raw output with <br> between lines and mirrors the layout of 
-        """
-        # Use `pip3 install pdfminer.six` for python3
-
-        """reading py4ami/resources/projects/liion4/PMC4391421/fulltext.pdf"""
-        pathx = Path(PMC1421)
-
-        # convert PDF to html
-        result = PDFArgs.convert_pdf(
-            path=str(pathx),
-            fmt="html",
-            caching=True,
-        )
-        # output dir
-        html_dir = Path(Resources.TEMP_DIR, "html")
-        if not html_dir.exists():
-            html_dir.mkdir()
-        # ouytput file
-        path = Path(html_dir, "pmc4121.xml")
-        # clean because text requires new file
-        if path.exists():
-            os.remove(path)
-        with open(path, "w") as f:
-            f.write(result)
-            print(f"wrote {f}")
-        assert path.exists(), f"should output html to {path}"
-        assert 76000 < os.path.getsize(path) < 77000, f"size should be in range , was {os.path.getsize(path)}"
-
-    def test_make_composite_lines_from_pdf_chap_6_3_toc(self):
-        path = Path(Resources.TEST_IPCC_CHAP06, "html", "chap6_3.html")
-        assert path.exists(), f"path exists {path}"
-        AmiPage.create_page_from_pdf_html(path)
-
-    def test_main_help(self):
-        sys.argv = []
-        sys.argv.append("--help")
-        try:
-            main()
-        except SystemExit:
-            pass
-
-    def test_subcommands(self):
-        # run args
-        inpath = Path(Resources.TEST_PDFS_DIR, "1758-2946-3-44.pdf")
-        outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-44")
-        PyAMI().run_command(
-            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
-
-    def test_subcommands_maxpage(self):
-        """
-        USER
-         COMMAND
-         PDF2HTML (but doesn't yet work)
-
-         for Manny
-        """
-        # run args
-
-        inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.pdf")
-        outdir = Path(Resources.TEMP_IPCC_CHAP06)
-        htmls = FileLib.delete_files(outdir, "*.html")
-        out2 = Path(outdir, "fulltext.flow_2.html")
-        assert not out2.exists()
-        PyAMI().run_command(
-            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir),
-             "--pdf2html", "pdfplumber", "--pages", "1_3", "--flow", "True"])
-        files = FileLib.list_files(outdir, "*.html")
-        assert len(files) == 3
-#        assert FileLib.size(out2) > 5000 # files may be empty
-
-
-
-
-    #    @unittest.skipUnless("old test", self.admin)
-    def test_cannot_iterate(self):
-        """
-        Test that 'PDF' subcomand works without errors
-        """
-
-        PyAMI().run_command(
-            ['PDF'])
-        PyAMI().run_command(
-            ['PDF', '--help'])
-
-class PDF_SVGTest(test.test_all.AmiAnyTest):
-
+class PDFSVGTest(test.test_all.AmiAnyTest):
     # all are skipUnless
     ADMIN = True and AmiAnyTest.ADMIN
     CMD = True and AmiAnyTest.CMD
@@ -1381,6 +1240,85 @@ class PDF_SVGTest(test.test_all.AmiAnyTest):
         args = f"--proj {proj} --apply svg2page"
         PyAMI().run_command(args)
 
+    @unittest.skipUnless("enviroment", ADMIN)
+    def test_findall_svg_and_find_texts(self):
+        """find climate10_:text elements
+        """
+        assert PAGE_9.exists(), f"{PAGE_9} should exist"
+        page9_elem = lxml.etree.parse(str(PAGE_9))
+        texts = page9_elem.findall(f"//{{{SVG_NS}}}text")
+        assert len(texts) == 108
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_html_from_svg(self):
+        """
+        Test 10 pages
+        """
+        pretty_print = True
+        use_lines = True
+        svg_dir = Resources.TEST_CLIMATE_10_SVG_DIR
+        html_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        for page_index in range(1, 9):
+            page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
+            html_path = Path(html_dir, f"page.{page_index}.html")
+            if not html_dir.exists():
+                html_dir.mkdir()
+            ami_page = AmiPage.create_page_from_svg(page_path)
+            ami_page.write_html(html_path, pretty_print, use_lines)
+            assert html_path.exists(), f"{html_path} exists"
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_html_in_selection_from_svg(self):
+        """
+        Test 10 pages
+        """
+        pretty_print = True
+        use_lines = True
+        # selection = range(1, 2912)
+        page_selection = range(1, 50)
+        counter = 0
+        counter_tick = 20
+        html_out_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        for page_index in page_selection:
+            if counter % counter_tick == 0:
+                print(f".", end="")
+            page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
+            html_path = Path(html_out_dir, f"page.{page_index}.html")
+            if not html_out_dir.exists():
+                html_out_dir.mkdir()
+            ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
+            ami_page.write_html(html_path, pretty_print, use_lines)
+            counter += 1
+            assert html_path.exists(), f"{html_path} exists"
+
+    @unittest.skipUnless(SVG, "svg")
+    def test_create_chapters_through_svg(self):
+        pretty_print = True
+        use_lines = True
+        make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
+        selection = CURRENT_RANGE
+        temp_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        for page_index in selection:
+            html_path = Path(temp_dir, f"page.{page_index}.html")
+            with open(html_path, "r") as h:
+                xml = h.read()
+            root = lxml.etree.fromstring(xml)
+            spans = root.findall(f"./{H_BODY}/{H_P}/{H_SPAN}")
+            assert type(spans[0]) is lxml.etree._Element, f"expected str got {type(spans[0])}"
+            assert len(HtmlUtil.get_text_content(spans[0])) > 0
+            span = None
+            chapter = ""
+            # bug in parsing line 0
+            if Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[0])):
+                span = spans[0]
+            if span is None and Publication.is_chapter_or_tech_summary(HtmlUtil.get_text_content(spans[1])):
+                span = spans[1]
+            if span is None:
+                print(f"p:{page_index}, {HtmlUtil.get_text_content(spans[0])}, {HtmlUtil.get_text_content(spans[1])}")
+            else:
+                chapter = HtmlUtil.get_text_content(span)
+                print("CHAP ", chapter)
+
     # =====================================================================================================
     # =====================================================================================================
 
@@ -1391,13 +1329,79 @@ class PDF_SVGTest(test.test_all.AmiAnyTest):
     MAX_IMAGE = 5
 
 
-#     def find_chapter_title(cls, elem):
-#         """<div style="" id="id296"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 15px;" id="id297">Chapter 6:</span></div>
-# <div style="" id="id300"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 15px;" id="id301">Energy Systems
-# </span></div>
-#         """
-#         result = cls.get_div_span_starting_with(elem, "Chapter")
-#         return result
+class PDFMainArgTest(test.test_all.AmiAnyTest):
+    """
+    contains Args and main test
+    """
+    pass
+
+    def test_main_help(self):
+        sys.argv = []
+        sys.argv.append("--help")
+        try:
+            main()
+        except SystemExit:
+            pass
+
+    def test_pdf_help(self):
+        args = "PDF"
+        pyami = PyAMI()
+        pyami.run_command(args)
+
+    #    @unittest.skipUnless("old test", self.admin)
+    def test_cannot_iterate(self):
+        """
+        Test that 'PDF' subcomand works without errors
+        """
+
+        PyAMI().run_command(
+            ['PDF'])
+        PyAMI().run_command(
+            ['PDF', '--help'])
+
+    def test_subcommands(self):
+        # run args
+        inpath = Path(Resources.TEST_PDFS_DIR, "1758-2946-3-44.pdf")
+        outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-44")
+        PyAMI().run_command(
+            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
+
+    def test_subcommands_maxpage(self):
+        """
+        USER
+         COMMAND
+         PDF2HTML (but doesn't yet work)
+
+         for Manny
+        """
+        # run args
+
+        inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.pdf")
+        outdir = Path(Resources.TEMP_IPCC_CHAP06)
+        htmls = FileLib.delete_files(outdir, "*.html")
+        out2 = Path(outdir, "fulltext.flow_2.html")
+        assert not out2.exists()
+        PyAMI().run_command(
+            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir),
+             "--pdf2html", "pdfplumber", "--pages", "1_3", "--flow", "True"])
+        files = FileLib.list_files(outdir, "*.html")
+        assert len(files) == 3
+
+    #        assert FileLib.size(out2) > 5000 # files may be empty
+
+    @unittest.skip("obsolete")
+    @unittest.skipUnless(PDFTest.SVG, "svg")
+    @unittest.skipUnless(PDFTest.CMD, "command")
+    def test_svg2page(self):
+        proj = Resources.TEST_CLIMATE_10_PROJ_DIR
+        args = f"--proj {proj} --apply svg2page"
+        PyAMI().run_command(args)
+
+    @unittest.skipIf(PDFTest.NYI, "page2sect")
+    def test_page2chap(self):
+        proj = Resources.TEST_CLIMATE_10_PROJ_DIR
+        args = f"--proj {proj} --apply page2sect"
+        PyAMI().run_command(args)
 
 
 def main(argv=None):

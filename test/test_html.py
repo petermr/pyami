@@ -918,6 +918,16 @@ class TestCSSStyle:
             f"new document should have 2304 elements with @class attributes"
 
 
+    def test_css_parse(self):
+        css_str = "height: 22; width: 34;"
+        css_style = CSSStyle.create_dict_from_string(css_str)
+        assert css_style
+        assert "height" in css_style
+        assert css_style.get("height") == "22"
+        assert "width" in css_style
+        assert css_style.get("width") == "34"
+
+
 class TestHtmlClass:
 
     def test_minimal(self):
