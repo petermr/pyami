@@ -1025,7 +1025,25 @@ class TestHtmlTree:
         decimal_sections = HtmlTree.get_decimal_sections(html_elem, xpath=xpath)
 
         hierarchy = Hierachy()
-        hierarchy.add_sections(decimal_sections)
+        hierarchy.add_sections(decimal_sections, poplist=["Chapter 4:"])
+        hierarchy.sort_sections()
+
+    def test_decimal_chapters_production(self):
+        """NOT WORKING"""
+        TEST_IPCC_WG3 = Path(Resources.HOME, "projects", "semanticClimate", "ipcc", "ar6", "wg3")
+        if not TEST_IPCC_WG3.exists():
+            print(f"semanticClimate files not available locally")
+            return
+        html_elem = lxml.etree.parse(str(Path(TEST_IPCC_WG3, "Chapter03", "fulltext.html")))
+        xpath = (".//div/span["
+                 "contains(@class, 'dec1') "
+            "or contains(@class, 'dec2') "
+            "or contains(@class, 'dec3') "
+            "or contains(@class, 'dec4')]")
+        decimal_sections = HtmlTree.get_decimal_sections(html_elem, xpath=xpath)
+
+        hierarchy = Hierachy()
+        hierarchy.add_sections(decimal_sections, poplist=["Chapter 3:"])
         hierarchy.sort_sections()
 
 
@@ -1043,10 +1061,17 @@ class Hierachy:
     def __init__(self):
         pass
 
-    def add_sections(self, decimal_sections):
+    def add_sections(self, decimal_sections, top=None, poplist=None):
+        if not poplist:
+            poplist = []
         sections_by_level = self.create_sections_by_level(decimal_sections)
         parent_dict = self.create_parent_dict(sections_by_level)
-        parent_dict.pop("Chapter 4:")  # remove non-numeric item
+        for pop in poplist:
+            try:
+                parent_dict.pop(pop)  # remove non-numeric item
+            except:
+                print("Cannot pop {pop}")
+        
         root = Element(self.SECT)
         root.attrib[self.ID] = "4"
         print(f"root {lxml.etree.tostring(root, pretty_print=True)}")
