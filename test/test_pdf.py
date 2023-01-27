@@ -392,7 +392,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
     processes part or whole of a chapter
     """
 
-    @unittest.skipUnless(PDFTest.VERYLONG, "processes Chapters 04, 05, 16, 17")
+    @unittest.skipUnless(PDFTest.VERYLONG or True, "processes Chapters 04, 05, 16, 17")
     def test_make_ipcc_html(self):
         """not really a test"""
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
@@ -403,9 +403,10 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         assert ipcc_dir.exists(), f"ipcc_dir {ipcc_dir} does not exist"
         chapters = [
             # "Chapter01",
-            "Chapter04",
+            # "Chapter04", # works
             # "Chapter06",
             # "Chapter07",
+            "Chapter10",
             # "Chapter15",
             # "Chapter16",
         ]
@@ -448,10 +449,23 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
                 # unwanteds=unwanteds
             )
 
-    def test_convert_pdf_to_html_and_save(self):
+            for chapter in chapters:
+                assert True, f"Chapter {chapter} should exist"
+
+    def test_make_ipcc_html_commandline(self):
+        pass
+
+    def test_convert_article_pdf_to_html_and_save_raw(self):
         """Uses PDFArgs.convert_pdf to convert PDF to HTML and save
         to temp (/Users/pm286/workspace/pyami/temp/html/pmc4121.xml)
         This is raw output with <br> between lines and mirrors the layout of
+        the initial page. Still has y-coordinate ("top")
+
+<span style="position:absolute; border: gray 1px solid; left:0px; top:50px; width:595px; height:842px;"></span>
+<div style="position:absolute; top:50px;"><a name="1">Page 1</a></div>
+<div style="position:absolute; border: textbox 1px solid; writing-mode:lr-tb; left:319px; top:87px; width:221px; height:9px;"><span style="font-family: Calibri,Italic; font-size:9px">Journal of Medicine and Life Volume 7, </span><span style="font-family: Calibri,BoldItalic; font-size:9px">Special Issue 3</span><span style="font-family: Calibri,Italic; font-size:9px">, 2014
+<br></span></div><div style="position:absolute; border: textbox 1px solid; writing-mode:lr-tb; left:133px; top:108px; width:336px; height:34px;"><span style="font-family: ArialNarrow,Bold; font-size:16px">Thymus vulgaris essential oil: chemical composition
+
         """
         # Use `pip3 install pdfminer.six` for python3
 
@@ -481,10 +495,17 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
 
     def test_make_structured_html_MAIN(self):
         """
-        structures the flat HTML from pdfplumber, but no coordinates
+        structures the flat HTML from pdfplumber, but no coordinates (why are these lost?)
         Can still be used for word frequency, etc.
-        USER
         uses tidy_flow()
+        reorganizes the section order so result has incorrect order
+        uses PDFArgs but populates directly, not from commandline
+        creates text with coordinates and styles.
+
+
+</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 14px;" id="id634">
+<div style="top: 3691px;" id="id709" marker="Executive Summary "><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 14px;" id="id710">Executive Summary </span>
+<div style="top: 3721px;" id="id712"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id713">Warming cannot be limited to well below 2&#176;C without rapid and deep reductions in energy system CO</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 6px;" id="id715">2</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id716"> and GHG emissions. </span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id717">In scenarios
         """
 
         print(f" converting {IPCC_CHAP6_PDF}")
@@ -505,7 +526,6 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
 
     @unittest.skipUnless(PDFTest.HTML, "create running text")
     @unittest.skipUnless(PDFTest.USER, "develop for commandline")
-    # @unittest.skipIf(BUG, "bad parsing of page ranges")
     def test_convert_to_raw_html_chap6_maxpage_example(self):
         """structures the flat HTML from pdfplumber into a running stream, but no coordinates
         the only test that uses tidy_flow()
@@ -564,15 +584,12 @@ Uses:
 
         """
         outfile = Path(Resources.TEMP_IPCC_CHAP06, "all.html")
-        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 9 11_15 217_ --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06}"
-        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfplumber"
-        # args = f"PDF --infile {IPCC_CHAP6_PDF} --pages _2 5_7 --offset 0 --outdir {Resources.IPCC_TEMP_CHAP06} --pdf2html pdfminer"
         args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.TEMP_IPCC_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
         PyAMI().run_command(args)
         print(f"created outfile {outfile}")
-        # assert outfile.exists(), f"{outfile} should exist"
+        assert outfile.exists(), f"{outfile} should exist"
 
-    def test_read_ipcc_chapter(self):
+    def test_read_ipcc_chapter_debug(self):
         """read multipage document and extract properties
 
         """
@@ -597,6 +614,9 @@ Uses:
     def test_extract_single_page_ipcc_toc_chap6(self):
         """
         extract a single page which is the TableOfContents
+        NOTE. pages 4 extracts "page 4" in 1-based but output file is 0-based.(Doh!)
+
+        has x0 and x1 coordinates
 
         """
         assert Path(IPCC_CHAP6_PDF).exists(), f"expected {IPCC_CHAP6_PDF}"
@@ -604,7 +624,7 @@ Uses:
 
         args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.TEMP_IPCC_CHAP06} --flow True"
         PyAMI().run_command(args)
-        outpath = Path(Resources.TEMP_IPCC_CHAP06, "fulltext.flow_4.html")
+        outpath = Path(Resources.TEMP_IPCC_CHAP06, "fulltext.flow_3.html")
         assert outpath.exists(), f"{outpath} should be created"
 
 

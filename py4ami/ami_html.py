@@ -185,7 +185,9 @@ top(Pagen) = 50 + (n - 1) * (841 + 47)
         page_div = elem.getnext()
         n = page_div.xpath("./a/@name")
         n = n[0] if len(n) == 1 else None
-        self.int_number = int(n)
+        if n:
+            self.int_number = int(n)
+
         p = page_div.xpath("./a[@name and contains(., 'Page')]")
         self.p_num_str = p[0] if len(p) == 1 else None
 
