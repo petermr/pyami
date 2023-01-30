@@ -549,8 +549,7 @@ entry like:
         wikidata_lookup = WikidataLookup()
         # qitems, descs = wikidata_lookup.lookup_items(terms)
         temp_dir = Path(TEMP_DIR, "wikidata")
-        if not temp_dir.exists():
-            temp_dir.mkdir()
+        temp_dir.mkdir(exist_ok=True)
         # limit = 10000
         limit = 5
         amidict, dictfile = AmiDictionary.create_dictionary_from_words(terms[:limit], title="compounds",

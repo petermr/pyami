@@ -1,5 +1,6 @@
 import argparse
 import ast
+import codecs
 import logging
 import os
 import sys
@@ -281,8 +282,7 @@ class Util:
             return None
         for url in urls[:maxsave]:
             stem = url.split("/")[-1]
-            if not target_dir.exists():
-                target_dir.mkdir()
+            target_dir.mkdir(exist_ok=True)
             path = Path(target_dir, stem)
             if skip_exists and path.exists():
                 if printfile:
@@ -323,6 +323,28 @@ class Util:
         :return" space-separaated list
         """
         return " ".join(list(map(str, listx))) if listx else ""
+
+    @classmethod
+    def open_write_utf8(cls, outpath):
+        """
+        opens file for writing as UTF-8
+        (with open(outpath,"w" as f
+        may fail if there are problem characters)
+        :param outpath: file to write to
+        :return: StreamReaderWriter
+        """
+        return codecs.open(outpath, "w", "UTF-8")
+
+    @classmethod
+    def open_read_utf8(cls, inpath):
+        """
+        opens file for reading as UTF-8
+        (with open(inpath,"r" as f
+        may fail if there are problem characters)
+        :param inpath: file to read
+        :return: StreamReaderWriter
+        """
+        return codecs.open(inpath, "r", "UTF-8")
 
 
 class GithubDownloader:

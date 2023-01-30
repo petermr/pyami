@@ -28,8 +28,7 @@ class Resources:
 
     # temporary data (can be deleted after tests)
     TEMP_DIR = Path(TEST_RESOURCES_DIR.parent.parent, "temp")
-    if not TEMP_DIR.exists():
-        TEMP_DIR.mkdir()
+    TEMP_DIR.mkdir(exist_ok=True)
     assert TEMP_DIR.is_dir(), f"file exists {TEMP_DIR}"
 
     # svg test data
@@ -47,12 +46,12 @@ class Resources:
 
     # local files not in package; mainly for development can be skipped
     HOME = os.path.expanduser("~")
-    LOCAL_PROJECT_DIR = Path(HOME, "projects") # PMR specific - change if you are developing with your own projects
+    LOCAL_PROJECT_DIR = Path(HOME, "projects")  # PMR specific - change if you are developing with your own projects
     LOCAL_PROJECT_DIR = LOCAL_PROJECT_DIR if LOCAL_PROJECT_DIR.exists() else None
-    USE_LOCAL = False # change for tests that require local files
+    USE_LOCAL = False  # change for tests that require local files
     if USE_LOCAL and LOCAL_PROJECT_DIR:
         LOCAL_SEMANTIC_CLIMATE_REPO = None if not LOCAL_PROJECT_DIR else Path(LOCAL_PROJECT_DIR, "semanticClimate")
-        LOCAL_IPCC_DIR = Path(LOCAL_SEMANTIC_CLIMATE_REPO, "ipcc/ar6/wg3") # PMR debugging
+        LOCAL_IPCC_DIR = Path(LOCAL_SEMANTIC_CLIMATE_REPO, "ipcc/ar6/wg3")  # PMR debugging
         if Path(LOCAL_IPCC_DIR).exists():
             LOCAL_IPCC_CHAP07 = Path(LOCAL_IPCC_DIR, "Chapter07")
             assert LOCAL_IPCC_CHAP07.exists()
@@ -62,7 +61,6 @@ class Resources:
             # assert IPCC_CHAP07_ABB_DICT.exists()
             LOCAL_IPCC_CHAP07_MAN_DICT = Path(LOCAL_IPCC_CHAP07_DICT, "ip_3_7_agric_man.xml")
             assert LOCAL_IPCC_CHAP07_MAN_DICT.exists(), f"no dict {LOCAL_IPCC_CHAP07_MAN_DICT}"
-
 
     TEST_IPCC_CHAP02 = Path(TEST_IPCC_DIR, "Chapter02")
     assert TEST_IPCC_CHAP02.exists()
@@ -77,6 +75,8 @@ class Resources:
     assert TEST_IPCC_CHAP04.exists()
     TEST_IPCC_CHAP06 = Path(TEST_IPCC_DIR, "Chapter06")
     assert TEST_IPCC_CHAP06.exists()
+    TEST_IPCC_CHAP06_PDF = Path(TEST_IPCC_CHAP06, "fulltext.pdf")
+    assert TEST_IPCC_CHAP06_PDF.exists()
     TEMP_IPCC_CHAP06 = Path(TEMP_DIR, "ipcc_chap6")
 
     TEST_IPCC_CHAP08 = Path(TEST_IPCC_DIR, "Chapter08")
@@ -93,8 +93,12 @@ class Resources:
     assert TEST_PDFS_DIR.exists()
 
     TEMP_PDFS_DIR = Path(TEMP_DIR, "pdfs")
-    if not TEMP_PDFS_DIR.exists():
-        TEMP_PDFS_DIR.mkdir()
+    TEMP_PDFS_DIR.mkdir(exist_ok=True)
+
+    TEST_IPCC_WG2 = Path(TEST_IPCC_DIR, "wg2")
+    TEST_IPCC_WG2_CHAP03 = Path(TEST_IPCC_WG2, "Chapter03")
+    TEST_IPCC_WG2_CHAP03_PDF = Path(TEST_IPCC_WG2_CHAP03, "fulltext.pdf")
+    assert TEST_IPCC_WG2_CHAP03_PDF.exists(), f"{TEST_IPCC_WG2_CHAP03_PDF} should exist"
 
     def __init__(self):
         pass

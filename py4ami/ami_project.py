@@ -324,8 +324,7 @@ class CProject(CContainer):
             if ctree_dir.exists():
                 if self.add_underscore:
                     ctree_dir = self.add_underscore_extension(ctree_dir, max_flag, stem_dir)
-            if not ctree_dir.exists():
-                ctree_dir.mkdir()
+            ctree_dir.mkdir(exist_ok=True)
             src_file = Path(self.dirx, file)
 #            assert src_file.exists(), f"file should exist {src_file}" # problem
             dst_file = Path(ctree_dir, FULLTEXT + ".pdf")
@@ -405,8 +404,7 @@ class CProject(CContainer):
             pdf_args = PDFArgs()
             inpath = f"{Path(ctree.dirx, 'fulltext.pdf')}"
             outdir = Path(ctree.dirx, "html")
-            if not outdir.exists():
-                outdir.mkdir()
+            outdir.mkdir(exist_ok=True)
             outstem = "fulltext"
             fmt = "HTML"
             outpath, out_html = pdf_args.convert_write(outdir=outdir, outstem=outstem, inpath=inpath, flow=True, maxpage=maxpage)

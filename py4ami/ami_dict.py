@@ -494,8 +494,7 @@ class AmiDictionary:
             dictionary.add_wikidata_from_terms()
         outpath = None
         if outdir:
-            if not outdir.exists():
-                outdir.mkdir()
+            outdir.mkdir(exist_ok=True)
             outpath = Path(outdir, title + ".xml")
             with open(outpath, "wb") as f:
                 f.write(lxml.etree.tostring(dictionary.root))
@@ -891,8 +890,7 @@ class AmiDictionary:
         :param directory: directory which will contain <title>.xml"""
         if not directory:
             print(f"None directory")
-        if not directory.exists():
-            directory.mkdir()
+        directory.mkdir(exist_ok=True)
         file = Path(directory, f"self.root.attrib[TITLE]).xml")
         self.write_to_file(file)
         return file

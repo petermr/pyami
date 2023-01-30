@@ -234,8 +234,7 @@ class TestHtml(AmiAnyTest):
         path = Path(Resources.TEMP_DIR, "ipcc_html")
         path.mkdir(exist_ok=True)
         chap4_dir = Path(path, "chapter04")
-        if not chap4_dir.exists():
-            chap4_dir.mkdir()
+        chap4_dir.mkdir(exist_ok=True)
         outpath = Path(chap4_dir, "ref_doi.html")
         ref_elem.write(str(outpath))
 
@@ -254,8 +253,7 @@ class TestHtml(AmiAnyTest):
         path = Path(Resources.TEMP_DIR)
         path.mkdir(exist_ok=True)
         chap4_dir = Path(path, "ipcc_html", "chapter04")
-        if not chap4_dir.exists():
-            chap4_dir.mkdir()
+        chap4_dir.mkdir(exist_ok=True)
         outpath = Path(chap4_dir, "ref_doi.html")
         ref_elem.write(str(outpath))
 
@@ -395,8 +393,7 @@ class TestHtml(AmiAnyTest):
         a_elem = div.xpath("./a")[0]
         a_elem.attrib["href"] = "https://wikidata.org/wiki/Q167336"
         test_dir = Path(Resources.TEMP_DIR, "html")
-        if not test_dir.exists():
-            test_dir.mkdir()
+        test_dir.mkdir(exist_ok=True)
         with open(str(Path(test_dir, "add_href.html")), "wb") as f:
             f.write(lxml.etree.tostring(div))
 
@@ -412,8 +409,7 @@ class TestHtml(AmiAnyTest):
         ami_dict.ignorecase = False
         inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow20.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
-        if not output_dir.exists():
-            output_dir.mkdir()
+        output_dir.mkdir(exist_ok=True)
         output_path = Path(output_dir, "chap6_index.html")
         ami_dict.markup_html_from_dictionary(inpath, output_path, "pink")
 
@@ -434,8 +430,7 @@ class TestHtml(AmiAnyTest):
         # input_path = Path(Resources.IPCC_CHAP06, "chap6.flow.html")
         print(f"reading pdf_html {input_path}")
         html_output_dir = Path(Resources.TEMP_DIR, "html")
-        if not html_output_dir.exists():
-            html_output_dir.mkdir()
+        html_output_dir.mkdir(exist_ok=True)
         print(f"output html {html_output_dir}")
         chap6_marked_path = Path(html_output_dir, output_file)
 
@@ -453,8 +448,7 @@ class TestHtml(AmiAnyTest):
         """
         target_path = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow20.html")
         output_dir = Path(Resources.TEMP_DIR, "html")
-        if not output_dir.exists():
-            output_dir.mkdir()
+        output_dir.mkdir(exist_ok=True)
         output_path = Path(output_dir, "chap6_styled.html")
 
         with open(target_path, "rb") as f:

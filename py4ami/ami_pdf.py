@@ -14,18 +14,15 @@ from typing import Container
 
 import lxml
 import lxml.html
-import numpy as np
 import pdfplumber
 from PIL import Image
 from lxml import etree
 from lxml.builder import E
 from pdfminer.converter import TextConverter, XMLConverter, HTMLConverter
 from pdfminer.image import ImageWriter
-from pdfminer.layout import LAParams
-from pdfminer.layout import LTImage
+from pdfminer.layout import LAParams, LTImage, LTTextLineHorizontal, LTTextBoxHorizontal
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
-from sklearn.linear_model import LinearRegression
 
 from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy
@@ -421,8 +418,7 @@ class AmiPage:
         # USED
         html = self.create_html(use_lines=use_lines)
         parent_dir = Path(html_path).parent
-        if not parent_dir.exists():
-            parent_dir.mkdir()
+        parent_dir.mkdir(exist_ok=True)
         with open(html_path, "wb") as f:
             et = lxml.etree.ElementTree(html)
             et.write(f, pretty_print=pretty_print)
@@ -541,9 +537,12 @@ class AmiPage:
         """
         if not input_pdf or not Path(input_pdf).exists():
             logging.logger.error(f"must have not-null, existing pdf {input_pdf} ")
+            return
+        if not output_dir:
+            logging.logger.error(f"must have not-null output_dir ")
+            return
 
-        if not Path(output_dir).exists():
-            output_dir.mkdir()
+        Path(output_dir).mkdir(exist_ok=True)
         with pdfplumber.open(input_pdf) as pdf:
             page_count = len(pdf.pages)
         for page_no in range(page_count):  # 0-based page_no
@@ -1132,7 +1131,8 @@ class PDFArgs(AbstractArgs):
         if self.outpath is None:
             print(f"no outpath given")
             return None
-        with open(str(self.outpath), "w") as f:
+        outpath1 = str(self.outpath)
+        with Util.open_write_utf8(outpath1) as f:
             f.write(out_html)
             print(f"wrote outpath {self.outpath}")
         return self.outpath, out_html
@@ -1167,7 +1167,7 @@ class PDFArgs(AbstractArgs):
                 self.outdir.mkdir(exist_ok=True)
             if not self.outpath:
                 self.outpath = Path(self.outdir, "raw20.html") # bad hardcoding
-            with open(self.outpath, "w") as f:
+            with Util.open_write_utf8(self.outpath) as f:
                 f.write(raw_html_element)
         print(f"outpath {self.outpath}")
 
@@ -1319,6 +1319,23 @@ class PDFDebug:
         self.image_coords_list = []
         self.image_dict = dict()
 
+    def pdfplumber_debug(self, inpath):
+
+        pdf = pdfplumber.open(inpath, laparams={})
+        page_layout = pdf.pages[0].layout
+        for element in page_layout:
+            if isinstance(element, LTTextLineHorizontal):
+                # currently only seems to detect newline
+                print(f"textlinehorizontal: ({element.bbox}):{element.get_text()}:", end="")
+            if isinstance(element, LTTextBoxHorizontal):
+                print(f">>start_text_box")
+                for text_line in element:
+                    # print(f"dir: {text_line.__dir__()}")
+                    print(f"....textboxhorizontal: ({text_line.bbox}): {text_line.get_text()}", end="")
+                    pass
+                print(f"<<end_text_box")
+        return pdf
+
     def debug_page_properties(self, page, debug=None, outdir=None):
         """debug print selected DEBUG_OPTIONS
         :param debug: list of options (from DEBUG_OPTIONS)
@@ -1349,11 +1366,10 @@ class PDFDebug:
     def write_summary(self, outdir=None):
         if not outdir:
             return
-        if not outdir.exists():
-            outdir.mkdir()
+        outdir.mkdir(exist_ok=True)
         if self.image_coords_list:
             coord_file = Path(outdir, "image_coords.txt")
-            with open(coord_file, "w") as f:
+            with Util.open_write_utf8(coord_file) as f:
                 f.write(f"{self.image_coords_list}")
             print(f"wrote image coords to {coord_file}")
 
@@ -1404,10 +1420,9 @@ class PDFDebug:
                 self.image_dict[width_height_bytes] = page_coords
 
                 if not outdir:
-                    pass
-                elif not outdir.exists():
-                    outdir.mkdir()
+                    logging.warning(f"no outdir")
                 if outdir and isinstance(image, LTImage):
+                    outdir.mkdir(exist_ok=True)
                     imagewriter = ImageWriter(str(Path(outdir, f"image{i}.png")))
                     imagewriter.export_image(image)
                 page_height = page.height
@@ -1509,6 +1524,25 @@ class PDFDebug:
             print(f"annots {n_annot}", end=" | ")
             for annot in page.annots:
                 print(f"annot: {annot.items()}")
+
+    @classmethod
+    def debug_pdf(cls, infile, outdir, debug_options=None):
+        """
+        debugs an input PDF and outputs to directory
+        """
+        if not debug_options:
+            debug_options = [WORDS, IMAGES]
+        if not outdir: # is this used??
+            print(f"no output dir given")
+        else:
+            outdir.mkdir(exist_ok=True)
+        with pdfplumber.open(infile) as pdf:
+            pages = list(pdf.pages)
+            pdf_debug = PDFDebug()
+            for page in pages:
+                pdf_debug.debug_page_properties(page, debug=debug_options)
+            print(f"images: {pdf_debug.image_dict.keys()}")
+
 
 
 class TextStyle:

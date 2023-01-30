@@ -869,8 +869,7 @@ class TestAmiDictionary(AmiAnyTest):
         wikidata_sparql = WikidataSparql(dictionary)
         wikidata_sparql.update_from_sparql(sparql_file, sparql_to_dictionary)
         outdir = Path(Resources.TEMP_DIR, "sparql")
-        if not outdir.exists():
-            outdir.mkdir()
+        outdir.mkdir(exist_ok=True)
         # ff = dictionary_file[:-(len(".xml"))] + "_update" + ".xml"
         # print("saving to", ff)
         dictionary.write_to_dir(outdir)

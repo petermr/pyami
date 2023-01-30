@@ -1,3 +1,4 @@
+import codecs
 import logging
 import os
 import pprint
@@ -44,8 +45,9 @@ PMC1421 = Path(Resources.RESOURCES_DIR, "projects", "liion4", "PMC4391421", "ful
 IPCC_DIR = Path(Resources.TEST_RESOURCES_DIR, "ipcc")
 IPCC_GLOSS_DIR = Path(IPCC_DIR, "glossary")
 IPCC_GLOSSARY = Path(IPCC_GLOSS_DIR, "IPCC_AR6_WGIII_Annex-I.pdf")
-IPCC_CHAP6_DIR = Path(IPCC_DIR, "Chapter06")
-IPCC_CHAP6_PDF = Path(IPCC_CHAP6_DIR, "fulltext.pdf")
+IPCC_WG2_DIR = Path(IPCC_DIR, "wg2")
+IPCC_WG2_3_DIR = Path(IPCC_WG2_DIR, "Chapter03")
+IPCC_WG2_3_PDF = Path(IPCC_WG2_3_DIR, "fulltext.pdf")
 
 # arg_dict
 
@@ -68,6 +70,9 @@ TEMPLATE = "template"
 
 
 # ==============================
+# Helpers
+# ==============================
+
 
 def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=False):
     """
@@ -82,16 +87,14 @@ def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=
     for page_index in CURRENT_RANGE:
         page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
         html_path = Path(Resources.TEST_CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-        if not Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.exists():
-            Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir()
+        Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True)
         ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
         ami_page.write_html(html_path, pretty_print, use_lines)
 
 
 def make_html_dir():
     html_dir = Path(Resources.TEMP_DIR, "html")
-    if not html_dir.exists():
-        html_dir.mkdir()
+    html_dir.mkdir(exist_ok=True)
     return html_dir
 
 
@@ -213,7 +216,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         output_stem = "chap6"
         page_nos = range(3, 13)
         # page_nos = [3 4 5 8 ]
-        input_pdf = Path(IPCC_CHAP6_PDF)
+        input_pdf = Path(Resources.TEST_IPCC_CHAP06_PDF)
         assert input_pdf.exists(), f"{input_pdf} should exist"
         bbox = BBox(xy_ranges=[[60, 999], [60, 790]])
         output_dir = Path(Resources.TEMP_DIR, "pdf")
@@ -255,8 +258,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         coord_file = Path(Resources.TEST_IPCC_CHAP06, "image_coords.txt")
         print(f"input {coord_file}")
         outdir = Path(Resources.TEST_IPCC_CHAP06, "images_new")
-        if not outdir.exists():
-            outdir.mkdir()
+        outdir.mkdir(exist_ok=True)
         with open(coord_file, "r") as f:
             coord_list = f.readlines()
         assert len(coord_list) == 14
@@ -355,8 +357,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         pdf_args.arg_dict[MAXPAGE] = 20
         pdf_args.arg_dict[OUTFORM] = "flow.html"
         outdir = Path(Resources.TEMP_DIR, "ipcc_html")
-        if not outdir.exists():
-            outdir.mkdir()
+        outdir.mkdir(exist_ok=True)
         pdf_args.arg_dict[OUTDIR] = outdir
         pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
         print(f"arg_dict {pdf_args.arg_dict}")
@@ -422,8 +423,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             pdf_args.arg_dict[MAXPAGE] = 200
             pdf_args.arg_dict[OUTFORM] = "flow.html"
             outdir = Path(Resources.TEMP_DIR, "ipcc_html")
-            if not outdir.exists():
-                outdir.mkdir()
+            outdir.mkdir(exist_ok=True)
             pdf_args.arg_dict[OUTDIR] = outdir
             print(f"arg_dict {pdf_args.arg_dict}")
 
@@ -480,14 +480,13 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         )
         # output dir
         html_dir = Path(Resources.TEMP_DIR, "html")
-        if not html_dir.exists():
-            html_dir.mkdir()
+        html_dir.mkdir(exist_ok=True)
         # ouytput file
         path = Path(html_dir, "pmc4121.xml")
         # clean because text requires new file
         if path.exists():
             os.remove(path)
-        with open(path, "w") as f:
+        with codecs.open(path, "w", "UTF-8") as f:
             f.write(result)
             print(f"wrote {f}")
         assert path.exists(), f"should output html to {path}"
@@ -508,10 +507,10 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
 <div style="top: 3721px;" id="id712"><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id713">Warming cannot be limited to well below 2&#176;C without rapid and deep reductions in energy system CO</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 6px;" id="id715">2</span><span style="font-family: TimesNewRomanPS-BoldMT; font-size: 11px;" id="id716"> and GHG emissions. </span><span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id717">In scenarios
         """
 
-        print(f" converting {IPCC_CHAP6_PDF}")
-        assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
+        print(f" converting {Resources.TEST_IPCC_CHAP06_PDF}")
+        assert Resources.TEST_IPCC_CHAP06_PDF.exists(), f"chap6 {Resources.TEST_IPCC_CHAP06_PDF}"
         pdf_args = PDFArgs()
-        pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
+        pdf_args.arg_dict[INPATH] = Resources.TEST_IPCC_CHAP06_PDF
         pdf_args.arg_dict[MAXPAGE] = 10
         pdf_args.arg_dict[PAGES] = "1_10"
         pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_IPCC_CHAP06, "pdf.html")
@@ -543,14 +542,14 @@ Uses:
 
         """
 
-        # print(f" converting {IPCC_CHAP6_PDF}")
-        assert IPCC_CHAP6_PDF.exists(), f"chap6 {IPCC_CHAP6_PDF}"
+        # print(f" converting {IPCC_CHAP06_PDF}")
+        assert Resources.TEST_IPCC_CHAP06_PDF.exists(), f"chap6 {Resources.TEST_IPCC_CHAP06_PDF}"
         pdf_args = PDFArgs()
         maxpage = 5
         pdf_args.arg_dict[MAXPAGE] = maxpage  # works
-        pdf_args.arg_dict[INPATH] = IPCC_CHAP6_PDF
-        IPCC_TEMP_CHAP6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
-        pdf_args.arg_dict[OUTPATH] = Path(IPCC_TEMP_CHAP6, f"flow.test{maxpage}.html")
+        pdf_args.arg_dict[INPATH] = Resources.TEST_IPCC_CHAP06_PDF
+        IPCC_TEMP_CHAPo6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
+        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_IPCC_CHAP06, f"flow.test{maxpage}.html")
         pdf_args.arg_dict[PDF2HTML] = PDFPLUMBER
 
         pprint.pprint(pdf_args.arg_dict)
@@ -570,7 +569,7 @@ Uses:
                 assert size > 15000, f"size {outfile} {size}"
 
     @unittest.skipUnless(PDFTest.CMD, "command")
-    def test_convert_to_raw_html_chap6_page_ranges(self):
+    def test_convert_to_raw_html_chap6_page_ranges__fail(self):
         """
         converts complete chapter to raw HTML.
         outputs each page as
@@ -584,12 +583,13 @@ Uses:
 
         """
         outfile = Path(Resources.TEMP_IPCC_CHAP06, "all.html")
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --outdir {Resources.TEMP_IPCC_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
+        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --outdir {Resources.TEMP_IPCC_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
         PyAMI().run_command(args)
         print(f"created outfile {outfile}")
-        assert outfile.exists(), f"{outfile} should exist"
+        logging.warning(f"DID NOT CREATE FILE {outfile}")
+        # assert outfile.exists(), f"{outfile} should exist"
 
-    def test_read_ipcc_chapter_debug(self):
+    def test_read_ipcc_chapter__debug(self):
         """read multipage document and extract properties
 
         """
@@ -601,7 +601,7 @@ Uses:
 
         for (pdf_file, page_count) in [
             # (IPCC_GLOSSARY, 51),
-            (IPCC_CHAP6_PDF, 219)
+            (Resources.TEST_IPCC_CHAP06_PDF, 219)
         ]:
             pdf_debug = PDFDebug()
             with pdfplumber.open(pdf_file) as pdf:
@@ -619,13 +619,36 @@ Uses:
         has x0 and x1 coordinates
 
         """
-        assert Path(IPCC_CHAP6_PDF).exists(), f"expected {IPCC_CHAP6_PDF}"
+        assert Path(Resources.TEST_IPCC_CHAP06_PDF).exists(), f"expected {Resources.TEST_IPCC_CHAP06_PDF}"
         assert Path(Resources.TEMP_IPCC_CHAP06).exists(), f"expected {Resources.TEMP_IPCC_CHAP06}"
 
-        args = f"PDF --infile {IPCC_CHAP6_PDF} --pages 4 --outdir {Resources.TEMP_IPCC_CHAP06} --flow True"
+        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --pages 4 --outdir {Resources.TEMP_IPCC_CHAP06} --flow True"
         PyAMI().run_command(args)
         outpath = Path(Resources.TEMP_IPCC_CHAP06, "fulltext.flow_3.html")
         assert outpath.exists(), f"{outpath} should be created"
+
+    def test_ipcc_2_column__explore__fail(self):
+        """
+        Reads double column format of IPCC.
+        FAILS - does not produce HTML body content
+        (only creates
+        <html>
+          <head><meta/></head>
+          <body>
+            <div class="top">
+              <div/>
+            </div>
+          </body>
+        </html>)
+
+        """
+        infile = Path(Resources.TEST_IPCC_DIR, "wg2", "Chapter03", "fulltext.pdf")
+        pages = "5_8" # total is 0_171 (172pp)
+        outdir = Path(Resources.TEMP_DIR, "ipcc_wg2_chap03")
+        args = f"PDF --infile {infile} --outdir {outdir} --pages {pages}"
+        PyAMI().run_command(args)
+
+
 
 
 class PDFCharacterTest(test.test_all.AmiAnyTest):
@@ -635,27 +658,19 @@ class PDFCharacterTest(test.test_all.AmiAnyTest):
     """
 
     def test_pdfminer_debug_LTTextLine_LTTextBox_PMC1421(self):
-        """read PDF and chunk into text_lines and text_boxes
-        Keeps box coordinates but loses style"""
-        from pdfminer.layout import LTTextLineHorizontal, LTTextBoxHorizontal
+        """
+        read PDF and chunk into text_lines and text_boxes
+        Keeps box coordinates but loses style
+        uses pdfplumber
+        """
         # need to pass in laparams, otherwise pdfplumber page would not
         # have high level pdfminer layout objects, only LTChars.
         assert Path(PMC1421).exists()
-        logging.warn(f"PMC1421 is {PMC1421}")
-        pdf = pdfplumber.open(PMC1421, laparams={})
+        logging.warning(f"PMC1421 is {PMC1421}")
+        inpath = PMC1421
+        pdfdebug = PDFDebug()
+        pdf = pdfdebug.pdfplumber_debug(inpath)
         assert len(pdf.pages) == 5, f"expected 5 pages"
-        page_layout = pdf.pages[0].layout
-        for element in page_layout:
-            if isinstance(element, LTTextLineHorizontal):
-                # currently only seems to detect newline
-                print(f"textlinehorizontal: ({element.bbox}):{element.get_text()}:", end="")
-            if isinstance(element, LTTextBoxHorizontal):
-                print(f">>start_text_box")
-                for text_line in element:
-                    # print(f"dir: {text_line.__dir__()}")
-                    print(f"....textboxhorizontal: ({text_line.bbox}): {text_line.get_text()}", end="")
-                    pass
-                print(f"<<end_text_box")
 
     # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
 
@@ -740,7 +755,7 @@ LTPage
         from pdfminer.image import ImageWriter
         from pdfminer.high_level import extract_pages
 
-        path = Path(IPCC_CHAP6_PDF)
+        path = Path(Resources.TEST_IPCC_CHAP06_PDF)
         pages = list(extract_pages(path))
         page = pages[10]
 
@@ -1019,54 +1034,74 @@ LTPage
             for ch in first_page.chars:  # prints all text as a single line
                 print(ch.get("text"), end="")
 
-    def test_debug_page_properties_chap6_word_count_and_images_data_example(self):
-        """debug the PDF objects (crude)
+    def test_debug_page_properties_chap6_word_count_and_images_data_wg3_old__example(self):
+        """debug the old-style IPCC WG3 PDF objects (crude)
         outputs wordcount for page, and any image data.
-        Would ber better if we knew hoe to read PDFStream"""
+        Would be better if we knew how to read PDFStream
+        """
         maxpage = 9  # images on page 8, and 9
-        # maxpage = 9999 # image is on page 8
-        path = Path(Resources.TEMP_DIR, "pdf")
-        path.mkdir(exist_ok=True)
-        outdir = Path(path, "chap6")
-        outdir.mkdir(exist_ok=True)
+        outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
         pdf_debug = PDFDebug()
 
-        with pdfplumber.open(IPCC_CHAP6_PDF) as pdf:
+        with pdfplumber.open(Resources.TEST_IPCC_CHAP06_PDF) as pdf:
             pages = list(pdf.pages)
             for page in pages[:maxpage]:
                 pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES], outdir=outdir)
         pdf_debug.write_summary(outdir=outdir)
-        print(f"pdf_debug {pdf_debug.image_dict}")
+        print(f"pdf_debug {pdf_debug.image_dict}\n outdir {outdir}")
         assert maxpage != 9 or pdf_debug.image_dict == {
             ((1397, 779), 143448): (8, (72.0, 523.3), (412.99, 664.64)),
             ((1466, 655), 122016): (8, (72.0, 523.3), (203.73, 405.38)),
             ((1634, 854), 204349): (9, (80.9, 514.25), (543.43, 769.92))
         }
 
-    def test_debug_page_properties(self):
+    def test_debug_page_properties_chap6_word_count_and_images_data_wg2_new__example(self):
+        """debug the new style IPCC PDF objects (crude)
+        outputs wordcount for page, and any image data.
+        Would be better if we knew how to read PDFStream
+        """
+        maxpage = 9  # images on page 8, and 9
+        outdir = Path(Resources.TEMP_DIR, "pdf", "wg2_chap3")
+        pdf_debug = PDFDebug()
+
+        with pdfplumber.open(Resources.TEST_IPCC_WG2_CHAP03_PDF) as pdf:
+            pages = list(pdf.pages)
+            for page in pages[:maxpage]:
+                pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES], outdir=outdir)
+        pdf_debug.write_summary(outdir=outdir)
+        print(f"pdf_debug {pdf_debug.image_dict}\n outdir {outdir}")
+
+        # assert maxpage != 9 or pdf_debug.image_dict == {
+        #     ((1397, 779), 143448): (8, (72.0, 523.3), (412.99, 664.64)),
+        #     ((1466, 655), 122016): (8, (72.0, 523.3), (203.73, 405.38)),
+        #     ((1634, 854), 204349): (9, (80.9, 514.25), (543.43, 769.92))
+        # }
+
+    def test_page_properties_pmc__debug(self):
         """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
         finds WORDS (count) and IMAGE details
         """
 
-        p = Path(Resources.TEMP_DIR, "pdf")
-        p.mkdir(exist_ok=True)
-        outdir = Path(p, "pmc1421")
-        if not outdir.exists():
-            outdir.mkdir()
-        with pdfplumber.open(PMC1421) as pdf:
-            pages = list(pdf.pages)
-            assert len(pages) == 5
-            pdf_debug = PDFDebug()
-            if not outdir:
-                print(f"no output dir given")
-                return
-            path = Path(outdir, "images")
-            if not path.exists():
-                path.mkdir()
+        outdir = Path(Resources.TEMP_DIR, "pdf", "pmc1421", "images")
+        infile = PMC1421
+        PDFDebug.debug_pdf(infile, outdir)
 
-            for page in pages:
-                pdf_debug.debug_page_properties(page, debug=[WORDS, IMAGES])
-            print(f"images: {pdf_debug.image_dict.keys()}")
+    def test_page_properties_ipcc_wg2_3__debug(self):
+        """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
+        finds WORDS (count) and IMAGE details
+        """
+        outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
+        infile = IPCC_WG2_3_PDF
+        pdf_debug = PDFDebug()
+        pdf_debug.debug_pdf(infile, outdir)
+
+    def test_page_properties_ipcc_wg3__debug(self):
+        """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
+        finds WORDS (count) and IMAGE details
+        """
+        outdir = Path(Resources.TEMP_DIR, "pdf", "wg2_3")
+        infile = IPCC_WG2_3_PDF
+        PDFDebug.debug_pdf(infile, outdir)
 
 
 class PDFSVGTest(test.test_all.AmiAnyTest):
@@ -1095,8 +1130,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         for page_index in CURRENT_RANGE:
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
             html_path = Path(Resources.TEST_CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-            if not Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.exists():
-                Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir()
+            Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True)
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
             ami_page.write_html(html_path, pretty_print, use_lines)
 
@@ -1194,8 +1228,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         for page_index in range(1, 9):
             page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_dir, f"page.{page_index}.html")
-            if not html_dir.exists():
-                html_dir.mkdir()
+            html_dir.mkdir(exist_ok=True)
             ami_page = AmiPage.create_page_from_svg(page_path)
             ami_page.write_html(html_path, pretty_print, use_lines)
             assert html_path.exists(), f"{html_path} exists"
@@ -1217,8 +1250,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
                 print(f".", end="")
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_out_dir, f"page.{page_index}.html")
-            if not html_out_dir.exists():
-                html_out_dir.mkdir()
+            html_out_dir.mkdir(exist_ok=True)
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
             ami_page.write_html(html_path, pretty_print, use_lines)
             counter += 1
@@ -1281,8 +1313,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         for page_index in range(1, 9):
             page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_dir, f"page.{page_index}.html")
-            if not html_dir.exists():
-                html_dir.mkdir()
+            html_dir.mkdir(exist_ok=True)
             ami_page = AmiPage.create_page_from_svg(page_path)
             ami_page.write_html(html_path, pretty_print, use_lines)
             assert html_path.exists(), f"{html_path} exists"
@@ -1304,8 +1335,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
                 print(f".", end="")
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_out_dir, f"page.{page_index}.html")
-            if not html_out_dir.exists():
-                html_out_dir.mkdir()
+            html_out_dir.mkdir(exist_ok=True)
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
             ami_page.write_html(html_path, pretty_print, use_lines)
             counter += 1

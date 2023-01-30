@@ -1172,8 +1172,7 @@ class HtmlTree:
         """
         if output_dir:
             output_dir = Path(output_dir)
-            if not output_dir.exists():
-                output_dir.mkdir()
+            output_dir.mkdir(exist_ok=True)
 
             punct_mask = Util.make_translate_mask_to_char(orig, rep)
             for i, child_div in enumerate(decimal_divs):
@@ -1568,8 +1567,7 @@ class HTMLArgs(AbstractArgs):
         if not self.outdir:
             self.outdir = Path(self.outpath).parent
         self.outdir = Path(self.outdir)
-        if not self.outdir.exists():
-            self.outdir.mkdir()
+        self.outdir.mkdir(exist_ok=True)
 
         self.ami_dict = AmiDictionary.create_from_xml_file(self.dictfile)
         self.ami_dict.markup_html_from_dictionary(self.inpath, self.outpath, self.color)
