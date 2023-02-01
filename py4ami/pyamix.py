@@ -33,6 +33,7 @@ from py4ami.xml_lib import XmlLib
 class SubParser(Enum):
     DICT = "DICT"
 
+
 class PyAMI:
     """ main entry point for running pyami
      """

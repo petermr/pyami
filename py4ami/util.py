@@ -333,7 +333,9 @@ class Util:
         :param outpath: file to write to
         :return: StreamReaderWriter
         """
-        return codecs.open(outpath, "w", "UTF-8")
+        if not outpath:
+            return None
+        return codecs.open(str(outpath), "w", "UTF-8")
 
     @classmethod
     def open_read_utf8(cls, inpath):
@@ -441,6 +443,25 @@ As github API has rate limit of 5000 requests / hour, this might not be good for
         """
         punct_mask = str.maketrans(punct, charx * len(punct))
         return punct_mask
+
+
+class AmiArgParseException(Exception):
+    """
+    to capture error messages from AmiArgparser
+    """
+    pass
+
+
+class AmiArgParser(argparse.ArgumentParser):
+    """
+    subclasses ArgumentParser and overrides error()
+    """
+
+    def error(self, message):
+        """
+        raises self.exit(2, error_message) so can be caught
+        """
+        raise AmiArgParseException(message)
 
 
 class AbstractArgs(ABC):

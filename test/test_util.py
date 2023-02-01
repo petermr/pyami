@@ -1,5 +1,6 @@
 # test util
 
+import argparse
 import logging
 import sys
 import unittest
@@ -11,7 +12,7 @@ import requests
 # local
 
 from py4ami.file_lib import FileLib
-from py4ami.util import Util, GithubDownloader, ArgParseBuilder
+from py4ami.util import Util, GithubDownloader, ArgParseBuilder, AmiArgParser, AmiArgParseException
 
 from test.resources import Resources
 from test.test_all import AmiAnyTest
@@ -187,4 +188,26 @@ class TestGithubDownloader(AmiAnyTest):
         downloader.load_page(url, level=0)
 
 
+class TestAmiArgParser(AmiAnyTest):
 
+    def test_ami_arg_parse(self):
+        """
+        test subclassing of argParse
+        """
+        ami_argparse = AmiArgParser()
+        ami_argparse.add_argument("--flt", type=float, nargs=1, help="a float", default=80)
+        ami_argparse.add_argument("--str", type=str, nargs=1, help="a string")
+
+# this works
+        arg_dict = ami_argparse.parse_args(["--flt",  "3.2"])
+        print(f"arg_dict1 {arg_dict}")
+        # this fails
+        try:
+            arg_dict = ami_argparse.parse_args(["--flt",  "3.2", "str"])
+        except AmiArgParseException as se:
+            print(f"arg parse error {se} line: {se.__traceback__.tb_lineno}")
+        except Exception as e:
+            print(f" error {e}")
+
+        arg_dict = ami_argparse.parse_args(["--flt",  "99.2"])
+        print(f"arg_dict2 {arg_dict}")

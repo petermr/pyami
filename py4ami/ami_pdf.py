@@ -30,7 +30,7 @@ from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WE
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
-from py4ami.util import Util, AbstractArgs
+from py4ami.util import Util, AbstractArgs, AmiArgParser
 
 # local
 
@@ -822,7 +822,10 @@ class PDFArgs(AbstractArgs):
 
         """
         if self.parser is None:
-            self.parser = argparse.ArgumentParser(
+            # self.parser = argparse.ArgumentParser(
+            #     usage="py4ami always uses subcommands (DICT,GUI,HTML,PDF,PROJECT)\n e.g. py4ami PDF --help"
+            # )
+            self.parser = AmiArgParser(
                 usage="py4ami always uses subcommands (DICT,GUI,HTML,PDF,PROJECT)\n e.g. py4ami PDF --help"
             )
 
@@ -1377,11 +1380,22 @@ class PDFDebug:
         print(f"words {len(page.extract_words())}", end=" | ")
 
     def print_lines(self, page):
+        """
+        Prints the lines in a page
+        :param page: page with lines to print
+
+        No action if no lines
+        """
         n_line = len(page.lines)
         if n_line > 0:
             print(f"lines {n_line}", end=" | ")
 
     def print_rects(self, page, debug=False):
+        """
+        print summary data for all PDF rectangles on page
+        :param page: page to print
+        :param debug: optional debug for fuller informatiom
+        """
         n_rect = len(page.rects)
         if n_rect > 0:
             print(f"rects {n_rect}", end=" | ")
@@ -1407,44 +1421,39 @@ class PDFDebug:
         if n_image > 0:
             print(f"images {n_image}", end=" |\n")
             for i, image in enumerate(page.images[:maximage]):
+                self.debug_image(i, image, outdir, page, resolution, write_image)
 
-                print(f"image: {type(image)}: {image.keys()} \n{image.values()}")
-                print(f"stream {image['stream']}")
-                print(f"xxyy {(image['x0'],image['x1']),(image['y0'],image['y1']),image['srcsize'],image['name'],image['page_number']}")
-                stream = image['stream']
-                width_height_bytes = ((image['srcsize']),image['stream']['Length'])
-                page_coords = (image['page_number'], (image['x0'],image['x1']),(image['y0'],image['y1']))
-                print(f"image:  {width_height_bytes} => {page_coords}")
-                if (width_height_bytes) in self.image_dict:
-                    print("clash: {(width_height_bytes)}")
-                self.image_dict[width_height_bytes] = page_coords
-
-                if not outdir:
-                    logging.warning(f"no outdir")
-                if outdir and isinstance(image, LTImage):
-                    outdir.mkdir(exist_ok=True)
-                    imagewriter = ImageWriter(str(Path(outdir, f"image{i}.png")))
-                    imagewriter.export_image(image)
-                page_height = page.height
-                image_bbox = (image[X0], page_height - image[Y1], image[X1], page_height - image[Y0])
-                # print(f"image: {image_bbox}")
-
-                coord_stem = f"image_{page.page_number}_{i}_{self.format_bbox(image_bbox)}"
-                self.image_coords_list.append(coord_stem)
-
-                if outdir and write_image:  # I think this is slow
-                    coord_path = Path(outdir, f"{coord_stem}.png")
-                    cropped_page = page.crop(image_bbox)  # crop screen display (may have overwriting text)
-                    image_obj = cropped_page.to_image(resolution=resolution)
-                    image_obj.save(coord_path)
-                    print(f" wrote image {coord_path}")
-                # continue
-
-            # for p in pdf.pages:
-            #     for obj in p.layout:
-            #         if isinstance(obj, LTImage):
-            #             imagewriter.export_image(obj)
         print(f"image_dict {self.image_dict}")
+
+    def debug_image(self, i, image, outdir, page, resolution, write_image):
+        print(f"image: {type(image)}: {image.keys()} \n{image.values()}")
+        print(f"stream {image['stream']}")
+        print(
+            f"xxyy {(image['x0'], image['x1']), (image['y0'], image['y1']), image['srcsize'], image['name'], image['page_number']}")
+        stream = image['stream']
+        width_height_bytes = ((image['srcsize']), image['stream']['Length'])
+        page_coords = (image['page_number'], (image['x0'], image['x1']), (image['y0'], image['y1']))
+        print(f"image:  {width_height_bytes} => {page_coords}")
+        if (width_height_bytes) in self.image_dict:
+            print("clash: {(width_height_bytes)}")
+        self.image_dict[width_height_bytes] = page_coords
+        if not outdir:
+            logging.warning(f"no outdir")
+        if outdir and isinstance(image, LTImage):
+            outdir.mkdir(exist_ok=True)
+            imagewriter = ImageWriter(str(Path(outdir, f"image{i}.png")))
+            imagewriter.export_image(image)
+        page_height = page.height
+        image_bbox = (image[X0], page_height - image[Y1], image[X1], page_height - image[Y0])
+        # print(f"image: {image_bbox}")
+        coord_stem = f"image_{page.page_number}_{i}_{self.format_bbox(image_bbox)}"
+        self.image_coords_list.append(coord_stem)
+        if outdir and write_image:  # I think this is slow
+            coord_path = Path(outdir, f"{coord_stem}.png")
+            cropped_page = page.crop(image_bbox)  # crop screen display (may have overwriting text)
+            image_obj = cropped_page.to_image(resolution=resolution)
+            image_obj.save(coord_path)
+            print(f" wrote image {coord_path}")
 
     def print_tables(self, page, odir=None):
         tables = page.find_tables()

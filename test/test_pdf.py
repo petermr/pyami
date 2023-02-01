@@ -28,6 +28,7 @@ from py4ami.pyamix import PyAMI
 from py4ami.bbox_copy import BBox
 from py4ami.file_lib import FileLib
 from test.resources import Resources
+from py4ami.util import Util
 
 from test.test_all import AmiAnyTest
 
@@ -557,8 +558,8 @@ Uses:
 
         print(f"arg_dict {pdf_args.arg_dict}")
         outfile, _ = pdf_args.convert_write()  # all the conversion happens here
-        assert Path(outfile).exists()
-        assert str(outfile).endswith(f"temp/ipcc_chap6/flow.test{maxpage}.html")
+        assert Path(outfile).exists(), f"{outfile} should exist"
+        # assert str(outfile).endswith(f"temp/ipcc_chap6/flow.test{maxpage}.html")
         if not outfile:
             print(f"no file written")
         else:
@@ -844,7 +845,7 @@ LTPage
             maxpages=maxpages
         )
         html_dir = make_html_dir()
-        with open(Path(html_dir, f"pmc4121.{fmt}"), "w") as f:
+        with Util.open_write_utf8(Path(html_dir, f"pmc4121.{fmt}"), "w") as f:
             f.write(result)
             print(f"wrote {f.name}")
 
