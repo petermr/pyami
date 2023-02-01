@@ -1322,10 +1322,21 @@ class PDFDebug:
         self.image_coords_list = []
         self.image_dict = dict()
 
-    def pdfplumber_debug(self, inpath):
-
+    def pdfplumber_debug(self, inpath, page_num=0):
+        """
+        :param inpath: PDF file to debug
+        :param page_num: page to debug
+        :except: bad page number
+        debugs a single page
+        """
+        if inpath is None or not Path(inpath).exists():
+            raise FileNotFoundError(f"{inpath} does not exist")
         pdf = pdfplumber.open(inpath, laparams={})
-        page_layout = pdf.pages[0].layout
+        num_pages = len(pdf.pages)
+        print(f"read {inpath}; found {num_pages} pages")
+        if page_num < 0 or page_num >= num_pages:
+            raise ValueError(f"bad page val {page_num}; should be in range 0-{num_pages - 1}")
+        page_layout = pdf.pages[page_num].layout
         for element in page_layout:
             if isinstance(element, LTTextLineHorizontal):
                 # currently only seems to detect newline

@@ -41,7 +41,7 @@ CURRENT_RANGE = range(1, 20)
 # CHAPTER_RANGE = range(1, 200)
 CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
 
-PMC1421 = Path(Resources.RESOURCES_DIR, "projects", "liion4", "PMC4391421", "fulltext.pdf")
+PMC1421_PDF = Path(Resources.RESOURCES_DIR, "projects", "liion4", "PMC4391421", "fulltext.pdf")
 
 IPCC_DIR = Path(Resources.TEST_RESOURCES_DIR, "ipcc")
 IPCC_GLOSS_DIR = Path(IPCC_DIR, "glossary")
@@ -471,7 +471,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         # Use `pip3 install pdfminer.six` for python3
 
         """reading py4ami/resources/projects/liion4/PMC4391421/fulltext.pdf"""
-        pathx = Path(PMC1421)
+        pathx = Path(PMC1421_PDF)
 
         # convert PDF to html
         result = PDFArgs.convert_pdf(
@@ -658,22 +658,41 @@ class PDFCharacterTest(test.test_all.AmiAnyTest):
     (pdfminer and pdflumber)
     """
 
-    def test_pdfminer_debug_LTTextLine_LTTextBox_PMC1421(self):
+    def test_pdfplumber_debug_LTTextLine_LTTextBox_PMC1421(self):
         """
         read PDF and chunk into text_lines and text_boxes
         Keeps box coordinates but loses style
         uses pdfplumber
+        (doesn't do whole document)
         """
         # need to pass in laparams, otherwise pdfplumber page would not
         # have high level pdfminer layout objects, only LTChars.
-        assert Path(PMC1421).exists()
-        logging.warning(f"PMC1421 is {PMC1421}")
-        inpath = PMC1421
+        assert Path(PMC1421_PDF).exists()
+        logging.warning(f"PMC1421 is {PMC1421_PDF}")
+        inpath = PMC1421_PDF
         pdfdebug = PDFDebug()
-        pdf = pdfdebug.pdfplumber_debug(inpath)
+        pdf = pdfdebug.pdfplumber_debug(inpath, page_num=1)
         assert len(pdf.pages) == 5, f"expected 5 pages"
 
     # https://stackoverflow.com/questions/34606382/pdfminer-extract-text-with-its-font-information
+
+    def test_final_ipcc_format_debug(self):
+        """
+        Reads final format of IPCC reports (double column)
+        """
+        assert Path(Resources.TEST_IPCC_WG2_CHAP03_PDF).exists()
+        logging.warning(f"input is {Resources.TEST_IPCC_WG2_CHAP03_PDF}")
+        inpath = Resources.TEST_IPCC_WG2_CHAP03_PDF
+        pdfdebug = PDFDebug()
+        pdf = pdfdebug.pdfplumber_debug(inpath, page_num=0)
+        num_pages = len(pdf.pages)
+        expected_pages = 172
+        assert num_pages == expected_pages, f"expected {expected_pages} pages, found {num_pages}"
+        print(f"=======page {1} 0-based=========")
+        pdf = pdfdebug.pdfplumber_debug(inpath, page_num=1)
+        print(f"=======page {10} 0-based=========")
+        pdf = pdfdebug.pdfplumber_debug(inpath, page_num=10)
+
 
     @unittest.skipUnless(PDFTest.DEBUG, "too much output")
     def test_pdfminer_font_and_character_output(self):
@@ -745,7 +764,7 @@ LTPage
                 return o.get_text().strip()
             return ''
 
-        path = Path(PMC1421)
+        path = Path(PMC1421_PDF)
         pages = list(extract_pages(path))
         # this next debugs the character_stream
         show_ltitem_hierarchy(pages[0])
@@ -828,7 +847,7 @@ LTPage
                 return o.get_text().strip()
             return ''
 
-        path = Path(PMC1421)
+        path = Path(PMC1421_PDF)
         pages = list(extract_pages(path))
         # this next debugs the character_stream
         show_ltitem_hierarchy(pages[0])
@@ -838,7 +857,7 @@ LTPage
         """runs pdfinterpreter/converter over 5-page article and creates html and xml versions"""
         fmt = "html"
         maxpages = 0
-        path = Path(PMC1421)
+        path = Path(PMC1421_PDF)
         result = PDFArgs.convert_pdf(
             path=str(path),
             fmt=fmt,
@@ -851,13 +870,13 @@ LTPage
 
     def test_pdfplumber_full_page_info(self):
         """The definitive catalog of all objects on a page"""
-        assert PMC1421.exists(), f"{PMC1421} should exist"
+        assert PMC1421_PDF.exists(), f"{PMC1421_PDF} should exist"
 
         # also ['_text', 'matrix', 'fontname', 'ncs', 'graphicstate', 'adv', 'upright', 'x0', 'y0', 'x1', 'y1',
         # 'width', 'height', 'bbox', 'size', 'get_text',
         # 'is_compatible', 'set_bbox', 'is_empty', 'is_hoverlap',
         # 'hdistance', 'hoverlap', 'is_voverlap', 'vdistance', 'voverlap', 'analyze', ']
-        with pdfplumber.open(PMC1421) as pdf:
+        with pdfplumber.open(PMC1421_PDF) as pdf:
             first_page = pdf.pages[0]
             # print(type(first_page), first_page.__dir__())
             """
@@ -1084,7 +1103,7 @@ LTPage
         """
 
         outdir = Path(Resources.TEMP_DIR, "pdf", "pmc1421", "images")
-        infile = PMC1421
+        infile = PMC1421_PDF
         PDFDebug.debug_pdf(infile, outdir)
 
     def test_page_properties_ipcc_wg2_3__debug(self):
