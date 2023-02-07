@@ -78,13 +78,14 @@ TEMPLATE = "template"
 def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=False):
     """
     reads SVG output from ami3/pdfbox and converts to HTML
-    used by several tests at present and will be intergrated
     :param pretty_print: pretty print the HTML. Warning may introduce whitespace
     :param use_lines: output is CompositeLines. Not converted into running text (check)
     :param rotated_text: include/ignore tex# ts with non-zero @rotateDegress attribute
     """
     if not Path(FINAL_DRAFT_DIR, f"fulltext-page.2912.svg").exists():
-        raise Exception("must have SVG from ami3")
+        logging.warning("SVG file not available in repo; ignored")
+        return
+        # raise Exception("must have SVG from ami3")
     for page_index in CURRENT_RANGE:
         page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
         html_path = Path(Resources.TEST_CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
@@ -864,7 +865,7 @@ LTPage
             maxpages=maxpages
         )
         html_dir = make_html_dir()
-        with Util.open_write_utf8(Path(html_dir, f"pmc4121.{fmt}"), "w") as f:
+        with Util.open_write_utf8(Path(html_dir, f"pmc4121.{fmt}")) as f:
             f.write(result)
             print(f"wrote {f.name}")
 
@@ -1338,7 +1339,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
             ami_page.write_html(html_path, pretty_print, use_lines)
             assert html_path.exists(), f"{html_path} exists"
 
-    @unittest.skipUnless(SVG, "svg")
+    @unittest.skipUnless(SVG and Path(FINAL_DRAFT_DIR).exists(), "svg")
     def test_create_html_in_selection_from_svg(self):
         """
         Test 10 pages
@@ -1361,7 +1362,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
             counter += 1
             assert html_path.exists(), f"{html_path} exists"
 
-    @unittest.skipUnless(SVG, "svg")
+    @unittest.skipUnless(SVG and Path(FINAL_DRAFT_DIR).exists(), "svg")
     def test_create_chapters_through_svg(self):
         pretty_print = True
         use_lines = True

@@ -1,17 +1,18 @@
 """tests in a single path
 This is until I or someone else can figure out relative imports
 """
+import os
 import unittest
 from glob import glob
-import os
 from pathlib import Path
+
 from lxml import etree
-import sys
+
+from py4ami.ami_config import AmiConfig
+from py4ami.file_lib import BraceGlobber as bg
 # local
 from py4ami.util import Util
-from py4ami.ami_config import AmiConfig
 from py4ami.wikimedia import WikidataSparql as WS
-from py4ami.file_lib import BraceGlobber as bg
 from py4ami.xml_lib import XmlLib
 
 skip_config_test = True
