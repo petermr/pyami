@@ -92,6 +92,21 @@ all => all examples
 ````
 
 ## config file
+**everyone needs**
+
+### a 'pyami' directory. 
+
+This can be naywhere but normally where you put program files and their
+setting. It will be easiest if it's a direct subdirectory of your HOME directory. 
+It MUST include a `pyami.ini` file. By default you can use the one in the `py4ami` distribution
+
+### an environmental variable `PYAMI_HOME` 
+
+This will point to the `pyami.ini` file. 
+See [./CONFIG.md](CONFIG.md)
+
+
+`
 ````
 (base) pm286macbook:pyami pm286$ more ~/pyami/config.ini
 ; NOTE. All files use forward slash even on Windows
