@@ -395,7 +395,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
     processes part or whole of a chapter
     """
 
-    @unittest.skipUnless(PDFTest.VERYLONG or True, "processes Chapters 04, 05, 16, 17")
+    @unittest.skipUnless(PDFTest.VERYLONG, "processes Chapters 04, 05, 16, 17")
     def test_make_ipcc_html(self):
         """not really a test"""
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
@@ -1107,15 +1107,17 @@ LTPage
         infile = PMC1421_PDF
         PDFDebug.debug_pdf(infile, outdir)
 
+    @unittest.skipUnless(PDFTest.VERYLONG, "complete chapter")
     def test_page_properties_ipcc_wg2_3__debug(self):
         """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
         finds WORDS (count) and IMAGE details
         """
-        outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
+        outdir = Path(Resources.TEMP_DIR, "pdf", "wg2_3")
         infile = IPCC_WG2_3_PDF
         pdf_debug = PDFDebug()
         pdf_debug.debug_pdf(infile, outdir)
 
+    @unittest.skipUnless(PDFTest.VERYLONG, "complete chapter")
     def test_page_properties_ipcc_wg3__debug(self):
         """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
         finds WORDS (count) and IMAGE details
