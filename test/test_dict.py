@@ -847,9 +847,16 @@ class TestAmiDictionary(AmiAnyTest):
                                      'P2054', 'P2101', 'P2128', 'P2199']
 
     def test_create_dictionary_from_sparql(self):
-        PLANT = os.path.join(PHYSCHEM_RESOURCES, "plant")
+        """
+        read spqrql file and create dictionary
+        then update from another sparql file
+        """
+        # PLANT = os.path.join(PHYSCHEM_RESOURCES, "plant")
+        PLANT = os.path.join(Resources.TEST_RESOURCES_DIR, "plant")
         sparql_file = os.path.join(PLANT, "plant_part_sparql.xml")
         dictionary_file = os.path.join(PLANT, "eoplant_part.xml")
+        assert Path(sparql_file).exists()
+        assert Path(dictionary_file).exists()
         """
         <result>
             <binding name='item'>
@@ -873,6 +880,8 @@ class TestAmiDictionary(AmiAnyTest):
         # ff = dictionary_file[:-(len(".xml"))] + "_update" + ".xml"
         # print("saving to", ff)
         dictionary.write_to_dir(outdir)
+        outpath = Path(outdir, "eoplant_part.xml")
+        assert outpath.exists(), f"{outpath} should have been written"
 
     @unittest.skipUnless(CEV_EXISTS, "requires local CEVOpen")
     def test_invasive(self):

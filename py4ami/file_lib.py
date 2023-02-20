@@ -238,13 +238,13 @@ class FileLib:
 
     @classmethod
     def force_mkdir(cls, dirx):
-        """ensure dirx exists
+        """ensure dirx and its parents exist
 
         :dirx: directory
         """
         if not os.path.exists(dirx):
             try:
-                os.mkdir(dirx)
+                os.mkdir(dirx, parents=True, exist_ok=True)
             except Exception as e:
                 cls.logger.error(f"cannot make dirx {dirx} , {e}")
 

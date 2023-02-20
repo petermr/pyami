@@ -891,7 +891,7 @@ class AmiDictionary:
         if not directory:
             print(f"None directory")
         directory.mkdir(exist_ok=True)
-        file = Path(directory, f"self.root.attrib[TITLE]).xml")
+        file = Path(directory, f"{self.root.attrib[TITLE]}.xml")
         self.write_to_file(file)
         return file
 

@@ -2,10 +2,13 @@
 """
 
 import logging
+import unittest
 # local
 from py4ami.search_lib import AmiSearch
 from py4ami.ami_dict import AmiDictionary
 
+
+@unittest.skip("no args given and no documentation")
 def test_search():
 
     option = "search"  # edit this
