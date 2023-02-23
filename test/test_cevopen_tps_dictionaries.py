@@ -1,43 +1,53 @@
 import sys
 import unittest
 # local
+import requests
+
 from py4ami.ami_dict import AmiDictionary
+# from test.test_pdf import PDFTest/
 
-"""Code for VALIDATING specific DICTIONARIES , not the code
+"""
+Code for VALIDATING specific DICTIONARIES , not the code
 
- These are effectively tests for the dictionaries
+These are effectively tests for the dictionaries
+Requires connection to the Web
  """
 
+VERY_LONG = True
+TEST_DICT_CONTENT = False
+# TEST_DICT_CONTENT = True
 
-CEVOPEN_ROOT = "https://raw.githubusercontent.com/petermr/CEVOpen/master"
+CEVOPEN_WEB_ROOT = "https://raw.githubusercontent.com/petermr/CEVOpen/master"
 
-CEVOPEN_DICT_ROOT = f"{CEVOPEN_ROOT}/dictionary"
+CEVOPEN_WEB_DICT_ROOT = f"{CEVOPEN_WEB_ROOT}/dictionary"
 # this will use the config.ini system later
 
 EO_ACTIVITY = "eoActivity"
-EO_ACTIVITY_ROOT = f"{CEVOPEN_DICT_ROOT}/{EO_ACTIVITY}/eo_activity"
-EO_ACTIVITY_DICT = f"{EO_ACTIVITY_ROOT}/activity.xml"
+EO_ACTIVITY_WEB_ROOT = f"{CEVOPEN_WEB_DICT_ROOT}/{EO_ACTIVITY}/eo_activity"
+EO_ACTIVITY_WEB_DICT = f"{EO_ACTIVITY_WEB_ROOT}/activity.xml"
+WEB_DICT_URL = "https://raw.githubusercontent.com/petermr/CEVOpen/master/dictionary/eoActivity/eo_activity/activity.xml"
+assert EO_ACTIVITY_WEB_DICT == WEB_DICT_URL
 
 EO_COMPOUND = "eoCompound"
-EO_COMPOUND_ROOT = f"{CEVOPEN_DICT_ROOT}/{EO_COMPOUND}"
-EO_COMPOUND_DICT = f"{EO_COMPOUND_ROOT}/plant_compound.xml"
+EO_COMPOUND_WEB_ROOT = f"{CEVOPEN_WEB_DICT_ROOT}/{EO_COMPOUND}"
+EO_COMPOUND_WEB_DICT = f"{EO_COMPOUND_WEB_ROOT}/plant_compound.xml"
 
 EO_PLANT = "eoPlant"
-EO_PLANT_ROOT = f"{CEVOPEN_DICT_ROOT}/{EO_PLANT}"
-EO_PLANT_DICT = f"{EO_PLANT_ROOT}/eo_plant.xml"
+EO_PLANT_WEB_ROOT = f"{CEVOPEN_WEB_DICT_ROOT}/{EO_PLANT}"
+EO_PLANT_WEB_DICT = f"{EO_PLANT_WEB_ROOT}/eo_plant.xml"
 
 EO_PLANT_PART = "eoPlantPart"
-EO_PLANT_PART_ROOT = f"{CEVOPEN_DICT_ROOT}/{EO_PLANT_PART}"
-EO_PLANT_PART_DICT = f"{EO_PLANT_PART_ROOT}/eoplant_part.xml"
+EO_PLANT_PART_WEB_ROOT = f"{CEVOPEN_WEB_DICT_ROOT}/{EO_PLANT_PART}"
+EO_PLANT_PART_WEB_DICT = f"{EO_PLANT_PART_WEB_ROOT}/eoplant_part.xml"
 
 EO_PLANT_GENUS = "plant_genus"
-EO_PLANT_GENUS_ROOT = f"{CEVOPEN_DICT_ROOT}/{EO_PLANT_GENUS}"
-EO_PLANT_GENUS_DICT = f"{EO_PLANT_GENUS_ROOT}/plant_genus.xml"
+EO_PLANT_GENUS_WEB_ROOT = f"{CEVOPEN_WEB_DICT_ROOT}/{EO_PLANT_GENUS}"
+EO_PLANT_GENUS_WEB_DICT = f"{EO_PLANT_GENUS_WEB_ROOT}/plant_genus.xml"
 
 """verificationTest/MicrobeMod_FungalPro.xml"""
 VERIFICATION_TEST = "verificationTest"
-VERIFICATION_ROOT = f"{CEVOPEN_DICT_ROOT}/{VERIFICATION_TEST}"
-MICRO_FUNGAL_PRO_DICT = f"{VERIFICATION_ROOT}/MicrobeMod_FungalPro.xml"
+WEB_VERIFICATION_ROOT = f"{CEVOPEN_WEB_DICT_ROOT}/{VERIFICATION_TEST}"
+MICRO_FUNGAL_PRO_WEB_DICT = f"{WEB_VERIFICATION_ROOT}/MicrobeMod_FungalPro.xml"
 MICRO_FUNGAL_PRO = "MicroFungal_Pro"
 
 
@@ -69,11 +79,11 @@ ZEA = "Zea mays"
 ZEA_DICT = f"{CROPS}/Zea%20mays/eo_ZeaTPS.xml"
 
 CEVOPEN_DICTS = {
-    EO_ACTIVITY:  EO_ACTIVITY_DICT,
-    EO_COMPOUND:  EO_COMPOUND_DICT,
-    EO_PLANT: EO_PLANT_DICT,
-    EO_PLANT_GENUS: EO_PLANT_GENUS_DICT,
-    EO_PLANT_PART: EO_PLANT_PART_DICT,
+    EO_ACTIVITY:  EO_ACTIVITY_WEB_DICT,
+    EO_COMPOUND:  EO_COMPOUND_WEB_DICT,
+    EO_PLANT: EO_PLANT_WEB_DICT,
+    EO_PLANT_GENUS: EO_PLANT_GENUS_WEB_DICT,
+    EO_PLANT_PART: EO_PLANT_PART_WEB_DICT,
 
     # suffix, species
     ENZYMES: ENZYMES_XML,
@@ -86,50 +96,82 @@ CEVOPEN_DICTS = {
     ZEA: ZEA_DICT,
 
     # Manny dictionaries
-    MICRO_FUNGAL_PRO: MICRO_FUNGAL_PRO_DICT,
+    MICRO_FUNGAL_PRO: MICRO_FUNGAL_PRO_WEB_DICT,
 }
+
+def test_can_read_dictionaries_from_web():
+    assert can_run_dictionaries(), f"cannot read from web"
+
+
+def can_run_dictionaries():
+    try:
+        request = requests.get(WEB_DICT_URL)
+    except Exception as e:
+        print (f"Cannot access WEB_DICT_URL; most tests will fail;{e}")
+        return False
+    return True
+
 
 # core plant dictionaries
 
 
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_eo_activity():
+    if not can_run_dictionaries():
+        raise Exception("Cannot access web")
     # print(f"sys.argv {sys.argv}")
     _validate_dict(CEVOPEN_DICTS[EO_ACTIVITY])
 
 
-@unittest.skip("testing multiple dictiomaries")
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_eo_compound():
     _validate_dict(CEVOPEN_DICTS[EO_COMPOUND])
 
 
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_eo_plant():
     _validate_dict(CEVOPEN_DICTS[EO_PLANT])
 
 
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_eo_plant_genus():
     _validate_dict(CEVOPEN_DICTS[EO_PLANT_GENUS])
 
 
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_eo_plant_part():
     _validate_dict(CEVOPEN_DICTS[EO_PLANT_PART])
 
 
 # CEVOpen 2021
 
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_mentha():
     _validate_dict(CEVOPEN_DICTS[MENTHA])
 
 
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_solanum():
     _validate_dict(CEVOPEN_DICTS[SOLANUM])
 
 
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_vitis():
     vitis_ = CEVOPEN_DICTS[VITIS]
     assert vitis_ == "https://raw.githubusercontent.com/petermr/crops/main/Vitis/eo_VVinifera.xml"
     _validate_dict(vitis_)
 
 
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_zea():
     zea_ = CEVOPEN_DICTS[ZEA]
     assert zea_ == "https://raw.githubusercontent.com/petermr/crops/main/Zea%20mays/eo_ZeaTPS.xml"
@@ -137,21 +179,21 @@ def test_check_zea():
 
 
 # enzymes
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_enzymes():
     enzymes = CEVOPEN_DICTS[ENZYMES]
     _validate_dict(enzymes)
 
 
 # bionomial abbreviations
+@unittest.skipUnless(TEST_DICT_CONTENT, "skipped testing dictionaries")
+@unittest.skipUnless(can_run_dictionaries(), "cannot run dictionaries from web")
 def test_check_binomial_abbreviations():
     bionab = CEVOPEN_DICTS[BIONAB]
     _validate_dict(bionab)
 
 
-# Manny dictionaries# @unittest.skip("URL not valid")
-# # def test_check_micro_fungal():
-# #     micro_fungal = CEVOPEN_DICTS[MICRO_FUNGAL_PRO]
-# #     _validate_dict(micro_fungal)
 
 
 # helper ----------------

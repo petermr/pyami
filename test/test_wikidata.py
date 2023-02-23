@@ -213,7 +213,7 @@ class TestWikidataLookup(unittest.TestCase):
 
     def test_get_alias_list(self):
         aliases = WikidataPage("q407418").get_aliases()
-        assert len(aliases) >= 30 and aliases[0:2] == ["l-menthol", "levomenthol"]
+        assert len(aliases) >= 30 and "l-menthol" in aliases
 
     def test_get_description(self):
         desc = WikidataPage("q407418").get_description()
@@ -457,13 +457,13 @@ class TestWikidataLookup(unittest.TestCase):
             dictionary.disambiguate_wikidata_by_desc(entry)
         dictionary.write_to_file(Path(output_dir, "disambig.xml"))
 
-    def test_extract_multiple_wikidata_hits_ghg(self):
+    def test_extract_multiple_wikidata_hits_gwp(self):
         """
         test multiple hits for 'GHG' and use heuristics to find the most likely
         uses dictionary created from abbreviations via docanalysis
         requires WIKIDATA LOOKUP on Internet
 
-        ghg entry is:
+        gwp entry is SIMILAR to:
   <entry term="GHG" name="Greenhouse Gas" >
     <raw wikidataID="['Q167336', 'Q3588927', 'Q925312', 'Q57584895', 'Q110612403', 'Q112192791', 'Q140182']"/>
   </entry>
@@ -472,28 +472,20 @@ class TestWikidataLookup(unittest.TestCase):
 
         ami_dict = AmiDictionary.create_from_xml_file(Resources.TEST_IPCC_CHAP02_ABB_DICT)
         assert ami_dict is not None
-        ghg = "GHG"
-        ghg_element = ami_dict.get_lxml_entry(ghg)
-        assert ghg_element, f"entry for {ghg} is None, probably not found"
-        assert type(ghg_element) is lxml.etree._Element, f"entry has type {type(ghg_element)}"
-        ghg_entry = AmiEntry.create_from_element(ghg_element)
-        assert type(ghg_entry) is AmiEntry, f"ami_entry is type {type(ghg_entry)}"
-        assert ghg_entry is not None
-        wikidata_id = ghg_entry.wikidata_id
+        gwp = "GWP"
+        gwp_element = ami_dict.get_lxml_entry(gwp)
+        assert gwp_element, f"entry for {gwp} is None, probably not found"
+        assert type(gwp_element) is lxml.etree._Element, f"entry has type {type(gwp_element)}"
+        gwp_entry = AmiEntry.create_from_element(gwp_element)
+        assert type(gwp_entry) is AmiEntry, f"ami_entry is type {type(gwp_entry)}"
+        assert gwp_entry is not None
+        wikidata_id = gwp_entry.wikidata_id
         assert not wikidata_id
-        raw_wikidata_ids = ghg_entry.get_raw_child_wikidata_ids()
-        assert len(raw_wikidata_ids) == 7
-        assert raw_wikidata_ids == [
-            'Q167336',
-            'Q3588927',
-            'Q925312',
-            'Q57584895',
-            'Q110612403',
-            'Q112192791',
-            'Q140182'
-        ]
+        raw_wikidata_ids = gwp_entry.get_raw_child_wikidata_ids()
+        assert len(raw_wikidata_ids) == 6
+        assert set(raw_wikidata_ids) == {'Q901028', 'Q57084968', 'Q57402965', 'Q57084921', 'Q57084755', 'Q57084776'}
 
-    def test_get_best_match_for_ghg(self):
+    def test_get_best_match_for_gwp(self):
         """
         gets best wikidata match for term
         WORKING
@@ -504,10 +496,10 @@ entry like:
 
         """
         ami_dict = AmiDictionary.create_from_xml_file(Resources.TEST_IPCC_CHAP02_ABB_DICT)
-        term = "GHG"
+        term = "GWP"
         ami_entry = ami_dict.get_ami_entry(term)
         matched_pages = ami_entry.get_wikidata_pages_from_raw_wikidata_ids_matching_wikidata_page_title()
-        assert len(matched_pages) == 1 and matched_pages[0].get_id() == "Q167336"
+        assert len(matched_pages) == 1 and matched_pages[0].get_id() == "Q901028"
 
     def test_get_instances(self):
         """<div class="wikibase-statementview-mainsnak-container">

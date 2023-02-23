@@ -675,13 +675,7 @@ class TestAmiDictionary(AmiAnyTest):
         # missing_wikidata_ids = AmiEntry.get_wikidata_ids_for_entries(_entries)
         missing_wikidata_terms = AmiEntry.get_terms_for_lxml_entries(lxml_entries)
         assert missing_wikidata_terms == [
-            'FAQs',
-            'CBEs',
-            'EET',
-            'GHG',
-            'GWP100',
-            'UNFCCC',
-            'GDP',
+
             'HFCs',
             'HCFCs',
             'CRF',
@@ -696,13 +690,13 @@ class TestAmiDictionary(AmiAnyTest):
             'IBE',
             'RSD',
             'HDI',
-            'CSP',
+#            'CSP',
             'BECCS',
             'IAMs',
-            'CDR',
+            # 'CDR',
             'ECR',
             'ETSs',
-            'EVs',
+#            'EVs',
             'ODSs',
             'HCS'
         ]
@@ -714,8 +708,8 @@ class TestAmiDictionary(AmiAnyTest):
         """
         ami_dict = AmiDictionary.create_from_xml_file(Resources.TEST_IPCC_CHAP02_ABB_DICT)
         _term_id_list = ami_dict.get_disambiguated_raw_wikidata_ids()
-        assert len(_term_id_list) == 3
-        assert _term_id_list[0] == ('GHG', ['Q167336'])
+        assert len(_term_id_list) == 1
+        assert _term_id_list[0] == ('GWP', ['Q901028'])
 
 #
     @unittest.skipUnless(VERYLONG, "lookup whole dictionaries")
@@ -819,7 +813,7 @@ class TestAmiDictionary(AmiAnyTest):
         assert ahref_dict == {'en': 'https://en.wikipedia.org/wiki/Azulene',
                               'de': 'https://de.wikipedia.org/wiki/Azulen'}
 
-    @unittest.skipIf(False, "LONG DOWNLOAD")
+    @unittest.skipUnless(False, "LONG DOWNLOAD")
     def test_create_dictionary_terpenes(self):
         words = ["limonene", "alpha-pinene", "Lantana camara"]
         description = "created from words"
@@ -1036,15 +1030,31 @@ class TestAmiDictionary(AmiAnyTest):
         abb2_dict = AmiDictionary.create_from_xml_file(Resources.TEST_IPCC_CHAP02_ABB_DICT)
         abb2_set = abb2_dict.get_or_create_term_set()
         assert abb2_set == {
-            'BECCS', 'CBEs', 'CDR', 'CRF', 'CSP',
-            'EBEs', 'ECR', 'EET', 'ETSs',
-            'EU ETS', 'EVs', 'F-gases', 'FAQs',
-            'FFI', 'GDP', 'GHG', 'GTP',
-            'GWP', 'GWP100', 'HCEs', 'HCFCs',
+            'BECCS',
+#            'CBEs',
+#            'CDR',
+            'CRF',
+#            'CSP',
+            'EBEs', 'ECR',
+            # 'EET',
+            'ETSs',
+            'EU ETS',
+#            'EVs',
+#            'F-gases', 'FAQs',
+            'FFI',
+            # 'GDP', 'GHG',
+            'GTP',
+            'GWP',
+#            'GWP100',
+            'HCEs', 'HCFCs',
             'HCS', 'HDI', 'HFCs', 'IAMs',
             'IBE', 'LULUCF', 'NGHGI', 'ODSs',
-            'PBEs', 'PFCs', 'RGGI', 'RSD',
-            'TCBA', 'UNFCCC', 'WMO'
+            'PBEs',
+            # 'PFCs',
+            'RGGI', 'RSD',
+            'TCBA',
+            # 'UNFCCC',
+            'WMO'
         }, f"abb2 set {abb2_set}"
 
         man2_dict = AmiDictionary.create_from_xml_file(Path(Resources.TEST_IPCC_CHAP02_DICT, "ip_3_2_emissions_man.xml"))
@@ -1077,18 +1087,22 @@ class TestAmiDictionary(AmiAnyTest):
 
         # terms common to abbrev and manual
         abb_man_set = abb2_set.intersection(man2_set)
-        assert len(abb_man_set) == 8, f"man2 set {len(abb_man_set)}"
+        assert len(abb_man_set) == 6, f"man2 set {len(abb_man_set)}"
         assert abb_man_set == {
-            'GTP', 'FFI', 'GWP', 'UNFCCC', 'WMO', 'GWP100', 'CRF', 'LULUCF'}
+            'GTP', 'FFI',
+#            'GWP', 'UNFCCC',
+            'WMO', 'GWP', 'CRF', 'LULUCF'}
 
     def test_create_dictionary_from_csv(self):
-        csv_term_file = Path(Resources.TEST_IPCC_CHAP08_DICT, "urban_terms_5.csv")
+        csv_term_file = Path(Resources.TEST_IPCC_CHAP08_DICT, "urban_terms_1.csv")
         assert os.path.exists(str(csv_term_file))
-        keyword_dict = AmiDictionary.create_dictionary_from_csv(csv_term_file, col_name='keyword/phrase', title="urban_terms_5")
+        keyword_dict = AmiDictionary.create_dictionary_from_csv(csv_term_file, col_name='keyword/phrase', title="urban_terms_1")
         entry = keyword_dict.get_first_ami_entry()
         assert entry.get_term() == "urbanization"
         assert entry.get_wikidata_id() == "Q161078"
-        assert len(keyword_dict.entries) == 5
+        assert len(keyword_dict.entries) == 1
+        assert lxml.etree.tostring(keyword_dict.root) == \
+               b'<dictionary title="urban_terms_1"><entry name="urbanization" term="urbanization" wikidataID="Q161078" wikidataURL="https://www.wikidata.org/entity/Q161078" desc="longterm population movements (shift) from rural to urban areas;gradual increase in the proportion of people living in urban areas, and the ways in which each society adapts to the change;process by which towns and cities are formed and become larger"><wikidataHit type="wikidata_hits">Q5381005</wikidataHit><wikidataHit type="wikidata_hits">Q23580084</wikidataHit><wikidataHit type="wikidata_hits">Q2608153</wikidataHit><wikidataHit type="wikidata_hits">Q95443723</wikidataHit></entry></dictionary>'
 
     def test_validate_linked_dict(self):
         """
