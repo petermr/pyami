@@ -1033,12 +1033,12 @@ class TestHtmlTree:
         hierarchy.sort_sections()
 
     def test_decimal_chapters_production(self):
-        """NOT WORKING"""
-        TEST_IPCC_WG3 = Path(Resources.HOME, "projects", "semanticClimate", "ipcc", "ar6", "wg3")
-        if not TEST_IPCC_WG3.exists():
-            print(f"semanticClimate files not available locally")
-            return
-        html_elem = lxml.etree.parse(str(Path(TEST_IPCC_WG3, "Chapter03", "fulltext.html")))
+        # """NOT WORKING FULLY"""
+        # TEST_IPCC_WG3 = Path(Resources.TEST_IPCC_DIR)
+        # if not TEST_IPCC_WG3.exists():
+        #     print(f"semanticClimate files not available locally")
+        #     return
+        html_elem = lxml.etree.parse(str(Path(Resources.TEST_IPCC_DIR, "Chapter03", "fulltext.html")))
         xpath = (".//div/span["
                  "contains(@class, 'dec1') "
             "or contains(@class, 'dec2') "
@@ -1138,7 +1138,7 @@ class Hierachy:
             return elems[0]
 
     def sort_sections(self):
-
+        print("sort sections NYI")
         pass
 
     @classmethod

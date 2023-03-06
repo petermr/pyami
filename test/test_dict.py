@@ -252,7 +252,10 @@ class TestAmiDictionary(AmiAnyTest):
         root = etree.parse(str(self.setup()[DICTFILE1]))
         assert root is not None
 
-    def test_can_read_url(self):
+    def test_can_read_dictionary_from_url_as_xml(self):
+        """
+        Checks that a dictionary can be read from a URL into XML
+        """
 
         url = PLANT_PART_RAW_DICT_URL
         tree = XmlLib.parse_url_to_tree(url)
@@ -383,6 +386,10 @@ class TestAmiDictionary(AmiAnyTest):
         assert amidict.get_entry_count() == 2
 
     def test_add_list_of_entries_from_list_of_string(self):
+        """
+        from a list of strings creates a list of entries and adds to existing dictionary
+        (the entries only have term/name fields)
+        """
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
         term_count = len(terms)
         amidict = AmiDictionary.create_minimal_dictionary()
@@ -390,6 +397,9 @@ class TestAmiDictionary(AmiAnyTest):
         assert amidict.get_entry_count() == term_count
 
     def test_find_entry_after_add_list_of_entries_from_list_of_string(self):
+        """
+        creates entries from strings and tests that they can be accessed by term
+        """
         terms = ["foo", "bar", "plugh", "xyzzy", "baz"]
         amidict = AmiDictionary.create_minimal_dictionary()
         amidict.add_entries_from_words(terms)

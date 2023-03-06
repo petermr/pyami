@@ -528,7 +528,8 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
     @unittest.skipUnless(PDFTest.HTML, "create running text")
     @unittest.skipUnless(PDFTest.USER, "develop for commandline")
     def test_convert_to_raw_html_chap6_maxpage_example(self):
-        """structures the flat HTML from pdfplumber into a running stream, but no coordinates
+        """
+        structures the flat HTML from pdfplumber into a running stream, but no coordinates
         the only test that uses tidy_flow()
         Can still be used for word frequency, etc.
 
@@ -649,8 +650,6 @@ Uses:
         outdir = Path(Resources.TEMP_DIR, "ipcc_wg2_chap03")
         args = f"PDF --infile {infile} --outdir {outdir} --pages {pages}"
         PyAMI().run_command(args)
-
-
 
 
 class PDFCharacterTest(test.test_all.AmiAnyTest):
