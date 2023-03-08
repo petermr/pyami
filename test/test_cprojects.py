@@ -10,10 +10,11 @@ from py4ami.pyamix import PyAMI
 from py4ami.file_lib import FileLib
 from py4ami.util import Util
 from test.resources import Resources
+from test.test_all import AmiAnyTest
 
 WG3_URL = "https://www.ipcc.ch/report/ar6/wg3/"
 
-DOWNLOAD_IPCC_DIR = Path(Resources.TEMP_DIR, "wg3a") # make projects
+DOWNLOAD_IPCC_DIR = Path(AmiAnyTest.TEMP_DIR, "wg3a") # make projects
 
 
 class TestCProjTree(unittest.TestCase):
@@ -181,9 +182,9 @@ class TestCProjTree(unittest.TestCase):
         """makes a CProject from pdf files
         shows the adjustment of filenames to be unique"""
         assert Resources.TEST_PDFS_DIR.exists()
-        dst = Resources.TEMP_PDFS_DIR
+        dst = AmiAnyTest.TEMP_PDFS_DIR
         src = Resources.TEST_PDFS_DIR
-        cproject = CProject(Resources.TEMP_PDFS_DIR)
+        cproject = CProject(AmiAnyTest.TEMP_PDFS_DIR)
         # names are short enough and uniue
         self.clean_directories(src, dst)
         cproject.make_cproject_from_pdfs()
@@ -199,10 +200,10 @@ class TestCProjTree(unittest.TestCase):
         """makes a CProject from pdf files
         shows the adjustment of filenames to be unique"""
         assert Resources.TEST_PDFS_DIR.exists()
-        dst = Resources.TEMP_PDFS_DIR
+        dst = AmiAnyTest.TEMP_PDFS_DIR
         src = Resources.TEST_PDFS_DIR
         self.clean_directories(src, dst)
-        cproject = CProject(Resources.TEMP_PDFS_DIR)
+        cproject = CProject(AmiAnyTest.TEMP_PDFS_DIR)
         # names are short enough and uniue
         self.clean_directories(src, dst)
         filesx = [
@@ -218,9 +219,9 @@ class TestCProjTree(unittest.TestCase):
         """makes a CProject from pdf files commandline
         shows the adjustment of filenames to be unique"""
         assert Resources.TEST_PDFS_DIR.exists()
-        dst = Resources.TEMP_PDFS_DIR
+        dst = AmiAnyTest.TEMP_PDFS_DIR
         src = Resources.TEST_PDFS_DIR
-        cproject = CProject(dirx=Resources.TEMP_PDFS_DIR)
+        cproject = CProject(dirx=AmiAnyTest.TEMP_PDFS_DIR)
         self.clean_directories(None, dst)
 
         dirstr = str(cproject.dirx)
@@ -230,11 +231,11 @@ class TestCProjTree(unittest.TestCase):
 
         PyAMI().run_command(
             ['PROJECT', '--project', dirstr, '--make', '--file', '1758-2946-3-38.pdf', '1758-2946-4-15.pdf'])
-        ctree_3_38_dir = Path(Resources.TEMP_PDFS_DIR, "1758_2946_3_38")
+        ctree_3_38_dir = Path(AmiAnyTest.TEMP_PDFS_DIR, "1758_2946_3_38")
         assert ctree_3_38_dir.exists(), f"dir should exist {ctree_3_38_dir}"
         file_3_38 = Path(ctree_3_38_dir, 'fulltext.pdf')
         assert file_3_38.exists(), f"file should exist {file_3_38}"
-        print(f"PDFS dir {Resources.TEMP_PDFS_DIR}")
+        print(f"PDFS dir {AmiAnyTest.TEMP_PDFS_DIR}")
 
     @unittest.skipUnless(DOWNLOAD_IPCC_DIR, "VERY LONG, DOWNLOADS")
     def test_download_pdfs_from_hrefs_in_url(self):
@@ -260,10 +261,10 @@ class TestCProjTree(unittest.TestCase):
     def test_cproject_pdf2html(self):
         sect = "wg3"
         sect = "wg2"
-        wg_path = Path(Resources.TEMP_DIR, sect)
+        wg_path = Path(AmiAnyTest.TEMP_DIR, sect)
         if not wg_path.exists():
             project = CProject.make_cproject_and_fulltexts_from_hrefs_in_url(weburl=f"https://www.ipcc.ch/report/ar6/{sect}/",
-                                                 target_dir=Path(Resources.TEMP_DIR, f"{sect}"), skip_exists=True)
+                                                 target_dir=Path(AmiAnyTest.TEMP_DIR, f"{sect}"), skip_exists=True)
         wg_project = CProject(wg_path)
         # wg3_project.pdf2htmlx(maxpage=999, maxtree=2)
         wg_project.pdf2htmlx()

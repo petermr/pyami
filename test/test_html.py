@@ -1,4 +1,5 @@
 """Create, transform, markup up HTML, etc."""
+import logging
 import os
 import re
 import unittest
@@ -12,7 +13,7 @@ from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 from py4ami.ami_html import HTMLSearcher, HtmlTree
 # local
-from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, CSSConverter, HtmlTidy, HtmlStyle, HtmlClass
+from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass
 # local
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
@@ -35,6 +36,11 @@ HTML_SUBSECTION_REF = """<span>to national level (4.2.2.3) and subnational</span
 # chunk of HTML from pdf2html on IPCC chapter
 MINI_IPCC_PATH = Path(Resources.TEST_IPCC_CHAP06, "mini.html")
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(os.path.basename(__file__))
+logger.setLevel(logging.INFO)
+logger.warning("*****Test logger {logger}****")
+
 """
 see ami_html
 
@@ -45,11 +51,13 @@ s1  to mean class name (classname)
 
 
 class TestHtml(AmiAnyTest):
+
     """
     parsing , structuring linking in/to.form HTML
     This will evolve into an ami_html.py module
     """
     # all are skipUnless
+
 
     ADMIN = True and AmiAnyTest.ADMIN
     BUG = True and AmiAnyTest.BUG
@@ -93,7 +101,7 @@ class TestHtml(AmiAnyTest):
         """
         infile = Path(Resources.TEST_IPCC_CHAP06, "fulltext.html")
         assert infile.exists()
-        outpath = Path(Resources.TEMP_DIR, "html", 'fulltext.annot.html')
+        outpath = Path(AmiAnyTest.TEMP_DIR, "html", 'fulltext.annot.html')
         if outpath.exists():
             os.remove(outpath)
         dictfile = Path(Resources.TEST_IPCC_CHAP06, 'abbrev_as.xml')
@@ -231,7 +239,7 @@ class TestHtml(AmiAnyTest):
         for div in ref_divs:
             ref = Reference.create_ref_from_div(div)
             ref.markup_dois_in_spans()
-        path = Path(Resources.TEMP_DIR, "ipcc_html")
+        path = Path(AmiAnyTest.TEMP_DIR, "ipcc_html")
         path.mkdir(exist_ok=True)
         chap4_dir = Path(path, "chapter04")
         chap4_dir.mkdir(exist_ok=True)
@@ -250,7 +258,7 @@ class TestHtml(AmiAnyTest):
 
         Reference.markup_dois_in_div_spans(ref_divs)
 
-        path = Path(Resources.TEMP_DIR)
+        path = Path(AmiAnyTest.TEMP_DIR)
         path.mkdir(exist_ok=True)
         chap4_dir = Path(path, "ipcc_html", "chapter04")
         chap4_dir.mkdir(exist_ok=True)
@@ -392,7 +400,7 @@ class TestHtml(AmiAnyTest):
         assert lxml.etree.tostring(div) == bb
         a_elem = div.xpath("./a")[0]
         a_elem.attrib["href"] = "https://wikidata.org/wiki/Q167336"
-        test_dir = Path(Resources.TEMP_DIR, "html")
+        test_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         test_dir.mkdir(exist_ok=True)
         with open(str(Path(test_dir, "add_href.html")), "wb") as f:
             f.write(lxml.etree.tostring(div))
@@ -408,9 +416,9 @@ class TestHtml(AmiAnyTest):
         ami_dict = AmiDictionary.create_from_xml_file(dictionary_file)
         ami_dict.ignorecase = False
         inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow20.html")
-        output_dir = Path(Resources.TEMP_DIR, "html")
+        output_dir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "chap6")
         output_dir.mkdir(exist_ok=True)
-        output_path = Path(output_dir, "chap6_index.html")
+        output_path = Path(output_dir, "index.html")
         ami_dict.markup_html_from_dictionary(inpath, output_path, "pink")
 
     def test_markup_chapter_with_dictionary(self):
@@ -423,16 +431,13 @@ class TestHtml(AmiAnyTest):
 
         dict_path = Path(Resources.TEST_IPCC_CHAP06, "abbrev_as.xml")
         dict_path = Path(Resources.TEST_IPCC_CHAP06, "ipcc_ch6_rake.xml")
-        # output_file = "chap6_marked.html"
-        output_file = "chap6_raked.html"
         ami_dict = AmiDictionary.create_from_xml_file(dict_path, ignorecase=False)
         input_path = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow.html")
-        # input_path = Path(Resources.IPCC_CHAP06, "chap6.flow.html")
         print(f"reading pdf_html {input_path}")
-        html_output_dir = Path(Resources.TEMP_DIR, "html")
+        html_output_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         html_output_dir.mkdir(exist_ok=True)
         print(f"output html {html_output_dir}")
-        chap6_marked_path = Path(html_output_dir, output_file)
+        chap6_marked_path = Path(html_output_dir, "ipcc", "chap6", "raked.html")
 
         ami_dict.markup_html_from_dictionary(input_path, chap6_marked_path, "pink")
         assert chap6_marked_path.exists(), f"marked-up html in {chap6_marked_path}"
@@ -447,7 +452,7 @@ class TestHtml(AmiAnyTest):
         USEFUL
         """
         target_path = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow20.html")
-        output_dir = Path(Resources.TEMP_DIR, "html")
+        output_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         output_dir.mkdir(exist_ok=True)
         output_path = Path(output_dir, "chap6_styled.html")
 
@@ -533,7 +538,7 @@ class TestHtml(AmiAnyTest):
         https://stackoverflow.com/questions/62472162/lxml-xpath-expression-for-selecting-all-text-under-a-given-child-node-including
         """
         in_file = Path(Resources.TEST_IPCC_CHAP02, "exec_summary.html")
-        outdir = Path(Resources.TEMP_DIR, "obsidian")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "obsidian")
         os.makedirs(outdir, exist_ok=True)
         path = Path(in_file)
         assert path.exists(), f"{path} should exist"
@@ -767,7 +772,7 @@ class TestHtmlTidy:
         html_s = lxml.etree.tostring(html_new).decode('UTF-8')
         assert """<html><head><style>p {color: green}</style></head><body><p>should be green</p><ul><li style="font-weight: bold; font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li><li style="font-family: monospace; font-size: 13px; color: blue; left: 10px;">foo</li></ul></body></html>""" == html_s, f"found {html_s}"
         # for display
-        html_dir = Path(Resources.TEMP_DIR, "html")
+        html_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         html_dir.mkdir(exist_ok=True)
         assert html_dir.exists(), f"{html_dir} must exist"
         with open(Path(html_dir, "html_only.html"), "w") as f:
@@ -781,7 +786,7 @@ class TestHtmlTidy:
         """
         html_elem = lxml.etree.parse(str(MINI_IPCC_PATH))
         html_tidy_elem = HtmlTidy.ensure_html_head_body(html_elem)
-        path = Path(Resources.TEMP_DIR, "html", "tidy_mini.html")
+        path = Path(AmiAnyTest.TEMP_DIR, "html", "tidy_mini.html")
         XmlLib.write_xml(html_tidy_elem, path)
 
 
@@ -856,17 +861,20 @@ class TestCSSStyle:
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)  # redundant as tidy already
         HtmlStyle.extract_all_text_styles_to_head(html_elem)
         print(f"ss {lxml.etree.tostring(html_elem.xpath('/html/head')[0])} \n ... {lxml.etree.tostring(html_elem)}")
-        html_dir = Path(Resources.TEMP_DIR, "html")
+        html_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         html_dir.mkdir(exist_ok=True)
-        with open(str(Path(html_dir, "styles.html")), "w") as f:
+        outpath = Path(html_dir, "styles.html")
+        with open(str(outpath), "w") as f:
             f.write(lxml.etree.tostring(html_elem).decode('UTF-8'))
+            logger.info(f"wrote style file to {outpath}")
+            print(f"(logger) wrote style file to {outpath}")
 
-    def test_extract_styles_from_document_example(self):
+    def test_extract_styles_from_mini_document_example(self):
         """
         start of IPCC WG3 Chapter06
         identifies all styles and extacts into <head><style>s and replaces @style with @class
         """
-        html_dir = Path(Resources.TEMP_DIR, "html")
+        html_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         html_dir.mkdir(exist_ok=True)
         html_elem = lxml.etree.parse(str(MINI_IPCC_PATH))
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)
@@ -879,19 +887,21 @@ class TestCSSStyle:
 
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
 
-        with open(str(Path(html_dir, "ipcc_styles2.html")), "wb") as f:
+        outpath = str(Path(html_dir, "ipcc_styles2.html"))
+        with open(outpath, "wb") as f:
             f.write(lxml.etree.tostring(html_elem))
+            print(f"(logger) output to {outpath}")
 
         assert len(html_elem.xpath("/html/head/style")) == 7, f"7 head styles"
         assert len(html_elem.xpath("/html/body//*[@class]")) == 51,\
             f"new document should have 51 elements with @class attributes"
 
-    def test_extract_normalize_styles_old_chapter_example(self):
+    def test_extract_normalize_styles_old_chapter_4_example(self):
         """
         Old chapter still with header/footer.
         example mainly to find styles
         """
-        output_html_dir = Path(Resources.TEMP_DIR, "html")
+        output_html_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         output_html_dir.mkdir(exist_ok=True)
         html_elem = lxml.etree.parse(str(Path(Resources.TEST_IPCC_CHAP04, "fulltext_old.html")))
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)
@@ -904,12 +914,36 @@ class TestCSSStyle:
 
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
 
-        with open(str(Path(output_html_dir, "ipcc_fulltext_styles2.html")), "wb") as f:
+        with open(str(Path(output_html_dir, "ipcc_chap4_fulltext_styles2.html")), "wb") as f:
             f.write(lxml.etree.tostring(html_elem))
 
         assert len(html_elem.xpath("/html/head/style")) == 23, f"23 head styles"
         assert len(html_elem.xpath("/html/body//*[@class]")) == 2304,\
             f"new document should have 2304 elements with @class attributes"
+        assert len(html_elem.xpath("/html/body//*[contains(@class,'dec')]")) == 0,\
+            f"new document should have 0 elements with @class attributes containing 'dec1', 'dec2' etc."
+
+
+    def test_extract_normalize_styles_old_chapter_17_example(self):
+        """
+        Old chapter still with header/footer.
+        example mainly to find styles
+        """
+        input_path = Path(Resources.TEST_IPCC_CHAP17, "fulltext.html")
+        html_elem = lxml.etree.parse(str(input_path))
+        html_elem = HtmlTidy.ensure_html_head_body(html_elem)
+        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
+
+        temp_dir = Path(Path(AmiAnyTest.TEMP_DIR, "html"), "ipcc", "chap17")
+        temp_dir.mkdir(exist_ok=True, parents=True)
+        with open(str(Path(temp_dir, "fulltext_styles.html")), "wb") as f:
+            f.write(lxml.etree.tostring(html_elem))
+
+        assert len(html_elem.xpath("/html/head/style")) == 13, f"13 head styles"
+        assert len(html_elem.xpath("/html/body//*[@class]")) == 1330,\
+            f"new document should have 2304 elements with @class attributes"
+        assert len(html_elem.xpath("/html/body//*[contains(@class,'dec')]")) == 0,\
+            f"new document should have 0 elements with @class attributes containing 'dec1', 'dec2' etc."
 
 
     def test_css_parse(self):
@@ -1028,7 +1062,7 @@ class TestHtmlTree:
             "or contains(@class, 'dec4')]")
         decimal_sections = HtmlTree.get_decimal_sections(html_elem, xpath=xpath)
 
-        hierarchy = Hierachy()
+        hierarchy = Hierarchy()
         hierarchy.add_sections(decimal_sections, poplist=["Chapter 4:"])
         hierarchy.sort_sections()
 
@@ -1046,12 +1080,12 @@ class TestHtmlTree:
             "or contains(@class, 'dec4')]")
         decimal_sections = HtmlTree.get_decimal_sections(html_elem, xpath=xpath)
 
-        hierarchy = Hierachy()
+        hierarchy = Hierarchy()
         hierarchy.add_sections(decimal_sections, poplist=["Chapter 3:"])
         hierarchy.sort_sections()
 
 
-class Hierachy:
+class Hierarchy:
     """
     builds and queries hierarchical sections
     """

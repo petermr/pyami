@@ -7,7 +7,7 @@ from io import StringIO
 import logging
 import lxml
 import lxml.etree
-from lxml.etree import _Element
+from lxml.etree import _Element, _ElementTree
 import numpy as np
 import re
 from pathlib import Path
@@ -416,11 +416,15 @@ class HtmlTidy:
 
     @classmethod
     def _ensure_html_root(cls, html_elem):
+        """
+        if root element is not <html> creates one and transfers children
+        :param html_elem: old ElementTree or root Element
+        """
+        old_root = html_elem.getroot() if type(html_elem) is _ElementTree else html_elem
         htmls = html_elem.xpath("/html")
         if len(htmls) == 0:
-            logging.warning("wrapping in <html>")
             html_root = lxml.etree.Element("html")
-            html_root.insert(0, html_elem)
+            html_root.insert(0, old_root)
             return html_root
         return html_elem
 
@@ -1138,6 +1142,7 @@ class HtmlTree:
     def make_sections_and_output(cls, elem, output_dir, recs_by_section=None):
         """find decimal number for tree
         ThiS is HEAVILY based on IPCC
+        currently called in tidy_flow()
         """
         markers = ["Chapter",
                    # "Table of Contents",

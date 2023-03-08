@@ -418,7 +418,7 @@ class AmiPage:
         # USED
         html = self.create_html(use_lines=use_lines)
         parent_dir = Path(html_path).parent
-        parent_dir.mkdir(exist_ok=True)
+        parent_dir.mkdir(exist_ok=True, parents=True)
         with open(html_path, "wb") as f:
             et = lxml.etree.ElementTree(html)
             et.write(f, pretty_print=pretty_print)
@@ -542,7 +542,7 @@ class AmiPage:
             logging.logger.error(f"must have not-null output_dir ")
             return
 
-        Path(output_dir).mkdir(exist_ok=True)
+        Path(output_dir).mkdir(exist_ok=True, parents=True)
         with pdfplumber.open(input_pdf) as pdf:
             page_count = len(pdf.pages)
         for page_no in range(page_count):  # 0-based page_no
@@ -932,7 +932,7 @@ class PDFArgs(AbstractArgs):
             self.outdir = (Path(self.outpath).parent)
         if not self.outdir:
             raise FileNotFoundError("No outdir given")
-        Path(self.outdir).mkdir(exist_ok=True)
+        Path(self.outdir).mkdir(exist_ok=True, parents=True)
         if not Path(self.outdir).is_dir():
             raise ValueError(f"output dir {self.outdir} is not a directory")
         else:
@@ -1167,7 +1167,7 @@ class PDFArgs(AbstractArgs):
             if self.outpath and not self.outdir:
                 self.outdir = Path(Path(self.outpath).parent)
             if not self.outdir.exists():
-                self.outdir.mkdir(exist_ok=True)
+                self.outdir.mkdir(exist_ok=True, parents=True)
             if not self.outpath:
                 self.outpath = Path(self.outdir, "raw20.html") # bad hardcoding
             with Util.open_write_utf8(self.outpath) as f:
@@ -1380,7 +1380,7 @@ class PDFDebug:
     def write_summary(self, outdir=None):
         if not outdir:
             return
-        outdir.mkdir(exist_ok=True)
+        outdir.mkdir(exist_ok=True, parents=True)
         if self.image_coords_list:
             coord_file = Path(outdir, "image_coords.txt")
             with Util.open_write_utf8(coord_file) as f:
@@ -1451,7 +1451,7 @@ class PDFDebug:
         if not outdir:
             logging.warning(f"no outdir")
         if outdir and isinstance(image, LTImage):
-            outdir.mkdir(exist_ok=True)
+            outdir.mkdir(exist_ok=True, parents=True)
             imagewriter = ImageWriter(str(Path(outdir, f"image{i}.png")))
             imagewriter.export_image(image)
         page_height = page.height
@@ -1555,7 +1555,7 @@ class PDFDebug:
         if not outdir: # is this used??
             print(f"no output dir given")
         else:
-            outdir.mkdir(exist_ok=True)
+            outdir.mkdir(exist_ok=True, parents=True)
         with pdfplumber.open(infile) as pdf:
             pages = list(pdf.pages)
             pdf_debug = PDFDebug()

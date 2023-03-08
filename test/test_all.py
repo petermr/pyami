@@ -15,6 +15,8 @@ from py4ami.util import Util
 from py4ami.wikimedia import WikidataSparql as WS
 from py4ami.xml_lib import XmlLib
 
+from test.resources import Resources
+
 skip_config_test = True
 
 
@@ -38,6 +40,16 @@ class AmiAnyTest(unittest.TestCase):
     NYI = True    # test not yet implemented
     USER = True   # user-facing test
     BUG = True    # skip BUGs
+
+    # outputs for tests
+
+    # temporary data (can be deleted after tests)
+    TEMP_DIR = Path(Resources.TEST_RESOURCES_DIR.parent.parent, "temp")
+    TEMP_DIR.mkdir(exist_ok=True, parents=True)
+    assert TEMP_DIR.is_dir(), f"file exists {TEMP_DIR}"
+
+    TEMP_PDFS_DIR = Path(TEMP_DIR, "pdf")
+    TEMP_PDFS_DIR.mkdir(exist_ok=True, parents=True)
 
     def setUp(self) -> None:
         # if len(sys.argv) == 0:

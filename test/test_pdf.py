@@ -32,6 +32,7 @@ from py4ami.util import Util
 
 from test.test_all import AmiAnyTest
 
+
 # class PDFTest:
 
 FINAL_DRAFT_DIR = "/Users/pm286/projects/readable_climate_reports/ipcc/dup/finalDraft/svg"  # PMR only
@@ -39,7 +40,22 @@ PAGE_9 = Path(Resources.TEST_CLIMATE_10_SVG_DIR, "fulltext-page.9.svg")
 PAGE_6 = Path(Resources.TEST_CLIMATE_10_SVG_DIR, "fulltext-page.6.svg")
 CURRENT_RANGE = range(1, 20)
 # CHAPTER_RANGE = range(1, 200)
-CLIMATE_10_HTML_DIR = Path(Resources.TEMP_CLIMATE_10_PROJ_DIR, "html")
+
+# output directories in /temp
+CLIMATE_10_HTML_TEMP_DIR = Path(AmiAnyTest.TEMP_DIR, "climate10", "html")
+
+TEMP_HTML_IPCC = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc")
+TEMP_HTML_IPCC.mkdir(exist_ok=True, parents=True)
+TEMP_HTML_IPCC_CHAP06 = Path(TEMP_HTML_IPCC, "chap6")
+TEMP_HTML_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
+
+TEMP_PDF_IPCC = Path(AmiAnyTest.TEMP_DIR, "pdf")
+TEMP_PDF_IPCC.mkdir(exist_ok=True, parents=True)
+TEMP_PDF_IPCC_CHAP06 = Path(TEMP_PDF_IPCC, "chap6")
+TEMP_PDF_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
+
+TEMP_PNG_IPCC_CHAP06 = Path(AmiAnyTest.TEMP_DIR, "png", "ipcc", "chap6")
+TEMP_PNG_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
 
 PMC1421_PDF = Path(Resources.RESOURCES_DIR, "projects", "liion4", "PMC4391421", "fulltext.pdf")
 
@@ -88,19 +104,19 @@ def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=
         # raise Exception("must have SVG from ami3")
     for page_index in CURRENT_RANGE:
         page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-        html_path = Path(Resources.TEST_CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-        Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True)
+        html_path = Path(CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+        CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True, parents=True)
         ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
         ami_page.write_html(html_path, pretty_print, use_lines)
 
 
 def make_html_dir():
-    html_dir = Path(Resources.TEMP_DIR, "html")
-    html_dir.mkdir(exist_ok=True)
+    html_dir = Path(AmiAnyTest.TEMP_DIR, "html")
+    html_dir.mkdir(exist_ok=True, parents=True)
     return html_dir
 
 
-class PDFTest(test.test_all.AmiAnyTest):
+class PDFTest(AmiAnyTest):
     MAX_PAGE = 5
     MAX_ITER = 20
 
@@ -221,7 +237,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         input_pdf = Path(Resources.TEST_IPCC_CHAP06_PDF)
         assert input_pdf.exists(), f"{input_pdf} should exist"
         bbox = BBox(xy_ranges=[[60, 999], [60, 790]])
-        output_dir = Path(Resources.TEMP_DIR, "pdf")
+        output_dir = Path(AmiAnyTest.TEMP_DIR, "pdf")
         AmiPage.create_html_pages(bbox=bbox, input_pdf=input_pdf, output_dir=output_dir, output_stem=output_stem,
                                   range_list=[range(3, 8), range(129, 131)])
         assert output_dir.exists()
@@ -230,14 +246,14 @@ class PDFTest(test.test_all.AmiAnyTest):
     def test_bmp_png_to_png(self):
         """
         convert bmp, jpgs, etc to PNG
-        results in temp/ipcc_chap6/png/
+        results in temp/ipcc/chap6/png/
         checks existence on created PNG
         uses: pdf_image.convert_all_suffixed_files_to_target(dirx, [".bmp", ".jpg"], ".png", outdir=outdir)
         USEFUL
 
         """
         dirx = Path(Resources.TEST_IPCC_CHAP06, "image_bmp_jpg")
-        outdir = Path(Resources.TEMP_DIR, "ipcc_chap6", "png")
+        outdir = TEMP_PNG_IPCC_CHAP06
         if not dirx.exists():
             print(f"no directory {dirx}")
             return
@@ -260,7 +276,7 @@ class PDFTest(test.test_all.AmiAnyTest):
         coord_file = Path(Resources.TEST_IPCC_CHAP06, "image_coords.txt")
         print(f"input {coord_file}")
         outdir = Path(Resources.TEST_IPCC_CHAP06, "images_new")
-        outdir.mkdir(exist_ok=True)
+        outdir.mkdir(exist_ok=True, parents=True)
         with open(coord_file, "r") as f:
             coord_list = f.readlines()
         assert len(coord_list) == 14
@@ -358,8 +374,8 @@ class PDFTest(test.test_all.AmiAnyTest):
         assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
         pdf_args.arg_dict[MAXPAGE] = 20
         pdf_args.arg_dict[OUTFORM] = "flow.html"
-        outdir = Path(Resources.TEMP_DIR, "ipcc_html")
-        outdir.mkdir(exist_ok=True)
+        outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "chap04")
+        outdir.mkdir(exist_ok=True, parents=True)
         pdf_args.arg_dict[OUTDIR] = outdir
         pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
         print(f"arg_dict {pdf_args.arg_dict}")
@@ -424,8 +440,8 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
             pdf_args.arg_dict[MAXPAGE] = 200
             pdf_args.arg_dict[OUTFORM] = "flow.html"
-            outdir = Path(Resources.TEMP_DIR, "ipcc_html")
-            outdir.mkdir(exist_ok=True)
+            outdir = TEMP_HTML_IPCC
+            outdir.mkdir(exist_ok=True, parents=True)
             pdf_args.arg_dict[OUTDIR] = outdir
             print(f"arg_dict {pdf_args.arg_dict}")
 
@@ -481,8 +497,8 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             caching=True,
         )
         # output dir
-        html_dir = Path(Resources.TEMP_DIR, "html")
-        html_dir.mkdir(exist_ok=True)
+        html_dir = Path(AmiAnyTest.TEMP_DIR, "html")
+        html_dir.mkdir(exist_ok=True, parents=True)
         # ouytput file
         path = Path(html_dir, "pmc4121.xml")
         # clean because text requires new file
@@ -515,7 +531,9 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         pdf_args.arg_dict[INPATH] = Resources.TEST_IPCC_CHAP06_PDF
         pdf_args.arg_dict[MAXPAGE] = 10
         pdf_args.arg_dict[PAGES] = "1_10"
-        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_IPCC_CHAP06, "pdf.html")
+#        outdir = Path(Resources.TEMP_DIR, "htnl", "ipcc", "chap6")
+        outdir = TEMP_HTML_IPCC_CHAP06
+        pdf_args.arg_dict[OUTPATH] = Path(outdir, "pdf.html")
 
         print(f"arg_dict {pdf_args.arg_dict}")
         outfile, _ = pdf_args.convert_write()
@@ -551,8 +569,7 @@ Uses:
         maxpage = 5
         pdf_args.arg_dict[MAXPAGE] = maxpage  # works
         pdf_args.arg_dict[INPATH] = Resources.TEST_IPCC_CHAP06_PDF
-        IPCC_TEMP_CHAPo6 = Path(Resources.TEMP_DIR, "ipcc_chap6")
-        pdf_args.arg_dict[OUTPATH] = Path(Resources.TEMP_IPCC_CHAP06, f"flow.test{maxpage}.html")
+        pdf_args.arg_dict[OUTPATH] = Path(TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html")
         pdf_args.arg_dict[PDF2HTML] = PDFPLUMBER
 
         pprint.pprint(pdf_args.arg_dict)
@@ -561,7 +578,6 @@ Uses:
         print(f"arg_dict {pdf_args.arg_dict}")
         outfile, _ = pdf_args.convert_write()  # all the conversion happens here
         assert Path(outfile).exists(), f"{outfile} should exist"
-        # assert str(outfile).endswith(f"temp/ipcc_chap6/flow.test{maxpage}.html")
         if not outfile:
             print(f"no file written")
         else:
@@ -585,8 +601,9 @@ Uses:
 
 
         """
-        outfile = Path(Resources.TEMP_IPCC_CHAP06, "all.html")
-        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --outdir {Resources.TEMP_IPCC_CHAP06} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
+        outdir = TEMP_HTML_IPCC_CHAP06
+        outfile = Path(outdir, "all.html")
+        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --outdir {outdir} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
         PyAMI().run_command(args)
         print(f"created outfile {outfile}")
         logging.warning(f"DID NOT CREATE FILE {outfile}")
@@ -620,14 +637,13 @@ Uses:
         NOTE. pages 4 extracts "page 4" in 1-based but output file is 0-based.(Doh!)
 
         has x0 and x1 coordinates
-
+,
         """
         assert Path(Resources.TEST_IPCC_CHAP06_PDF).exists(), f"expected {Resources.TEST_IPCC_CHAP06_PDF}"
-        assert Path(Resources.TEMP_IPCC_CHAP06).exists(), f"expected {Resources.TEMP_IPCC_CHAP06}"
 
-        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --pages 4 --outdir {Resources.TEMP_IPCC_CHAP06} --flow True"
+        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --pages 4 --outdir {TEMP_HTML_IPCC_CHAP06} --flow True"
         PyAMI().run_command(args)
-        outpath = Path(Resources.TEMP_IPCC_CHAP06, "fulltext.flow_3.html")
+        outpath = Path(TEMP_HTML_IPCC_CHAP06, "fulltext.flow_3.html")
         assert outpath.exists(), f"{outpath} should be created"
 
     def test_ipcc_2_column__explore__fail(self):
@@ -647,7 +663,7 @@ Uses:
         """
         infile = Path(Resources.TEST_IPCC_DIR, "wg2", "Chapter03", "fulltext.pdf")
         pages = "5_8" # total is 0_171 (172pp)
-        outdir = Path(Resources.TEMP_DIR, "ipcc_wg2_chap03")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg2_chap03")
         args = f"PDF --infile {infile} --outdir {outdir} --pages {pages}"
         PyAMI().run_command(args)
 
@@ -791,7 +807,7 @@ LTPage
 
         def save_images_from_page(page: pdfminer.layout.LTPage):
             images = list(filter(bool, map(get_image, page)))
-            outdir = Path(Resources.TEMP_DIR, "pdf", "chap6", "pdf miner")
+            outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "chap6", "pdf miner")
             iw = ImageWriter(str(outdir))
             for image in images:
                 iw.export_image(image)
@@ -1060,7 +1076,7 @@ LTPage
         Would be better if we knew how to read PDFStream
         """
         maxpage = 9  # images on page 8, and 9
-        outdir = Path(Resources.TEMP_DIR, "pdf", "chap6")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "ipcc", "chap6")
         pdf_debug = PDFDebug()
 
         with pdfplumber.open(Resources.TEST_IPCC_CHAP06_PDF) as pdf:
@@ -1081,7 +1097,7 @@ LTPage
         Would be better if we knew how to read PDFStream
         """
         maxpage = 9  # images on page 8, and 9
-        outdir = Path(Resources.TEMP_DIR, "pdf", "wg2_chap3")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "wg2_chap3")
         pdf_debug = PDFDebug()
 
         with pdfplumber.open(Resources.TEST_IPCC_WG2_CHAP03_PDF) as pdf:
@@ -1102,7 +1118,7 @@ LTPage
         finds WORDS (count) and IMAGE details
         """
 
-        outdir = Path(Resources.TEMP_DIR, "pdf", "pmc1421", "images")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "pmc1421", "images")
         infile = PMC1421_PDF
         PDFDebug.debug_pdf(infile, outdir)
 
@@ -1111,7 +1127,7 @@ LTPage
         """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
         finds WORDS (count) and IMAGE details
         """
-        outdir = Path(Resources.TEMP_DIR, "pdf", "wg2_3")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "wg2_3")
         infile = IPCC_WG2_3_PDF
         pdf_debug = PDFDebug()
         pdf_debug.debug_pdf(infile, outdir)
@@ -1121,7 +1137,7 @@ LTPage
         """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
         finds WORDS (count) and IMAGE details
         """
-        outdir = Path(Resources.TEMP_DIR, "pdf", "wg2_3")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "wg2_3")
         infile = IPCC_WG2_3_PDF
         PDFDebug.debug_pdf(infile, outdir)
 
@@ -1152,7 +1168,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         for page_index in CURRENT_RANGE:
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
             html_path = Path(Resources.TEST_CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-            Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True)
+            Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True, parents=True)
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
             ami_page.write_html(html_path, pretty_print, use_lines)
 
@@ -1242,15 +1258,17 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
     def test_create_html_from_svg(self):
         """
         Test 10 pages
+        writes html. These may be used in further tests but should be hand copied
         """
         pretty_print = True
         use_lines = True
         svg_dir = Resources.TEST_CLIMATE_10_SVG_DIR
-        html_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        html_dir = Path(AmiAnyTest.TEMP_DIR, "climate10")
+        html_dir.mkdir(exist_ok=True, parents=True)
         for page_index in range(1, 9):
             page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_dir, f"page.{page_index}.html")
-            html_dir.mkdir(exist_ok=True)
+            html_dir.mkdir(exist_ok=True, parents=True)
             ami_page = AmiPage.create_page_from_svg(page_path)
             ami_page.write_html(html_path, pretty_print, use_lines)
             assert html_path.exists(), f"{html_path} exists"
@@ -1266,13 +1284,13 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         page_selection = range(1, 50)
         counter = 0
         counter_tick = 20
-        html_out_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        html_out_dir = Path(AmiAnyTest.TEMP_DIR, "climate10")
         for page_index in page_selection:
             if counter % counter_tick == 0:
                 print(f".", end="")
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_out_dir, f"page.{page_index}.html")
-            html_out_dir.mkdir(exist_ok=True)
+            html_out_dir.mkdir(exist_ok=True, parents=True)
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
             ami_page.write_html(html_path, pretty_print, use_lines)
             counter += 1
@@ -1284,7 +1302,8 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         use_lines = True
         self.make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
         selection = CURRENT_RANGE
-        temp_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        temp_dir = Path(AmiAnyTest.TEMP_DIR, "climate10")
+        temp_dir.mkdir(exist_ok=True, parents=True)
         for page_index in selection:
             html_path = Path(temp_dir, f"page.{page_index}.html")
             with open(html_path, "r") as h:
@@ -1331,11 +1350,12 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         pretty_print = True
         use_lines = True
         svg_dir = Resources.TEST_CLIMATE_10_SVG_DIR
-        html_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        html_dir = Path(AmiAnyTest.TEMP_DIR, "climate10")
+        html_dir.mkdir(exist_ok=True, parents=True)
         for page_index in range(1, 9):
             page_path = Path(svg_dir, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_dir, f"page.{page_index}.html")
-            html_dir.mkdir(exist_ok=True)
+            html_dir.mkdir(exist_ok=True, parents=True)
             ami_page = AmiPage.create_page_from_svg(page_path)
             ami_page.write_html(html_path, pretty_print, use_lines)
             assert html_path.exists(), f"{html_path} exists"
@@ -1351,17 +1371,20 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         page_selection = range(1, 50)
         counter = 0
         counter_tick = 20
-        html_out_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        html_out_dir = CLIMATE_10_HTML_TEMP_DIR
         for page_index in page_selection:
             if counter % counter_tick == 0:
                 print(f".", end="")
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
             html_path = Path(html_out_dir, f"page.{page_index}.html")
-            html_out_dir.mkdir(exist_ok=True)
+            assert not html_path.is_dir(), f"{html_path} is not a directory"
+            html_out_dir.mkdir(exist_ok=True, parents=True)
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=False)
             ami_page.write_html(html_path, pretty_print, use_lines)
             counter += 1
             assert html_path.exists(), f"{html_path} exists"
+            assert not html_path.is_dir(), f"{html_path} is not a directory"
+        return
 
     @unittest.skipUnless(SVG and Path(FINAL_DRAFT_DIR).exists(), "svg")
     def test_create_chapters_through_svg(self):
@@ -1369,7 +1392,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         use_lines = True
         make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
         selection = CURRENT_RANGE
-        temp_dir = Resources.TEST_CLIMATE_10_HTML_TEMP_DIR
+        temp_dir = CLIMATE_10_HTML_TEMP_DIR
         for page_index in selection:
             html_path = Path(temp_dir, f"page.{page_index}.html")
             with open(html_path, "r") as h:
@@ -1434,7 +1457,7 @@ class PDFMainArgTest(test.test_all.AmiAnyTest):
     def test_subcommands(self):
         # run args
         inpath = Path(Resources.TEST_PDFS_DIR, "1758-2946-3-44.pdf")
-        outdir = Path(Resources.TEMP_DIR, "pdf", "1758-2946-3-44")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "1758-2946-3-44")
         PyAMI().run_command(
             ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
 
@@ -1449,7 +1472,8 @@ class PDFMainArgTest(test.test_all.AmiAnyTest):
         # run args
 
         inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.pdf")
-        outdir = Path(Resources.TEMP_IPCC_CHAP06)
+
+        outdir = TEMP_HTML_IPCC_CHAP06
         htmls = FileLib.delete_files(outdir, "*.html")
         out2 = Path(outdir, "fulltext.flow_2.html")
         assert not out2.exists()

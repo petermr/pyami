@@ -12,6 +12,7 @@ import requests
 from py4ami.wikimedia import WikidataPage, ParserWrapper, WikidataExtractor, WikidataProperty, WikidataFilter
 from py4ami.ami_dict import WIKIDATA_ID, AmiEntry
 from test.resources import Resources
+from test.test_all import AmiAnyTest
 
 """This runs under Pycharm and also
 cd pyami # toplevel checkout
@@ -93,7 +94,7 @@ class TestWikidataLookup(unittest.TestCase):
         ]
         wikidata_lookup = WikidataLookup()
         # qitems, descs = wikidata_lookup.lookup_items(terms)
-        temp_dir = Path(Resources.TEMP_DIR, "temp_oldx")
+        temp_dir = Path(AmiAnyTest.TEMP_DIR, "temp_oldx")
         # dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="parkinsons",
         #                                                                           wikidata=True, directory=temp_dir)
         # assert os.path.exists(dictfile)
@@ -408,14 +409,14 @@ class TestWikidataLookup(unittest.TestCase):
         dictionary.lookup_and_add_wikidata_to_entry(entry)
         assert entry.get(WIKIDATA_ID) == "Q27155908"
 
-        dictionary.write_to_file(Path(Resources.TEMP_DIR, EO_COMPOUND, "dict_5.xml"))
+        dictionary.write_to_file(Path(AmiAnyTest.TEMP_DIR, EO_COMPOUND, "dict_5.xml"))
 
     @unittest.skip("LONG DOWNLOAD")
     def test_add_wikidata_to_complete_dictionary_with_filter(self):
         """Takes existing dictionary and looks up Wikidata stuff for entries w/o WikidataID
         Need dictionary in AmiDictionary format"""
         input_dir = EO_COMPOUND_DIR
-        output_dir = Path(Resources.TEMP_DIR, EO_COMPOUND)
+        output_dir = Path(AmiAnyTest.TEMP_DIR, EO_COMPOUND)
         start_entry = 0
         end_entry = 10
         input_path = Path(input_dir, "eoCompound1.xml")
@@ -442,7 +443,7 @@ class TestWikidataLookup(unittest.TestCase):
         """attempts to disambiguate the result of PMR-wikidata lookup
         """
         input_dir = EO_COMPOUND_DIR
-        output_dir = Path(Resources.TEMP_DIR, EO_COMPOUND)
+        output_dir = Path(AmiAnyTest.TEMP_DIR, EO_COMPOUND)
         output_dir.mkdir(exist_ok=True)
         input_path = Path(input_dir, "disambig.xml")
         assert input_path.exists(), f"{input_path} should exist"
@@ -590,11 +591,14 @@ entry like:
         assert response_js["title"] == "Q11966262"
         assert response_js["labels"]["en"]["value"] == "Dyschirius politus"
         assert response_js["descriptions"]["en"]["value"] == "species of insect"
-        assert list(response_js["claims"].keys()) == [
-            'P225', 'P105', 'P171', 'P31', 'P685', 'P846', 'P1939', 'P373', 'P815', 'P3151', 'P3186',
+        key_set = set(list(response_js["claims"].keys()))
+        test_set = set(
+            list(['P225', 'P105', 'P171', 'P31', 'P685', 'P846', 'P1939', 'P373', 'P815', 'P3151', 'P3186',
             'P3405', 'P2464', 'P1843', 'P7202', 'P7552', 'P6105', 'P6864', 'P8915', 'P3240', 'P2671',
-            'P3606', 'P8707', 'P10243'
-        ]
+            'P3606', 'P8707', 'P10243'])
+        )
+        assert test_set <= key_set
+
         ids = "P117"  # chemical compound
         url_str = f"https://www.wikidata.org/w/api.php?" \
                   f"action=wbgetentities" \

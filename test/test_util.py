@@ -60,7 +60,7 @@ class TestUtil(AmiAnyTest):
     @classmethod
     def test_copy_anything(cls):
         src = Resources.TEST_CLIMATE_10_SVG_DIR
-        dst = Path(Resources.TEMP_DIR, "tempzz")
+        dst = Path(AmiAnyTest.TEMP_DIR, "tempzz")
         if dst.exists():
             shutil.rmtree(dst)
         FileLib.copyanything(src, dst)
