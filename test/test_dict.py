@@ -623,18 +623,21 @@ class TestAmiDictionary(AmiAnyTest):
         assert title == "foobar"
 
     def test_create_dictionary_from_list_of_string_and_save(self):
+        """
+        Create dictionary from list of strings (no lookup)
+        """
         terms = ["acetone", "benzene", "chloroform", "DMSO", "ethanol"]
-        temp_dir = Path(AmiAnyTest.TEMP_DIR, "dictx")
-        temp_dir.mkdir(exist_ok=True)
-        assert os.path.exists(temp_dir), f"{temp_dir} exists"
         title = "solvents"
-        tempfile = Path(temp_dir, title + ".xml")
+        temp_dir = Path(AmiAnyTest.TEMP_DIR, "dictionary")
+        temp_dir.mkdir(exist_ok=True, parents=True)
         amidict, dictfile = AmiDictionary.create_dictionary_from_words(terms, title=title, outdir=temp_dir)
-        assert dictfile is not None and os.path.exists(dictfile)
+        outfile = Path(temp_dir, title + ".xml")
+        assert Path(dictfile) ==  Path(temp_dir, title + ".xml") and os.path.exists(dictfile)
+        assert amidict.get_entry_count() == 5
 
     def test_create_dictionary_from_list_of_string_save_and_compare(self):
         terms = ["acetone", "benzene", "chloroform", "DMSO", "ethanol"]
-        temp_dir = Path(AmiAnyTest.TEMP_DIR, "dictxx")
+        temp_dir = Path(AmiAnyTest.TEMP_DIR, "dictionary")
         amidict, dictfile = AmiDictionary.create_dictionary_from_words(terms, title="solvents", outdir=temp_dir)
         with open(dictfile, "r") as f:
             dict_text = f.read()
@@ -662,7 +665,7 @@ class TestAmiDictionary(AmiAnyTest):
                  # "ethanol"
                  ]
         amidict, _ = AmiDictionary.create_dictionary_from_words(terms, title="solvents", wikidata=True)
-        temp_dir = Path(AmiAnyTest.TEMP_DIR, "dict_xxx")
+        temp_dir = Path(AmiAnyTest.TEMP_DIR, "dictionary")
         dictfile = amidict.write_to_dir(temp_dir)
 
         with open(dictfile, "r") as f:

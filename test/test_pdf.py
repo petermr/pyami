@@ -44,16 +44,6 @@ CURRENT_RANGE = range(1, 20)
 # output directories in /temp
 CLIMATE_10_HTML_TEMP_DIR = Path(AmiAnyTest.TEMP_DIR, "climate10", "html")
 
-TEMP_HTML_IPCC = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc")
-TEMP_HTML_IPCC.mkdir(exist_ok=True, parents=True)
-TEMP_HTML_IPCC_CHAP06 = Path(TEMP_HTML_IPCC, "chap6")
-TEMP_HTML_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
-
-TEMP_PDF_IPCC = Path(AmiAnyTest.TEMP_DIR, "pdf")
-TEMP_PDF_IPCC.mkdir(exist_ok=True, parents=True)
-TEMP_PDF_IPCC_CHAP06 = Path(TEMP_PDF_IPCC, "chap6")
-TEMP_PDF_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
-
 TEMP_PNG_IPCC_CHAP06 = Path(AmiAnyTest.TEMP_DIR, "png", "ipcc", "chap6")
 TEMP_PNG_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
 
@@ -375,6 +365,7 @@ class PDFTest(AmiAnyTest):
         pdf_args.arg_dict[MAXPAGE] = 20
         pdf_args.arg_dict[OUTFORM] = "flow.html"
         outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "chap04")
+        outdir = AmiAnyTest.TEMP_HTML_IPCC_CHAP04
         outdir.mkdir(exist_ok=True, parents=True)
         pdf_args.arg_dict[OUTDIR] = outdir
         pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
@@ -411,7 +402,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
     processes part or whole of a chapter
     """
 
-    @unittest.skipUnless(PDFTest.VERYLONG, "processes Chapters 04, 05, 16, 17")
+    @unittest.skipUnless(PDFTest.VERYLONG or True, "processes Chapters 04, 05, 16, 17")
     def test_make_ipcc_html(self):
         """not really a test"""
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
@@ -440,7 +431,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
             pdf_args.arg_dict[MAXPAGE] = 200
             pdf_args.arg_dict[OUTFORM] = "flow.html"
-            outdir = TEMP_HTML_IPCC
+            outdir = AmiAnyTest.TEMP_HTML_IPCC
             outdir.mkdir(exist_ok=True, parents=True)
             pdf_args.arg_dict[OUTDIR] = outdir
             print(f"arg_dict {pdf_args.arg_dict}")
@@ -532,7 +523,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         pdf_args.arg_dict[MAXPAGE] = 10
         pdf_args.arg_dict[PAGES] = "1_10"
 #        outdir = Path(Resources.TEMP_DIR, "htnl", "ipcc", "chap6")
-        outdir = TEMP_HTML_IPCC_CHAP06
+        outdir = AmiAnyTest.TEMP_HTML_IPCC_CHAP06
         pdf_args.arg_dict[OUTPATH] = Path(outdir, "pdf.html")
 
         print(f"arg_dict {pdf_args.arg_dict}")
@@ -569,7 +560,7 @@ Uses:
         maxpage = 5
         pdf_args.arg_dict[MAXPAGE] = maxpage  # works
         pdf_args.arg_dict[INPATH] = Resources.TEST_IPCC_CHAP06_PDF
-        pdf_args.arg_dict[OUTPATH] = Path(TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html")
+        pdf_args.arg_dict[OUTPATH] = Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html")
         pdf_args.arg_dict[PDF2HTML] = PDFPLUMBER
 
         pprint.pprint(pdf_args.arg_dict)
@@ -601,7 +592,7 @@ Uses:
 
 
         """
-        outdir = TEMP_HTML_IPCC_CHAP06
+        outdir = AmiAnyTest.TEMP_HTML_IPCC_CHAP06
         outfile = Path(outdir, "all.html")
         args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --outdir {outdir} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
         PyAMI().run_command(args)
@@ -641,9 +632,9 @@ Uses:
         """
         assert Path(Resources.TEST_IPCC_CHAP06_PDF).exists(), f"expected {Resources.TEST_IPCC_CHAP06_PDF}"
 
-        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --pages 4 --outdir {TEMP_HTML_IPCC_CHAP06} --flow True"
+        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --pages 4 --outdir {AmiAnyTest.TEMP_HTML_IPCC_CHAP06} --flow True"
         PyAMI().run_command(args)
-        outpath = Path(TEMP_HTML_IPCC_CHAP06, "fulltext.flow_3.html")
+        outpath = Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06, "fulltext.flow_3.html")
         assert outpath.exists(), f"{outpath} should be created"
 
     def test_ipcc_2_column__explore__fail(self):
@@ -1167,8 +1158,8 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
             raise Exception("must have SVG from ami3")
         for page_index in CURRENT_RANGE:
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-            html_path = Path(Resources.TEST_CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-            Resources.TEST_CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True, parents=True)
+            html_path = Path(CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+            CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True, parents=True)
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
             ami_page.write_html(html_path, pretty_print, use_lines)
 
@@ -1473,7 +1464,7 @@ class PDFMainArgTest(test.test_all.AmiAnyTest):
 
         inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.pdf")
 
-        outdir = TEMP_HTML_IPCC_CHAP06
+        outdir = AmiAnyTest.TEMP_HTML_IPCC_CHAP06
         htmls = FileLib.delete_files(outdir, "*.html")
         out2 = Path(outdir, "fulltext.flow_2.html")
         assert not out2.exists()

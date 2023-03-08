@@ -43,13 +43,27 @@ class AmiAnyTest(unittest.TestCase):
 
     # outputs for tests
 
-    # temporary data (can be deleted after tests)
+    # temporary output data (can be deleted after tests)
     TEMP_DIR = Path(Resources.TEST_RESOURCES_DIR.parent.parent, "temp")
     TEMP_DIR.mkdir(exist_ok=True, parents=True)
     assert TEMP_DIR.is_dir(), f"file exists {TEMP_DIR}"
 
+    TEMP_HTML_DIR = Path(TEMP_DIR, "html")
+    TEMP_HTML_DIR.mkdir(exist_ok=True, parents=True)
+    TEMP_HTML_IPCC = Path(TEMP_DIR, "html", "ipcc")
+    TEMP_HTML_IPCC.mkdir(exist_ok=True, parents=True)
+    TEMP_HTML_IPCC_CHAP04 = Path(TEMP_HTML_IPCC, "chapter04")
+    TEMP_HTML_IPCC_CHAP04.mkdir(exist_ok=True, parents=True)
+    TEMP_HTML_IPCC_CHAP06 = Path(TEMP_HTML_IPCC, "chapter06")
+    TEMP_HTML_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
+
     TEMP_PDFS_DIR = Path(TEMP_DIR, "pdf")
     TEMP_PDFS_DIR.mkdir(exist_ok=True, parents=True)
+    TEMP_PDF_IPCC = Path(TEMP_PDFS_DIR, "ipcc")
+    TEMP_PDF_IPCC.mkdir(exist_ok=True, parents=True)
+    TEMP_PDF_IPCC_CHAP06 = Path(TEMP_PDF_IPCC, "chapter06")
+    TEMP_PDF_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
+
 
     def setUp(self) -> None:
         # if len(sys.argv) == 0:

@@ -9,6 +9,7 @@ from py4ami.pyamix import PyAMI
 from py4ami.pyamix import main
 from test.test_all import AmiAnyTest
 from test.test_dict import AMIDICTS, TestAmiDictionary
+from test.resources import Resources
 
 
 class TestPyami(AmiAnyTest):
@@ -170,9 +171,11 @@ class TestPyami(AmiAnyTest):
 
         ff = Path(__file__)
         infile = Path(ff.parent.parent, "test", "resources/ipcc/Chapter06/fulltext.pdf")
-        outdir = Path(ff.parent.parent, "temp_oldx/ipcc_html/Chapter06/")
+        infile = Path(Resources.TEST_IPCC_CHAP06, "fulltext.pdf")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc" "Chapter06", "oldx")
+        outdir.mkdir(exist_ok=True, parents=True)
         pyami = PyAMI()
-        args = f"PDF --inpath {infile} --outdir temp_oldx --pdf2html pdfminer --pages 5 8 10 13 --outstem exec"
+        args = f"PDF --inpath {infile} --outdir {outdir} --pdf2html pdfminer --pages 5 8 10 13 --outstem exec"
         pyami.run_command(args)
 
     @unittest.skip("not yet written")

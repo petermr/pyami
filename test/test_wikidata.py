@@ -31,11 +31,11 @@ except Exception:
     except Exception as e:
         logging.error(f"Cannot import from py4ami.ami_dict")
 
-RESOURCES_DIR = Path(Path(__file__).parent.parent, "test", "resources")
-TEMP_DIR = Path(Path(__file__).parent.parent, "temp_oldx")
-DICTIONARY_DIR = Path(os.path.expanduser("~"), "projects", "CEVOpen", "dictionary")
+ami_dictRESOURCES_DIR = Path(Path(__file__).parent.parent, "test", "resources")
+# TEMP_DIR = Path(Path(__file__).parent.parent, "temp_oldx_delete")
+# DICTIONARY_DIR = Path(os.path.expanduser("~"), "projects", "CEVOpen", "dictionary")
 EO_COMPOUND = "eoCompound"
-EO_COMPOUND_DIR = Path(RESOURCES_DIR, EO_COMPOUND)
+EO_COMPOUND_DIR = Path(Resources.TEST_RESOURCES_DIR, EO_COMPOUND)
 
 
 # NOTE some of these are lengthy (seconds) as they lookup on the Ne
@@ -94,7 +94,8 @@ class TestWikidataLookup(unittest.TestCase):
         ]
         wikidata_lookup = WikidataLookup()
         # qitems, descs = wikidata_lookup.lookup_items(terms)
-        temp_dir = Path(AmiAnyTest.TEMP_DIR, "temp_oldx")
+        temp_dir = Path(AmiAnyTest.TEMP_DIR, "wikidata", "oldx")
+        temp_dir.mkdir(exist_ok=True, parents=True)
         # dictfile, amidict = AMIDict.create_from_list_of_strings_and_write_to_file(terms, title="parkinsons",
         #                                                                           wikidata=True, directory=temp_dir)
         # assert os.path.exists(dictfile)
@@ -633,7 +634,7 @@ entry like:
         assert json_dict['entities']['P31']['labels']['en']['value'] == 'instance of'
 
     def test_read_wikidata_filter(self):
-        path = Path(RESOURCES_DIR, "filter00.json")
+        path = Path(Resources.TEST_RESOURCES_DIR, "filter00.json")
         filter = WikidataFilter.create_filter(path)
         assert filter.json['plugh'] == "xyzzy"
         assert filter.json['filter']['description'] == "chemical"

@@ -134,8 +134,8 @@ class Biblioref:
 
     @classmethod
     def make_bibliorefs(cls, file):
-        chap444_elem = lxml.etree.parse(str(file))
-        div_spans = chap444_elem.xpath(".//div[span]")
+        chap_elem = lxml.etree.parse(str(file))
+        div_spans = chap_elem.xpath(".//div[span]")
         total_bibliorefs = []
         rec = re.compile(Util.SINGLE_BRACKET_RE)
         for div in div_spans:

@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import lxml.etree
-from lxml.etree import ElementTree, Element
+from lxml.etree import Element
 
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
@@ -258,10 +258,10 @@ class TestHtml(AmiAnyTest):
 
         Reference.markup_dois_in_div_spans(ref_divs)
 
-        path = Path(AmiAnyTest.TEMP_DIR)
-        path.mkdir(exist_ok=True)
-        chap4_dir = Path(path, "ipcc_html", "chapter04")
-        chap4_dir.mkdir(exist_ok=True)
+        # path = Path(AmiAnyTest.TEMP_DIR)
+        # path.mkdir(exist_ok=True)
+        chap4_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "chapter04")
+        chap4_dir.mkdir(exist_ok=True, parents=True)
         outpath = Path(chap4_dir, "ref_doi.html")
         ref_elem.write(str(outpath))
 
@@ -416,7 +416,7 @@ class TestHtml(AmiAnyTest):
         ami_dict = AmiDictionary.create_from_xml_file(dictionary_file)
         ami_dict.ignorecase = False
         inpath = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow20.html")
-        output_dir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "chap6")
+        output_dir = Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06)
         output_dir.mkdir(exist_ok=True)
         output_path = Path(output_dir, "index.html")
         ami_dict.markup_html_from_dictionary(inpath, output_path, "pink")
@@ -434,10 +434,9 @@ class TestHtml(AmiAnyTest):
         ami_dict = AmiDictionary.create_from_xml_file(dict_path, ignorecase=False)
         input_path = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow.html")
         print(f"reading pdf_html {input_path}")
-        html_output_dir = Path(AmiAnyTest.TEMP_DIR, "html")
-        html_output_dir.mkdir(exist_ok=True)
+        html_output_dir = Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06)
         print(f"output html {html_output_dir}")
-        chap6_marked_path = Path(html_output_dir, "ipcc", "chap6", "raked.html")
+        chap6_marked_path = Path(html_output_dir, "raked.html")
 
         ami_dict.markup_html_from_dictionary(input_path, chap6_marked_path, "pink")
         assert chap6_marked_path.exists(), f"marked-up html in {chap6_marked_path}"
@@ -452,9 +451,9 @@ class TestHtml(AmiAnyTest):
         USEFUL
         """
         target_path = Path(Resources.TEST_IPCC_CHAP06, "fulltext.flow20.html")
-        output_dir = Path(AmiAnyTest.TEMP_DIR, "html")
+        output_dir = Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06)
         output_dir.mkdir(exist_ok=True)
-        output_path = Path(output_dir, "chap6_styled.html")
+        output_path = Path(output_dir, "styled.html")
 
         with open(target_path, "rb") as f:
             elem = lxml.etree.parse(f)
@@ -934,7 +933,7 @@ class TestCSSStyle:
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
 
-        temp_dir = Path(Path(AmiAnyTest.TEMP_DIR, "html"), "ipcc", "chap17")
+        temp_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "chapter17")
         temp_dir.mkdir(exist_ok=True, parents=True)
         with open(str(Path(temp_dir, "fulltext_styles.html")), "wb") as f:
             f.write(lxml.etree.tostring(html_elem))

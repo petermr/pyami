@@ -1,25 +1,22 @@
 # test util
 
-import argparse
+import csv
 import logging
+import shutil
 import sys
 import unittest
 from pathlib import Path
-import shutil
-import csv
-
-import requests
-# local
 
 from py4ami.file_lib import FileLib
 from py4ami.util import Util, GithubDownloader, ArgParseBuilder, AmiArgParser, AmiArgParseException
-
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
+# local
 
 
 logger = logging.getLogger("py4ami_test_util")
+
 
 class TestUtil(AmiAnyTest):
     # def __init__(self):
@@ -142,12 +139,12 @@ class TestUtil(AmiAnyTest):
     def test_range_list_contains_int(self):
         """does a range or range list contain an int"""
         # single
-        rangex = range(1,3)
+        rangex = range(1, 3)
         assert not Util.range_list_contains_int(0, rangex)
         assert Util.range_list_contains_int(1, rangex)
         assert not Util.range_list_contains_int(3, rangex)
         # list
-        range_list = [range(1,3), range(5,9)]
+        range_list = [range(1, 3), range(5, 9)]
         assert not Util.range_list_contains_int(0, range_list)
         assert Util.range_list_contains_int(1, range_list)
         assert not Util.range_list_contains_int(3, range_list)
@@ -158,12 +155,12 @@ class TestUtil(AmiAnyTest):
         # None
         range_list = None
         assert not Util.range_list_contains_int(0, range_list)
-        range_list = range(1,3)
+        range_list = range(1, 3)
         assert not Util.range_list_contains_int(None, range_list)
 
     def test_get_file_from_url(self):
         url = None
-        assert Util.get_file_from_url(url) == None
+        assert Util.get_file_from_url(url) is None
         url = "https://foo.bar/plugh/bloop.xml"
         assert Util.get_file_from_url(url) == "bloop.xml"
 
@@ -198,16 +195,16 @@ class TestAmiArgParser(AmiAnyTest):
         ami_argparse.add_argument("--flt", type=float, nargs=1, help="a float", default=80)
         ami_argparse.add_argument("--str", type=str, nargs=1, help="a string")
 
-# this works
-        arg_dict = ami_argparse.parse_args(["--flt",  "3.2"])
+        # this works
+        arg_dict = ami_argparse.parse_args(["--flt", "3.2"])
         print(f"arg_dict1 {arg_dict}")
         # this fails
         try:
-            arg_dict = ami_argparse.parse_args(["--flt",  "3.2", "str"])
+            arg_dict = ami_argparse.parse_args(["--flt", "3.2", "str"])
         except AmiArgParseException as se:
             print(f"arg parse error {se} line: {se.__traceback__.tb_lineno}")
         except Exception as e:
             print(f" error {e}")
 
-        arg_dict = ami_argparse.parse_args(["--flt",  "99.2"])
+        arg_dict = ami_argparse.parse_args(["--flt", "99.2"])
         print(f"arg_dict2 {arg_dict}")

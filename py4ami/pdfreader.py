@@ -192,7 +192,7 @@ if __name__ == "__main__":
 
 
 # this may be obsolete
-# def temp_oldx():
+# def temp_oldx_delete():
 #     resource_manager = PDFResourceManager()
 #     fake_file_handle = io.StringIO()
 #     converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
