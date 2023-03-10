@@ -64,6 +64,7 @@ class AmiAnyTest(unittest.TestCase):
     TEMP_PDF_IPCC_CHAP06 = Path(TEMP_PDF_IPCC, "chapter06")
     TEMP_PDF_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
 
+    CLIMATE_10_HTML_TEMP_DIR = Path(TEMP_DIR, "climate10", "html")
 
     def setUp(self) -> None:
         # if len(sys.argv) == 0:

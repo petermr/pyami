@@ -4,7 +4,7 @@ from pathlib import Path
 from py4ami.ami_convert import ConvType, Converters, Svg2PageConverter
 from py4ami.pyamix import PyAMI
 from test.resources import Resources
-
+from test.test_all import AmiAnyTest
 
 class TestConvert(unittest.TestCase):
 
@@ -40,7 +40,7 @@ class TestConvert(unittest.TestCase):
         svg_converter = Converters.get_converter(ConvType.SVG2PAGE.value)()
         assert type(svg_converter) == Svg2PageConverter
         svg_converter.read_and_convert(infile=None, indir_basename=Resources.TEST_CLIMATE_10_PROJ_DIR, outfile=None,
-                                       outdir_basename=Resources.TEMP_CLIMATE_10_PROJ_DIR)
+                                       outdir_basename=AmiAnyTest.CLIMATE_10_PROJ_DIR)
 
     @unittest.skip("obsolete, args have changed")
     def test_cli_iterator_svg2xml(self):

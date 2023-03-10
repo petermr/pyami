@@ -982,69 +982,6 @@ class PDFArgs(AbstractArgs):
             # self.convert_write(maxpage=maxpage, outdir=outdir, outstem=outstem, fmt=fmt, inpath=inpath, flow=True)
 
     # class PDFArgs:
-    @classmethod
-    def convert_pdf(cls,
-                    path: str,
-                    fmt: str = "text",
-                    codec: str = "utf-8",
-                    password: str = "",
-                    maxpages: int = 0,
-                    caching: bool = True,
-                    pagenos: Container[int] = set(),
-                    ) -> str:
-        """Uses PDFMiner library (I think) which omits coordinates"""
-        """Summary
-        Parameters
-        ----------
-        path : str
-            Path to the pdf file
-        fmt : str, optional
-            Format of output, must be one of: "text", "html", "xml".
-            By default, "text" format is used
-        codec : str, optional
-            Encoding. By default "utf-8" is used
-        password : str, optional
-            Password
-        maxpages : int, optional
-            Max number of pages to convert. By default is 0, i.e. reads all pages.
-        caching : bool, optional
-            Caching. By default is True
-        pagenos : Container[int], optional
-            Provide a list with numbers of pages to convert
-        Returns
-        -------
-        str
-            Converted pdf file
-        """
-        """from pdfminer/pdfplumber"""
-        device, interpreter, retstr = PDFArgs.create_pdf_interpreter(fmt)
-        if not path:
-            raise FileNotFoundError("no input file given)")
-        try:
-            fp = open(path, "rb")
-        except FileNotFoundError as fnfe:
-            raise Exception(f"No input file given {fnfe}")
-
-        print(f"maxpages: {maxpages}")
-        for page in PDFPage.get_pages(
-                fp,
-                pagenos,
-                maxpages=maxpages,
-                password=password,
-                caching=caching,
-                check_extractable=True,
-        ):
-            interpreter.process_page(page)
-
-        text = retstr.getvalue().decode()
-        fp.close()
-        device.close()
-        retstr.close()
-        if text is None:
-            raise ValueError(f"Null text in convert_pdf()")
-        return text
-
-    # class PDFArgs:
 
     @classmethod
     def create_default_arg_dict(cls):
@@ -1118,7 +1055,7 @@ class PDFArgs(AbstractArgs):
 
     def convert_write(self):
         """
-        Convenience method to run PDFArgs.convert_pdf on self.inpath, self.outform, and self.maxpage
+        Convenience method to run PDFParser.convert_pdf on self.inpath, self.outform, and self.maxpage
         writes output to self.outpath
         if self.flow runs self.tidy_flow
         :return: outpath
@@ -1128,6 +1065,7 @@ class PDFArgs(AbstractArgs):
         self.process_args()
         if self.inpath is None:
             raise ValueError("No input path in convert_write()")
+        # out_html is tidied
         out_html = self.pdf_to_raw_then_raw_to_tidy(pdf_path=self.inpath, flow=self.flow)
         if out_html is None:
             raise ValueError(f" out_html is None")
@@ -1137,12 +1075,12 @@ class PDFArgs(AbstractArgs):
         outpath1 = str(self.outpath)
         with Util.open_write_utf8(outpath1) as f:
             f.write(out_html)
-            print(f"wrote outpath {self.outpath}")
+            print(f"wrote partially tidied html {self.outpath}")
         return self.outpath, out_html
 
     def pdf_to_raw_then_raw_to_tidy(self, pdf_path=None, flow=True, write_raw=True):
         """converts PDF to raw_html and (optionally raw_html to tidy_html
-        Uses PDFArgs.convert_pdf to create raw_html_element
+        Uses PDFParser.convert_pdf to create raw_html_element
 
         raw_html_element is created by pdfplumber and contains Page information
         Example at page break: We think pdfplumber emits "Page 1..." and this can be used for
@@ -1155,8 +1093,13 @@ class PDFArgs(AbstractArgs):
 
     then make HtmlTidy and execute commands to clean
         URGENT
+
+        :return: tidied html
         """
-        raw_html_element = PDFArgs.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
+        self.pdf_parser = PDFParser()
+        raw_html_element = self.pdf_parser.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
+        page_tops = ['%.2f'%(pt) for pt in self.pdf_parser.page_tops]
+        print (f"page_tops {page_tops}")
         if raw_html_element is None:
             raise ValueError(f"null raw_html in convert_write()")
         if not flow:
@@ -1169,20 +1112,20 @@ class PDFArgs(AbstractArgs):
             if not self.outdir.exists():
                 self.outdir.mkdir(exist_ok=True, parents=True)
             if not self.outpath:
-                self.outpath = Path(self.outdir, "raw20.html") # bad hardcoding
-            with Util.open_write_utf8(self.outpath) as f:
+                self.outpath = Path(self.outdir, "tidied.html") # bad hardcoding
+            with Util.open_write_utf8(Path(self.outdir, "raw.html")) as f:
                 f.write(raw_html_element)
         print(f"outpath {self.outpath}")
 
         html_tidy = HtmlTidy()
-        # might need a data tranfer object
+        # might need a data transfer object
+        html_tidy.page_tops = page_tops
         html_tidy.header = self.header
         html_tidy.footer = self.footer
         html_tidy.unwanteds = self.unwanteds
         html_tidy.outdir = self.outdir
         out_html_element = html_tidy.tidy_flow(raw_html_element)
         assert len(out_html_element) > 0
-        print(f"flow {len(raw_html_element)} +> ")
         return out_html_element
 
     # class PDFArgs:
@@ -1684,12 +1627,81 @@ class PDFParser:
         self.resolution = 400
         self.template = None
         self.images = None
+        self.page_tops = []
 
     @classmethod
     def create_from_argparse(cls, parser):
         pdf_parser = PDFParser()
         print(f"NYI, create from arg_parse")
         return pdf_parser
+
+    # class PDFParser:
+    def convert_pdf(self,
+                    path: str,
+                    fmt: str = "text",
+                    codec: str = "utf-8",
+                    password: str = "",
+                    maxpages: int = 0,
+                    caching: bool = True,
+                    pagenos: Container[int] = set(),
+                    ) -> str:
+        """Uses PDFMiner library (I think) which omits coordinates"""
+        """Summary
+        Parameters
+        ----------
+        path : str
+            Path to the pdf file
+        fmt : str, optional
+            Format of output, must be one of: "text", "html", "xml".
+            By default, "text" format is used
+        codec : str, optional
+            Encoding. By default "utf-8" is used
+        password : str, optional
+            Password
+        maxpages : int, optional
+            Max number of pages to convert. By default is 0, i.e. reads all pages.
+        caching : bool, optional
+            Caching. By default is True
+        pagenos : Container[int], optional
+            Provide a list with numbers of pages to convert
+        Returns
+        -------
+        str
+            Converted pdf file
+        """
+        """from pdfminer/pdfplumber"""
+        device, interpreter, retstr = PDFArgs.create_pdf_interpreter(fmt)
+        if not path:
+            raise FileNotFoundError("no input file given)")
+        try:
+            fp = open(path, "rb")
+        except FileNotFoundError as fnfe:
+            raise Exception(f"No input file given {fnfe}")
+
+        print(f"maxpages: {maxpages}")
+        self.page_tops = [0]
+        interpage_space = 50 # arbitrary space between pages (I had to guess this)
+        for page in PDFPage.get_pages(
+                fp,
+                pagenos,
+                maxpages=maxpages,
+                password=password,
+                caching=caching,
+                check_extractable=True,
+        ):
+            page_top = self.page_tops[-1] + page.mediabox[3] + interpage_space
+            self.page_tops.append(page_top)
+            # print(f"****PAGE mediabox **** {page.mediabox} {page_top} crop {page.cropbox} {page.attrs}")
+            interpreter.process_page(page)
+
+        text = retstr.getvalue().decode()
+        fp.close()
+        device.close()
+        retstr.close()
+        if text is None:
+            raise ValueError(f"Null text in convert_pdf()")
+        return text
+
 
 
 class PDFUtil:

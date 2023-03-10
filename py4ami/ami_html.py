@@ -215,6 +215,7 @@ class HtmlTidy:
         self.add_id = True
         self.header = 80
         self.footer = 80
+        self.page_tops = None
         self.page_boxes = []
         self.raw_elem = None
         self.outdir = None
@@ -242,8 +243,14 @@ class HtmlTidy:
         pagesize = None
         if self.marker_xpath:
             offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(self.raw_elem, self.marker_xpath)
-            HtmlUtil.remove_headers_and_footers_using_pdfminer_coords(self.raw_elem, pagesize, self.header, self.footer,
-                                                                      self.marker_xpath)
+            HtmlUtil.remove_headers_and_footers_using_pdfminer_coords(
+                self.raw_elem,
+                pagesize,
+                self.header,
+                self.footer,
+                self.marker_xpath,
+                page_tops=self.page_tops,
+            )
         for att in self.style_attributes_to_remove:
             HtmlUtil.remove_style_attribute(self.raw_elem, att)
         HtmlUtil.remove_unwanteds(self.raw_elem, self.unwanteds)
@@ -707,7 +714,7 @@ class HtmlUtil:
 
     @classmethod
     def remove_headers_and_footers_using_pdfminer_coords(cls, ref_elem, pagesize, header_height, footer_height,
-                                                         marker_xpath):
+                                                         marker_xpath, page_tops=None):
         """
         NOT COMPLETE - there are no footers because of the coordinate system.
 
@@ -719,15 +726,53 @@ class HtmlUtil:
 
         elems = ref_elem.xpath(marker_xpath)
 
+        last_top = 0
         for elem in ref_elem.xpath("//*[@style]"):
-            top = CSSStyle.create_css_style(elem).get_numeric_attval("top")  # the y-coordinate
-            if top:
-                top = top % pagesize
-                if top < header_height or top > pagesize - footer_height:
-                    text = XmlLib.get_text(elem)
-                    if len(text.strip()) > 0:
-                        logging.warning(f"removing top text {text}")
-                    cls.remove_elem_keep_tail(elem)
+            ycoord0 = CSSStyle.create_css_style(elem).get_numeric_attval("top")
+            if not ycoord0:
+                continue
+            text = XmlLib.get_text(elem).strip()
+            page_top_y = HtmlUtil.get_largest_coord_less_than(page_tops, ycoord0)
+            if page_top_y is None:
+                print(f"cannot find page top {ycoord0}")
+                continue
+            page_top_y = float(page_top_y)
+            ycoord = ycoord0 - page_top_y
+
+                # if re.match("Page\s\d+", text):
+                #     print(f"text: {text} {float(top0) - float(top)} {top0} {top}")
+                #     last_top = top0
+
+            # print(f"TOP {ycoord0} {ycoord} {pagesize} {ycoord % pagesize}")
+            in_top = ycoord < header_height
+            if in_top:
+                print(f"TOP  {text}")
+            in_bottom = ycoord > pagesize[0] - footer_height
+            if in_bottom:
+                print(f"BOTTOM  {text}")
+            if in_top or in_bottom:
+                if len(text.strip()) > 0:
+                    logging.warning(f"removing top text {text}")
+                cls.remove_elem_keep_tail(elem)
+            else:
+                # skipped
+                pass
+
+    @classmethod
+    def get_largest_coord_less_than(cls, page_tops, coord):
+        """
+        iterate through sorted list of page_tops and find the largest less than coord
+        :param page_tops: sorted increasing list of page tops
+        :param coord: actual coordinate
+        """
+        if page_tops is None or coord is None:
+            return None
+        for i, page_top in enumerate(page_tops):
+            if float(page_top) > float(coord):
+                if i == 0:
+                    return None
+                return page_tops[i - 1]
+        return None
 
     @classmethod
     def remove_lh_line_numbers(cls, ref_elem):
@@ -1165,7 +1210,9 @@ class HtmlTree:
                       cls.TOP_DIV: cls.TREE_ROOT, }
         rec = recs_by_section.get(cls.CHAP_TOP)
         assert rec, f"wanted {cls.CHAP_TOP} rec"
-        decimal_divs = cls.get_div_spans_with_decimals(elem, is_bold, font_size_range=font_size_range,
+        decimal_divs = cls.get_div_spans_with_decimals(elem,
+                                                       is_bold,
+                                                       font_size_range=font_size_range,
                                                        section_rec=rec, class_dict=class_dict)
         cls.create_filename_and_output(decimal_divs, output_dir)
 

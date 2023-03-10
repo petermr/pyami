@@ -19,7 +19,7 @@ from PIL import Image
 # local
 from py4ami.ami_bib import Publication
 
-from py4ami.ami_pdf import SVG_NS, SVGX_NS, PDFArgs, PDFDebug
+from py4ami.ami_pdf import SVG_NS, SVGX_NS, PDFArgs, PDFDebug, PDFParser
 from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage
 from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS
 from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE
@@ -42,8 +42,6 @@ CURRENT_RANGE = range(1, 20)
 # CHAPTER_RANGE = range(1, 200)
 
 # output directories in /temp
-CLIMATE_10_HTML_TEMP_DIR = Path(AmiAnyTest.TEMP_DIR, "climate10", "html")
-
 TEMP_PNG_IPCC_CHAP06 = Path(AmiAnyTest.TEMP_DIR, "png", "ipcc", "chap6")
 TEMP_PNG_IPCC_CHAP06.mkdir(exist_ok=True, parents=True)
 
@@ -94,8 +92,8 @@ def make_full_chap_10_draft_html_from_svg(pretty_print, use_lines, rotated_text=
         # raise Exception("must have SVG from ami3")
     for page_index in CURRENT_RANGE:
         page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-        html_path = Path(CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-        CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True, parents=True)
+        html_path = Path(AmiAnyTest.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+        AmiAnyTest.CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True, parents=True)
         ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
         ami_page.write_html(html_path, pretty_print, use_lines)
 
@@ -350,28 +348,18 @@ class PDFTest(AmiAnyTest):
         USED
         MODEL
         """
-
+        chapters = {
+            "Chapter04": {
+                "pages": "107"
+            },
+            "Chapter15": {
+                "pages": "103"
+            }
+        }
         chapter = "Chapter04"
-        ipcc_dir = Path(Resources.TEST_IPCC_DIR)
-        print(f"Converting chapter: {chapter}")
-        pdf_args = PDFArgs()  # also supports commands
-        chapter_dir = Path(ipcc_dir, chapter)
-        # populate arg commands
-        pdf_args.arg_dict[INDIR] = chapter_dir
-        assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
-        inpath = Path(chapter_dir, "fulltext.pdf")
-        pdf_args.arg_dict[INPATH] = inpath
-        assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
-        pdf_args.arg_dict[MAXPAGE] = 20
-        pdf_args.arg_dict[OUTFORM] = "flow.html"
-        outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "chap04")
-        outdir = AmiAnyTest.TEMP_HTML_IPCC_CHAP04
-        outdir.mkdir(exist_ok=True, parents=True)
-        pdf_args.arg_dict[OUTDIR] = outdir
-        pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
-        print(f"arg_dict {pdf_args.arg_dict}")
-
-        pdf_args.unwanteds = {
+        chapter = "Chapter15"
+        chapters_dir = Path(Resources.TEST_IPCC_DIR)
+        unwanteds = {
             "chapter": {
                 "xpath": ".//div/span",
                 "regex": "^Chapter\\s+\\d+\\s*$"
@@ -387,9 +375,34 @@ class PDFTest(AmiAnyTest):
             "wg3": {
                 "xpath": ".//div/span",
                 "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
-            },
+            }
         }
+
+        print(f"Converting chapter: {chapter}")
+        chapter_dir = Path(chapters_dir, chapter)
+        pdf_args = self.create_pdf_args_for_chapters(chapter, chapter_dir, chapters, unwanteds=unwanteds)
         _, _ = pdf_args.convert_write()  # refactor, please
+
+    def create_pdf_args_for_chapters(self, chapter, chapter_dir, chapters, infile="fulltext.pdf",
+unwanteds=None):
+        # populate arg commands
+        pdf_args = PDFArgs()  # also supports commands
+
+        pdf_args.arg_dict[INDIR] = chapter_dir
+        assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
+        inpath = Path(chapter_dir, infile)
+        pdf_args.arg_dict[INPATH] = inpath
+        assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
+        maxpage = chapters[chapter]["pages"]
+        pdf_args.arg_dict[MAXPAGE] = int(maxpage)
+        pdf_args.arg_dict[OUTFORM] = "flow.html"
+        outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", f"{chapter}")
+        outdir.mkdir(exist_ok=True, parents=True)
+        pdf_args.arg_dict[OUTDIR] = outdir
+        pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
+        print(f"arg_dict {pdf_args.arg_dict}")
+        return pdf_args
+
 
     def test_make_composite_lines_from_pdf_chap_6_3_toc(self):
         path = Path(Resources.TEST_IPCC_CHAP06, "html", "chap6_3.html")
@@ -404,7 +417,14 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
 
     @unittest.skipUnless(PDFTest.VERYLONG or True, "processes Chapters 04, 05, 16, 17")
     def test_make_ipcc_html(self):
-        """not really a test"""
+        """
+        Converts a complete chapter to HTML
+        KEEPS STYLES
+        JOINS LINES
+
+        DOES NOT CLIP PAGES
+        There should be a better one
+        """
         sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
         if not sem_clim_dir.exists():
             print(f"no ipcc dir {sem_clim_dir}, so skipping")
@@ -433,7 +453,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             pdf_args.arg_dict[OUTFORM] = "flow.html"
             outdir = AmiAnyTest.TEMP_HTML_IPCC
             outdir.mkdir(exist_ok=True, parents=True)
-            pdf_args.arg_dict[OUTDIR] = outdir
+            pdf_args.arg_dict[OUTDIR] = Path(outdir, chapter.lower())
             print(f"arg_dict {pdf_args.arg_dict}")
 
             unwanteds = {
@@ -465,7 +485,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         pass
 
     def test_convert_article_pdf_to_html_and_save_raw(self):
-        """Uses PDFArgs.convert_pdf to convert PDF to HTML and save
+        """Uses PDFParser.convert_pdf to convert PDF to HTML and save
         to temp (/Users/pm286/workspace/pyami/temp/html/pmc4121.xml)
         This is raw output with <br> between lines and mirrors the layout of
         the initial page. Still has y-coordinate ("top")
@@ -482,7 +502,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         pathx = Path(PMC1421_PDF)
 
         # convert PDF to html
-        result = PDFArgs.convert_pdf(
+        result = PDFParser().convert_pdf(
             path=str(pathx),
             fmt="html",
             caching=True,
@@ -543,7 +563,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         Can still be used for word frequency, etc.
 
 Uses:
-    self.raw_html = PDFArgs.convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
+    self.raw_html = PDFParser().convert_pdf(path=self.inpath, fmt=self.outform, maxpages=self.maxpage)
 
     if self.flow:
         self.html = self.tidy_flow()
@@ -865,7 +885,7 @@ LTPage
         fmt = "html"
         maxpages = 0
         path = Path(PMC1421_PDF)
-        result = PDFArgs.convert_pdf(
+        result = PDFParser().convert_pdf(
             path=str(path),
             fmt=fmt,
             maxpages=maxpages
@@ -1158,8 +1178,8 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
             raise Exception("must have SVG from ami3")
         for page_index in CURRENT_RANGE:
             page_path = Path(FINAL_DRAFT_DIR, f"fulltext-page.{page_index}.svg")
-            html_path = Path(CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
-            CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True, parents=True)
+            html_path = Path(AmiAnyTest.CLIMATE_10_HTML_TEMP_DIR, f"page.{page_index}.html")
+            AmiAnyTest.CLIMATE_10_HTML_TEMP_DIR.mkdir(exist_ok=True, parents=True)
             ami_page = AmiPage.create_page_from_svg(page_path, rotated_text=rotated_text)
             ami_page.write_html(html_path, pretty_print, use_lines)
 
@@ -1362,7 +1382,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         page_selection = range(1, 50)
         counter = 0
         counter_tick = 20
-        html_out_dir = CLIMATE_10_HTML_TEMP_DIR
+        html_out_dir = AmiAnyTest.CLIMATE_10_HTML_TEMP_DIR
         for page_index in page_selection:
             if counter % counter_tick == 0:
                 print(f".", end="")
@@ -1383,7 +1403,7 @@ class PDFSVGTest(test.test_all.AmiAnyTest):
         use_lines = True
         make_full_chap_10_draft_html_from_svg(pretty_print, use_lines)
         selection = CURRENT_RANGE
-        temp_dir = CLIMATE_10_HTML_TEMP_DIR
+        temp_dir = AmiAnyTest.CLIMATE_10_HTML_TEMP_DIR
         for page_index in selection:
             html_path = Path(temp_dir, f"page.{page_index}.html")
             with open(html_path, "r") as h:

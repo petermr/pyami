@@ -870,6 +870,7 @@ class TestCSSStyle:
 
     def test_extract_styles_from_mini_document_example(self):
         """
+        starts with tidied html
         start of IPCC WG3 Chapter06
         identifies all styles and extacts into <head><style>s and replaces @style with @class
         """
@@ -886,7 +887,7 @@ class TestCSSStyle:
 
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
 
-        outpath = str(Path(html_dir, "ipcc_styles2.html"))
+        outpath = str(Path(html_dir, "ipcc_styles_voloured.html"))
         with open(outpath, "wb") as f:
             f.write(lxml.etree.tostring(html_elem))
             print(f"(logger) output to {outpath}")
@@ -925,6 +926,7 @@ class TestCSSStyle:
 
     def test_extract_normalize_styles_old_chapter_17_example(self):
         """
+        starts with "fulltext.html" and converts to "fulltext_styles.html"
         Old chapter still with header/footer.
         example mainly to find styles
         """
