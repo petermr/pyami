@@ -1,7 +1,9 @@
 """bounding box"""
 
 import math
-from pyamiimage.ami_util import AmiUtil
+# this should be in a separate library
+from py4ami.ami_util import AmiUtil
+
 
 
 class BBox:

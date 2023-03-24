@@ -397,6 +397,7 @@ class PDFTest(AmiAnyTest):
         assert path.exists(), f"path exists {path}"
         AmiPage.create_page_from_pdf_html(path)
 
+    @unittest.skipUnless(VERYLONG, "why is this so long?")
     def test_pdf_html_wg2_format(self):
 
         chapter_dict = {"Chapter03":{'pages':'14'}}
@@ -415,7 +416,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
     """
 
     @unittest.skipUnless(PDFTest.VERYLONG or True, "processes Chapters 04, 05, 16, 17")
-    def test_make_ipcc_html(self):
+    def test_make_ipcc_html_IMPORTANT(self):
         """
         Converts a complete chapter to HTML
         KEEPS STYLES

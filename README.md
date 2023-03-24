@@ -203,3 +203,6 @@ optional arguments:
 ## Notes for PMR?
 project organization: https://dev.to/codemouse92/dead-simple-python-project-structure-and-imports-38c6
 use: pkg_resources
+
+# WARNING
+AmiUtil exists in both py4ami and pyamiimage. There should be a separate library
