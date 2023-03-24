@@ -183,13 +183,14 @@ top(Pagen) = 50 + (n - 1) * (841 + 47)
         """
         self.elem = elem
         page_div = elem.getnext()
-        n = page_div.xpath("./a/@name")
-        n = n[0] if len(n) == 1 else None
-        if n:
-            self.int_number = int(n)
+        if page_div is not None:
+            n = page_div.xpath("./a/@name")
+            n = n[0] if len(n) == 1 else None
+            if n:
+                self.int_number = int(n)
 
-        p = page_div.xpath("./a[@name and contains(., 'Page')]")
-        self.p_num_str = p[0] if len(p) == 1 else None
+            p = page_div.xpath("./a[@name and contains(., 'Page')]")
+            self.p_num_str = p[0] if len(p) == 1 else None
 
 
 class HtmlTidy:
@@ -256,7 +257,7 @@ class HtmlTidy:
         HtmlUtil.remove_unwanteds(self.raw_elem, self.unwanteds)
         HtmlUtil.remove_newlines(self.raw_elem)
         HtmlTree.make_sections_and_output(self.raw_elem, output_dir=self.outdir, recs_by_section=RECS_BY_SECTION)
-        htmlstr = lxml.etree.tostring(self.raw_elem).decode("UTF-8")
+        htmlstr = lxml.etree.tostring(self.raw_elem, encoding='UTF-8').decode()
         return htmlstr
 
     def remove_attributes_and_elements(self):

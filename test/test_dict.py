@@ -3,6 +3,7 @@ import logging
 import os
 import pprint
 import re
+import traceback
 import unittest
 from pathlib import Path
 
@@ -1229,6 +1230,7 @@ def main(argv=None):
     try:
         pdf_args.parse_and_process()
     except Exception as e:
+        print(traceback.format_exc())
         print(f"***Cannot run pyami***; see output for errors: {e}")
 
 

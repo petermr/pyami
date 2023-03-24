@@ -21,7 +21,7 @@ from py4ami.ami_bib import Publication
 
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, PDFArgs, PDFDebug, PDFParser
 from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage
-from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS
+from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS, CURVES, RECTS, TEXTS
 from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE
 from py4ami.ami_html import H_SPAN, H_BODY, H_P
 from py4ami.pyamix import PyAMI
@@ -209,8 +209,8 @@ class PDFTest(AmiAnyTest):
         page.create_text_spans(sort_axes=SORT_XY)
         assert 70 >= len(page.text_spans) >= 60
 
-    @unittest.skipUnless(USER, "page2sect")
-    def test_make_ami_pages_with_spans_from_charstream_ipcc_chap6(self):
+    # @unittest.skipUnless(USER or True, "page2sect")
+    def test_make_raw_ami_pages_with_spans_from_charstream_ipcc_chap6(self):
         """
         The central AMI method to make HTML from PDF characters
 
@@ -219,15 +219,16 @@ class PDFTest(AmiAnyTest):
         creates Raw HTML
 
         """
-        output_stem = "chap6"
+        output_stem = "raw_plumber"
         page_nos = range(3, 13)
         # page_nos = [3 4 5 8 ]
         input_pdf = Path(Resources.TEST_IPCC_CHAP06_PDF)
         assert input_pdf.exists(), f"{input_pdf} should exist"
         bbox = BBox(xy_ranges=[[60, 999], [60, 790]])
-        output_dir = Path(AmiAnyTest.TEMP_DIR, "pdf")
-        AmiPage.create_html_pages(bbox=bbox, input_pdf=input_pdf, output_dir=output_dir, output_stem=output_stem,
-                                  range_list=[range(3, 8), range(129, 131)])
+        output_dir = Path(AmiAnyTest.TEMP_PDF_IPCC_CHAP06)
+        AmiPage.create_html_pages_pdfplumber(bbox=bbox, input_pdf=input_pdf,
+                                             output_dir=output_dir, output_stem=output_stem,
+                                             range_list=[range(3, 8), range(129, 131)])
         assert output_dir.exists()
         assert Path(output_dir, f"{output_stem}_{5}.html").exists()
 
@@ -348,7 +349,7 @@ class PDFTest(AmiAnyTest):
         USED
         MODEL
         """
-        chapters = {
+        chapter_dict = {
             "Chapter04": {
                 "pages": "107"
             },
@@ -380,34 +381,32 @@ class PDFTest(AmiAnyTest):
 
         print(f"Converting chapter: {chapter}")
         chapter_dir = Path(chapters_dir, chapter)
-        pdf_args = self.create_pdf_args_for_chapters(chapter, chapter_dir, chapters, unwanteds=unwanteds)
-        _, _ = pdf_args.convert_write()  # refactor, please
-
-    def create_pdf_args_for_chapters(self, chapter, chapter_dir, chapters, infile="fulltext.pdf",
-unwanteds=None):
-        # populate arg commands
-        pdf_args = PDFArgs()  # also supports commands
-
-        pdf_args.arg_dict[INDIR] = chapter_dir
-        assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
-        inpath = Path(chapter_dir, infile)
-        pdf_args.arg_dict[INPATH] = inpath
-        assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
-        maxpage = chapters[chapter]["pages"]
-        pdf_args.arg_dict[MAXPAGE] = int(maxpage)
-        pdf_args.arg_dict[OUTFORM] = "flow.html"
         outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", f"{chapter}")
-        outdir.mkdir(exist_ok=True, parents=True)
-        pdf_args.arg_dict[OUTDIR] = outdir
-        pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
-        print(f"arg_dict {pdf_args.arg_dict}")
-        return pdf_args
+
+        pdf_args = PDFArgs.create_pdf_args_for_chapter(
+            chapter=chapter,
+            chapter_dir=chapter_dir,
+            chapter_dict=chapter_dict,
+            outdir=outdir,
+            unwanteds=unwanteds)
+        _, _ = pdf_args.convert_write()  # refactor, please
 
 
     def test_make_composite_lines_from_pdf_chap_6_3_toc(self):
         path = Path(Resources.TEST_IPCC_CHAP06, "html", "chap6_3.html")
         assert path.exists(), f"path exists {path}"
         AmiPage.create_page_from_pdf_html(path)
+
+    def test_pdf_html_wg2_format(self):
+
+        chapter_dict = {"Chapter03":{'pages':'14'}}
+        PDFArgs.create_pdf_args_for_chapter(
+            chapter="Chapter03",
+            chapter_dir=Resources.TEST_IPCC_WG2_CHAP03,
+            chapter_dict=chapter_dict,
+            outdir=Path(AmiAnyTest.TEMP_HTML_IPCC, "wg2", "chapter03"),
+            unwanteds=None
+        ).convert_write()  # refactor, please
 
 
 class PDFChapterTest(test.test_all.AmiAnyTest):
@@ -425,19 +424,20 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         DOES NOT CLIP PAGES
         There should be a better one
         """
-        sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
+#        sem_clim_dir = Path("/users/pm286", "projects", "semanticClimate")
+        sem_clim_dir = Path(Resources.TEST_IPCC_DIR)
         if not sem_clim_dir.exists():
             print(f"no ipcc dir {sem_clim_dir}, so skipping")
             return
-        ipcc_dir = Path(sem_clim_dir, "ipcc", "ar6", "wg3")
+        ipcc_dir = Path(Resources.TEST_IPCC_DIR)
         assert ipcc_dir.exists(), f"ipcc_dir {ipcc_dir} does not exist"
         chapters = [
             # "Chapter01",
             # "Chapter04", # works
             # "Chapter06",
             # "Chapter07",
-            "Chapter10",
-            # "Chapter15",
+            # "Chapter10",
+            "Chapter15",
             # "Chapter16",
         ]
         for chapter in chapters:
@@ -706,6 +706,7 @@ class PDFCharacterTest(test.test_all.AmiAnyTest):
     def test_final_ipcc_format_debug(self):
         """
         Reads final format of IPCC reports (double column)
+        PDFPLUMBER
         """
         assert Path(Resources.TEST_IPCC_WG2_CHAP03_PDF).exists()
         logging.warning(f"input is {Resources.TEST_IPCC_WG2_CHAP03_PDF}")
@@ -715,10 +716,13 @@ class PDFCharacterTest(test.test_all.AmiAnyTest):
         num_pages = len(pdf.pages)
         expected_pages = 172
         assert num_pages == expected_pages, f"expected {expected_pages} pages, found {num_pages}"
-        print(f"=======page {1} 0-based=========")
-        pdf = pdfdebug.pdfplumber_debug(inpath, page_num=1)
-        print(f"=======page {10} 0-based=========")
-        pdf = pdfdebug.pdfplumber_debug(inpath, page_num=10)
+        for page in [
+            # 0,
+            # 10,
+            13 # this has many graphics components and may be long
+                     ]:
+            print(f"=======page {page} 0-based=========")
+            pdf = pdfdebug.pdfplumber_debug(inpath, page_num=page)
 
 
     @unittest.skipUnless(PDFTest.DEBUG, "too much output")
@@ -748,7 +752,7 @@ LTPage
                 print('------------------------------ -------------------- -----')
 
             name = get_indented_name(o, depth)
-            print(f"name: {name}")
+            # print(f"name: {name}")
             if debug or name.strip() == "LTTextLineHorizontal":
                 print(
                     f'{name :<30.30s} '
@@ -781,8 +785,8 @@ LTPage
                              '__ne__', '__new__', '__reduce_ex__', '__reduce__', '__subclasshook__',
                              '__init_subclass__',
                              '__format__', '__sizeof__', '__dir__', '__class__']
-                    print(f"LTChar {o.__dir__()}")
-                return f'{o.fontname} {round(o.size)}pt'
+                    print(f"LTChar {o.__dir__()}//{o.ncs}//{o.graphicstate}//")
+                return f'{o.fontname} {round(o.size)}pt {o.matrix} {o.ncs} {o.x1} {o.y1}'
             return ''
 
         def get_optional_text(o: Any) -> str:
@@ -844,6 +848,7 @@ LTPage
         def show_ltitem_hierarchy(o: Any, depth=0):
             """Show location and text of LTItem and all its descendants"""
             MAXITEM = 2
+            MAXITEM = 4
             if depth == 0:
                 print('element                        fontname             text')
                 print('------------------------------ -------------------- -----')
@@ -869,9 +874,11 @@ LTPage
             return ''
 
         def get_optional_text(o: Any) -> str:
-            """Text of LTItem if available, otherwise empty string"""
+            """
+            Text of LTItem if available, otherwise empty string
+            """
             if hasattr(o, 'get_text'):
-                return o.get_text().strip()
+                return f"{o.get_text().strip()}"
             return ''
 
         path = Path(PMC1421_PDF)
@@ -881,7 +888,9 @@ LTPage
 
     def test_pdfminer_text_html_xml(self):
         # Use `pip3 install pdfminer.six` for python3
-        """runs pdfinterpreter/converter over 5-page article and creates html and xml versions"""
+        """
+        runs pdfinterpreter/converter over 5-page article and creates html and xml versions
+        """
         fmt = "html"
         maxpages = 0
         path = Path(PMC1421_PDF)
@@ -1081,6 +1090,18 @@ LTPage
             for ch in first_page.chars:  # prints all text as a single line
                 print(ch.get("text"), end="")
 
+    def test_make_styled_text_chunks_PDFPlumber(self):
+        """
+        PDFPlumber does not keep styles for words and text (it lumps them all together)
+        This builds chunks of constant style, font-size and y-coord
+        """
+        outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "ipcc", "chap6")
+        with pdfplumber.open(Resources.TEST_IPCC_CHAP06_PDF) as pdf:
+            pages = list(pdf.pages)
+            for page in pages[:1]:
+                PDFDebug().debug_page_properties(page, debug=[WORDS, IMAGES], outdir=outdir)
+
+
     def test_debug_page_properties_chap6_word_count_and_images_data_wg3_old__example(self):
         """debug the old-style IPCC WG3 PDF objects (crude)
         outputs wordcount for page, and any image data.
@@ -1133,24 +1154,38 @@ LTPage
         infile = PMC1421_PDF
         PDFDebug.debug_pdf(infile, outdir)
 
-    @unittest.skipUnless(PDFTest.VERYLONG, "complete chapter")
+    run_me = True
+    @unittest.skipUnless(PDFTest.VERYLONG or run_me, "complete chapter")
     def test_page_properties_ipcc_wg2_3__debug(self):
-        """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
+        """ high-level debug the PDF objects (crude) uses PDFDebug on large document with many graphics components
+        PDFPLUMBER
         finds WORDS (count) and IMAGE details
+        about 2 minutesw
+
         """
         outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "wg2_3")
         infile = IPCC_WG2_3_PDF
         pdf_debug = PDFDebug()
-        pdf_debug.debug_pdf(infile, outdir)
+        pdf_debug.debug_pdf(infile, outdir, debug_options=[WORDS, IMAGES, CURVES, TEXTS], page_len=15
+)
 
-    @unittest.skipUnless(PDFTest.VERYLONG, "complete chapter")
-    def test_page_properties_ipcc_wg3__debug(self):
+    @unittest.skipUnless(PDFTest.VERYLONG, "complete chapter - has graphics")
+    def test_page_properties_ipcc_wg2__debug(self):
         """ high-level debug the PDF objects (crude) uses PDFDebug on 5-page document
         finds WORDS (count) and IMAGE details
         """
         outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "wg2_3")
         infile = IPCC_WG2_3_PDF
         PDFDebug.debug_pdf(infile, outdir)
+
+    @unittest.skipUnless(PDFTest.VERYLONG or True, "complete chapter wg3 15")
+    def test_wg3_15_character_and_page_properties(self):
+        """
+        Initia
+        """
+        outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "ipcc", "Chapter15")
+        infile = Path(Resources.TEST_IPCC_CHAP15, "fulltext.pdf")
+        PDFDebug.debug_pdf(infile, outdir, debug_options=[WORDS, IMAGES])
 
 
 class PDFSVGTest(test.test_all.AmiAnyTest):

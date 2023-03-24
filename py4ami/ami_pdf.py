@@ -59,15 +59,16 @@ INTERPARA_FACT = 1.5
 SCRIPT_FACT = 0.9  # should this be here
 
 # debug
-WORDS = "words"
+ANNOTS = "annots"
+CURVES = "curves"
+HYPERLINKS = "hyperlinks"
+IMAGES = "images"
 LINES = "lines"
 RECTS = "rects"
-CURVES = "curves"
-IMAGES = "images"
 TABLES = "tables"
-HYPERLINKS = "hyperlinks"
-ANNOTS = "annots"
-DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, ANNOTS]
+TEXTS = "texts"
+WORDS = "words"
+DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, TEXTS, ANNOTS]
 DEBUG_ALL = "debug_all"
 
 # character properties
@@ -515,12 +516,12 @@ class AmiPage:
         logging.error("NOT YET WRITTEN")
 
     @classmethod
-    def create_html_pages(cls,
-                          bbox=DEFAULT_BBOX,
-                          input_pdf=None,
-                          output_dir=None,
-                          output_stem=None,
-                          range_list=range(1,9999999)):
+    def create_html_pages_pdfplumber(cls,
+                                     bbox=DEFAULT_BBOX,
+                                     input_pdf=None,
+                                     output_dir=None,
+                                     output_stem=None,
+                                     range_list=range(1,9999999)):
         """create HTML pages from PDF
         USED
         uses pdfminer routines (AmiPage.chars_to_spans)
@@ -895,7 +896,7 @@ class PDFArgs(AbstractArgs):
         if self.pdf2html:
             self.create_consistent_output_filenames_and_dirs()
             # range_list = self.create_range_list()
-            AmiPage.create_html_pages(
+            AmiPage.create_html_pages_pdfplumber(
                           bbox=AmiPage.DEFAULT_BBOX,
                           input_pdf=self.inpath,
                           output_dir=self.outdir,
@@ -1256,6 +1257,46 @@ class PDFArgs(AbstractArgs):
                         raise ValueError(f"Cannot parse {chunk0} as int range {e}")
         return ranges
 
+    @classmethod
+    def create_pdf_args_for_chapter(cls,
+                                     chapter=None,
+                                     chapter_dir=None,
+                                     chapter_dict = None,
+                                     outdir=None,
+                                     infile="fulltext.pdf",
+                                     unwanteds=None,
+                                    ):
+        """
+        populate args (mainly relevant to chapter-based corpus)
+        :param chapter: (in chapter_dir) to process
+        :param chapter_dir:
+        :param chapter_dict: parameters of chapters (Chapter01: {"pages": 123}} currently only pages
+        :param outdir:
+        :param infile: PDF file (defalut fulltext.pdf)
+        :param unwanteds: sections to omit
+        :return: PDFArgs object with populated fields
+        """
+        # populate arg commands
+        pdf_args = PDFArgs()  # also supports commands
+
+        pdf_args.arg_dict[INDIR] = chapter_dir
+        assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
+        inpath = Path(chapter_dir, infile)
+        pdf_args.arg_dict[INPATH] = inpath
+        assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
+        if chapter_dict is not None:
+            print(f"chapter_dict {chapter_dict}")
+            maxpage = chapter_dict[chapter]["pages"]
+            pdf_args.arg_dict[MAXPAGE] = int(maxpage)
+        if outdir is not None:
+            outdir.mkdir(exist_ok=True, parents=True)
+        pdf_args.arg_dict[OUTDIR] = outdir
+        pdf_args.arg_dict[OUTPATH] = Path(outdir, "ipcc_spans.html")
+        pdf_args.unwanteds = unwanteds
+        print(f"arg_dict {pdf_args.arg_dict}")
+        return pdf_args
+
+
 
 class PDFDebug:
     def __init__(self):
@@ -1271,6 +1312,8 @@ class PDFDebug:
         :param page_num: page to debug
         :except: bad page number
         debugs a single page
+        NOTE: LTTextBoxHorizontal can have multiple styles.
+
         """
         if inpath is None or not Path(inpath).exists():
             raise FileNotFoundError(f"{inpath} does not exist")
@@ -1279,6 +1322,7 @@ class PDFDebug:
         print(f"read {inpath}; found {num_pages} pages")
         if page_num < 0 or page_num >= num_pages:
             raise ValueError(f"bad page val {page_num}; should be in range 0-{num_pages - 1}")
+        print(f"")
         page_layout = pdf.pages[page_num].layout
         for element in page_layout:
             if isinstance(element, LTTextLineHorizontal):
@@ -1303,8 +1347,6 @@ class PDFDebug:
         if DEBUG_ALL in debug:
             debug = DEBUG_OPTIONS
         print(f"\n\n======page: {page.page_number} ===========")
-        if WORDS in debug:
-            self.print_words(page)
         if LINES in debug:
             self.print_lines(page)
         if RECTS in debug:
@@ -1317,6 +1359,10 @@ class PDFDebug:
             self.print_tables(page)
         if HYPERLINKS in debug:
             self.print_hyperlinks(page)
+        if TEXTS in debug:
+            self.print_text(page)
+        if WORDS in debug:
+            self.print_words(page)
         if ANNOTS in debug:
             self.print_annots(page)
 
@@ -1331,7 +1377,25 @@ class PDFDebug:
             print(f"wrote image coords to {coord_file}")
 
     def print_words(self, page):
-        print(f"words {len(page.extract_words())}", end=" | ")
+        """
+        word is a dict, \
+        based on space-separated tokens
+        keys are
+        dict_keys(['text', 'x0', 'x1', 'top', 'doctop', 'bottom', 'upright', 'direction'])
+        but it doesnt include font and dtyle info
+        """
+        words = page.extract_words()
+        for word in words[:5]:
+            print(f"W: {word} {word.keys()} ")
+        print(f"words {len(words)} {[w['text'] for w in words][:5]} ... ", end=" | ")
+
+    def print_text(self, page):
+        """
+        text is a string with no properties, so not v useful for us
+        """
+        text = page.extract_text()
+        print(f"T: {type(text)} {text[:50]} ")
+        print(f"chars {len(text)}", end=" | ")
 
     def print_lines(self, page):
         """
@@ -1489,9 +1553,10 @@ class PDFDebug:
                 print(f"annot: {annot.items()}")
 
     @classmethod
-    def debug_pdf(cls, infile, outdir, debug_options=None):
+    def debug_pdf(cls, infile, outdir, debug_options=None, page_len=999999):
         """
         debugs an input PDF and outputs to directory
+        PDFPLUMBER
         """
         if not debug_options:
             debug_options = [WORDS, IMAGES]
@@ -1502,9 +1567,9 @@ class PDFDebug:
         with pdfplumber.open(infile) as pdf:
             pages = list(pdf.pages)
             pdf_debug = PDFDebug()
-            for page in pages:
+            for page in pages[:page_len]:
                 pdf_debug.debug_page_properties(page, debug=debug_options)
-            print(f"images: {pdf_debug.image_dict.keys()}")
+            print(f"images cumulative keys : {len(pdf_debug.image_dict.keys())} {pdf_debug.image_dict.keys()}")
 
 
 

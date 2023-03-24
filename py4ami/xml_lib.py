@@ -169,6 +169,18 @@ class XmlLib:
         :return: lxml tree"""
         with urlopen(url) as f:
             tree = lxml.etree.parse(f)
+            """
+    def get_html(url, retry_count=0):
+    try:
+        request = Request(url)
+        response = urlopen(request)
+        html = response.read()
+    except ConectionResetError as e:
+        if retry_count == MAX_RETRIES:
+            raise e
+        time.sleep(for_some_time)
+        get_html(url, retry_count + 1)
+        """
         return tree
 
 
@@ -383,7 +395,7 @@ class XmlLib:
         :param attname: attribute name
         :param value: attribute value; if "" or None remove attribute
         """
-        if value is None or value is "":
+        if value is None or value == "":
             XmlLib.remove_attribute(elem, attname)
         else:
             elem.attrib[attname] = value

@@ -4,6 +4,7 @@ import sys
 import unittest
 import logging
 from pathlib import Path
+import traceback
 # local
 from py4ami.ami_project import CProject, CTree, AmiProjects, CProjectTests, CSubDir, ProjectArgs
 from py4ami.pyamix import PyAMI
@@ -307,6 +308,7 @@ def main(argv=None):
     try:
         pdf_args.parse_and_process()
     except Exception as e:
+        print(traceback.format_exc())
         print(f"***Cannot run pyami***; see output for errors: {e}")
 
 
