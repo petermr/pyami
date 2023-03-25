@@ -210,6 +210,9 @@ class Examples:
     def example_filter_species(self):
         self.banner(self.example_filter_species.__name__)
         proj_dir = self.pyamix.get_symbol("examples_test.p")
+        if not proj_dir.exists():
+            print(f"files for example not found {proj_dir}")
+            return
         print("path", proj_dir, os.path.exists(proj_dir))
         self.pyamix.run_command([
             "--proj", proj_dir,  # "/Users/pm286/projects/openDiagram/physchem/resources/oil26",

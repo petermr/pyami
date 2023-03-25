@@ -9,12 +9,12 @@ from pathlib import Path
 import lxml.etree
 from lxml.etree import Element
 
+# local
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 from py4ami.ami_html import HTMLSearcher, HtmlTree
-# local
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass
-# local
+from py4ami.ami_pdf import PDFArgs, INPATH, OUTDIR, MAXPAGE
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib, XmlLib
@@ -684,6 +684,32 @@ class TestHtml(AmiAnyTest):
             # print(f"node_dict: {node_dict.items()}")
         return node_dict_list
 
+class Test_PDFHTML(AmiAnyTest):
+    """
+    Combine PDF2HTML with styles and other tidy
+    """
+
+    def test_pdf_to_styled_chapter_15_EXAMPLE(self):
+        pdf_args = PDFArgs()
+        pdf_args.arg_dict[INPATH] = Path(Resources.TEST_IPCC_CHAP15, "fulltext.pdf")
+        outpath = Path(AmiAnyTest.TEMP_HTML_IPCC, "Chapter15", "tidied.html")
+        pdf_args.arg_dict[OUTDIR] = outpath.parent
+        pdf_args.arg_dict[MAXPAGE] = 30
+        outpath, html_str = pdf_args.convert_write(
+            # unwanteds=unwanteds
+        )
+
+        html_elem = lxml.etree.fromstring(html_str)
+        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
+        outpath1 = Path(AmiAnyTest.TEMP_HTML_IPCC, "Chapter15", "fulltext.html")
+        with open(outpath1, "wb") as f:
+            f.write(lxml.etree.tostring(html_elem, encoding="UTF-8"))
+        print(f"wrote styled html {outpath1}")
+        assert outpath1.exists()
+        fulltext_html = lxml.etree.parse(str(outpath1))
+        styles = fulltext_html.xpath("/html/head/style")
+        print(f"styles {[lxml.etree.tostring(s) for s in styles]}")
+        assert 19 >= len(styles) >= 15, f"found {len(styles)} expected 17 "
 
 class TestHtmlTidy:
 
@@ -896,7 +922,7 @@ class TestCSSStyle:
         assert len(html_elem.xpath("/html/body//*[@class]")) == 51,\
             f"new document should have 51 elements with @class attributes"
 
-    def test_extract_normalize_styles_old_chapter_4_example(self):
+    def test_extract_normalize_styles_old_chapter_4_EXAMPLE(self):
         """
         Old chapter still with header/footer.
         example mainly to find styles
@@ -957,7 +983,10 @@ class TestCSSStyle:
         assert css_style.get("width") == "34"
 
 
-class TestHtmlClass:
+class TestHtmlClass(AmiAnyTest):
+    """
+
+    """
 
     def test_minimal(self):
         """

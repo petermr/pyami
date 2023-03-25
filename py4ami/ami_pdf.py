@@ -2003,8 +2003,8 @@ def parse_and_process_1(pdf_args):
         pdf_args.parse_and_process()
         pdf_args.convert_write()
     except Exception as e:
-        print(traceback.format_exc())
-        print(f"***Cannot run pyami***; see output for errors: {e} ")
+        print(f"traceback: {traceback.format_exc()}")
+        print(f"******Cannot run pyami******; see output for errors: {e} ")
 
 
 if __name__ == "__main__":

@@ -25,8 +25,8 @@ from py4ami.util import AbstractArgs
 
 PYGETPAPERS = "pygetpapers"
 
-DICTIONARY_HOME = "/Users/pm286/dictionary"
-CEV_DICTIONARY_HOME = "/Users/pm286/projects/CEVOpen/dictionary"
+# DICTIONARY_HOME = "/Users/pm286/dictionary"
+# CEV_DICTIONARY_HOME = "/Users/pm286/projects/CEVOpen/dictionary"
 
 XML_FLAG = "xml"
 NOEXEC_FLAG = "noexec"

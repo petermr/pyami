@@ -432,16 +432,16 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             return
         ipcc_dir = Path(Resources.TEST_IPCC_DIR)
         assert ipcc_dir.exists(), f"ipcc_dir {ipcc_dir} does not exist"
-        chapters = [
+        chapter_dict = {
             # "Chapter01",
             # "Chapter04", # works
             # "Chapter06",
             # "Chapter07",
             # "Chapter10",
-            "Chapter15",
+            "Chapter15": 200,
             # "Chapter16",
-        ]
-        for chapter in chapters:
+        }
+        for i, chapter in enumerate(chapter_dict.keys()):
             print(f"Converting chapter: {chapter}")
             pdf_args = PDFArgs()
             chapter_dir = Path(ipcc_dir, chapter)
@@ -450,7 +450,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             inpath = Path(chapter, "fulltext.pdf")
             pdf_args.arg_dict[INPATH] = Path(chapter_dir, "fulltext.pdf")
             assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
-            pdf_args.arg_dict[MAXPAGE] = 200
+            pdf_args.arg_dict[MAXPAGE] = chapter_dict[chapter_dict]
             pdf_args.arg_dict[OUTFORM] = "flow.html"
             outdir = AmiAnyTest.TEMP_HTML_IPCC
             outdir.mkdir(exist_ok=True, parents=True)
@@ -478,9 +478,6 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             pdf_args.convert_write(
                 # unwanteds=unwanteds
             )
-
-            for chapter in chapters:
-                assert True, f"Chapter {chapter} should exist"
 
     def test_make_ipcc_html_commandline(self):
         pass

@@ -810,7 +810,7 @@ def main():
     try:
         pdf_args.parse_and_process()
     except Exception as e:
-        print(traceback.format_exc())
+        print(f"traceback: {traceback.format_exc()}")
         print(f"***Cannot run pyami***; see output for errors: {e} ")
 
     # print(f"====sections====")

@@ -506,10 +506,23 @@ class AbstractArgs(ABC):
 
         """
         # strip all tokens including ".py" (will proably fail on some m/c)
-        print(f"module_stem {self.module_stem}\n sys.argv {sys.argv}")
+        print(f"module_stem: {self.module_stem}\n sys.argv {sys.argv}")
+        args_store = sys.argv.copy()
         while len(sys.argv) > 0 and self.module_stem not in str(sys.argv[0]):
+            print(f"trimming sys.argv {sys.argv}")
             sys.argv = sys.argv[1:]
-        self.add_arguments()
+        if len(sys.argv) == 0: # must have name of prog
+            sys.argv = args_store.copy()
+        try:
+            self.add_arguments()
+        except Exception as e:
+            print(f"failed to add args {e}")
+            # if "list index out of range" == str(e):
+            #     print(f"trying to fix args {sys.argv}")
+            #     sys.argv = args_store.copy()
+            #     print(f"original args {sys.argv}")
+            # else:
+            raise e
         logger.warning(f"AbstractArgs ADDED ARGS {sys.argv}")
         # print(f"argv {sys.argv}")
         if len(sys.argv) == 1:  # no args, print help
