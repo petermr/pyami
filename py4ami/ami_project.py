@@ -288,7 +288,7 @@ class CProject(CContainer):
 
         cproject.make_cproject_from_pdfs(keep=keep, max_ctree_len=max_ctree_len, max_flag=max_flag)
 
-        cproject.pdf2htmlx()
+        cproject.pdf2html_in_ctrees()
 
     def make_cproject_from_pdfs(self, keep=True, files=None, max_ctree_len=24, max_flag=50):
         """makes directory for each PDF with safe names
@@ -385,7 +385,7 @@ class CProject(CContainer):
         cls.logger.warning(f"failed CTree {f}")
         return False
 
-    def pdf2htmlx(self, maxtree=9999, maxpage=9999):
+    def pdf2html_in_ctrees(self, maxtree=9999, maxpage=9999):
         """converts PDF to HTML
         Iterates over CTrees
         NOTE: based on IPCC reports. Needs generalising
@@ -402,12 +402,13 @@ class CProject(CContainer):
                 print(f"maximum number of CTress {i}")
                 break
             pdf_args = PDFArgs()
-            inpath = f"{Path(ctree.dirx, 'fulltext.pdf')}"
-            outdir = Path(ctree.dirx, "html")
-            outdir.mkdir(exist_ok=True)
-            outstem = "fulltext"
             fmt = "HTML"
-            outpath, out_html = pdf_args.convert_write(outdir=outdir, outstem=outstem, inpath=inpath, flow=True, maxpage=maxpage)
+            outpath, out_html = pdf_args.convert_write(
+                outdir=(Path(ctree.dirx, "html")),
+                outstem="fulltext",
+                inpath=f"{Path(ctree.dirx, 'fulltext.pdf')}",
+                flow=True,
+                maxpage=maxpage)
 
 
 class CTree(CContainer):
@@ -620,7 +621,7 @@ class ProjectArgs(AbstractArgs):
                                                   'Duplicates have a numbered extension (_dd)\n' 
                                                   '\nExamples:\n' 
                                                   '  * PROJECT --project foobar\n' 
-                                                  '  * PROJECT --project --foobar --ctree Chapter03 Chapter09\n')
+                                                  '  * PROJECT --project --foobar --ctree wg2_03 Chapter09\n')
         self.parser.formatter_class = argparse.RawDescriptionHelpFormatter
         # make_project requires --project <proj>
         self.parser.add_argument(f"--{ProjectArgs.FILE}", nargs="+",

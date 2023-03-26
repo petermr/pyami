@@ -7,14 +7,13 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import lxml.etree
-from lxml.etree import Element
 
 # local
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 from py4ami.ami_html import HTMLSearcher, HtmlTree
-from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass
-from py4ami.ami_pdf import PDFArgs, INPATH, OUTDIR, MAXPAGE
+from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont
+from py4ami.ami_pdf import PDFArgs
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib, XmlLib
@@ -51,13 +50,11 @@ s1  to mean class name (classname)
 
 
 class TestHtml(AmiAnyTest):
-
     """
     parsing , structuring linking in/to.form HTML
     This will evolve into an ami_html.py module
     """
     # all are skipUnless
-
 
     ADMIN = True and AmiAnyTest.ADMIN
     BUG = True and AmiAnyTest.BUG
@@ -346,7 +343,7 @@ class TestHtml(AmiAnyTest):
     def test_split_caption_at_bracketed_panel_refs(self):
         """split at text (a) more (b) etc
         Test recursive splitting through HtmlUtil.split_span_at_match"""
-        s = f"Box 6.2 Figure 1 Retirement of coal-fired power plants to limit warming to 1.5°C and" \
+        s = f"Box 6.2 Figure 1 Retirement of coal-fired power plants imit warming to 1.5°C and" \
             f" likely 2°C. (a) Historical facility age at retirement (b) the vintage year of existing" \
             f" units, (c) global coal capacity under different plant lifetimes, compared to capacity" \
             f" levels consistent with a well-below 2°C (green) and 1.5°C(blue) pathway assuming no new" \
@@ -684,6 +681,7 @@ class TestHtml(AmiAnyTest):
             # print(f"node_dict: {node_dict.items()}")
         return node_dict_list
 
+
 class Test_PDFHTML(AmiAnyTest):
     """
     Combine PDF2HTML with styles and other tidy
@@ -691,27 +689,55 @@ class Test_PDFHTML(AmiAnyTest):
 
     def test_pdf_to_styled_chapter_15_EXAMPLE(self):
         pdf_args = PDFArgs()
-        pdf_args.arg_dict[INPATH] = Path(Resources.TEST_IPCC_CHAP15, "fulltext.pdf")
-        outpath = Path(AmiAnyTest.TEMP_HTML_IPCC, "Chapter15", "tidied.html")
-        pdf_args.arg_dict[OUTDIR] = outpath.parent
-        pdf_args.arg_dict[MAXPAGE] = 30
-        outpath, html_str = pdf_args.convert_write(
-            # unwanteds=unwanteds
-        )
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "Chapter15")
+        outpath1 = Path(AmiAnyTest.TEMP_HTML_IPCC, "Chapter15", "fulltext.html")
+        maxpage = 30
+        style_count = 17
+        print_styles = True
+        inpath = Path(Resources.TEST_IPCC_CHAP15, "fulltext.pdf")
+        self.pdf_html_styles(inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count)
 
+    def test_pdf_to_styled_multiple_EXAMPLE(self):
+        pdf_args = PDFArgs()
+        for chapter in [
+            # "Chapter15",
+            # "LongerReport",
+            # "wg2_03", # this has performance problems due to vector graphics/boxes
+            "wg2_06",
+        ]:
+            outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, chapter)
+            outpath1 = Path(AmiAnyTest.TEMP_HTML_IPCC, chapter, "fulltext.html")
+            maxpage = 200
+            style_count = 15
+            print_styles = True
+            inpath = Path(Resources.TEST_IPCC_DIR, chapter, "fulltext.pdf")
+            self.pdf_html_styles(inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count)
+
+    def pdf_html_styles(self, inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count):
+        outpath, html_str = pdf_args.convert_write(
+            inpath=inpath,
+            outpath=Path(outdir, "tidied.html"),
+            outdir=outdir,
+            maxpage=maxpage
+        )
+        style_range = (10, 100)
+        assert len(html_str.strip()) > 0
         html_elem = lxml.etree.fromstring(html_str)
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
-        outpath1 = Path(AmiAnyTest.TEMP_HTML_IPCC, "Chapter15", "fulltext.html")
+        styles = CSSStyle.extract_styles_from_html_element(html_elem)
+        assert len(styles) > 0
         with open(outpath1, "wb") as f:
             f.write(lxml.etree.tostring(html_elem, encoding="UTF-8"))
         print(f"wrote styled html {outpath1}")
         assert outpath1.exists()
-        fulltext_html = lxml.etree.parse(str(outpath1))
-        styles = fulltext_html.xpath("/html/head/style")
-        print(f"styles {[lxml.etree.tostring(s) for s in styles]}")
-        assert 19 >= len(styles) >= 15, f"found {len(styles)} expected 17 "
+        assert style_range[1] >= len(styles) >= style_range[0], f"found {len(styles)} expected {style_range} "
+        style_dict = CSSStyle.create_style_dict_from_styles(style_elems=styles)
+        if print_styles:
+            for item in style_dict.items():
+                print(f"{item[0]}: {item[1]}")
 
-class TestHtmlTidy:
+
+class TestHtmlTidy(AmiAnyTest):
 
     def test_html_good(self):
         """
@@ -815,7 +841,7 @@ class TestHtmlTidy:
         XmlLib.write_xml(html_tidy_elem, path)
 
 
-class TestCSSStyle:
+class TestCSSStyle(AmiAnyTest):
 
     def test_extract_character_style(self):
         """
@@ -905,7 +931,7 @@ class TestCSSStyle:
         html_elem = lxml.etree.parse(str(MINI_IPCC_PATH))
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)
         assert len(html_elem.xpath("/html/head/style")) == 0, f"no head styles in original"
-        assert len(html_elem.xpath("/html/body//*[not(normalize-space(@style))='']")) == 50,\
+        assert len(html_elem.xpath("/html/body//*[not(normalize-space(@style))='']")) == 50, \
             f"raw document should have 50 elements with non-empty @style attributes"
         # this is so HTML browsers can see the initial file
         with open(str(Path(html_dir, "ipcc_styles0.html")), "wb") as f:
@@ -919,7 +945,7 @@ class TestCSSStyle:
             print(f"(logger) output to {outpath}")
 
         assert len(html_elem.xpath("/html/head/style")) == 7, f"7 head styles"
-        assert len(html_elem.xpath("/html/body//*[@class]")) == 51,\
+        assert len(html_elem.xpath("/html/body//*[@class]")) == 51, \
             f"new document should have 51 elements with @class attributes"
 
     def test_extract_normalize_styles_old_chapter_4_EXAMPLE(self):
@@ -932,7 +958,7 @@ class TestCSSStyle:
         html_elem = lxml.etree.parse(str(Path(Resources.TEST_IPCC_CHAP04, "fulltext_old.html")))
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)
         assert len(html_elem.xpath("/html/head/style")) == 0, f"no head styles in original"
-        assert len(html_elem.xpath("/html/body//*[not(normalize-space(@style))='']")) == 2302,\
+        assert len(html_elem.xpath("/html/body//*[not(normalize-space(@style))='']")) == 2302, \
             f"raw document should have 50 elements with non-empty @style attributes"
         # this is so HTML browsers can see the initial file
         with open(str(Path(output_html_dir, "ipcc_fulltext_styles0.html")), "wb") as f:
@@ -944,11 +970,10 @@ class TestCSSStyle:
             f.write(lxml.etree.tostring(html_elem))
 
         assert len(html_elem.xpath("/html/head/style")) == 23, f"23 head styles"
-        assert len(html_elem.xpath("/html/body//*[@class]")) == 2304,\
+        assert len(html_elem.xpath("/html/body//*[@class]")) == 2304, \
             f"new document should have 2304 elements with @class attributes"
-        assert len(html_elem.xpath("/html/body//*[contains(@class,'dec')]")) == 0,\
+        assert len(html_elem.xpath("/html/body//*[contains(@class,'dec')]")) == 0, \
             f"new document should have 0 elements with @class attributes containing 'dec1', 'dec2' etc."
-
 
     def test_extract_normalize_styles_old_chapter_17_example(self):
         """
@@ -967,11 +992,10 @@ class TestCSSStyle:
             f.write(lxml.etree.tostring(html_elem))
 
         assert len(html_elem.xpath("/html/head/style")) == 13, f"13 head styles"
-        assert len(html_elem.xpath("/html/body//*[@class]")) == 1330,\
+        assert len(html_elem.xpath("/html/body//*[@class]")) == 1330, \
             f"new document should have 2304 elements with @class attributes"
-        assert len(html_elem.xpath("/html/body//*[contains(@class,'dec')]")) == 0,\
+        assert len(html_elem.xpath("/html/body//*[contains(@class,'dec')]")) == 0, \
             f"new document should have 0 elements with @class attributes containing 'dec1', 'dec2' etc."
-
 
     def test_css_parse(self):
         css_str = "height: 22; width: 34;"
@@ -981,6 +1005,77 @@ class TestCSSStyle:
         assert css_style.get("height") == "22"
         assert "width" in css_style
         assert css_style.get("width") == "34"
+
+    def test_make_style_dict_from_html(self):
+        """
+        extracts <style> elements into a Python dic
+        """
+        html_str = """
+        <html>
+          <head>
+            <style>.s0 {font-size:14 px; stroke: blue;}</style>
+            <style>.s1 {font-size:10 px; fill: red;}</style>
+            <style>.s2 {font-size:8 px; border: solid 1 px;}</style>
+          </head>
+          <body/>
+        </html>
+          """
+        styles = CSSStyle.extract_styles_from_html_string(html_str)
+        style_dict = CSSStyle.create_style_dict_from_styles(style_elems=styles)
+        assert ".s1" in style_dict.keys()
+        assert 'font-size:10 px; fill: red;' == style_dict[".s1"]
+
+    def test_validate_html_styles_ERRORS(self):
+        """
+        try to create style_dict from invalid content. Should raise errors
+        """
+        duplicate_css_ref = """ 
+        <html>
+          <head>
+            <style>.s0 {font-size:14 px; stroke: blue;}</style>
+            <style>.s1 {font-size:10 px; fill: red;}</style>
+            <style>.s0 {font-size:8 px; border: solid 1 px;}</style>
+          </head>
+          <body/>
+        </html>
+"""
+        styles = CSSStyle.extract_styles_from_html_string(duplicate_css_ref)
+        try:
+            style_dict = CSSStyle.create_style_dict_from_styles(style_elems=styles)
+        except ValueError as e:
+            assert str(e) == "duplicate style ref .s0 {font-size:8 px; border: solid 1 px;}"
+
+        missing_dot = """ 
+        <html>
+          <head>
+            <style>.s0 {font-size:14 px; stroke: blue;}</style>
+            <style>.s1 {font-size:10 px; fill: red;}</style>
+            <style>s2 {font-size:8 px; border: solid 1 px;}</style>
+          </head>
+          <body/>
+        </html>
+"""
+        styles = CSSStyle.extract_styles_from_html_string(missing_dot)
+        try:
+            style_dict = CSSStyle.create_style_dict_from_styles(style_elems=styles)
+        except ValueError as e:
+            assert str(e) == "BAD head_style s2 {font-size:8 px; border: solid 1 px;}"
+
+        bad_css = """ 
+        <html>
+          <head>
+            <style>.s0 {font-size:14 px; stroke: blue;}</style>
+            <style>.s1 {font-size:10 px; fill: red;}</style>
+            <style>.s2 {font-size:8 px border: solid 1 px;}</style>
+          </head>
+          <body/>
+        </html>
+"""
+        styles = CSSStyle.extract_styles_from_html_string(bad_css)
+        try:
+            style_dict = CSSStyle.create_style_dict_from_styles(style_elems=styles)
+        except KeyError as e:
+            assert str(e) == "'bad style font-size:8 px border: solid 1 px in CSS: font-size:8 px border: solid 1 px;'"
 
 
 class TestHtmlClass(AmiAnyTest):
@@ -1048,12 +1143,11 @@ class TestHtmlClass(AmiAnyTest):
         assert html_class.has_class("foo")
         assert html_class.has_class("bar")
 
-        html_class.remove("baz") # should be no effect
+        html_class.remove("baz")  # should be no effect
         assert html_class.classes == {"foo", "bar"}
         assert html_class.class_string == "bar foo"
         assert html_class.has_class("foo")
         assert html_class.has_class("bar")
-
 
     def test_replace(self):
         """
@@ -1071,10 +1165,11 @@ class TestHtmlClass(AmiAnyTest):
         html_class.add_class("foo")
         assert html_class.classes == {"foo", "bar", "plugh"}
         assert html_class.class_string == "bar foo plugh"
-        html_class.replace_class("foo", "plugh") # contains existing class, so should equal remove
+        html_class.replace_class("foo", "plugh")  # contains existing class, so should equal remove
         assert html_class.class_string == "bar plugh"
 
-class TestHtmlTree:
+
+class TestHtmlTree(AmiAnyTest):
     """
     makes sections from unstructured text
     """
@@ -1087,12 +1182,12 @@ class TestHtmlTree:
         #  "<span id="id1521" class="s0 dec2">4.1</span>")
         xpath = (".//div/span["
                  "contains(@class, 'dec1') "
-            "or contains(@class, 'dec2') "
-            "or contains(@class, 'dec3') "
-            "or contains(@class, 'dec4')]")
+                 "or contains(@class, 'dec2') "
+                 "or contains(@class, 'dec3') "
+                 "or contains(@class, 'dec4')]")
         decimal_sections = HtmlTree.get_decimal_sections(html_elem, xpath=xpath)
 
-        hierarchy = Hierarchy()
+        hierarchy = SectionHierarchy()
         hierarchy.add_sections(decimal_sections, poplist=["Chapter 4:"])
         hierarchy.sort_sections()
 
@@ -1102,109 +1197,68 @@ class TestHtmlTree:
         # if not TEST_IPCC_WG3.exists():
         #     print(f"semanticClimate files not available locally")
         #     return
-        html_elem = lxml.etree.parse(str(Path(Resources.TEST_IPCC_DIR, "Chapter03", "fulltext.html")))
+        html_elem = lxml.etree.parse(str(Path(Resources.TEST_IPCC_DIR, "wg2_03", "fulltext.html")))
         xpath = (".//div/span["
                  "contains(@class, 'dec1') "
-            "or contains(@class, 'dec2') "
-            "or contains(@class, 'dec3') "
-            "or contains(@class, 'dec4')]")
+                 "or contains(@class, 'dec2') "
+                 "or contains(@class, 'dec3') "
+                 "or contains(@class, 'dec4')]")
         decimal_sections = HtmlTree.get_decimal_sections(html_elem, xpath=xpath)
 
-        hierarchy = Hierarchy()
+        hierarchy = SectionHierarchy()
         hierarchy.add_sections(decimal_sections, poplist=["Chapter 3:"])
         hierarchy.sort_sections()
 
+class TestFont(AmiAnyTest):
 
-class Hierarchy:
-    """
-    builds and queries hierarchical sections
-    """
+    def test_create_from_names(self):
+        tests = [
+            ("ArialNarrow", "Arial///Narrow"),
+            ("ArialBoldItalic", "Arial/Bold/Italic/"),
+            ("ArialItalic", "Arial//Italic/"),
+            ("ArialBold", "Arial/Bold//"),
+            ("Arial", "Arial///"),
+        ]
+        self.run_tests_0(tests)
 
-    ID = "id"
-    CLASS = 'class'
-    DOT = "."
-    MISSING = "missing"
-    SECT = "sect"
+        test2s = [
+            ("ArialNarrow", "Arial///Narrow"),
+            ("ArialNarrow-Bold", "Arial/Bold//Narrow"),
+            ("Calibri", "Calibri///"),
+            ("FrutigerLTPro-BlackCn", "FrutigerLTPro/Bold//Narrow"),
+            ("FrutigerLTPro-BoldCn", "FrutigerLTPro/Bold//Narrow"),
+            ("FrutigerLTPro-BoldCnIta", "FrutigerLTPro/Bold/Italic/Narrow"),
+            ("FrutigerLTPro-Condensed", "FrutigerLTPro///Narrow"),
+            ("FrutigerLTPro-CondensedIta", "FrutigerLTPro//Italic/Narrow"),
+            ("FrutigerLTPro-Light", "FrutigerLTPro/Light//"),
+            ("FrutigerLTPro-LightCn", "FrutigerLTPro/Light//Narrow"),
+            ("FrutigerLTPro-LightCnIta", "FrutigerLTPro/Light/Italic/Narrow"),
+            ("FrutigerLTPro-Roman", "FrutigerLTProRoman///"),
 
-    def __init__(self):
-        pass
+        ]
+        self.run_tests_0(test2s)
 
-    def add_sections(self, decimal_sections, top=None, poplist=None):
-        if not poplist:
-            poplist = []
-        sections_by_level = self.create_sections_by_level(decimal_sections)
-        parent_dict = self.create_parent_dict(sections_by_level)
-        for pop in poplist:
-            try:
-                parent_dict.pop(pop)  # remove non-numeric item
-            except:
-                print("Cannot pop {pop}")
-        
-        root = Element(self.SECT)
-        root.attrib[self.ID] = "4"
-        print(f"root {lxml.etree.tostring(root, pretty_print=True)}")
-        for sect_id in parent_dict.keys():
-            self.ensure_element(root, sect_id, parent_dict)
-        print(f"tree:\n {lxml.etree.tostring(root, pretty_print=True).decode('UTF-8')}")
+    def test_edit_fonts_in_styles(self):
+        """
+        edits the style attributes to extract weights and styles
+        tests: CSSStyle.create_css_style_from_css_string(style)
+        """
+        self.assert_new_css_style("font-family: ArialNarrowBold; fill: red",
+                                  'font-family:Arial; fill:red; font-weight:Bold; font-stretched:Narrow;')
+        self.assert_new_css_style("font-family: ArialBold; fill: red",
+                                  'font-family:Arial; fill:red; font-weight:Bold;')
+        self.assert_new_css_style("font-family: FooBarBold; fill: red",
+                                  'font-family:FooBar; fill:red; font-weight:Bold;')
 
-    def create_parent_dict(self, sections_by_level):
-        parent_dict = dict()
-        for level in sections_by_level.keys():
-            sect_ids = self.add_parents(level, sections_by_level, parent_dict)
-        return parent_dict
+    def assert_new_css_style(self, style, new_value):
+        css_style = CSSStyle.create_css_style_from_css_string(style)
+        new_css_style = AmiFont.create_font_edited_style_from_css_style(css_style)
+        assert str(new_css_style) == new_value
 
-    def create_sections_by_level(self, decimal_sections):
-        sections_by_level = defaultdict(list)
-        for section in decimal_sections:
-            level = section.attrib.get(self.CLASS).split()[1]
-            sections_by_level[level].append(section.text)
-        return sections_by_level
+    # -------------------------------
 
-    def add_parents(self, level, multidict, parent_dict):
-        level_sects = multidict[level]
-        for level_sect in level_sects:
-            parent = self.get_parent(level_sect)
-            parent_dict[level_sect] = parent
+    def run_tests_0(self, tests):
+        for test in tests:
+            ami_font = AmiFont.extract_name_weight_style_stretched(test[0])
+            assert str(ami_font) == test[0] + "/" + test[1]
 
-    def get_parent(self, level_sect):
-        bits = level_sect.split(".")
-        parent = None if len(bits) == 1 else self.DOT.join(bits[:-1])
-        return parent
-
-    def ensure_element(self, root, sect_id, parent_dict):
-        if sect_id == "":
-            print(f"RAN OFF TOP")
-            return None
-        xpath = f"//{self.SECT}[@id='{sect_id}']"
-        elems = root.xpath(xpath)
-        if len(elems) == 0:
-            parent_id = parent_dict.get(sect_id)
-            missing = False
-            if parent_id is None:
-                print(f" missing parent section {sect_id}")
-                missing = True
-                spl = sect_id.split(self.DOT)
-                split_ = spl[:-1]
-                parent_id = self.DOT.join(split_)
-            if parent_id == "":
-                print(f" skip root...")
-            elem = self.ensure_element(root, parent_id, parent_dict)
-            if elem is not None:
-                sect_xml = lxml.etree.SubElement(elem, self.SECT)
-                sect_xml.attrib[self.ID] = sect_id
-                if missing:
-                    sect_xml.attrib[self.MISSING] = "Y"
-                return sect_xml
-        elif len(elems) > 1:
-            print(f" duplicate ids: {sect_id}")
-            return None
-        else:
-            return elems[0]
-
-    def sort_sections(self):
-        print("sort sections NYI")
-        pass
-
-    @classmethod
-    def sort_ids(cls):
-        pass

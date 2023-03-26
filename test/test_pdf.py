@@ -51,7 +51,7 @@ IPCC_DIR = Path(Resources.TEST_RESOURCES_DIR, "ipcc")
 IPCC_GLOSS_DIR = Path(IPCC_DIR, "glossary")
 IPCC_GLOSSARY = Path(IPCC_GLOSS_DIR, "IPCC_AR6_WGIII_Annex-I.pdf")
 IPCC_WG2_DIR = Path(IPCC_DIR, "wg2")
-IPCC_WG2_3_DIR = Path(IPCC_WG2_DIR, "Chapter03")
+IPCC_WG2_3_DIR = Path(IPCC_WG2_DIR, "wg2_03")
 IPCC_WG2_3_PDF = Path(IPCC_WG2_3_DIR, "fulltext.pdf")
 
 # arg_dict
@@ -400,9 +400,9 @@ class PDFTest(AmiAnyTest):
     @unittest.skipUnless(VERYLONG, "why is this so long?")
     def test_pdf_html_wg2_format(self):
 
-        chapter_dict = {"Chapter03":{'pages':'14'}}
+        chapter_dict = {"wg2_03":{'pages':'14'}}
         PDFArgs.create_pdf_args_for_chapter(
-            chapter="Chapter03",
+            chapter="wg2_03",
             chapter_dir=Resources.TEST_IPCC_WG2_CHAP03,
             chapter_dict=chapter_dict,
             outdir=Path(AmiAnyTest.TEMP_HTML_IPCC, "wg2", "chapter03"),
@@ -416,7 +416,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
     """
 
     @unittest.skipUnless(PDFTest.VERYLONG or True, "processes Chapters 04, 05, 16, 17")
-    def test_make_ipcc_html_IMPORTANT(self):
+    def test_make_ipcc_html_EXAMPLE(self):
         """
         Converts a complete chapter to HTML
         KEEPS STYLES
@@ -437,7 +437,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             # "Chapter04", # works
             # "Chapter06",
             # "Chapter07",
-            # "Chapter10",
+            "Chapter06": 30,
             "Chapter15": 200,
             # "Chapter16",
         }
@@ -445,38 +445,21 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             print(f"Converting chapter: {chapter}")
             pdf_args = PDFArgs()
             chapter_dir = Path(ipcc_dir, chapter)
-            pdf_args.arg_dict[INDIR] = chapter_dir
-            assert pdf_args.arg_dict[INDIR].exists(), f"dir does not exist {chapter_dir}"
-            inpath = Path(chapter, "fulltext.pdf")
-            pdf_args.arg_dict[INPATH] = Path(chapter_dir, "fulltext.pdf")
-            assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
-            pdf_args.arg_dict[MAXPAGE] = chapter_dict[chapter_dict]
-            pdf_args.arg_dict[OUTFORM] = "flow.html"
-            outdir = AmiAnyTest.TEMP_HTML_IPCC
-            outdir.mkdir(exist_ok=True, parents=True)
-            pdf_args.arg_dict[OUTDIR] = Path(outdir, chapter.lower())
+            # pdf_args.arg_dict[INDIR] = chapter_dir
+            # inpath = Path(chapter, "fulltext.pdf")
+            # pdf_args.arg_dict[INPATH] = Path(chapter_dir, "fulltext.pdf")
+            # assert pdf_args.arg_dict[INPATH].exists(), f"file does not exist {inpath}"
+            # pdf_args.arg_dict[MAXPAGE] = chapter_dict[chapter]
+            # pdf_args.arg_dict[OUTFORM] = "flow.html"
+            # pdf_args.arg_dict[OUTDIR] = Path(AmiAnyTest.TEMP_HTML_IPCC, chapter.lower())
             print(f"arg_dict {pdf_args.arg_dict}")
 
-            unwanteds = {
-                "chapter": {
-                    "xpath": ".//div/span",
-                    "regex": "^Chapter\\s+\\d+\\s*$"
-                },
-                "final_gov": {
-                    "xpath": ".//div/span",
-                    "regex": "^\\s*Final Government Distribution\\s*$"
-                },
-                "page": {
-                    "xpath": ".//div/a",
-                    "regex": "^\\s*Page\\s*\\d+\\s*$",
-                },
-                "wg3": {
-                    "xpath": ".//div/span",
-                    "regex": "^\\s*(IPCC AR6 WGIII)|(IPCC WGIII AR6)\\s*$",
-                },
-            }
             pdf_args.convert_write(
-                # unwanteds=unwanteds
+                indir=chapter_dir,
+                inpath=Path(chapter_dir, "fulltext.pdf"),
+                maxpage=chapter_dict[chapter],
+                outdir=Path(AmiAnyTest.TEMP_HTML_IPCC, chapter.lower()),
+                outform="flow.html",
             )
 
     def test_make_ipcc_html_commandline(self):
@@ -576,16 +559,22 @@ Uses:
         assert Resources.TEST_IPCC_CHAP06_PDF.exists(), f"chap6 {Resources.TEST_IPCC_CHAP06_PDF}"
         pdf_args = PDFArgs()
         maxpage = 5
-        pdf_args.arg_dict[MAXPAGE] = maxpage  # works
-        pdf_args.arg_dict[INPATH] = Resources.TEST_IPCC_CHAP06_PDF
-        pdf_args.arg_dict[OUTPATH] = Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html")
-        pdf_args.arg_dict[PDF2HTML] = PDFPLUMBER
+        # pdf_args.arg_dict[MAXPAGE] = maxpage  # works
+        # pdf_args.arg_dict[INPATH] = Resources.TEST_IPCC_CHAP06_PDF
+        # pdf_args.arg_dict[OUTPATH] = Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html")
+        # pdf_args.arg_dict[PDF2HTML] = PDFPLUMBER
 
         pprint.pprint(pdf_args.arg_dict)
         # pdf_args.arg_dict[PAGES] = [(1,3), (5,10)]
 
         print(f"arg_dict {pdf_args.arg_dict}")
-        outfile, _ = pdf_args.convert_write()  # all the conversion happens here
+        outfile, _ = pdf_args.convert_write(
+            maxpage=5,
+            inpath=Resources.TEST_IPCC_CHAP06_PDF,
+            outpath=Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html"),
+            pdf2html=PDFPLUMBER,
+
+        )  # all the conversion happens here
         assert Path(outfile).exists(), f"{outfile} should exist"
         if not outfile:
             print(f"no file written")
@@ -670,7 +659,7 @@ Uses:
         </html>)
 
         """
-        infile = Path(Resources.TEST_IPCC_DIR, "wg2", "Chapter03", "fulltext.pdf")
+        infile = Path(Resources.TEST_IPCC_DIR, "wg2", "wg2_03", "fulltext.pdf")
         pages = "5_8" # total is 0_171 (172pp)
         outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg2_chap03")
         args = f"PDF --infile {infile} --outdir {outdir} --pages {pages}"

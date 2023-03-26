@@ -1054,7 +1054,17 @@ class PDFArgs(AbstractArgs):
         # page_height_cm = 29.7
         self.footer = 90
 
-    def convert_write(self):
+    def convert_write(self,
+                      flow=True,
+                      indir=None,
+                      inpath=None,
+                      maxpage=None,
+                      outform=None,
+                      outpath=None,
+                      outstem=None,
+                      outdir=None,
+                      pdf2html=None
+        ):
         """
         Convenience method to run PDFParser.convert_pdf on self.inpath, self.outform, and self.maxpage
         writes output to self.outpath
@@ -1062,7 +1072,27 @@ class PDFArgs(AbstractArgs):
         :return: outpath
         """
         print(f"==============CONVERT================")
+        # process arguments into a dictionary
+        if flow:
+            self.arg_dict[FLOW] = flow
+        if indir:
+            self.arg_dict[INDIR] = indir
+        if inpath:
+            self.arg_dict[INPATH] = inpath
+        if maxpage:
+            self.arg_dict[MAXPAGE] = maxpage
+        if outdir:
+            self.arg_dict[OUTDIR] = outdir
+        if outform:
+            self.arg_dict[OUTFORM] = outform
+        if outpath:
+            self.arg_dict[OUTPATH] = outpath
+        if outstem:
+            self.arg_dict[OUTSTEM] = outstem
+        if pdf2html:
+            self.arg_dict[PDF2HTML] = pdf2html
         # run the argument commands
+
         self.process_args()
         if self.inpath is None:
             raise ValueError("No input path in convert_write()")

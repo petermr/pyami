@@ -268,7 +268,7 @@ class TestCProjTree(unittest.TestCase):
                                                  target_dir=Path(AmiAnyTest.TEMP_DIR, f"{sect}"), skip_exists=True)
         wg_project = CProject(wg_path)
         # wg3_project.pdf2htmlx(maxpage=999, maxtree=2)
-        wg_project.pdf2htmlx()
+        wg_project.pdf2html_in_ctrees()
 
     def test_main_help(self):
         sys.argv.append("--help")

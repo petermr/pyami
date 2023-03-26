@@ -2,23 +2,24 @@
 Should have relatively few dependencies"""
 import argparse
 import copy
+from enum import Enum, auto
+import logging
+import re
 from collections import defaultdict
 from io import StringIO
-import logging
+from pathlib import Path
+
 import lxml
 import lxml.etree
-from lxml.etree import _Element, _ElementTree
 import numpy as np
-import re
-from pathlib import Path
+from lxml.etree import _Element, _ElementTree
 from sklearn.linear_model import LinearRegression
-from collections import defaultdict
 
 # local
 # from py4ami.ami_dict import AmiDictionary
 from py4ami.bbox_copy import BBox
-from py4ami.xml_lib import XmlLib
 from py4ami.util import SScript, AbstractArgs, Util
+from py4ami.xml_lib import XmlLib
 
 # HTML
 H_HTML = "html"
@@ -40,6 +41,11 @@ H_A = "a"
 H_B = "b"
 H_P = "p"
 
+X = "x"
+Y = "y"
+X0 = "x0"
+X1 = "x1"
+
 A_HREF = "href"
 A_NAME = "name"
 A_TERM = "term"
@@ -60,6 +66,7 @@ FONT_SIZE = "font-size"
 FONT_STYLE = "font-style"
 FONT_WEIGHT = "font-weight"
 FONT_FAMILY = "font-family"
+FONT_STRETCHED = "font-stretched"
 FILL = "fill"
 STROKE = "stroke"
 
@@ -96,11 +103,14 @@ SUBSECTS_DECIMAL_REC = re.compile("\\d+\\.\\d+\\.\\d+$")
 
 CLASSREF = "classref"
 
+STYLE_XPATH = "/html/head/style"
+
 """
 NOTE. the use of classname, classref and similar is inconsistent. We want to have:
 s1  to mean class name (classname)
 .s1 to mean a reference to a classname (only used in <style> elements but involved in conversions
 """
+
 
 class AmiSpan:
     def __init__(self):
@@ -119,12 +129,12 @@ class AmiSpan:
             html_span.text = self.string
             HtmlStyle.set_style(html_span, self.text_style.create_css_string())
             if len(self.xx) > 0:
-                html_span.attrib["x"] = self.xx[0]
+                html_span.attrib[X] = self.xx[0]
             if self.x0:
-                html_span.attrib["x0"] = str(self.x0)
+                html_span.attrib[X0] = str(self.x0)
             if self.x1:
-                html_span.attrib["x1"] = str(self.x1)
-            html_span.attrib["y"] = str(self.y0)
+                html_span.attrib[X1] = str(self.x1)
+            html_span.attrib[Y] = str(self.y0)
         return html_span
 
 
@@ -450,7 +460,6 @@ class HtmlTidy:
         return html_with_head_body
 
 
-
 class HtmlUtil:
     SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
     MARKER = "marker"
@@ -740,9 +749,9 @@ class HtmlUtil:
             page_top_y = float(page_top_y)
             ycoord = ycoord0 - page_top_y
 
-                # if re.match("Page\s\d+", text):
-                #     print(f"text: {text} {float(top0) - float(top)} {top0} {top}")
-                #     last_top = top0
+            # if re.match("Page\s\d+", text):
+            #     print(f"text: {text} {float(top0) - float(top)} {top0} {top}")
+            #     last_top = top0
 
             # print(f"TOP {ycoord0} {ycoord} {pagesize} {ycoord % pagesize}")
             in_top = ycoord < header_height
@@ -886,6 +895,7 @@ class HtmlUtil:
             css_style.remove(names)
             css_style.apply_to(styled_elem)
             style = HtmlStyle.get_style(styled_elem)
+
 
 class HtmlStyle:
     """
@@ -1358,7 +1368,6 @@ class HtmlTree:
         return sections
 
 
-
 RECS_BY_SECTION = {
     HtmlTree.CHAP_TOP: IPCC_CHAP_TOP_REC,
     HtmlTree.CHAP_SECTIONS: SECTIONS_DECIMAL_REC,
@@ -1638,6 +1647,7 @@ class CSSStyle:
     FONT_FAMILY = "font-family"
     FONT_SIZE = "font-size"
     FONT_STYLE = "font-style"
+    FONT_STRETCHED = "font-stretched"
     FONT_WEIGHT = "font-weight"
     HEIGHT = "height"
     LEFT = "left"
@@ -1663,6 +1673,8 @@ class CSSStyle:
         s = s.strip()
         return s
 
+#    class CSSStyle:
+
     @classmethod
     def create_css_style(cls, elem):
         """create CSSStyle object from elem
@@ -1675,6 +1687,8 @@ class CSSStyle:
         style_attval = elem.get(CSSStyle.STYLE)
         css_style.name_value_dict = cls.create_dict_from_string(style_attval)
         return css_style
+
+    #    class CSSStyle:
 
     @classmethod
     def create_dict_from_string(cls, style_attval):
@@ -1694,6 +1708,8 @@ class CSSStyle:
                     name_value_dict[name] = ss[1].strip()
         return name_value_dict
 
+    #    class CSSStyle:
+
     @classmethod
     def create_css_style_from_css_string(cls, css_string):
         """creates CSSStyle object from CSS string"""
@@ -1710,6 +1726,17 @@ class CSSStyle:
         if type(other) is CSSStyle:
             return self.name_value_dict == other.name_value_dict
         return False
+
+
+    def set_attribute(self, property, value):
+        """
+        sets name-value pair in CSSStyle
+        ignores empty values or None
+        """
+        if value and len(str(value)) > 0:
+            self.name_value_dict[property] = value
+
+    #    class CSSStyle:
 
     def remove(self, name):
         """
@@ -1728,6 +1755,8 @@ class CSSStyle:
         css_str = self.generate_css_value()
         elem.attrib[CSSStyle.STYLE] = css_str
 
+    #    class CSSStyle:
+
     def generate_css_value(self):
         """
         generates css string without quoted names and values
@@ -1740,6 +1769,8 @@ class CSSStyle:
 
     def attval(self, name):
         return self.name_value_dict.get(name) if self.name_value_dict else None
+
+    #    class CSSStyle:
 
     @property
     def font_family(self):
@@ -1754,6 +1785,8 @@ class CSSStyle:
         size = self.get_numeric_attval(CSSStyle.FONT_SIZE)
         return size
 
+    #    class CSSStyle:
+
     @property
     def bottom(self):
         return self.get_numeric_attval(CSSStyle.BOTTOM)
@@ -1762,6 +1795,8 @@ class CSSStyle:
     def left(self):
         return self.get_numeric_attval(CSSStyle.LEFT)
 
+    #    class CSSStyle:
+
     @property
     def width(self):
         return self.get_numeric_attval(CSSStyle.WIDTH)
@@ -1769,6 +1804,8 @@ class CSSStyle:
     @property
     def height(self):
         return self.get_numeric_attval(CSSStyle.HEIGHT)
+
+    #    class CSSStyle:
 
     @classmethod
     def add_name_value(cls, elem, css_name, css_value):
@@ -1790,12 +1827,16 @@ class CSSStyle:
         except Exception:
             return None
 
+    #    class CSSStyle:
+
     def is_bold_name(self):
         """Heuristic using font-name
         :return: True if name contains "Bold" or ".B" or .."""
         fontname = self.font_family
         result = (self.BOLD in fontname) or (fontname.endswith(self.DOT_B)) if fontname else False
         return result
+
+    #    class CSSStyle:
 
     def obeys(self, condition):
         """test if style obeys a (simple) condition
@@ -1849,6 +1890,8 @@ class CSSStyle:
                     pass
         return result
 
+    #    class CSSStyle:
+
     @classmethod
     def cmyk_to_rgb(cls, c, m, y, k):
 
@@ -1860,6 +1903,8 @@ class CSSStyle:
         b = rgb_scale * (1.0 - (y + k) / float(cmyk_scale))
 
         return r, g, b
+
+    #    class CSSStyle:
 
     @classmethod
     def cmky_to_rgb(cls, c, m, k, y):
@@ -1890,6 +1935,8 @@ class CSSStyle:
         family, value1 = self.match_weight_style(family, style_regex, value="I", mark="SS")
         family, value2 = self.match_weight_style(family, weight_regex, value="B", mark="WW")
 
+    #    class CSSStyle:
+
     def match_weight_style(self, family, weight_regex, value=None, mark=None):
         weight_rec = re.compile(weight_regex) if weight_regex else None
         match = weight_rec.search(family)
@@ -1901,6 +1948,8 @@ class CSSStyle:
             value = None
         return family, value
 
+    #    class CSSStyle:
+
     def create_bbox(self):
         """
         create bounding box from left, width, top, height
@@ -1910,6 +1959,8 @@ class CSSStyle:
         if self.top is not None and self.height is not None and self.left is not None and self.width is not None:
             bbox = BBox(xy_ranges=[[self.left, self.left + self.width], [self.top, self.top + self.height]])
         return bbox
+
+    #    class CSSStyle:
 
     def extract_substyles(self, css_names):
         """
@@ -1932,6 +1983,8 @@ class CSSStyle:
                     css_found.name_value_dict[name] = value
         return (css_found, css_retained)
 
+    #    class CSSStyle:
+
     def create_html_style_element(self, html_class):
         """
         Creates string for HTML style
@@ -1942,6 +1995,8 @@ class CSSStyle:
         elem.text = s
         return elem
 
+    #    class CSSStyle:
+
     def extract_text_styles(self):
         """
         extract text components from style (font-*, color, etc) into new style, returning tuple of
@@ -1951,6 +2006,8 @@ class CSSStyle:
             CSSStyle.TEXT_STYLE_COMPONENTS
         )
         return (extracted_style, retained)
+
+    #    class CSSStyle:
 
     def extract_text_styles_into_class(self, class_name, old_classstr=""):
         """
@@ -1971,6 +2028,7 @@ class CSSStyle:
         html_class_val = CSSStyle.create_html_class_val(class_name, old_class_val=old_classstr)
         return extracted_html_style_element, retained_style_attval, html_class_val
 
+    #    class CSSStyle:
 
     @classmethod
     def create_html_class_val(cls, new_class, old_class_val=None):
@@ -1989,11 +2047,73 @@ class CSSStyle:
             old_classes.append(new_class)
         return Util.create_string_separated_list(old_classes)
 
+    #    class CSSStyle:
+
+    @classmethod
+    def create_style_dict_from_styles(cls, style_elems=None, validate=True):
+        """
+        convert list of CSSStyles (as HTML strings) to dict
+        if duplicate stylerefs raise Exception if validate else take first
+        Typical style:
+        <style ...>.s0 {font-size: 14.px;}</style>
+        :param style_elems: list of lxml _Elements
+        :param validate: check whether CSS value is conformant or duplicate style_refs
+        :return: dict of form ref: style
+        :except: If element has wrong syntax; if css fierld is malfotmed; if ref is duplicated
+        """
+        css_re = re.compile("\s*(\..*)\s+{(.*)}\s*")
+        if style_elems is None:
+            styles = []
+        style_dict = dict()
+        for style_elem in style_elems:
+            style_text = style_elem.text.strip()
+            match = css_re.match(style_text)
+            if not match:
+                raise ValueError(f"BAD head_style {style_text}")
+            ref = match.group(1)
+            css_string = match.group(2)
+            if css_string == "":
+                # this occurs when the style attributes are positional
+                continue
+            if validate:
+                css_style = CSSStyle.create_css_style_from_css_string(css_string)
+                if css_style is None:
+                    raise ValueError(f"bad CSSStyle {css_style}")
+            if ref in style_dict:
+                if validate:
+                    raise ValueError(f"duplicate style ref {style_text}")
+            else:
+                style_dict[ref] = css_string
+        return style_dict
+
+    #    class CSSStyle:
+
+    @classmethod
+    def extract_styles_from_html_string(cls, html_str):
+        """
+        extract styles from head of html file
+        :param html_str: string of form <html><head><style ...></style><style ...></style></head> ... </html>
+        :return: list of _Elements (<style...> ...</style>) or []
+        """
+        return cls.extract_styles_from_html_element(lxml.etree.fromstring(html_str))
+
+    #    class CSSStyle:
+
+    @classmethod
+    def extract_styles_from_html_element(cls, html_elem):
+        """
+        extract styles from head of html file
+        :param html_elem: element of form <html><head><style ...></style><style ...></style></head> ... </html>
+        :return: list of _Elements (<style...> ...</style>) or []
+        """
+        return [] if html_elem is None else html_elem.xpath(STYLE_XPATH)
+
 
 class CSSConverter:
     """
     turns CCS styles into html classes
     """
+
     def __init__(self):
         pass
 
@@ -2006,4 +2126,235 @@ class CSSConverter:
         self.html_elem = HtmlTidy.ensure_html_head_body(self.html_elem)
         return self.html_elem
 
+class FontProperty(Enum):
+    """
+    ArialNarrow
+    ArialNarrow-Bold
+    Calibri
+    FrutigerLTPro-BlackCn
+    FrutigerLTPro-BoldCn
+    FrutigerLTPro-BoldCnIta
+    FrutigerLTPro-Condensed
+    FrutigerLTPro-CondensedIta
+    FrutigerLTPro-Light
+    FrutigerLTPro-LightCn
+    FrutigerLTPro-LightCnIta
+    FrutigerLTPro-Roman
+    """
+    #
+    NORMAL = ""
 
+    NARROW = "Narrow"
+    WIDE = "Wide"
+
+    LIGHT = "Light"
+    BOLD = "Bold"
+
+    ITALIC = "Italic"
+
+    SANS = "Sans"
+    SERIF = "Serif"
+    SYMBOL = "Symbol"
+    MONOSPACE = "Monospace"
+
+    def __str__(self):
+        return self.value
+
+class AmiFont:
+    """
+    empirical normalization of fonts. Tries to convert all to the
+    base
+    font-family: serif/sans-serif/monospace
+    font-stretch: (condensed/normal/expanded)
+    forn-weight: normal/bold
+    font-style: normal/italic
+    """
+
+
+    # empirical conversions; will need to be updated frequently
+    conversion_dict = {
+        "Arial": FontProperty.SANS,
+        "Calibri": FontProperty.SANS,
+        "Frutiger": FontProperty.SANS,
+        "Helvetica": FontProperty.SANS,
+
+        "Times": FontProperty.SERIF,
+
+        "Courier": FontProperty.MONOSPACE,
+
+        "Symbol": FontProperty.SYMBOL,
+    }
+
+    cond_regex = re.compile("(.*)(Condensed|Cn|Narrow)(.*)")
+    wide_regex = re.compile("(.*)(Wide)(.*)")
+
+    light_regex = re.compile("(.*)(Light|Thin)(.*)")
+    bold_regex = re.compile("(.*)(Bold|Heavyweight|Black)(.*)")
+
+    style_regex = re.compile("(.*)(Italic|Ita|Oblique)(.*)")
+
+    def __init__(self):
+        self.name = None
+        self.family = None
+        self.weight = FontProperty.NORMAL
+        self.style = FontProperty.NORMAL
+        self.stretched = FontProperty.NORMAL
+        self.font = FontProperty.SANS
+
+    def __str__(self):
+        s = self.name +"/" + str(self.family) + "/" + str(self.weight) + "/" + str(self.style) + "/" + str(self.stretched)
+        return s
+
+    @classmethod
+    def extract_name_weight_style_stretched(cls, name):
+        font = AmiFont()
+        font.name = name
+
+        name, match = cls.match_font_property(name, AmiFont.cond_regex)
+        if match:
+            font.stretched = FontProperty.NARROW
+
+        name, match = cls.match_font_property(name, AmiFont.wide_regex)
+        if match:
+            font.stretched = FontProperty.WIDE
+
+        name, match = cls.match_font_property(name, AmiFont.light_regex)
+        if match:
+            font.weight = FontProperty.LIGHT
+
+        name, match = cls.match_font_property(name, AmiFont.bold_regex)
+        if match:
+            font.weight = FontProperty.BOLD
+
+        name, match = cls.match_font_property(name, AmiFont.style_regex)
+        if match:
+            font.style = FontProperty.ITALIC
+
+        name = name.replace("-","")
+
+        font.family = name
+        return font
+
+    @classmethod
+    def match_font_property(cls, name, regex):
+        match = regex.match(name)
+        if match:
+            name = match.group(1) + match.group(3) # chop out match
+        return name, match
+
+    @classmethod
+    def convert_common_fonts(cls):
+        pass
+
+    @classmethod
+    def create_font_edited_style_from_css_style(cls, css_style):
+        """
+        empirically create standard fonts and attributes from font names
+        :param css_style: old style with unknown font-family
+        :return: new css_style with standard font and maybe new weight or style
+        """
+        font_family = css_style.font_family
+        ami_font = AmiFont.extract_name_weight_style_stretched(font_family)
+        # print(f"family {font_family} {ami_font}")
+        # return ami_font
+        new_css_style = copy.deepcopy(css_style)
+        new_css_style.set_attribute(FONT_FAMILY, ami_font.family)
+        new_css_style.set_attribute(FONT_WEIGHT, ami_font.weight)
+        new_css_style.set_attribute(FONT_STYLE, ami_font.style)
+        new_css_style.set_attribute(FONT_STRETCHED, ami_font.stretched)
+        return new_css_style
+
+
+class SectionHierarchy:
+    """
+    builds and queries hierarchical sections
+    """
+
+    ID = "id"
+    CLASS = 'class'
+    DOT = "."
+    MISSING = "missing"
+    SECT = "sect"
+
+    def __init__(self):
+        pass
+
+    def add_sections(self, decimal_sections, top=None, poplist=None):
+        if not poplist:
+            poplist = []
+        sections_by_level = self.create_sections_by_level(decimal_sections)
+        parent_dict = self.create_parent_dict(sections_by_level)
+        for pop in poplist:
+            try:
+                parent_dict.pop(pop)  # remove non-numeric item
+            except:
+                print("Cannot pop {pop}")
+
+        root = Element(self.SECT)
+        root.attrib[self.ID] = "4"
+        print(f"root {lxml.etree.tostring(root, pretty_print=True)}")
+        for sect_id in parent_dict.keys():
+            self.ensure_element(root, sect_id, parent_dict)
+        print(f"tree:\n {lxml.etree.tostring(root, pretty_print=True).decode('UTF-8')}")
+
+    def create_parent_dict(self, sections_by_level):
+        parent_dict = dict()
+        for level in sections_by_level.keys():
+            sect_ids = self.add_parents(level, sections_by_level, parent_dict)
+        return parent_dict
+
+    def create_sections_by_level(self, decimal_sections):
+        sections_by_level = defaultdict(list)
+        for section in decimal_sections:
+            level = section.attrib.get(self.CLASS).split()[1]
+            sections_by_level[level].append(section.text)
+        return sections_by_level
+
+    def add_parents(self, level, multidict, parent_dict):
+        level_sects = multidict[level]
+        for level_sect in level_sects:
+            parent = self.get_parent(level_sect)
+            parent_dict[level_sect] = parent
+
+    def get_parent(self, level_sect):
+        bits = level_sect.split(".")
+        parent = None if len(bits) == 1 else self.DOT.join(bits[:-1])
+        return parent
+
+    def ensure_element(self, root, sect_id, parent_dict):
+        if sect_id == "":
+            print(f"RAN OFF TOP")
+            return None
+        xpath = f"//{self.SECT}[@id='{sect_id}']"
+        elems = root.xpath(xpath)
+        if len(elems) == 0:
+            parent_id = parent_dict.get(sect_id)
+            missing = False
+            if parent_id is None:
+                print(f" missing parent section {sect_id}")
+                missing = True
+                spl = sect_id.split(self.DOT)
+                split_ = spl[:-1]
+                parent_id = self.DOT.join(split_)
+            if parent_id == "":
+                print(f" skip root...")
+            elem = self.ensure_element(root, parent_id, parent_dict)
+            if elem is not None:
+                sect_xml = lxml.etree.SubElement(elem, self.SECT)
+                sect_xml.attrib[self.ID] = sect_id
+                if missing:
+                    sect_xml.attrib[self.MISSING] = "Y"
+                return sect_xml
+        elif len(elems) > 1:
+            print(f" duplicate ids: {sect_id}")
+            return None
+        else:
+            return elems[0]
+
+    def sort_sections(self):
+        print("sort sections NYI")
+        pass
+
+    @classmethod
+    def sort_ids(cls):
+        pass

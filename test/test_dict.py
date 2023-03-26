@@ -1166,7 +1166,7 @@ class TestAmiDictionary(AmiAnyTest):
         WG3_ROOT = "https://raw.githubusercontent.com/petermr/semanticClimate/main/ipcc/ar6/wg3"
         dictionary_names = [
             "Chapter02/dict/ip_3_2_emissions_abb.xml", "Chapter07/dict/ip_3_7_agri_abb.xml",
-            "Chapter03/dict/ip_3_3_longmitig_abb.xml", "Chapter08/dict/ip_3_8_urban_abb.xml",
+            "wg2_03/dict/ip_3_3_longmitig_abb.xml", "Chapter08/dict/ip_3_8_urban_abb.xml",
             "Chapter05/dict/ip_3_5_socmitig_abb.xml", "Chapter17/dict/ip_3_17_sustdev_abb.xml",
             "Chapter06/dict/ip_3_6_energy_abb.xml"
         ]
@@ -1188,7 +1188,7 @@ class TestAmiDictionary(AmiAnyTest):
         """
         dictionary_names = [
             "Chapter02/dict/ip_3_2_emissions_abb.xml", "Chapter07/dict/ip_3_7_agri_abb.xml",
-            "Chapter03/dict/ip_3_3_longmitig_abb.xml", "Chapter08/dict/ip_3_8_urban_abb.xml",
+            "wg2_03/dict/ip_3_3_longmitig_abb.xml", "Chapter08/dict/ip_3_8_urban_abb.xml",
             "Chapter05/dict/ip_3_5_socmitig_abb.xml", "Chapter17/dict/ip_3_17_sustdev_abb.xml",
             "Chapter06/dict/ip_3_6_energy_abb.xml"
         ]
