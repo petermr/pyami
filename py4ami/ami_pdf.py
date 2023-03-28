@@ -25,7 +25,7 @@ from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 
 from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
-from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy
+from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy, HtmlStyle
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
 # local
@@ -1326,6 +1326,34 @@ class PDFArgs(AbstractArgs):
         print(f"arg_dict {pdf_args.arg_dict}")
         return pdf_args
 
+    def pdf_to_styled_html(self, inpath, maxpage, outdir, outpath1):
+        """
+        main routine for converting PDF all the way to tidied styled HTML
+        uses a lot of defaults. will be better when we have a converter tool
+        :param inpath: input PDF
+        :param maxpage: maximum number of pages to convert (starts at 1)
+        :param outdir: output directory
+        :param outpath1: "final"  html file
+        :param style_range:
+        :return: style_dict
+
+        """
+        outpath, html_str = self.convert_write(
+            inpath=inpath,
+            outpath=Path(outdir, "tidied.html"),
+            outdir=outdir,
+            maxpage=maxpage,
+        )
+        assert len(html_str.strip()) > 0
+        html_elem = lxml.etree.fromstring(html_str)
+        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
+        CSSStyle.normalize_styles_in_fonts_in_html_head(html_elem)
+        styles = CSSStyle.extract_styles_from_html_head_element(html_elem)
+        with open(outpath1, "wb") as f:
+            f.write(lxml.etree.tostring(html_elem, encoding="UTF-8"))
+        print(f"wrote styled html {outpath1}")
+        style_dict = CSSStyle.create_style_dict_from_styles(style_elems=styles)
+        return style_dict
 
 
 class PDFDebug:

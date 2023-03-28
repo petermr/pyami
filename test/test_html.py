@@ -695,7 +695,7 @@ class Test_PDFHTML(AmiAnyTest):
         style_count = 17
         print_styles = True
         inpath = Path(Resources.TEST_IPCC_CHAP15, "fulltext.pdf")
-        self._pdf_html_styles(inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count)
+        pdf_args.pdf_to_styled_html(inpath, maxpage, outdir, outpath1)
 
     @unittest.skipUnless(True, "multiple chapter andf documents")
     def test_pdf_to_styled_multiple_EXAMPLE(self):
@@ -715,31 +715,7 @@ class Test_PDFHTML(AmiAnyTest):
             style_count = 15
             print_styles = True
             inpath = Path(Resources.TEST_IPCC_DIR, chapter, "fulltext.pdf")
-            self._pdf_html_styles(inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count)
-
-    @classmethod
-    def _pdf_html_styles(cls, inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count):
-        outpath, html_str = pdf_args.convert_write(
-            inpath=inpath,
-            outpath=Path(outdir, "tidied.html"),
-            outdir=outdir,
-            maxpage=maxpage
-        )
-        style_range = (10, 100)
-        assert len(html_str.strip()) > 0
-        html_elem = lxml.etree.fromstring(html_str)
-        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
-        styles = CSSStyle.extract_styles_from_html_head_element(html_elem)
-        assert len(styles) > 0
-        with open(outpath1, "wb") as f:
-            f.write(lxml.etree.tostring(html_elem, encoding="UTF-8"))
-        print(f"wrote styled html {outpath1}")
-        assert outpath1.exists()
-        assert style_range[1] >= len(styles) >= style_range[0], f"found {len(styles)} expected {style_range} "
-        style_dict = CSSStyle.create_style_dict_from_styles(style_elems=styles)
-        if print_styles:
-            for item in style_dict.items():
-                print(f"{item[0]}: {item[1]}")
+            pdf_args.pdf_to_styled_html(inpath, maxpage, outdir, outpath1)
 
 
 class TestHtmlTidy(AmiAnyTest):
@@ -1298,10 +1274,7 @@ class TestFont(AmiAnyTest):
         </html>
 """
         html_elem = lxml.etree.fromstring(html_str)
-        style_elems = CSSStyle.extract_styles_from_html_head_element(html_elem)
-        for style_elem in style_elems:
-            print(f"{lxml.etree.tostring(style_elem)}")
-            CSSStyle.replace_css_style_name_values_with_normalized_font(style_elem)
+        CSSStyle.normalize_styles_in_fonts_in_html_head(html_elem)
 
 
 

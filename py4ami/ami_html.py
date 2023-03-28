@@ -2138,14 +2138,25 @@ class CSSStyle:
     @classmethod
     def replace_css_style_name_values_with_normalized_font(cls, style_elem):
         """
-        if style_elem contains a font in the CSS values, normalizes it is possible
+        if style_elem contains a font in the CSS values, normalizes it if possible
+        (e.g. font-family: ArialBold; => font-family:Arial; font-weight: bold;
         edits the style_elem
+        :param style_elem: element to be edited (NOT copied)
         """
         symbol_ref, new_cssstyle = AmiFont.create_font_edited_style_from_css_style_object(style_elem)
-        assert new_cssstyle is not None, f"should create new CSSStyle"
-        assert symbol_ref is not None, f"should keep old symbol_ref"
-        style_elem.text = f"{symbol_ref} {{{new_cssstyle}}}"
+        if new_cssstyle is not None:
+            style_elem.text = f"{symbol_ref} {{{new_cssstyle}}}"
 
+    @classmethod
+    def normalize_styles_in_fonts_in_html_head(cls, html_elem):
+        """
+        normalizes all fonts to expose font weights and styles
+        :param html_elem: HTML (root) element (html/head/style*)
+        """
+        style_elems = CSSStyle.extract_styles_from_html_head_element(html_elem)
+        for style_elem in style_elems:
+            print(f"{lxml.etree.tostring(style_elem)}")
+            CSSStyle.replace_css_style_name_values_with_normalized_font(style_elem)
 
 
 class CSSConverter:
