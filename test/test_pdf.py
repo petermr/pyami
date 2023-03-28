@@ -659,7 +659,7 @@ Uses:
         </html>)
 
         """
-        infile = Path(Resources.TEST_IPCC_DIR, "wg2", "wg2_03", "fulltext.pdf")
+        infile = Path(Resources.TEST_IPCC_DIR, "wg2_03", "fulltext.pdf")
         pages = "5_8" # total is 0_171 (172pp)
         outdir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg2_chap03")
         args = f"PDF --infile {infile} --outdir {outdir} --pages {pages}"
@@ -1141,7 +1141,9 @@ LTPage
         infile = PMC1421_PDF
         PDFDebug.debug_pdf(infile, outdir)
 
-    run_me = True
+    run_me = False
+    # wg2_3 is 20 Mb and has many vectors/boxes
+
     @unittest.skipUnless(PDFTest.VERYLONG or run_me, "complete chapter")
     def test_page_properties_ipcc_wg2_3__debug(self):
         """ high-level debug the PDF objects (crude) uses PDFDebug on large document with many graphics components

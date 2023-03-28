@@ -12,7 +12,7 @@ from pathlib import Path
 import lxml
 import lxml.etree
 import numpy as np
-from lxml.etree import _Element, _ElementTree
+from lxml.etree import Element, _Element, _ElementTree
 from sklearn.linear_model import LinearRegression
 
 # local
@@ -320,7 +320,7 @@ class HtmlTidy:
             return
         style_spans = self.raw_elem.xpath("//span[contains(@style,'position:absolute')]")
         for style_span in style_spans:
-            css_style = CSSStyle.create_css_style(style_span)
+            css_style = CSSStyle.create_css_style_from_attribute_of_body_element(style_span)
             if css_style.height > self.MIN_PAGE_BOX_HEIGHT:
                 page_box = PageBox(css_style=css_style)
                 page_box.add_style_span_and_page_number(style_span)
@@ -339,10 +339,10 @@ class HtmlTidy:
                 """
         for elem_with_pageno in elem_with_pagenos:
             getparent = elem_with_pageno.getparent()
-            css = CSSStyle.create_css_style(getparent)
+            css = CSSStyle.create_css_style_from_attribute_of_body_element(getparent)
             prev_elem = getparent.getprevious()
             height = -1 if css_last is None else css.top - css_last.top
-            prev_style = CSSStyle.create_css_style(prev_elem)
+            prev_style = CSSStyle.create_css_style_from_attribute_of_body_element(prev_elem)
             if not prev_style:
                 logging.warning(f" no previous style")
             bbox = None if prev_style is None else prev_style.create_bbox()
@@ -716,7 +716,7 @@ class HtmlUtil:
             els = [elem]
         elems = []
         for el in els:
-            css_style = CSSStyle.create_css_style(el)
+            css_style = CSSStyle.create_css_style_from_attribute_of_body_element(el)
             if condition:
                 if css_style.obeys(condition):
                     if remove:
@@ -738,7 +738,7 @@ class HtmlUtil:
 
         last_top = 0
         for elem in ref_elem.xpath("//*[@style]"):
-            ycoord0 = CSSStyle.create_css_style(elem).get_numeric_attval("top")
+            ycoord0 = CSSStyle.create_css_style_from_attribute_of_body_element(elem).get_numeric_attval("top")
             if not ycoord0:
                 continue
             text = XmlLib.get_text(elem).strip()
@@ -799,7 +799,7 @@ class HtmlUtil:
 
         elems = ref_elem.xpath(".//*")
         for el in elems:
-            css_style = CSSStyle.create_css_style(el)
+            css_style = CSSStyle.create_css_style_from_attribute_of_body_element(el)
             if css_style.name_value_dict.get(style_name):
                 css_style.name_value_dict.pop(style_name)
                 css_style.apply_to(el)
@@ -824,7 +824,7 @@ class HtmlUtil:
         elems = ref_elem.xpath(xpath)
         coords = []
         for elem in elems:
-            css_style = CSSStyle.create_css_style(elem)
+            css_style = CSSStyle.create_css_style_from_attribute_of_body_element(elem)
             coord = css_style.name_value_dict.get(style)
             if coord:
                 try:
@@ -891,7 +891,7 @@ class HtmlUtil:
             raise ValueError(f"Bad xpath {xpath}")
 
         for styled_elem in styled_elems:
-            css_style = CSSStyle.create_css_style(styled_elem)
+            css_style = CSSStyle.create_css_style_from_attribute_of_body_element(styled_elem)
             css_style.remove(names)
             css_style.apply_to(styled_elem)
             style = HtmlStyle.get_style(styled_elem)
@@ -1263,7 +1263,7 @@ class HtmlTree:
         for div in divs:
             spans = div.xpath("./span")
             if spans:
-                css_style = CSSStyle.create_css_style(spans[0])
+                css_style = CSSStyle.create_css_style_from_attribute_of_body_element(spans[0])
                 if not (is_bold and css_style.is_bold_name()):
                     continue
                 if not (font_size_range and cls.in_range(css_style.font_size, font_size_range)):
@@ -1316,7 +1316,7 @@ class HtmlTree:
                 except Exception as e:
                     logging.error(f"BUG skipped")
                 continue
-            css_style = CSSStyle.create_css_style(spans[0])  # normally comes first
+            css_style = CSSStyle.create_css_style_from_attribute_of_body_element(spans[0])  # normally comes first
             # check weight, if none append to siblings
             if not (is_bold and css_style.is_bold_name()):
                 current_div.append(div)
@@ -1676,7 +1676,7 @@ class CSSStyle:
 #    class CSSStyle:
 
     @classmethod
-    def create_css_style(cls, elem):
+    def create_css_style_from_attribute_of_body_element(cls, elem):
         """create CSSStyle object from elem
         :param elem:
         """
@@ -1685,26 +1685,35 @@ class CSSStyle:
         assert type(elem) is _Element, f"found {type(elem)}"
         css_style = CSSStyle()
         style_attval = elem.get(CSSStyle.STYLE)
-        css_style.name_value_dict = cls.create_dict_from_string(style_attval)
+        css_style.name_value_dict = cls.create_dict_from_name_value_array_string(style_attval)
         return css_style
 
     #    class CSSStyle:
 
     @classmethod
-    def create_dict_from_string(cls, style_attval):
+    def create_dict_from_name_value_array_string(cls, style_str, remove_curly=True):
+        """
+        assumes string of type "a: b; c: d;" optionally enclosed in {...}
+        :param style_str: 
+        """
+        curly_re = re.compile("\s*{?\s*(.*)\s*}?\s*")
         name_value_dict = dict()
-        if style_attval:
-            style_attval = style_attval.strip()
-            styles = style_attval.split(";")
+        if style_str:
+            if False and remove_curly:
+                match = curly_re.match(curly_re)
+                if match:
+                    style_str = match.group(1)
+            style_str = style_str.strip()
+            styles = style_str.split(";")
             for style in styles:
                 style = style.strip()
                 if len(style) > 0:
                     ss = style.split(":")
                     if len(ss) != 2:
-                        raise KeyError(f"bad style {style} in CSS: {style_attval}")
+                        raise KeyError(f"bad style {style} in CSS: {style_str}")
                     name = ss[0].strip()
                     if name in name_value_dict:
-                        raise KeyError(f"{name} duplicated in CSS: {style_attval}")
+                        raise KeyError(f"{name} duplicated in CSS: {style_str}")
                     name_value_dict[name] = ss[1].strip()
         return name_value_dict
 
@@ -1716,7 +1725,7 @@ class CSSStyle:
         css_style = None
         if css_string:
             css_style = CSSStyle()
-            css_style.name_value_dict = cls.create_dict_from_string(css_string)
+            css_style.name_value_dict = cls.create_dict_from_name_value_array_string(css_string)
         return css_style
 
     def __eq__(self, other):
@@ -1813,7 +1822,7 @@ class CSSStyle:
         :param css_name: name of property
         :param css_value: value of property
         """
-        css_style = cls.create_css_style(elem)
+        css_style = cls.create_css_style_from_attribute_of_body_element(elem)
         css_style.name_value_dict[css_name] = css_value
         css_style.apply_to(elem)
 
@@ -2095,18 +2104,48 @@ class CSSStyle:
         :param html_str: string of form <html><head><style ...></style><style ...></style></head> ... </html>
         :return: list of _Elements (<style...> ...</style>) or []
         """
-        return cls.extract_styles_from_html_element(lxml.etree.fromstring(html_str))
+        return cls.extract_styles_from_html_head_element(lxml.etree.fromstring(html_str))
 
     #    class CSSStyle:
 
     @classmethod
-    def extract_styles_from_html_element(cls, html_elem):
+    def extract_styles_from_html_head_element(cls, html_elem):
         """
         extract styles from head of html file
         :param html_elem: element of form <html><head><style ...></style><style ...></style></head> ... </html>
         :return: list of _Elements (<style...> ...</style>) or []
         """
         return [] if html_elem is None else html_elem.xpath(STYLE_XPATH)
+
+    @classmethod
+    def create_css_style_from_html_head_style_elem(cls, style_elem):
+        """
+        extracts CSSStyle elemnt from HTML <style>.foo {a:b; c:d;} element
+        :param style_elem:
+        :return: tuple(symbol ref, new CSSStyle)
+        """
+        style_re = re.compile("\s*([^\s]*)\s+{(.*)}\s*")
+        symbol_ref = None
+        css_style_obj = None
+        if type(style_elem) is _Element:
+            text = XmlLib.get_text(style_elem)
+            match = style_re.match(text)
+            if match:
+                symbol_ref = match.group(1)
+                css_style_obj = CSSStyle.create_css_style_from_css_string(match.group(2))
+        return symbol_ref, css_style_obj
+
+    @classmethod
+    def replace_css_style_name_values_with_normalized_font(cls, style_elem):
+        """
+        if style_elem contains a font in the CSS values, normalizes it is possible
+        edits the style_elem
+        """
+        symbol_ref, new_cssstyle = AmiFont.create_font_edited_style_from_css_style_object(style_elem)
+        assert new_cssstyle is not None, f"should create new CSSStyle"
+        assert symbol_ref is not None, f"should keep old symbol_ref"
+        style_elem.text = f"{symbol_ref} {{{new_cssstyle}}}"
+
 
 
 class CSSConverter:
@@ -2235,6 +2274,35 @@ class AmiFont:
         font.family = name
         return font
 
+    """
+    Bold Fonts: 1. Arial
+    Calibri
+    Century Gothic
+     Bold 4. 
+     Franklin Gothic 
+     Bold 5. 
+     Futura Bold 6. 
+     Gill Sans Bold 7. 
+    Helvetica Bold 8. 
+    Impact Bold 9.
+    Lucida Sans Bold 10. 
+    Myriad Pro Bold 11. Open Sans Bold 12. Palatino Bold 13. Rockwell Bold 14. 
+    Segoe UI Bold 15. Times New Roman Bold 16. Univers Bold 17. Verdana Bold 18. Avenir Bold 19. Baskerville Bold 20. Clarendon Bold 21. C
+    opperplate Bold 22. Didot Bold 23. Eurostile Bold 24. Frutiger Bold 25. Garamond Bold 26. Georgia Bold 27. Gotham Bold 28. 
+    Hoefler Text Bold 29. ITC Avant Garde Gothic Bold 30. ITC Franklin Gothic Bold 31. ITC Lubalin Graph Bold 32. 
+    ITC Officina Sans Bold 33. ITC Stone Sans Bold 34. Minion Pro Bold 35. Museo Sans Bold 36. Neutraface Bold 37. 
+    Optima Bold 38. Proxima Nova Bold 39. Roboto Bold 40. Sabon Bold 41. Trade Gothic Bold 42. 
+    Trebuchet MS Bold 43. 
+    Ubuntu Bold 44. 
+    VAG Rounded Bold 45. 
+    Whitney Bold 46. 
+    Xits Bold 47. 
+    Yanone Kaffeesatz Bold 48. 
+    Zilla Slab
+    Zona
+    Zurich 
+    """
+
     @classmethod
     def match_font_property(cls, name, regex):
         match = regex.match(name)
@@ -2247,22 +2315,30 @@ class AmiFont:
         pass
 
     @classmethod
-    def create_font_edited_style_from_css_style(cls, css_style):
+    def create_font_edited_style_from_css_style_object(cls, css_style):
         """
         empirically create standard fonts and attributes from font names
-        :param css_style: old style with unknown font-family
-        :return: new css_style with standard font and maybe new weight or style
+        :param css_style: CSSStyle Object or HTML head/style with unknown font-family
+        :return: tuple (symbol_ref, new css_style object with standard font and maybe new weight or style)
         """
-        font_family = css_style.font_family
-        ami_font = AmiFont.extract_name_weight_style_stretched(font_family)
-        # print(f"family {font_family} {ami_font}")
-        # return ami_font
-        new_css_style = copy.deepcopy(css_style)
-        new_css_style.set_attribute(FONT_FAMILY, ami_font.family)
-        new_css_style.set_attribute(FONT_WEIGHT, ami_font.weight)
-        new_css_style.set_attribute(FONT_STYLE, ami_font.style)
-        new_css_style.set_attribute(FONT_STRETCHED, ami_font.stretched)
-        return new_css_style
+
+        new_css_style_obj = None
+        symbol_ref = None
+        if type(css_style) is CSSStyle:
+            css_style_obj = css_style
+        elif type(css_style) is _Element:
+            symbol_ref, css_style_obj = CSSStyle.create_css_style_from_html_head_style_elem(css_style)
+        if css_style_obj is not None:
+            font_family = css_style_obj.font_family
+            ami_font = AmiFont.extract_name_weight_style_stretched(font_family)
+            # print(f"family {font_family} {ami_font}")
+            # return ami_font
+            new_css_style_obj = copy.deepcopy(css_style_obj)
+            new_css_style_obj.set_attribute(FONT_FAMILY, ami_font.family)
+            new_css_style_obj.set_attribute(FONT_WEIGHT, ami_font.weight)
+            new_css_style_obj.set_attribute(FONT_STYLE, ami_font.style)
+            new_css_style_obj.set_attribute(FONT_STRETCHED, ami_font.stretched)
+        return symbol_ref, new_css_style_obj
 
 
 class SectionHierarchy:

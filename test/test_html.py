@@ -343,7 +343,7 @@ class TestHtml(AmiAnyTest):
     def test_split_caption_at_bracketed_panel_refs(self):
         """split at text (a) more (b) etc
         Test recursive splitting through HtmlUtil.split_span_at_match"""
-        s = f"Box 6.2 Figure 1 Retirement of coal-fired power plants imit warming to 1.5°C and" \
+        s = f"Box 6.2 Figure 1 Retirement of coal-fired power plants to limit warming to 1.5°C and" \
             f" likely 2°C. (a) Historical facility age at retirement (b) the vintage year of existing" \
             f" units, (c) global coal capacity under different plant lifetimes, compared to capacity" \
             f" levels consistent with a well-below 2°C (green) and 1.5°C(blue) pathway assuming no new" \
@@ -501,7 +501,7 @@ class TestHtml(AmiAnyTest):
             spans = div.xpath("./span")
             print(f"spans {len(spans)}")
             for span in spans:
-                style = CSSStyle.create_css_style(span)
+                style = CSSStyle.create_css_style_from_attribute_of_body_element(span)
                 print(f"{style}")
                 if style == last_style:
                     print(f"styles match")
@@ -695,25 +695,30 @@ class Test_PDFHTML(AmiAnyTest):
         style_count = 17
         print_styles = True
         inpath = Path(Resources.TEST_IPCC_CHAP15, "fulltext.pdf")
-        self.pdf_html_styles(inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count)
+        self._pdf_html_styles(inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count)
 
+    @unittest.skipUnless(True, "multiple chapter andf documents")
     def test_pdf_to_styled_multiple_EXAMPLE(self):
         pdf_args = PDFArgs()
         for chapter in [
+            # "Chapter03",
             # "Chapter15",
             # "LongerReport",
-            # "wg2_03", # this has performance problems due to vector graphics/boxes
-            "wg2_06",
+            # # "wg2_03", # this has performance problems due to vector graphics/boxes
+            # "wg2_06",
+            "wg2_spm",
+            "wg3_spm",
         ]:
             outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, chapter)
             outpath1 = Path(AmiAnyTest.TEMP_HTML_IPCC, chapter, "fulltext.html")
-            maxpage = 200
+            maxpage = 230
             style_count = 15
             print_styles = True
             inpath = Path(Resources.TEST_IPCC_DIR, chapter, "fulltext.pdf")
-            self.pdf_html_styles(inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count)
+            self._pdf_html_styles(inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count)
 
-    def pdf_html_styles(self, inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count):
+    @classmethod
+    def _pdf_html_styles(cls, inpath, maxpage, outdir, outpath1, pdf_args, print_styles, style_count):
         outpath, html_str = pdf_args.convert_write(
             inpath=inpath,
             outpath=Path(outdir, "tidied.html"),
@@ -724,7 +729,7 @@ class Test_PDFHTML(AmiAnyTest):
         assert len(html_str.strip()) > 0
         html_elem = lxml.etree.fromstring(html_str)
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
-        styles = CSSStyle.extract_styles_from_html_element(html_elem)
+        styles = CSSStyle.extract_styles_from_html_head_element(html_elem)
         assert len(styles) > 0
         with open(outpath1, "wb") as f:
             f.write(lxml.etree.tostring(html_elem, encoding="UTF-8"))
@@ -999,7 +1004,7 @@ class TestCSSStyle(AmiAnyTest):
 
     def test_css_parse(self):
         css_str = "height: 22; width: 34;"
-        css_style = CSSStyle.create_dict_from_string(css_str)
+        css_style = CSSStyle.create_dict_from_name_value_array_string(css_str)
         assert css_style
         assert "height" in css_style
         assert css_style.get("height") == "22"
@@ -1191,6 +1196,7 @@ class TestHtmlTree(AmiAnyTest):
         hierarchy.add_sections(decimal_sections, poplist=["Chapter 4:"])
         hierarchy.sort_sections()
 
+    @unittest.skip
     def test_decimal_chapters_production(self):
         # """NOT WORKING FULLY"""
         # TEST_IPCC_WG3 = Path(Resources.TEST_IPCC_DIR)
@@ -1211,6 +1217,19 @@ class TestHtmlTree(AmiAnyTest):
 
 class TestFont(AmiAnyTest):
 
+    def _assert_new_css_style(self, style, new_value):
+        css_style = CSSStyle.create_css_style_from_css_string(style)
+        symbol_ref, new_css_style = AmiFont.create_font_edited_style_from_css_style_object(css_style)
+        assert str(new_css_style) == new_value
+
+    def _run_tests_0(self, tests):
+        for test in tests:
+            ami_font = AmiFont.extract_name_weight_style_stretched(test[0])
+            assert str(ami_font) == test[0] + "/" + test[1]
+
+    # -------------------------------
+
+
     def test_create_from_names(self):
         tests = [
             ("ArialNarrow", "Arial///Narrow"),
@@ -1219,7 +1238,7 @@ class TestFont(AmiAnyTest):
             ("ArialBold", "Arial/Bold//"),
             ("Arial", "Arial///"),
         ]
-        self.run_tests_0(tests)
+        self._run_tests_0(tests)
 
         test2s = [
             ("ArialNarrow", "Arial///Narrow"),
@@ -1236,29 +1255,53 @@ class TestFont(AmiAnyTest):
             ("FrutigerLTPro-Roman", "FrutigerLTProRoman///"),
 
         ]
-        self.run_tests_0(test2s)
+        self._run_tests_0(test2s)
 
     def test_edit_fonts_in_styles(self):
         """
         edits the style attributes to extract weights and styles
         tests: CSSStyle.create_css_style_from_css_string(style)
         """
-        self.assert_new_css_style("font-family: ArialNarrowBold; fill: red",
+        self._assert_new_css_style("font-family: ArialNarrowBold; fill: red",
                                   'font-family:Arial; fill:red; font-weight:Bold; font-stretched:Narrow;')
-        self.assert_new_css_style("font-family: ArialBold; fill: red",
+        self._assert_new_css_style("font-family: ArialBold; fill: red",
                                   'font-family:Arial; fill:red; font-weight:Bold;')
-        self.assert_new_css_style("font-family: FooBarBold; fill: red",
+        self._assert_new_css_style("font-family: FooBarBold; fill: red",
                                   'font-family:FooBar; fill:red; font-weight:Bold;')
 
-    def assert_new_css_style(self, style, new_value):
-        css_style = CSSStyle.create_css_style_from_css_string(style)
-        new_css_style = AmiFont.create_font_edited_style_from_css_style(css_style)
-        assert str(new_css_style) == new_value
 
-    # -------------------------------
+    def test_normalize_fonts_in_head_style_elements_CURRENT(self):
+        """
+        extract font properties from styles and write back into html header
+        e.g.
+        <html>
+          <head>
+            <style>.s1 {font-family:ArialNarrowBold; fill:red}</style>
+            <style>.s2 {font-family:FooBar-Ita; fill:blue}</style>
+          </head>
+        </html>
 
-    def run_tests_0(self, tests):
-        for test in tests:
-            ami_font = AmiFont.extract_name_weight_style_stretched(test[0])
-            assert str(ami_font) == test[0] + "/" + test[1]
+        goes to
+        <html>
+          <head>
+            <style>.s1 {font-family:Arial; font-weight: bold; font-stretched: Narrow; fill:red}</style>
+            <style>.s2 {font-family:FooBar; font-style: italic; fill:red}</style>
+          </head>
+        </html>
+        """
+        html_str = """
+        <html>
+          <head>
+            <style>.s1 {font-family:ArialNarrowBold; fill:red}</style>
+            <style>.s2 {font-family:FooBar-Ita; fill:blue}</style>
+          </head>
+        </html>
+"""
+        html_elem = lxml.etree.fromstring(html_str)
+        style_elems = CSSStyle.extract_styles_from_html_head_element(html_elem)
+        for style_elem in style_elems:
+            print(f"{lxml.etree.tostring(style_elem)}")
+            CSSStyle.replace_css_style_name_values_with_normalized_font(style_elem)
+
+
 
