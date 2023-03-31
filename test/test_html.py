@@ -568,18 +568,20 @@ class TestHtml(AmiAnyTest):
         """
         # html = "executive_summary_css.html"
         # html = "executive_summary1.html"
-        file = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
+        # file = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
         file = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.html")
+        # make dictionary of regex extractor/splitters
         ipcc_para_text_dict = {
             NodeExtractor.NODE_RE: "{([^}]+)}", # curly {...}
-            NodeExtractor.SPLIT_NODE_RE: "\\s*[,;]\\s*",   # semicolon list ...; ...;
+            NodeExtractor.SPLIT_NODE_RE: "\\s*[,;]\\s*",   # semicolon/comma list ...; ...;
             NodeExtractor.NAME_VALUE_RE: "(Table|Figure)\\s+(.*)", # (table, figure) value
         }
+        print(f"text_dict {ipcc_para_text_dict}")
 
         node_extractor = NodeExtractor()
         node_dict_list_list = node_extractor.extract_ipcc_node_dict_lists_from_file(
             file,
-            div_xp="//div//text()[contains(., '{')]",
+            div_xp="//div//text()[contains(., '{')]", # all paras wit curly {...
             regex_dict=ipcc_para_text_dict)
         def_dict = defaultdict()
         for node_dict_list in node_dict_list_list:
@@ -595,25 +597,32 @@ class TestHtml(AmiAnyTest):
         print(f"def_dict {def_dict}")
         counter = Counter(def_dict)
         print(f"counter {len(counter)}: {counter.most_common()}")
-        node_re = re.compile("((?:(?:WG(?:I|II|III)|SROCC|SRCCL)\s+)?)"
-                             "((?:(?:Table|Figure|Box|SPM|TS|Chapter|Section|Cross-Chapter\s+Box)\s+)?)"
+        node_re = re.compile("((?:(?:WG(?:1|2|3|I|II|III)|SROCC|SRCCL|SR1\.5)\s+)?)"
                              "("
-                             "(?:(?:A|B|C|D|E|F|SPM|TS|[Ff]ootnote )\.?)?"
+                             "(?:(?:Table|Figure|Box|SPM|TS|Chapter|Sections?|CCB|"
+                             "Cross-Chapter\s+Box"
+                             "(?:\s*[A-Z]+\s*in\s+Chapter\s+[0-9]+)?"
+                             ")\s*)?"
+                             ")"
+                             "("
+                             "(?:(?:(?:TS\.)?[A-Z]|SPM|TS|[Ff]ootnote )\.?)?"
                              "\d+(?:\.\d+)*"
                              ")"
                              )
-        unmatched = 0
+        matched_keys = set()
+        unmatched_keys = set()
         for key in counter:
 
             match = re.match(node_re, key)
             if match is None:
-                print(f"no match: {key}")
-                unmatched += 1
+                # print(f"no match: {key}")
+                unmatched_keys.add(key)
             else:
-                # print(f"{key}: {match.group(1)}|{match.group(2)}|{match.group(3)}")
-                pass
+                matched_keys.add(key)
 
-        print(f"unmatched {unmatched}")
+        print(f"matched {len(matched_keys)} {matched_keys}")
+        print(f"unmatched {len(unmatched_keys)} {unmatched_keys}")
+
 
 
         # print(f"counter {counter.most_common_values()}")
