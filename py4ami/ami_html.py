@@ -2,10 +2,11 @@
 Should have relatively few dependencies"""
 import argparse
 import copy
-from enum import Enum, auto
 import logging
+import pprint
 import re
 from collections import defaultdict
+from enum import Enum
 from io import StringIO
 from pathlib import Path
 
@@ -733,7 +734,7 @@ class HtmlUtil:
         the @top represents the y-coordinate from the start of the document (pdfminer?).
         this means we have to subtract pagesizes from it.
         """
-
+        debug = False
         elems = ref_elem.xpath(marker_xpath)
 
         last_top = 0
@@ -756,10 +757,12 @@ class HtmlUtil:
             # print(f"TOP {ycoord0} {ycoord} {pagesize} {ycoord % pagesize}")
             in_top = ycoord < header_height
             if in_top:
-                print(f"TOP  {text}")
+                if debug:
+                    print(f"TOP  {text}")
             in_bottom = ycoord > pagesize[0] - footer_height
             if in_bottom:
-                print(f"BOTTOM  {text}")
+                if debug:
+                    print(f"BOTTOM  {text}")
             if in_top or in_bottom:
                 if len(text.strip()) > 0:
                     logging.warning(f"removing top text {text}")
@@ -925,6 +928,7 @@ class HtmlStyle:
     def extract_all_text_styles_to_head(cls, html_elem):
         """
         Finds all elements with @style attribute and extacts the tdxt styles to <head>
+        Also sets body styles to normal
         :param html_elem: total html object to normalize. Must have <head> and <body>
         """
         HtmlStyle.remove_empty_styles(html_elem)
@@ -932,6 +936,20 @@ class HtmlStyle:
         for i, styled_elem in enumerate(styled_elems):
             classref = f"s{i}"
             HtmlStyle.add_element_with_style(classref, html_elem, styled_elem)
+        body = html_elem.xpath("/html/body")
+        if len(body) != 1:
+            raise ValueError(f"document should have exactly 1 body tag")
+        style = CSSStyle()
+        style.create_css_style_from_css_string(
+            "font-style: normal; "
+            "font-weight: normal; "
+            "font-stretched: normal; "
+            "opacity: 1; "
+            "color: black;"
+        )
+
+
+
 
     @classmethod
     def add_element_with_style(cls, classref, html_elem, styled_elem):
@@ -979,7 +997,7 @@ class HtmlStyle:
         style_to_classref_set = defaultdict(set)
         head_styles = elem.xpath("/html/head/style")
         for style in head_styles:
-            style_s = style.text.strip();
+            style_s = style.text.strip()
             classref = style_s.split()[0]
             value = style_s[len(classref):].strip()
             style.attrib[CLASSREF] = classref
@@ -1377,6 +1395,9 @@ RECS_BY_SECTION = {
 
 class HTMLSearcher:
     """
+    I think this duplicates some of NodeExtractor.
+    """
+    """
     methods for finding chunks and strings in HTML elements
 
     Example text:
@@ -1633,6 +1654,72 @@ class HTMLArgs(AbstractArgs):
 
         self.ami_dict = AmiDictionary.create_from_xml_file(self.dictfile)
         self.ami_dict.markup_html_from_dictionary(self.inpath, self.outpath, self.color)
+
+class NodeExtractor:
+    """
+    extracts nodes/hyperlinks in text
+    """
+    UNMATCHED = "unmatched"
+    NODE_RE = "node_re"
+    SPLIT_NODE_RE = "split_node_re"
+    NAME_VALUE_RE = "name_value_re"
+
+    def __init__(self):
+        pass
+
+    def extract_ipcc_node_dict_lists_from_file(self, xml_inpath, div_xp=None, regex_dict=None):
+        """
+        extracts lists of nodes in text. Nodes are defined by xpath and regex
+        """
+        assert xml_inpath.exists(), f"{xml_inpath} should exist"
+        tree = lxml.etree.parse(str(xml_inpath))
+        if div_xp is None or regex_dict is None:
+            return None
+        texts = tree.xpath(div_xp)
+        ll = len(texts)
+        print(f"xpath/tree texts {ll}")
+        node_dict_list_list = list()
+        for i, text in enumerate(texts):
+            node_dict_list = self.extract_nodes_by_regex(text, regex_dict=regex_dict)
+            node_dict_list_list.append(node_dict_list)
+        return node_dict_list_list
+
+    def extract_nodes_by_regex(self, text, regex_dict=None) -> list:
+        """
+        Searches text with hierachical regexes
+
+        """
+
+        ptr = 0
+        node_dict_list = list()
+        if regex_dict is None:
+            return node_dict_list
+        reg1 = regex_dict.get(NodeExtractor.NODE_RE)
+        reg2 = regex_dict.get(NodeExtractor.SPLIT_NODE_RE)
+        reg3 = regex_dict.get(NodeExtractor.NAME_VALUE_RE)
+        if reg1 is None or reg2 is None or reg3 is None:
+            return node_dict_list
+        while text[ptr:] is not None:
+            match = re.search(reg1, text[ptr:])
+            if match is None:
+                break
+            ptr += match.span()[1]
+            nodestr = match.group(1)
+            nodes = re.split(reg2, nodestr)
+            node_dict = defaultdict(list)
+            node_dict_list.append(node_dict)
+            for node in nodes:
+                m = re.match(reg3, node)
+                if m:
+                    node_dict[m.group(1)].append(m.group(2))
+                    continue
+                unmatched = NodeExtractor.UNMATCHED
+                node_dict[unmatched].append(node)
+            pass
+        pass
+        return node_dict_list
+
+
 
 
 class CSSStyle:

@@ -573,6 +573,7 @@ Uses:
             inpath=Resources.TEST_IPCC_CHAP06_PDF,
             outpath=Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html"),
             pdf2html=PDFPLUMBER,
+            process_args=False
 
         )  # all the conversion happens here
         assert Path(outfile).exists(), f"{outfile} should exist"
@@ -1495,6 +1496,13 @@ class PDFMainArgTest(test.test_all.AmiAnyTest):
         outdir = Path(AmiAnyTest.TEMP_DIR, "pdf", "1758-2946-3-44")
         PyAMI().run_command(
             ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--pages', '_2', '4', '6_8', '11_'])
+
+    def test_subcommands_1(self):
+        # run args
+        inpath = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.pdf")
+        outdir = Path(AmiAnyTest.TEMP_DIR, "html", "LongerReport.html")
+        PyAMI().run_command(
+            ['PDF', '--inpath', str(inpath), '--outdir', str(outdir), '--maxpage', '999'])
 
     def test_subcommands_maxpage(self):
         """
