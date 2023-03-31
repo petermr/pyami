@@ -597,31 +597,57 @@ class TestHtml(AmiAnyTest):
         print(f"def_dict {def_dict}")
         counter = Counter(def_dict)
         print(f"counter {len(counter)}: {counter.most_common()}")
-        node_re = re.compile("((?:(?:WG(?:1|2|3|I|II|III)|SROCC|SRCCL|SR1\.5)\s+)?)"
-                             "("
-                             "(?:(?:Table|Figure|Box|SPM|TS|Chapter|Sections?|CCB|"
-                             "Cross-Chapter\s+Box"
-                             "(?:\s*[A-Z]+\s*in\s+Chapter\s+[0-9]+)?"
-                             ")\s*)?"
-                             ")"
-                             "("
-                             "(?:(?:(?:TS\.)?[A-Z]|SPM|TS|[Ff]ootnote )\.?)?"
-                             "\d+(?:\.\d+)*"
-                             ")"
-                             )
-        matched_keys = set()
+        node_re = re.compile(
+            "(?P<package>"
+              "(?:"
+                "(?:WG\s*(?:1|2|3|I|II|III)|SROCC|SRCCL|SR1\.5"
+                ")?"
+              ")"
+            ")"
+            "\s*"
+                             
+             "(?P<subpackage>"
+             "(?:(?:Table|Figure|Box|SPM|TS|Chapter|Sections?|CCB|"
+             "Cross-Chapter\s+Box"
+             "(?:\s*[A-Z]+\s*in\s+Chapter\s+[0-9]+)?"
+             ")?)"
+             ")"
+            "\s*"
+             
+             "(?P<section>"
+             "(?:(?:(?:TS\.)?[A-Z]|SPM|TS|[Ff]ootnote )\.?)?"
+             "\d+(?:\.\d+)*"
+             ")"
+        )
+        matched_dict = dict()
         unmatched_keys = set()
         for key in counter:
-
+            # key = key.replace("Box\.", "Box \.")
+            # key = key.replace("TS\.", "TS ")
             match = re.match(node_re, key)
             if match is None:
                 # print(f"no match: {key}")
                 unmatched_keys.add(key)
             else:
-                matched_keys.add(key)
+                matched_dict[key] = match.groupdict()
 
-        print(f"matched {len(matched_keys)} {matched_keys}")
-        print(f"unmatched {len(unmatched_keys)} {unmatched_keys}")
+        # pprint.pprint(f"matched {len(matched_dict)} {matched_dict}")
+        pck_counter = defaultdict(int)
+        subp_counter = defaultdict(int)
+        sect_counter = defaultdict(int)
+        for key in matched_dict:
+            value = matched_dict.get(key)
+            pck_counter[value['package']] += 1
+            subp_counter[value['subpackage']] += 1
+            sect_counter[value['section']] += 1
+            # print(f"{value['package']}|{value['subpackage']}|{value['section']}")
+        for key in unmatched_keys:
+            # print(f"unmatched: {key}")
+            pass
+        print(f"package: {Counter(pck_counter)}")
+        print(f"subpack: {Counter(subp_counter)}")
+        print(f"section: {Counter(sect_counter)}")
+        # print(f"unmatched {len(unmatched_keys)} {unmatched_keys}")
 
 
 

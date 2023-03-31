@@ -895,16 +895,24 @@ class PDFArgs(AbstractArgs):
 
         newstyle = True
         if newstyle:
-            inpath = self.arg_dict.get(INPATH)
+            infile = self.arg_dict.get(INFILE)
+            inpath = infile if infile is not None else self.arg_dict.get(INPATH)
             maxpage = int(self.arg_dict.get(MAXPAGE))
             outdir = self.arg_dict.get(OUTDIR)
             outpath = self.arg_dict.get(OUTPATH)
+            if outdir is None and outpath is not None:
+                outdir = outpath.parent
             if outpath is None:
                 if outdir is None:
                     raise FileNotFoundError(f"no outdir or outpath given")
                 outpath = Path(outdir, "outpath.html")
+
             style_dict = self.pdf_to_styled_html_CORE(
-                inpath, maxpage, outdir, outpath)
+                inpath=inpath,
+                maxpage=maxpage,
+                outdir=outdir,
+                outpath=outpath
+            )
             return
 
 
@@ -1068,17 +1076,18 @@ class PDFArgs(AbstractArgs):
         # page_height_cm = 29.7
         self.footer = 90
 
-    def convert_write(self,
-                      flow=True,
-                      indir=None,
-                      inpath=None,
-                      maxpage=None,
-                      outform=None,
-                      outpath=None,
-                      outstem=None,
-                      outdir=None,
-                      pdf2html=None,
-                      process_args=True,
+    def convert_write(
+          self,
+          flow=True,
+          indir=None,
+          inpath=None,
+          maxpage=None,
+          outform=None,
+          outpath=None,
+          outstem=None,
+          outdir=None,
+          pdf2html=None,
+          process_args=True,
         ):
         """
         Convenience method to run PDFParser.convert_pdf on self.inpath, self.outform, and self.maxpage
@@ -1094,14 +1103,23 @@ class PDFArgs(AbstractArgs):
             self.arg_dict[INDIR] = indir
         if inpath:
             self.arg_dict[INPATH] = inpath
+            self.arg_dict[INFILE] = inpath
+        else:
+            inpath = self.arg_dict[INPATH]
         if maxpage:
             self.arg_dict[MAXPAGE] = int(maxpage)
         if outdir:
             self.arg_dict[OUTDIR] = outdir
+        else:
+            outdir = self.arg_dict[OUTDIR]
         if outform:
             self.arg_dict[OUTFORM] = outform
+
         if outpath:
             self.arg_dict[OUTPATH] = outpath
+        else:
+            outpath = self.arg_dict[OUTPATH]
+
         if outstem:
             self.arg_dict[OUTSTEM] = outstem
         if pdf2html:
@@ -1115,7 +1133,9 @@ class PDFArgs(AbstractArgs):
         # out_html is tidied
         out_html = self.pdf_to_raw_then_raw_to_tidy(
             pdf_path=inpath,
-            flow=flow
+            flow=flow,
+            outdir=outdir,
+            outpath=outpath,
         )
         if out_html is None:
             raise ValueError(f" out_html is None")
@@ -1126,17 +1146,19 @@ class PDFArgs(AbstractArgs):
         with Util.open_write_utf8(outpath1) as f:
             f.write(out_html)
             print(f"wrote partially tidied html {outpath}")
-        return self.outpath, out_html
+        return outpath, out_html
 
-    def pdf_to_raw_then_raw_to_tidy(self,
-                                    pdf_path=None,
-                                    flow=True,
-                                    write_raw=True,
-                                    outpath=None,
-                                    outdir=None,
-                                    header=80,
-                                    footer=80,
-                                    maxpage=9999):
+    def pdf_to_raw_then_raw_to_tidy(
+            self,
+            pdf_path=None,
+            flow=True,
+            write_raw=True,
+            outpath=None,
+            outdir=None,
+            header=80,
+            footer=80,
+            maxpage=9999
+    ):
         """converts PDF to raw_html and (optionally raw_html to tidy_html
         Uses PDFParser.convert_pdf to create raw_html_element
 
@@ -1356,7 +1378,13 @@ class PDFArgs(AbstractArgs):
         print(f"arg_dict {pdf_args.arg_dict}")
         return pdf_args
 
-    def pdf_to_styled_html_CORE(self, inpath, maxpage, outdir, outpath1):
+    def pdf_to_styled_html_CORE(
+            self,
+            inpath=None,
+            maxpage=None,
+            outdir=None,
+            outpath=None,
+    ):
         """
         main routine for converting PDF all the way to tidied styled HTML
         uses a lot of defaults. will be better when we have a converter tool
@@ -1370,10 +1398,11 @@ class PDFArgs(AbstractArgs):
         if inpath is None:
             raise ValueError(F"No inpath in pdf_to_styled_html_CORE()")
         if outdir is None:
-            raise ValueError(F"No outpath in pdf_to_styled_html_CORE()")
+            raise ValueError(F"No outdir in pdf_to_styled_html_CORE()")
+        outpath1 = Path(outdir, "tidied.html")
         outpath, html_str = self.convert_write(
             inpath=inpath,
-            outpath=Path(outdir, "tidied.html"),
+            outpath=outpath1,
             outdir=outdir,
             maxpage=maxpage,
             process_args=False,
@@ -1793,15 +1822,16 @@ class PDFParser:
         return pdf_parser
 
     # class PDFParser:
-    def convert_pdf(self,
-                    path: str,
-                    fmt: str = "text",
-                    codec: str = "utf-8",
-                    password: str = "",
-                    maxpages: int = 0,
-                    caching: bool = True,
-                    pagenos: Container[int] = set(),
-                    ) -> str:
+    def convert_pdf(
+            self,
+            path: str,
+            fmt: str = "text",
+            codec: str = "utf-8",
+            password: str = "",
+            maxpages: int = 0,
+            caching: bool = True,
+            pagenos: Container[int] = set(),
+            ) -> str:
         """Uses PDFMiner library (I think) which omits coordinates"""
         """Summary
         Parameters

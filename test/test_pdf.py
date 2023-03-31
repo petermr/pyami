@@ -568,15 +568,16 @@ Uses:
         # pdf_args.arg_dict[PAGES] = [(1,3), (5,10)]
 
         print(f"arg_dict {pdf_args.arg_dict}")
+        outpath = Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html")
         outfile, _ = pdf_args.convert_write(
             maxpage=5,
             inpath=Resources.TEST_IPCC_CHAP06_PDF,
-            outpath=Path(AmiAnyTest.TEMP_HTML_IPCC_CHAP06, f"flow.test{maxpage}.html"),
+            outpath=outpath,
             pdf2html=PDFPLUMBER,
             process_args=False
 
         )  # all the conversion happens here
-        assert Path(outfile).exists(), f"{outfile} should exist"
+        assert outfile is not None and Path(outfile).exists(), f"{outfile} should exist"
         if not outfile:
             print(f"no file written")
         else:
@@ -602,7 +603,9 @@ Uses:
         """
         outdir = AmiAnyTest.TEMP_HTML_IPCC_CHAP06
         outfile = Path(outdir, "all.html")
-        args = f"PDF --infile {Resources.TEST_IPCC_CHAP06_PDF} --outdir {outdir} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
+        pdf = Resources.TEST_IPCC_CHAP06_PDF
+        print(f"pdf file {pdf}")
+        args = f"PDF --infile {pdf} --outdir {outdir} --pages 3_5 --flow True --outpath {outfile} --pdf2html pdfplumber"
         PyAMI().run_command(args)
         print(f"created outfile {outfile}")
         logging.warning(f"DID NOT CREATE FILE {outfile}")
