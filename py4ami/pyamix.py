@@ -209,7 +209,7 @@ class PyAMI:
             '  py4ami        # runs help\n'
             '  py4ami -h     # runs help\n'
             '  py4ami PDF -h # runs PDF help\n'
-            '  py4ami PDF --makehtml --infile foo.pdf --outdir bar/ # converts PDF to HTML\n'
+            '  py4ami PDF --infile foo.pdf --outdir bar/ # converts PDF to HTML\n'
             '  py4ami PROJECT --project foodir/ # converts all PDF in foodir to CTrees\n'
             '\n'
             '----------------------------------------\n\n'
@@ -342,6 +342,7 @@ class PyAMI:
                 self.symbol_ini.print_symbols()
         else:
             self.parse_and_run_args(args)
+
 
         return
 

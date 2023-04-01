@@ -1,6 +1,7 @@
 """Create, transform, markup up HTML, etc."""
 import logging
 import os
+import pprint
 import re
 import unittest
 from collections import Counter, defaultdict
@@ -11,7 +12,8 @@ import lxml.etree
 # local
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
-from py4ami.ami_html import HTMLSearcher, HtmlTree
+from py4ami.ami_html import HTMLSearcher, HtmlTree, NodeExtractor
+
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont
 from py4ami.ami_pdf import PDFArgs
 from py4ami.pyamix import PyAMI
@@ -47,6 +49,7 @@ NOTE. the use of classname, classref and similar is inconsistent. We want to hav
 s1  to mean class name (classname)
 .s1 to mean a reference to a classname (only used in <style> elements but involved in conversions
 """
+
 
 
 class TestHtml(AmiAnyTest):
@@ -510,7 +513,7 @@ class TestHtml(AmiAnyTest):
 
     @unittest.skipUnless(USER, "claim paras")
     @unittest.skipIf(BUG and False, "bad input file")
-    def test_make_ipcc_obsidian_md(self):
+    def test_make_ipcc_obsidian_md_CURRENT(self):
         """
         Read IPCC exec_summary Chapter and make obsidian MD.
         Reads an executive.summary consisting of about 20 paras, each of which
@@ -557,7 +560,7 @@ class TestHtml(AmiAnyTest):
                     f.write(bstr)
                     f.write(tstr)
 
-    def test_extract_ipcc_nodes_and_pointers_raw_format(self):
+    def test_extract_ipcc_nodes_and_pointers_raw_format_NODES_CURRENT(self):
         """
         read (old style) raw html with IPCC nodes and node_pointers and convert to HTML@a elements
         example
@@ -565,20 +568,90 @@ class TestHtml(AmiAnyTest):
         """
         # html = "executive_summary_css.html"
         # html = "executive_summary1.html"
-        exec_summ1 = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
-        assert exec_summ1.exists(), f"{exec_summ1} should exist"
-        tree = lxml.etree.parse(str(exec_summ1))
-        xpath = "//div//text()[contains(., '{')]"
-        texts = tree.xpath(xpath)
-        # print(f"texts {len(texts)}")
-        node_dict_list_list = list()
-        for text in texts:
-            # print(f"text: {text}")
-            node_dict_list = self.extract_ipcc_nodes(text)
-            # print(f"node_dict_list {node_dict_list}")
-            node_dict_list_list.append(node_dict_list)
-        assert len(node_dict_list_list) == 21
-        # assert str(node_dict_list_list[0]) == "[defaultdict(<class 'list'>, {'Figure': ['2.5'],'Table': ['2.1'],\n 'unmatched': ['2.2.2']})]", f"found {node_dict_list_list[0]}"
+        # file = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
+        file = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.html")
+        # make dictionary of regex extractor/splitters
+        ipcc_para_text_dict = {
+            NodeExtractor.NODE_RE: "{([^}]+)}", # curly {...}
+            NodeExtractor.SPLIT_NODE_RE: "\\s*[,;]\\s*",   # semicolon/comma list ...; ...;
+            NodeExtractor.NAME_VALUE_RE: "(Table|Figure)\\s+(.*)", # (table, figure) value
+        }
+        print(f"text_dict {ipcc_para_text_dict}")
+
+        node_extractor = NodeExtractor()
+        node_dict_list_list = node_extractor.extract_ipcc_node_dict_lists_from_file(
+            file,
+            div_xp="//div//text()[contains(., '{')]", # all paras wit curly {...
+            regex_dict=ipcc_para_text_dict)
+        def_dict = defaultdict()
+        for node_dict_list in node_dict_list_list:
+            for node_dict in node_dict_list:
+                for key in node_dict.keys():
+                    value_list = node_dict[key]
+                    # print(f"{key}: {value_list}")
+                    for value in value_list:
+                        if value not in def_dict:
+                            def_dict[value] = 0
+                        def_dict[value] += 1
+
+        print(f"def_dict {def_dict}")
+        counter = Counter(def_dict)
+        print(f"counter {len(counter)}: {counter.most_common()}")
+        node_re = re.compile(
+            "(?P<package>"
+              "(?:"
+                "(?:WG\s*(?:1|2|3|I|II|III)|SROCC|SRCCL|SR1\.5"
+                ")?"
+              ")"
+            ")"
+            "\s*"
+                             
+             "(?P<subpackage>"
+             "(?:(?:Table|Figure|Box|SPM|TS|Chapter|Sections?|CCB|"
+             "Cross-Chapter\s+Box"
+             "(?:\s*[A-Z]+\s*in\s+Chapter\s+[0-9]+)?"
+             ")?)"
+             ")"
+            "\s*"
+             
+             "(?P<section>"
+             "(?:(?:(?:TS\.)?[A-Z]|SPM|TS|[Ff]ootnote )\.?)?"
+             "\d+(?:\.\d+)*"
+             ")"
+        )
+        matched_dict = dict()
+        unmatched_keys = set()
+        for key in counter:
+            # key = key.replace("Box\.", "Box \.")
+            # key = key.replace("TS\.", "TS ")
+            match = re.match(node_re, key)
+            if match is None:
+                # print(f"no match: {key}")
+                unmatched_keys.add(key)
+            else:
+                matched_dict[key] = match.groupdict()
+
+        # pprint.pprint(f"matched {len(matched_dict)} {matched_dict}")
+        pck_counter = defaultdict(int)
+        subp_counter = defaultdict(int)
+        sect_counter = defaultdict(int)
+        for key in matched_dict:
+            value = matched_dict.get(key)
+            pck_counter[value['package']] += 1
+            subp_counter[value['subpackage']] += 1
+            sect_counter[value['section']] += 1
+            # print(f"{value['package']}|{value['subpackage']}|{value['section']}")
+        for key in unmatched_keys:
+            # print(f"unmatched: {key}")
+            pass
+        print(f"package: {Counter(pck_counter)}")
+        print(f"subpack: {Counter(subp_counter)}")
+        print(f"section: {Counter(sect_counter)}")
+        # print(f"unmatched {len(unmatched_keys)} {unmatched_keys}")
+
+
+
+        # print(f"counter {counter.most_common_values()}")
 
     def test_unescape_xml_character_entity_to_unicode(self):
         """
@@ -651,35 +724,6 @@ class TestHtml(AmiAnyTest):
         html_path = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
         html_searcher.search_path_chunk_node(html_path)
 
-    # ========================================
-    def extract_ipcc_nodes(self, text) -> list:
-        """
-        Move to a class and refactor to use dictionary
-        """
-        regex1 = "{([^}]*)}"
-        regex2 = "\\s*[,;]\\s*"
-        regex3 = "(Table|Figure)\\s+(.*)"
-        ptr = 0
-        node_dict_list = list()
-        while True:
-            match = re.search(regex1, text[ptr:])
-            if not match:
-                break
-            ptr = match.span()[1]
-            nodestr = match.group(1)
-            nodes = re.split(regex2, nodestr)
-            node_dict = defaultdict(list)
-            node_dict_list.append(node_dict)
-            for node in nodes:
-                # print(f"node: {node}")
-                m = re.match(regex3, node)
-                if m:
-                    node_dict[m.group(1)].append(m.group(2))
-                    continue
-                unmatched = "unmatched"
-                node_dict[unmatched].append(node)
-            # print(f"node_dict: {node_dict.items()}")
-        return node_dict_list
 
 
 class Test_PDFHTML(AmiAnyTest):
@@ -695,27 +739,27 @@ class Test_PDFHTML(AmiAnyTest):
         style_count = 17
         print_styles = True
         inpath = Path(Resources.TEST_IPCC_CHAP15, "fulltext.pdf")
-        pdf_args.pdf_to_styled_html(inpath, maxpage, outdir, outpath1)
+        style_dict = pdf_args.pdf_to_styled_html_CORE(inpath, maxpage, outdir, outpath1)
+        pprint.pprint(f"STYLE {style_dict}")
 
-    @unittest.skipUnless(True, "multiple chapter andf documents")
+    @unittest.skipUnless(True, "multiple chapter and documents")
     def test_pdf_to_styled_multiple_EXAMPLE(self):
         pdf_args = PDFArgs()
         for chapter in [
             # "Chapter03",
             # "Chapter15",
-            # "LongerReport",
+            "LongerReport",
             # # "wg2_03", # this has performance problems due to vector graphics/boxes
             # "wg2_06",
-            "wg2_spm",
-            "wg3_spm",
+            # "wg2_spm",
+            # "wg3_spm",
         ]:
             outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, chapter)
             outpath1 = Path(AmiAnyTest.TEMP_HTML_IPCC, chapter, "fulltext.html")
             maxpage = 230
-            style_count = 15
-            print_styles = True
             inpath = Path(Resources.TEST_IPCC_DIR, chapter, "fulltext.pdf")
-            pdf_args.pdf_to_styled_html(inpath, maxpage, outdir, outpath1)
+            style_dict = pdf_args.pdf_to_styled_html_CORE(inpath, maxpage, outdir, outpath1)
+            pprint.pprint(f"STYLE\n{style_dict}")
 
 
 class TestHtmlTidy(AmiAnyTest):

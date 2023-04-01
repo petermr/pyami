@@ -893,6 +893,29 @@ class PDFArgs(AbstractArgs):
         self.create_consistent_output_filenames_and_dirs()
         self.calculate_headers_footers()
 
+        newstyle = True
+        if newstyle:
+            infile = self.arg_dict.get(INFILE)
+            inpath = infile if infile is not None else self.arg_dict.get(INPATH)
+            maxpage = int(self.arg_dict.get(MAXPAGE))
+            outdir = self.arg_dict.get(OUTDIR)
+            outpath = self.arg_dict.get(OUTPATH)
+            if outdir is None and outpath is not None:
+                outdir = outpath.parent
+            if outpath is None:
+                if outdir is None:
+                    raise FileNotFoundError(f"no outdir or outpath given")
+                outpath = Path(outdir, "outpath.html")
+
+            style_dict = self.pdf_to_styled_html_CORE(
+                inpath=inpath,
+                maxpage=maxpage,
+                outdir=outdir,
+                outpath=outpath
+            )
+            return
+
+
         if self.pdf2html:
             self.create_consistent_output_filenames_and_dirs()
             # range_list = self.create_range_list()
@@ -904,7 +927,6 @@ class PDFArgs(AbstractArgs):
                           range_list=self.pages
             )
 
-        # self.convert_write()
 
     def check_input(self):
         if not self.inpath:
@@ -1054,16 +1076,18 @@ class PDFArgs(AbstractArgs):
         # page_height_cm = 29.7
         self.footer = 90
 
-    def convert_write(self,
-                      flow=True,
-                      indir=None,
-                      inpath=None,
-                      maxpage=None,
-                      outform=None,
-                      outpath=None,
-                      outstem=None,
-                      outdir=None,
-                      pdf2html=None
+    def convert_write(
+          self,
+          flow=True,
+          indir=None,
+          inpath=None,
+          maxpage=None,
+          outform=None,
+          outpath=None,
+          outstem=None,
+          outdir=None,
+          pdf2html=None,
+          process_args=True,
         ):
         """
         Convenience method to run PDFParser.convert_pdf on self.inpath, self.outform, and self.maxpage
@@ -1079,37 +1103,62 @@ class PDFArgs(AbstractArgs):
             self.arg_dict[INDIR] = indir
         if inpath:
             self.arg_dict[INPATH] = inpath
+            self.arg_dict[INFILE] = inpath
+        else:
+            inpath = self.arg_dict[INPATH]
         if maxpage:
-            self.arg_dict[MAXPAGE] = maxpage
+            self.arg_dict[MAXPAGE] = int(maxpage)
         if outdir:
             self.arg_dict[OUTDIR] = outdir
+        else:
+            outdir = self.arg_dict[OUTDIR]
         if outform:
             self.arg_dict[OUTFORM] = outform
+
         if outpath:
             self.arg_dict[OUTPATH] = outpath
+        else:
+            outpath = self.arg_dict[OUTPATH]
+
         if outstem:
             self.arg_dict[OUTSTEM] = outstem
         if pdf2html:
             self.arg_dict[PDF2HTML] = pdf2html
         # run the argument commands
 
-        self.process_args()
-        if self.inpath is None:
+        if process_args:
+            self.process_args()
+        if inpath is None:
             raise ValueError("No input path in convert_write()")
         # out_html is tidied
-        out_html = self.pdf_to_raw_then_raw_to_tidy(pdf_path=self.inpath, flow=self.flow)
+        out_html = self.pdf_to_raw_then_raw_to_tidy(
+            pdf_path=inpath,
+            flow=flow,
+            outdir=outdir,
+            outpath=outpath,
+        )
         if out_html is None:
             raise ValueError(f" out_html is None")
-        if self.outpath is None:
+        if outpath is None:
             print(f"no outpath given")
-            return None
-        outpath1 = str(self.outpath)
+            return None, None
+        outpath1 = str(outpath)
         with Util.open_write_utf8(outpath1) as f:
             f.write(out_html)
-            print(f"wrote partially tidied html {self.outpath}")
-        return self.outpath, out_html
+            print(f"wrote partially tidied html {outpath}")
+        return outpath, out_html
 
-    def pdf_to_raw_then_raw_to_tidy(self, pdf_path=None, flow=True, write_raw=True):
+    def pdf_to_raw_then_raw_to_tidy(
+            self,
+            pdf_path=None,
+            flow=True,
+            write_raw=True,
+            outpath=None,
+            outdir=None,
+            header=80,
+            footer=80,
+            maxpage=9999
+    ):
         """converts PDF to raw_html and (optionally raw_html to tidy_html
         Uses PDFParser.convert_pdf to create raw_html_element
 
@@ -1128,7 +1177,10 @@ class PDFArgs(AbstractArgs):
         :return: tidied html
         """
         self.pdf_parser = PDFParser()
-        raw_html_element = self.pdf_parser.convert_pdf(path=pdf_path, fmt=self.outform, maxpages=self.maxpage)
+        raw_html_element = self.pdf_parser.convert_pdf(
+            path=pdf_path,
+            # fmt=self.outform,
+            maxpages=maxpage)
         page_tops = ['%.2f'%(pt) for pt in self.pdf_parser.page_tops]
         print (f"page_tops {page_tops}")
         if raw_html_element is None:
@@ -1136,25 +1188,25 @@ class PDFArgs(AbstractArgs):
         if not flow:
             return raw_html_element
         if write_raw:
-            if not self.outpath and not self.outdir:
-                raise FileNotFoundError(f"self.outpath and self.outdir are None")
-            if self.outpath and not self.outdir:
-                self.outdir = Path(Path(self.outpath).parent)
-            if not self.outdir.exists():
-                self.outdir.mkdir(exist_ok=True, parents=True)
-            if not self.outpath:
-                self.outpath = Path(self.outdir, "tidied.html") # bad hardcoding
-            with Util.open_write_utf8(Path(self.outdir, "raw.html")) as f:
+            if not outpath and not outdir:
+                raise FileNotFoundError(f"outpath and outdir are None")
+            if outpath and not outdir:
+                outdir = Path(Path(outpath).parent)
+            if not Path(outdir).exists():
+                outdir.mkdir(exist_ok=True, parents=True)
+            if not outpath:
+                outpath = Path(outdir, "tidied.html") # bad hardcoding
+            with Util.open_write_utf8(Path(outdir, "raw.html")) as f:
                 f.write(raw_html_element)
-        print(f"outpath {self.outpath}")
+        print(f"outpath {outpath}")
 
         html_tidy = HtmlTidy()
         # might need a data transfer object
         html_tidy.page_tops = page_tops
-        html_tidy.header = self.header
-        html_tidy.footer = self.footer
-        html_tidy.unwanteds = self.unwanteds
-        html_tidy.outdir = self.outdir
+        html_tidy.header = header
+        html_tidy.footer = footer
+        # html_tidy.unwanteds = self.unwanteds
+        html_tidy.outdir = outdir
         out_html_element = html_tidy.tidy_flow(raw_html_element)
         assert len(out_html_element) > 0
         return out_html_element
@@ -1326,7 +1378,13 @@ class PDFArgs(AbstractArgs):
         print(f"arg_dict {pdf_args.arg_dict}")
         return pdf_args
 
-    def pdf_to_styled_html(self, inpath, maxpage, outdir, outpath1):
+    def pdf_to_styled_html_CORE(
+            self,
+            inpath=None,
+            maxpage=None,
+            outdir=None,
+            outpath=None,
+    ):
         """
         main routine for converting PDF all the way to tidied styled HTML
         uses a lot of defaults. will be better when we have a converter tool
@@ -1334,15 +1392,20 @@ class PDFArgs(AbstractArgs):
         :param maxpage: maximum number of pages to convert (starts at 1)
         :param outdir: output directory
         :param outpath1: "final"  html file
-        :param style_range:
         :return: style_dict
 
         """
+        if inpath is None:
+            raise ValueError(F"No inpath in pdf_to_styled_html_CORE()")
+        if outdir is None:
+            raise ValueError(F"No outdir in pdf_to_styled_html_CORE()")
+        outpath1 = Path(outdir, "tidied.html")
         outpath, html_str = self.convert_write(
             inpath=inpath,
-            outpath=Path(outdir, "tidied.html"),
+            outpath=outpath1,
             outdir=outdir,
             maxpage=maxpage,
+            process_args=False,
         )
         assert len(html_str.strip()) > 0
         html_elem = lxml.etree.fromstring(html_str)
@@ -1759,15 +1822,16 @@ class PDFParser:
         return pdf_parser
 
     # class PDFParser:
-    def convert_pdf(self,
-                    path: str,
-                    fmt: str = "text",
-                    codec: str = "utf-8",
-                    password: str = "",
-                    maxpages: int = 0,
-                    caching: bool = True,
-                    pagenos: Container[int] = set(),
-                    ) -> str:
+    def convert_pdf(
+            self,
+            path: str,
+            fmt: str = "text",
+            codec: str = "utf-8",
+            password: str = "",
+            maxpages: int = 0,
+            caching: bool = True,
+            pagenos: Container[int] = set(),
+            ) -> str:
         """Uses PDFMiner library (I think) which omits coordinates"""
         """Summary
         Parameters
@@ -1807,7 +1871,7 @@ class PDFParser:
         for page in PDFPage.get_pages(
                 fp,
                 pagenos,
-                maxpages=maxpages,
+                maxpages=int(maxpages),
                 password=password,
                 caching=caching,
                 check_extractable=True,
