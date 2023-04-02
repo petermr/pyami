@@ -1408,7 +1408,10 @@ class PDFArgs(AbstractArgs):
             process_args=False,
         )
         assert len(html_str.strip()) > 0
-        html_elem = lxml.etree.fromstring(html_str)
+        try:
+            html_elem = lxml.etree.fromstring(html_str)
+        except Exception as e:
+            raise Exception(f"***HTML PARSE ERROR [{html_str[:150]}...] from PDF {inpath} (outpath {outpath1}")
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
         CSSStyle.normalize_styles_in_fonts_in_html_head(html_elem)
         styles = CSSStyle.extract_styles_from_html_head_element(html_elem)
