@@ -1,0 +1,47 @@
+
+(base) pm286macbook:pyami pm286$ git status
+HEAD detached at 3d1991f
+nothing to commit, working tree clean
+(base) pm286macbook:pyami pm286$ git log
+commit 3d1991f4a2cb0398d4bfda292a1de5f04c1a4b0c (HEAD)
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Tue Mar 28 17:37:41 2023 +0100
+
+    tidied conversion routines to make them more modular - good interirm results.
+
+commit 2c00b76da02a1aa3e09f306c75e4b94409cfbd78
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Tue Mar 28 13:18:49 2023 +0100
+
+    tested font-expansion and corrected tests as directories have moved
+
+commit 33e6b81547c2ddd6c6dd7645eed60a9aba66ebad
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Sun Mar 26 22:10:59 2023 +0100
+
+    tested empirical font-property-from-name tools
+
+commit 5001619e5cb0ff29f3a2ec2d326b53b1fd96a84c
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Sat Mar 25 09:05:15 2023 +0000
+
+    integrated styles normalisation with PDF2HTML
+
+commit a7a115f2a66734c2bc955055591cf69e1c5cbb41 (pmr14)
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Fri Mar 24 15:16:10 2023 +0000
+
+    removed dependency on pyamiimage
+
+commit 34286e3c21bf29a263f4c881079bda4aebb59f60
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Fri Mar 24 10:13:20 2023 +0000
+
+    removed pm286 from tests and added Synthesis report
+
+commit 28045ed7e6519e436e9afd091f2a13f7c568452f
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Fri Mar 10 11:35:28 2023 +0000
+
+    developed test_pdf test_make_ipcc_html_spans intending to move it to commandline
+

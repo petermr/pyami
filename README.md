@@ -205,4 +205,5 @@ project organization: https://dev.to/codemouse92/dead-simple-python-project-stru
 use: pkg_resources
 
 # WARNING
+...
 AmiUtil exists in both py4ami and pyamiimage. There should be a separate library
