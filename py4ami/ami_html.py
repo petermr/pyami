@@ -1655,19 +1655,19 @@ class HTMLArgs(AbstractArgs):
         self.ami_dict = AmiDictionary.create_from_xml_file(self.dictfile)
         self.ami_dict.markup_html_from_dictionary(self.inpath, self.outpath, self.color)
 
-class NodeExtractor:
+class TargetExtractor:
     """
     extracts nodes/hyperlinks in text
     """
     UNMATCHED = "unmatched"
-    NODE_RE = "node_re"
-    SPLIT_NODE_RE = "split_node_re"
-    NAME_VALUE_RE = "name_value_re"
+    TARGET_LIST_RE = "node_re"
+    TARGET_RE = "split_node_re"
+    TARGET_VALUE_RE = "name_value_re"
 
     def __init__(self):
         pass
 
-    def extract_ipcc_node_dict_lists_from_file(self, xml_inpath, div_xp=None, regex_dict=None):
+    def extract_node_dict_lists_from_file(self, xml_inpath, div_xp=None, regex_dict=None):
         """
         extracts lists of nodes in text. Nodes are defined by xpath and regex
         """
@@ -1694,9 +1694,9 @@ class NodeExtractor:
         node_dict_list = list()
         if regex_dict is None:
             return node_dict_list
-        reg1 = regex_dict.get(NodeExtractor.NODE_RE)
-        reg2 = regex_dict.get(NodeExtractor.SPLIT_NODE_RE)
-        reg3 = regex_dict.get(NodeExtractor.NAME_VALUE_RE)
+        reg1 = regex_dict.get(TargetExtractor.TARGET_LIST_RE)
+        reg2 = regex_dict.get(TargetExtractor.TARGET_RE)
+        reg3 = regex_dict.get(TargetExtractor.TARGET_VALUE_RE)
         if reg1 is None or reg2 is None or reg3 is None:
             return node_dict_list
         while text[ptr:] is not None:
@@ -1713,13 +1713,27 @@ class NodeExtractor:
                 if m:
                     node_dict[m.group(1)].append(m.group(2))
                     continue
-                unmatched = NodeExtractor.UNMATCHED
+                unmatched = TargetExtractor.UNMATCHED
                 node_dict[unmatched].append(node)
             pass
         pass
         return node_dict_list
 
-
+    def extract_anchor_paragraphs(self, div_xp, file, target_dict_from_text):
+        node_dict_list_list = self.extract_node_dict_lists_from_file(
+            file,
+            div_xp=div_xp,  # all paras wit curly {...
+            regex_dict=target_dict_from_text)
+        def_dict = defaultdict()
+        for node_dict_list in node_dict_list_list:
+            for node_dict in node_dict_list:
+                for key in node_dict.keys():
+                    value_list = node_dict[key]
+                    for value in value_list:
+                        if value not in def_dict:
+                            def_dict[value] = 0
+                        def_dict[value] += 1
+        return def_dict
 
 
 class CSSStyle:

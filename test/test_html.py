@@ -12,7 +12,7 @@ import lxml.etree
 # local
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
-from py4ami.ami_html import HTMLSearcher, HtmlTree, NodeExtractor
+from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor
 
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont
 from py4ami.ami_pdf import PDFArgs
@@ -571,34 +571,24 @@ class TestHtml(AmiAnyTest):
         # file = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
         file = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.html")
         # make dictionary of regex extractor/splitters
-        ipcc_para_text_dict = {
-            NodeExtractor.NODE_RE: "{([^}]+)}", # curly {...}
-            NodeExtractor.SPLIT_NODE_RE: "\\s*[,;]\\s*",   # semicolon/comma list ...; ...;
-            NodeExtractor.NAME_VALUE_RE: "(Table|Figure)\\s+(.*)", # (table, figure) value
+        target_dict_from_ipcc_para_text = {
+            TargetExtractor.TARGET_LIST_RE: "{([^}]+)}", # curly {...}
+            TargetExtractor.TARGET_RE: "\\s*[,;]\\s*",   # semicolon/comma list ...; ...;
+            TargetExtractor.TARGET_VALUE_RE: "(Table|Figure)\\s+(.*)", # (table, figure) value
         }
-        print(f"text_dict {ipcc_para_text_dict}")
+        print(f"text_dict {target_dict_from_ipcc_para_text}")
 
-        node_extractor = NodeExtractor()
-        node_dict_list_list = node_extractor.extract_ipcc_node_dict_lists_from_file(
-            file,
-            div_xp="//div//text()[contains(., '{')]", # all paras wit curly {...
-            regex_dict=ipcc_para_text_dict)
-        def_dict = defaultdict()
-        for node_dict_list in node_dict_list_list:
-            for node_dict in node_dict_list:
-                for key in node_dict.keys():
-                    value_list = node_dict[key]
-                    # print(f"{key}: {value_list}")
-                    for value in value_list:
-                        if value not in def_dict:
-                            def_dict[value] = 0
-                        def_dict[value] += 1
+        node_extractor = TargetExtractor()
+        HAS_CURLY = "//div//text()[contains(., '{')]"
+        div_xp = HAS_CURLY
+        paragraph_dict = node_extractor.extract_anchor_paragraphs(div_xp, file, target_dict_from_ipcc_para_text)
 
-        print(f"def_dict {def_dict}")
-        counter = Counter(def_dict)
-        print(f"counter {len(counter)}: {counter.most_common()}")
+        PACKAGE = 'package'
+        SECTION = 'section'
+        SUBPACKAGE = 'subpackage'
+
         node_re = re.compile(
-            "(?P<package>"
+            f"(?P<{PACKAGE}>"
               "(?:"
                 "(?:WG\s*(?:1|2|3|I|II|III)|SROCC|SRCCL|SR1\.5"
                 ")?"
@@ -606,7 +596,7 @@ class TestHtml(AmiAnyTest):
             ")"
             "\s*"
                              
-             "(?P<subpackage>"
+             f"(?P<{SUBPACKAGE}>"
              "(?:(?:Table|Figure|Box|SPM|TS|Chapter|Sections?|CCB|"
              "Cross-Chapter\s+Box"
              "(?:\s*[A-Z]+\s*in\s+Chapter\s+[0-9]+)?"
@@ -614,44 +604,50 @@ class TestHtml(AmiAnyTest):
              ")"
             "\s*"
              
-             "(?P<section>"
+             f"(?P<{SECTION}>"
              "(?:(?:(?:TS\.)?[A-Z]|SPM|TS|[Ff]ootnote )\.?)?"
              "\d+(?:\.\d+)*"
              ")"
         )
-        matched_dict = dict()
-        unmatched_keys = set()
-        for key in counter:
-            # key = key.replace("Box\.", "Box \.")
-            # key = key.replace("TS\.", "TS ")
-            match = re.match(node_re, key)
-            if match is None:
-                # print(f"no match: {key}")
-                unmatched_keys.add(key)
-            else:
-                matched_dict[key] = match.groupdict()
+        matched_dict = self.create_matched_dict_and_unmatched_keys(paragraph_dict, node_re)
 
-        # pprint.pprint(f"matched {len(matched_dict)} {matched_dict}")
+        return self.create_counters(PACKAGE, SECTION, SUBPACKAGE, matched_dict, debug=True)
+        # print(f"unmatched {len(unmatched_keys)} {unmatched_keys}")
+
+        (matched_dict.keys(), Counter(pck_counter), Counter(subp_counter), Counter(sect_counter))
+
+        # print(f"counter {counter.most_common_values()}")
+
+    def create_counters(self, PACKAGE, SECTION, SUBPACKAGE, matched_dict, debug=False):
         pck_counter = defaultdict(int)
         subp_counter = defaultdict(int)
         sect_counter = defaultdict(int)
         for key in matched_dict:
             value = matched_dict.get(key)
-            pck_counter[value['package']] += 1
-            subp_counter[value['subpackage']] += 1
-            sect_counter[value['section']] += 1
-            # print(f"{value['package']}|{value['subpackage']}|{value['section']}")
-        for key in unmatched_keys:
-            # print(f"unmatched: {key}")
-            pass
-        print(f"package: {Counter(pck_counter)}")
-        print(f"subpack: {Counter(subp_counter)}")
-        print(f"section: {Counter(sect_counter)}")
-        # print(f"unmatched {len(unmatched_keys)} {unmatched_keys}")
+            pck_counter[value[PACKAGE]] += 1
+            subp_counter[value[SUBPACKAGE]] += 1
+            sect_counter[value[SECTION]] += 1
+        if debug:
+            print(f"package: {Counter(pck_counter)}")
+            print(f"subpack: {Counter(subp_counter)}")
+            print(f"section: {Counter(sect_counter)}")
 
+        return (matched_dict.keys(), Counter(pck_counter), Counter(subp_counter), Counter(sect_counter))
 
+    def create_matched_dict_and_unmatched_keys(self, def_dict, node_re):
+        print(f"def_dict {def_dict}")
+        counter = Counter(def_dict)
+        print(f"counter {len(counter)}: {counter.most_common()}")
 
-        # print(f"counter {counter.most_common_values()}")
+        matched_dict = dict()
+        unmatched_keys = set()
+        for key in counter:
+            match = re.match(node_re, key)
+            if match is None:
+                unmatched_keys.add(key)
+            else:
+                matched_dict[key] = match.groupdict()
+        return matched_dict
 
     def test_unescape_xml_character_entity_to_unicode(self):
         """
