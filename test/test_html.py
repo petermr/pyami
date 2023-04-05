@@ -579,10 +579,10 @@ class TestHtml(AmiAnyTest):
         print(f"text_dict {target_dict_from_ipcc_para_text}")
 
         node_extractor = TargetExtractor()
-        HAS_CURLY = "//div//text()[contains(., '{')]"
+        HAS_CURLY = "//div[//text()[contains(., '{')]]"
         div_xp = HAS_CURLY
         paragraph_dict = node_extractor.extract_anchor_paragraphs(div_xp, file, target_dict_from_ipcc_para_text)
-
+        print(f"paragraph_dict {paragraph_dict.keys()}")
         PACKAGE = 'package'
         SECTION = 'section'
         SUBPACKAGE = 'subpackage'

@@ -1670,25 +1670,35 @@ class TargetExtractor:
     def extract_node_dict_lists_from_file(self, xml_inpath, div_xp=None, regex_dict=None):
         """
         extracts lists of nodes in text. Nodes are defined by xpath and regex
+        :param xml_inpath: file with divs
+        :param div_xp: Must return <div> elements at present
+        :param regex_dict: dict of regexes to extract nodes
         """
         assert xml_inpath.exists(), f"{xml_inpath} should exist"
         tree = lxml.etree.parse(str(xml_inpath))
+        root = tree.getroot()
+        HtmlUtil.add_ids(root) # adds ids to each element
         if div_xp is None or regex_dict is None:
             return None
-        texts = tree.xpath(div_xp)
-        ll = len(texts)
+        print(f"div_xp {div_xp}")
+        divs_with_text = list(root.xpath(div_xp))
+        ll = len(divs_with_text)
         print(f"xpath/tree texts {ll}")
         node_dict_list_list = list()
-        for i, text in enumerate(texts):
-            node_dict_list = self.extract_nodes_by_regex(text, regex_dict=regex_dict)
+        for i, div in enumerate(divs_with_text):
+            if type(div) is not _Element:
+                raise ValueError(f"div_xpath must return divs")
+            node_dict_list = self.extract_nodes_by_regex(div, regex_dict=regex_dict)
             node_dict_list_list.append(node_dict_list)
         return node_dict_list_list
 
-    def extract_nodes_by_regex(self, text, regex_dict=None) -> list:
+    def extract_nodes_by_regex(self, div_with_text, regex_dict=None) -> list:
         """
         Searches text with hierachical regexes
-
         """
+        div_id = div_with_text.attrib.get('id')
+        text_in_div = ''.join(div_with_text.itertext())
+        print(f"{div_id} {text_in_div[:100]}")
 
         ptr = 0
         node_dict_list = list()
@@ -1699,8 +1709,9 @@ class TargetExtractor:
         reg3 = regex_dict.get(TargetExtractor.TARGET_VALUE_RE)
         if reg1 is None or reg2 is None or reg3 is None:
             return node_dict_list
-        while text[ptr:] is not None:
-            match = re.search(reg1, text[ptr:])
+        while text_in_div[ptr:] is not None:
+            ptr_ = text_in_div[ptr:]
+            match = re.search(reg1, ptr_)
             if match is None:
                 break
             ptr += match.span()[1]
@@ -1711,7 +1722,7 @@ class TargetExtractor:
             for node in nodes:
                 m = re.match(reg3, node)
                 if m:
-                    node_dict[m.group(1)].append(m.group(2))
+                    node_dict[m.group(1)].append(div_id+"__"+m.group(2))
                     continue
                 unmatched = TargetExtractor.UNMATCHED
                 node_dict[unmatched].append(node)
@@ -1720,12 +1731,17 @@ class TargetExtractor:
         return node_dict_list
 
     def extract_anchor_paragraphs(self, div_xp, file, target_dict_from_text):
+        """
+        reads xml file , finds divs, applies regexes to find targetrefss in text
+        """
         node_dict_list_list = self.extract_node_dict_lists_from_file(
             file,
             div_xp=div_xp,  # all paras wit curly {...
             regex_dict=target_dict_from_text)
+
         def_dict = defaultdict()
         for node_dict_list in node_dict_list_list:
+            print(f"node_dict_list {node_dict_list}")
             for node_dict in node_dict_list:
                 for key in node_dict.keys():
                     value_list = node_dict[key]
