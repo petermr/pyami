@@ -6,6 +6,7 @@ import re
 import unittest
 from collections import Counter, defaultdict
 from pathlib import Path
+import pandas as pd
 
 import lxml.etree
 
@@ -649,6 +650,29 @@ class TestHtml(AmiAnyTest):
                 matched_dict[key] = match.groupdict()
         return matched_dict
 
+    def test_create_bibpartite_graph_from_ipcc_chapter(self):
+        """reads a chapters, finds targets in {...'...} , uses div id as anchor
+        and builds bipartite graph
+        """
+        file = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.html")
+        assert file.exists(), f"{file} should exist"
+        table = TargetExtractor.extract_ipcc_fulltext_into_bipartite_graph(file)
+        df = pd.DataFrame(table, columns=['source', 'target'])
+        print(f"data frame {df}")
+        target_dict = defaultdict(int)
+        source_dict = defaultdict(int)
+        for row in table:
+            target_dict[row[1]] += 1
+            source_dict[row[0]] += 1
+
+        # print(f"id_list {id_list[:10]}")
+        target_counter = Counter(target_dict)
+        source_counter = Counter(source_dict)
+        common_target = [t for t in target_counter.most_common() if t[1] > 1]
+        common_source = [s for s in source_counter.most_common() if s[1] > 1]
+        # common_source = source_counter.most_common()[:50]
+        print(f"target {common_target}\nsource {common_source}")
+
     def test_unescape_xml_character_entity_to_unicode(self):
         """
         reads HTML with embedded character entities (e.g. "&#176;")
@@ -710,7 +734,7 @@ class TestHtml(AmiAnyTest):
         html_searcher.add_chunk_re(balanced_brackets)
         html_searcher.add_splitter_re(comma_semicolon_chunks)
         html_searcher.add_subnode_key_re("ref", dates1920)
-        html_searcher.set_unmatched(False)
+        html_searcher.set_unmatched_flag(False)
 
         # use first div paragraph chunk
         div712 = html_entity.xpath("//div[@id='id712']")[0]

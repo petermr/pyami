@@ -5,7 +5,7 @@ import copy
 import logging
 import pprint
 import re
-from collections import defaultdict
+from collections import defaultdict, Counter
 from enum import Enum
 from io import StringIO
 from pathlib import Path
@@ -13,7 +13,9 @@ from pathlib import Path
 import lxml
 import lxml.etree
 import numpy as np
+import pandas as pd
 from lxml.etree import Element, _Element, _ElementTree
+import xml.etree.ElementTree as ET
 from sklearn.linear_model import LinearRegression
 
 # local
@@ -1537,10 +1539,11 @@ class HTMLSearcher:
         self.add_item_to_array_dict(self.chunk_dict, name, subnode_re)
         self.validate_re(subnode_re)
 
-    def set_unmatched(self, unmatched):
+    def set_unmatched_flag(self, unmatched):
         """
         set UNMATCHED boolean. If true adds all unmatched values to dict under UNMATCHED
         :param unmatched: acts on current nodeset
+        :param match_type: additional debug to name
         """
         self.chunk_dict[self.UNMATCHED] = unmatched
 
@@ -1655,7 +1658,101 @@ class HTMLArgs(AbstractArgs):
         self.ami_dict = AmiDictionary.create_from_xml_file(self.dictfile)
         self.ami_dict.markup_html_from_dictionary(self.inpath, self.outpath, self.color)
 
+
+packages = ["WGI", "WG1", "WGII", "WG2", "WGIII", "WG3", "SRCCL", "SR1.5", "SR15", "SROCC"]
+subpackages = ["Chapter", "SPM", "TS"]
+objects = ["Table", "Figure", "CCBox"]
+subsections = ["A", "B", "C", "D", "E", "F"]
+
+package_re = "WGI+|WG[123]|SR(?:CCL|OCC|1\.?5)"
+section_re = "Chapter|Annexe|SPM|TS|ES|[Ss]ections?"
+object_re = "[Ff]ig(ure)?|[Tt]ab(le)?|[Ff]ootnote|Box|CCBox"
+subsection_re = "[A-E]?\.?\d+(\.\d+)?(\.\d+)?"
+# subsubsection_re = "[1-9](?:\.[1-9]){0, 2}"
+
+
+class Target:
+    """
+    parses target string and maybe caches some data
+    """
+    def __init__(self):
+        self.raw = "" #raw text
+        self.package = "" # WG2, SRCCL, etc.
+        self.section = "" # Chapter, Annexe, etc
+        self.object = "" # Figure, Table, etc
+        self.subsection = "" # A, B, etc
+        # self.subsubsection = "" # 1 , 1.2,  1.2.3 etc
+        self.unparsed = [] #anything else
+
+    def __str__(self):
+        return f"pk: {self.package},," \
+               f"sc: {self.section}, " \
+               f"ob: {self.object}, " \
+               f"sub: {self.subsection}, " \
+               f"unp: {self.unparsed}"
+
+    def __repr__(self):
+        return str([
+            self.package,
+            self.section,
+            self.object,
+            self.subsection,
+            self.unparsed,
+            self.raw,
+            ])
+
+    @classmethod
+    def create_target_from_str(cls, string):
+        """
+        parse string into hierarchy where possible
+        package, section, object, subsection, section
+        """
+        target = Target()
+        target.raw = string
+        strings = re.split("\s+", string)
+        ptr = 0
+        target.package, ptr = cls.parse_chunk(strings, ptr, package_re, "package")
+        target.section, ptr = cls.parse_chunk(strings, ptr, section_re, "section")
+        target.object, ptr = cls.parse_chunk(strings, ptr, object_re, "object")
+        target.subsection, ptr = cls.parse_chunk(strings, ptr, subsection_re, "subsection")
+        # target.subsubsection, ptr = cls.parse_chunk(strings, ptr, subsubsection_re, "subsubsection")
+        if len(strings) > ptr:
+            target.unparsed = strings[ptr:]
+        return target
+
+    @classmethod
+    def parse_chunk(cls, strings, ptr, pattern, name):
+        """
+        takes new chunk off the list (should be a stack) and parsers
+        If successful returns the chunk and advances pointer; else returns "" and no advance
+        """
+        if ptr >= len(strings):
+            return "", ptr
+        try:
+            match = re.match(pattern, strings[ptr])
+        except Exception as e:
+            raise ValueError(f"regex error {e} in {pattern}")
+        if match:
+            return strings[ptr], ptr + 1
+        return "", ptr
+
+    def normalize(self):
+        """removes porase errors and inconsistency of formats, etc
+        """
+        if len(self.unparsed) > 1:
+            first = self.unparsed[0]
+            # section in unparsed and missing/duplicated in self.section
+            if re.match(section_re, first) and self.section == '' or self.section == first:
+                self.section = first
+                self.unparsed.pop(0)
+            # move single unparsed to empty subsection
+            if len(self.unparsed) == 1 and self.subsection == '':
+                self.subsection = self.unparsed[0]
+                self.unparsed.pop(0)
+
+
 class TargetExtractor:
+
     """
     extracts nodes/hyperlinks in text
     """
@@ -1685,7 +1782,7 @@ class TargetExtractor:
         ll = len(divs_with_text)
         print(f"xpath/tree texts {ll}")
         node_dict_list_list = list()
-        for i, div in enumerate(divs_with_text):
+        for div in divs_with_text:
             if type(div) is not _Element:
                 raise ValueError(f"div_xpath must return divs")
             node_dict_list = self.extract_nodes_by_regex(div, regex_dict=regex_dict)
@@ -1722,10 +1819,11 @@ class TargetExtractor:
             for node in nodes:
                 m = re.match(reg3, node)
                 if m:
-                    node_dict[m.group(1)].append(div_id+"__"+m.group(2))
+                    node_dict[m.group(1)].append(m.group(2))
+                    node_dict["div_id"] = div_id
+                    print(f"node_dict {node_dict}")
                     continue
-                unmatched = TargetExtractor.UNMATCHED
-                node_dict[unmatched].append(node)
+                node_dict[TargetExtractor.UNMATCHED].append(node)
             pass
         pass
         return node_dict_list
@@ -1740,16 +1838,82 @@ class TargetExtractor:
             regex_dict=target_dict_from_text)
 
         def_dict = defaultdict()
+
         for node_dict_list in node_dict_list_list:
-            print(f"node_dict_list {node_dict_list}")
-            for node_dict in node_dict_list:
-                for key in node_dict.keys():
-                    value_list = node_dict[key]
-                    for value in value_list:
-                        if value not in def_dict:
-                            def_dict[value] = 0
-                        def_dict[value] += 1
+            ll = len(node_dict_list)
+            if ll > 1:
+                print(f"*****node_dict_list {ll}")
+                for node_dict in node_dict_list:
+                    print(f"----{len(node_dict.keys())}----")
+                    for key in node_dict.keys():
+                        print(f"key {key} ") # mainly unmatched but also Table, div_id
+                        value_list = node_dict[key]
+                        print(f"value_list {value_list}")
+                        for value in value_list:
+                            if value not in def_dict:
+                                def_dict[value] = 0
+                            def_dict[value] += 1
+                    print("")
         return def_dict
+
+    @classmethod
+    def create_normalized_target(cls, target_str):
+
+        target_str = cls.clean_target_string(target_str)
+        target = Target.create_target_from_str(target_str)
+        target.normalize()
+        return target
+
+    @classmethod
+    def clean_target_string(cls, target_str):
+        """
+        cleans typos from target string
+        """
+        target_str = re.sub("SR\s*1\.5", "SR1.5 ", target_str)  # separate subpackage from sections
+        target_str = re.sub("WG1\.", "WG1 ", target_str)  # separate subpackage from sections
+        target_str = re.sub("TS\.", "TS ", target_str)  # separate subpackage from sections
+        target_str = re.sub("SPM\.", "SPM ", target_str)  # separate subpackage from sections
+        target_str = re.sub("\s+", " ", target_str)  # normalise to 1 space
+        target_str = re.sub("WG\s*I", "WGI", target_str)  # remove iinternal sp ('WG II')
+        target_str = re.sub("Cross\-(Chapter|Section)\s*Box", "CCBox", target_str)
+        target_str = re.sub("Cross\-WG\s*[Bb]ox", "CCBox", target_str)
+        return target_str
+
+    @classmethod
+    def extract_ipcc_fulltext_into_bipartite_graph(cls, file):
+        """partly written by ChatGPT (2023-04-06"""
+        tree = ET.parse(file)
+        root = tree.getroot()
+        # Initialize the table
+        table = []
+        unparsed = 0
+        for paragraph in root.findall('.//div'):
+            paragraph_id = paragraph.get('id')
+            para_text = ''.join(paragraph.itertext())
+            unparsed += cls.match_id_and_targets(para_text, paragraph_id, table)
+        print(f"un/parsed: {unparsed}/{len(table)}")
+        return table
+
+    @classmethod
+    def match_id_and_targets(cls, para_text, paragraph_id, table):
+        curly_re = re.compile("(.*){(.*)}(.*)")
+        match_curly = curly_re.match(para_text)
+        targets = []
+        unparsed = 0
+        if match_curly:
+            curly_text = match_curly.group(2)
+            clause_parts = re.split('[:;,]', curly_text)
+            for part in clause_parts:
+                target_str = part.strip()
+                if target_str == '':
+                    continue
+                target = cls.create_normalized_target(target_str)
+                targets.append(target)
+                if len(target.unparsed) > 0:
+                    print(f"target: {target.__repr__()}")
+                    unparsed += 1
+                table.append([paragraph_id, str(target)])
+        return unparsed
 
 
 class CSSStyle:
