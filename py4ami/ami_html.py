@@ -1660,14 +1660,14 @@ class HTMLArgs(AbstractArgs):
 
 
 packages = ["WGI", "WG1", "WGII", "WG2", "WGIII", "WG3", "SRCCL", "SR1.5", "SR15", "SROCC"]
-subpackages = ["Chapter", "SPM", "TS"]
+subpackages = ["Chapter", "SPM", "TS", "ES"]
 objects = ["Table", "Figure", "CCBox"]
 subsections = ["A", "B", "C", "D", "E", "F"]
 
 package_re = "WGI+|WG[123]|SR(?:CCL|OCC|1\.?5)"
-section_re = "Chapter|Annexe|SPM|TS|ES|[Ss]ections?"
-object_re = "[Ff]ig(ure)?|[Tt]ab(le)?|[Ff]ootnote|Box|CCBox"
-subsection_re = "[A-E]?\.?\d+(\.\d+)?(\.\d+)?"
+section_re = "Chapter|Anne(xe)?|SPM|TS|ES|[Ss]ections?"
+object_re = "[Ff]ig(ure)?|[Tt]ab(le)?|[Ff]ootnote|Box|CCBox|CSBox"
+subsection_re = "[A-F]|ES|([A-E]?\.?\d+(\.\d+)?(\.\d+)?)"
 # subsubsection_re = "[1-9](?:\.[1-9]){0, 2}"
 
 
@@ -1685,11 +1685,9 @@ class Target:
         self.unparsed = [] #anything else
 
     def __str__(self):
-        return f"pk: {self.package},," \
-               f"sc: {self.section}, " \
-               f"ob: {self.object}, " \
-               f"sub: {self.subsection}, " \
-               f"unp: {self.unparsed}"
+        s = str(self.unparsed) if len (self.unparsed) > 0 else\
+            f"{self.package},{self.section},{self.object},{self.subsection}"
+        return s
 
     def __repr__(self):
         return str([
@@ -1737,7 +1735,7 @@ class Target:
         return "", ptr
 
     def normalize(self):
-        """removes porase errors and inconsistency of formats, etc
+        """removes porse errors and inconsistency of formats, etc
         """
         if len(self.unparsed) > 1:
             first = self.unparsed[0]
@@ -1747,8 +1745,15 @@ class Target:
                 self.unparsed.pop(0)
             # move single unparsed to empty subsection
             if len(self.unparsed) == 1 and self.subsection == '':
-                self.subsection = self.unparsed[0]
-                self.unparsed.pop(0)
+                self.transfer_first_unparsed_to_subsection()
+            # named CCBox
+            if self.object == 'CCBox' and self.subsection == '' and len(self.unparsed) == 1:
+                self.transfer_first_unparsed_to_subsection()
+
+
+    def transfer_first_unparsed_to_subsection(self):
+        self.subsection = self.unparsed[0]
+        self.unparsed.pop(0)
 
 
 class TargetExtractor:
@@ -1869,18 +1874,24 @@ class TargetExtractor:
         """
         cleans typos from target string
         """
-        target_str = re.sub("SR\s*1\.5", "SR1.5 ", target_str)  # separate subpackage from sections
-        target_str = re.sub("WG1\.", "WG1 ", target_str)  # separate subpackage from sections
-        target_str = re.sub("TS\.", "TS ", target_str)  # separate subpackage from sections
-        target_str = re.sub("SPM\.", "SPM ", target_str)  # separate subpackage from sections
-        target_str = re.sub("\s+", " ", target_str)  # normalise to 1 space
-        target_str = re.sub("WG\s*I", "WGI", target_str)  # remove iinternal sp ('WG II')
-        target_str = re.sub("Cross\-(Chapter|Section)\s*Box", "CCBox", target_str)
-        target_str = re.sub("Cross\-WG\s*[Bb]ox", "CCBox", target_str)
+        subst_list = [
+            ["SR\s*1\.5", "SR1.5 ", "separate subpackage from sections"],
+            ["WG1\.", "WG1 ", "separate subpackage from section"],
+            ["TS\.", "TS ", "separate subpackage from sections"],
+            ["SPM\.", "SPM ", "separate subpackage from sections"],
+            ["\s+", " ", "normalise to 1 space"],
+            ["WG\s*I", "WGI", "remove internal sp ('WG II')"],
+            ["Cross\-([Cc]hapter)\s*Box", "CCBox", "Cross Chapter Box"],
+            ["Cross\-([Ss]ection)\s*Box", "CSBox", "Cross Section Box"],
+            ["Cross\-Working \s*Group", "CWGBox", "Cross Working Group"],
+        ]
+
+        for subst in subst_list:
+            target_str = re.sub(subst[0], subst[1], target_str)  # separate subpackage from sections
         return target_str
 
     @classmethod
-    def extract_ipcc_fulltext_into_bipartite_graph(cls, file):
+    def extract_ipcc_fulltext_into_source_target_table(cls, file):
         """partly written by ChatGPT (2023-04-06"""
         tree = ET.parse(file)
         root = tree.getroot()

@@ -656,15 +656,17 @@ class TestHtml(AmiAnyTest):
         """
         file = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.html")
         assert file.exists(), f"{file} should exist"
-        table = TargetExtractor.extract_ipcc_fulltext_into_bipartite_graph(file)
+        table = TargetExtractor.extract_ipcc_fulltext_into_source_target_table(file)
         df = pd.DataFrame(table, columns=['source', 'target'])
         print(f"data frame {df}")
+        self.find_commonest_in_source_target_lists(table)
+
+    def find_commonest_in_source_target_lists(self, table):
         target_dict = defaultdict(int)
         source_dict = defaultdict(int)
         for row in table:
             target_dict[row[1]] += 1
             source_dict[row[0]] += 1
-
         # print(f"id_list {id_list[:10]}")
         target_counter = Counter(target_dict)
         source_counter = Counter(source_dict)
