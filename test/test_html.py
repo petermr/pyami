@@ -13,13 +13,14 @@ import lxml.etree
 # local
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
-from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor
+from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor, Target
 
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont
 from py4ami.ami_pdf import PDFArgs
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib, XmlLib
+
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
@@ -659,7 +660,12 @@ class TestHtml(AmiAnyTest):
         table = TargetExtractor.extract_ipcc_fulltext_into_source_target_table(file)
         df = pd.DataFrame(table, columns=['source', 'target'])
         print(f"data frame {df}")
-        self.find_commonest_in_source_target_lists(table)
+        common_source_tuples, common_target_tuples = self.find_commonest_in_source_target_lists(table)
+        print(f"target {common_target_tuples}\nsource {common_source_tuples}")
+        temp_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "LR_network")
+        temp_dir.mkdir(exist_ok=True)
+
+        Target.make_dirs_from_targets(common_target_tuples, temp_dir)
 
     def find_commonest_in_source_target_lists(self, table):
         target_dict = defaultdict(int)
@@ -672,8 +678,7 @@ class TestHtml(AmiAnyTest):
         source_counter = Counter(source_dict)
         common_target = [t for t in target_counter.most_common() if t[1] > 1]
         common_source = [s for s in source_counter.most_common() if s[1] > 1]
-        # common_source = source_counter.most_common()[:50]
-        print(f"target {common_target}\nsource {common_source}")
+        return common_source, common_target
 
     def test_unescape_xml_character_entity_to_unicode(self):
         """

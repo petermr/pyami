@@ -2,6 +2,7 @@
 Should have relatively few dependencies"""
 import argparse
 import copy
+import json
 import logging
 import pprint
 import re
@@ -13,7 +14,6 @@ from pathlib import Path
 import lxml
 import lxml.etree
 import numpy as np
-import pandas as pd
 from lxml.etree import Element, _Element, _ElementTree
 import xml.etree.ElementTree as ET
 from sklearn.linear_model import LinearRegression
@@ -1665,9 +1665,9 @@ objects = ["Table", "Figure", "CCBox"]
 subsections = ["A", "B", "C", "D", "E", "F"]
 
 package_re = "WGI+|WG[123]|SR(?:CCL|OCC|1\.?5)"
-section_re = "Chapter|Anne(xe)?|SPM|TS|ES|[Ss]ections?"
+section_re = "Chapter|Anne(xe)?|SPM|SM|TS|ES|[Ss]ections?"
 object_re = "[Ff]ig(ure)?|[Tt]ab(le)?|[Ff]ootnote|Box|CCBox|CSBox"
-subsection_re = "[A-F]|ES|([A-E]?\.?\d+(\.\d+)?(\.\d+)?)"
+subsection_re = "^\d+$|^[A-F]$|^ES|([A-E]?\.?\d+(\.\d+)?(\.\d+)?)"
 # subsubsection_re = "[1-9](?:\.[1-9]){0, 2}"
 
 
@@ -1680,24 +1680,46 @@ class Target:
         self.package = "" # WG2, SRCCL, etc.
         self.section = "" # Chapter, Annexe, etc
         self.object = "" # Figure, Table, etc
-        self.subsection = "" # A, B, etc
-        # self.subsubsection = "" # 1 , 1.2,  1.2.3 etc
-        self.unparsed = [] #anything else
+        self.subsection = "" # A, B,   A.1.2, etc
+        self.unparsed_str = "" #anything else
+
+    # class Target:
 
     def __str__(self):
-        s = str(self.unparsed) if len (self.unparsed) > 0 else\
-            f"{self.package},{self.section},{self.object},{self.subsection}"
-        return s
+        ss = self.__repr__()
+        return ss
+
+    def create_list(self):
+        ll = [self.package, self.section, self.object, self.subsection, self.unparsed_str, self.raw]
+        return ll
 
     def __repr__(self):
-        return str([
-            self.package,
-            self.section,
-            self.object,
-            self.subsection,
-            self.unparsed,
-            self.raw,
-            ])
+        return ",".join(self.create_list())
+
+    # class Target:
+
+    @classmethod
+    def create_target_from_fields(cls, str):
+        """
+        parse __str__ string into field where possible
+
+        package, section, object, subsection, unparsed, raw
+        :param strings: the fields in the Target
+        """
+        target = None
+        strings = str.split(',')
+        if strings and len(strings) >= 5:
+            target = Target()
+            target.package = strings[0]
+            target.section = strings[1]
+            target.object = strings[2]
+            target.subsection = strings[3]
+            target.unparsed_str = strings[4]
+        if strings and len(strings) == 6:
+            target.raw = strings[5]
+        return target
+
+    # class Target:
 
     @classmethod
     def create_target_from_str(cls, string):
@@ -1707,6 +1729,7 @@ class Target:
         """
         target = Target()
         target.raw = string
+        # string = cls.add_missing_commas(string)
         strings = re.split("\s+", string)
         ptr = 0
         target.package, ptr = cls.parse_chunk(strings, ptr, package_re, "package")
@@ -1715,8 +1738,10 @@ class Target:
         target.subsection, ptr = cls.parse_chunk(strings, ptr, subsection_re, "subsection")
         # target.subsubsection, ptr = cls.parse_chunk(strings, ptr, subsubsection_re, "subsubsection")
         if len(strings) > ptr:
-            target.unparsed = strings[ptr:]
+            target.unparsed_str = ' '.join(strings[ptr:])
         return target
+
+    # class Target:
 
     @classmethod
     def parse_chunk(cls, strings, ptr, pattern, name):
@@ -1734,27 +1759,83 @@ class Target:
             return strings[ptr], ptr + 1
         return "", ptr
 
+    # class Target:
+
     def normalize(self):
         """removes porse errors and inconsistency of formats, etc
         """
-        if len(self.unparsed) > 1:
-            first = self.unparsed[0]
+        unparsed_words = self.unparsed_str.split()
+        if len(unparsed_words) >= 1:
+            # print(f">>>> norm {self}")
+            first = unparsed_words[0]
+            if first == 'SPM':
+                pass
             # section in unparsed and missing/duplicated in self.section
             if re.match(section_re, first) and self.section == '' or self.section == first:
                 self.section = first
-                self.unparsed.pop(0)
+                unparsed_words.pop(0)
             # move single unparsed to empty subsection
-            if len(self.unparsed) == 1 and self.subsection == '':
-                self.transfer_first_unparsed_to_subsection()
+            if len(unparsed_words) == 1 and self.subsection == '':
+                self.transfer_first_unparsed_to_subsection(unparsed_words)
             # named CCBox
-            if self.object == 'CCBox' and self.subsection == '' and len(self.unparsed) == 1:
-                self.transfer_first_unparsed_to_subsection()
+            if self.object == 'CCBox':
+                # print(f" self ccbox: {self}")
+                if self.subsection == '':
+                    if len(self.unparsed_str) == 1 or \
+                        len(self.unparsed_str) >= 1 and self.unparsed_str[0].isupper():
+                            self.transfer_first_unparsed_to_subsection(unparsed_words)
+                            unparsed_words.pop()
+            # chapter/ES ['WGII', '', '', '7', ['ES'], 'WGII 7 ES']
+            if unparsed_words == ['ES']:
+                print("self ES {self}")
+            if len(unparsed_words) == 3 and unparsed_words[:2] == ["in", "Chapter"]:
+                if self.section == '':
+                    self.section = unparsed_words[1] # type
+                    section_number = unparsed_words[2] # number
+                    self.subsection = section_number + "." +  self.subsection
+                    unparsed_words = unparsed_words[3:]
+                    # print(f"in_Chapter {self}")
+
+            if unparsed_words and self.subsection == unparsed_words[0]:
+                unparsed_words = unparsed_words[1:]
+            self.unparsed_str = " ".join(unparsed_words)
+            if self.unparsed_str != "":
+                print(f"UNPARSED {self} {unparsed_words}")
+
+    @classmethod
+    def make_dirs_from_targets(cls, common_target_tuples, temp_dir):
+        for target_string in common_target_tuples:
+            target_strs = target_string[0]
+            target = Target.create_target_from_fields(target_strs)
+            target.make_directories(temp_dir)
+
+    def make_directories(self, temp_dir):
+        """makes directories from sections/subsections, etc"""
+        if not self.package:
+            pass
+        package_dir = Path(temp_dir, self.package)
+        package_dir.mkdir(exist_ok=True)
+        parent_dir = package_dir
+        if self.section:
+            section_dir = Path(parent_dir, self.section)
+            section_dir.mkdir(exist_ok=True)
+            parent_dir = section_dir
+        if self.object:
+            object_dir = Path(parent_dir, self.object)
+            object_dir.mkdir(exist_ok=True)
+            parent_dir = object_dir
+        if self.subsection:
+            subsection_file = Path(parent_dir, self.subsection)
+            subsection_file.touch()
 
 
-    def transfer_first_unparsed_to_subsection(self):
-        self.subsection = self.unparsed[0]
-        self.unparsed.pop(0)
+    # class Target:
 
+    def transfer_first_unparsed_to_subsection(self, unparsed_words):
+        # words = self.unparsed_str.split()
+        self.subsection = unparsed_words[0]
+        # words = " ".join(words[1:])
+        # return words
 
 class TargetExtractor:
 
@@ -1862,6 +1943,16 @@ class TargetExtractor:
         return def_dict
 
     @classmethod
+    def add_missing_commas(cls, string):
+        """
+        some targets are (wrongly) concatenated
+        """
+        string = string.replace(" WG", ", WG")
+        string = string.replace(" SR", ", SR")
+        return string
+
+
+    @classmethod
     def create_normalized_target(cls, target_str):
 
         target_str = cls.clean_target_string(target_str)
@@ -1875,15 +1966,16 @@ class TargetExtractor:
         cleans typos from target string
         """
         subst_list = [
-            ["SR\s*1\.5", "SR1.5 ", "separate subpackage from sections"],
-            ["WG1\.", "WG1 ", "separate subpackage from section"],
+            ["SR\s*1\.5", "SR1.5 ", "rejoin package name"],
+            ["WG1\.", "WG1 ", "separate package from section"],
             ["TS\.", "TS ", "separate subpackage from sections"],
             ["SPM\.", "SPM ", "separate subpackage from sections"],
             ["\s+", " ", "normalise to 1 space"],
+            ["WPM", "SPM", "single instance"],
             ["WG\s*I", "WGI", "remove internal sp ('WG II')"],
-            ["Cross\-([Cc]hapter)\s*Box", "CCBox", "Cross Chapter Box"],
-            ["Cross\-([Ss]ection)\s*Box", "CSBox", "Cross Section Box"],
-            ["Cross\-Working \s*Group", "CWGBox", "Cross Working Group"],
+            ["Cross\-([Cc]hapter)\s*[Bb]ox", "CCBox", "Cross Chapter Box"],
+            ["Cross\-([Ss]ection)\s*[Bb]ox", "CSBox", "Cross Section Box"],
+            ["Cross\-([Ww]orking\s+[Gg]roup|WG)\s+[Bb]ox", "CWGBox", "Cross Working Group"],
         ]
 
         for subst in subst_list:
@@ -1913,6 +2005,7 @@ class TargetExtractor:
         unparsed = 0
         if match_curly:
             curly_text = match_curly.group(2)
+            curly_text = cls.add_missing_commas(curly_text)
             clause_parts = re.split('[:;,]', curly_text)
             for part in clause_parts:
                 target_str = part.strip()
@@ -1920,8 +2013,8 @@ class TargetExtractor:
                     continue
                 target = cls.create_normalized_target(target_str)
                 targets.append(target)
-                if len(target.unparsed) > 0:
-                    print(f"target: {target.__repr__()}")
+                if len(target.unparsed_str) > 0:
+                    # print(f"target: {target.__repr__()}")
                     unparsed += 1
                 table.append([paragraph_id, str(target)])
         return unparsed
