@@ -1095,6 +1095,8 @@ class PDFArgs(AbstractArgs):
         if self.flow runs self.tidy_flow
         :return: outpath
         """
+        print(f"flow {flow} indir {indir} inpath {inpath} maxpage {maxpage} outform {outform} \n"
+              f"outpath {outpath} outstem {outstem} outdir {outdir} pdf2html {pdf2html} process_args {process_args}")
         print(f"==============CONVERT================")
         # process arguments into a dictionary
         if flow:

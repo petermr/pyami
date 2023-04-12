@@ -416,7 +416,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
     """
 
     @unittest.skipUnless(PDFTest.VERYLONG or True, "processes Chapters 04, 05, 16, 17")
-    def test_make_ipcc_html_EXAMPLE(self):
+    def test_make_ipcc_html_EXAMPLE_FAILS(self):
         """
         Converts a complete chapter to HTML
         KEEPS STYLES

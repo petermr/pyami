@@ -651,21 +651,44 @@ class TestHtml(AmiAnyTest):
                 matched_dict[key] = match.groupdict()
         return matched_dict
 
-    def test_create_bibpartite_graph_from_ipcc_chapter(self):
-        """reads a chapters, finds targets in {...'...} , uses div id as anchor
-        and builds bipartite graph
+    def test_create_target_node_dir_tree_from_ipcc_chapter_DEVELOP(self):
+        """reads a chapter in HTML, finds targets in {...'...} , uses div id as anchor
+        and builds directory tree of targets
         """
         file = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.html")
         assert file.exists(), f"{file} should exist"
         table = TargetExtractor.extract_ipcc_fulltext_into_source_target_table(file)
         df = pd.DataFrame(table, columns=['source', 'target'])
-        print(f"data frame {df}")
+        lr_path = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "kg", "LongReport")
+        lr_path.mkdir(exist_ok=True, parents=True)
+        df.to_csv(path_or_buf=Path(lr_path, "links.csv"))
+        # print(f"data frame {df}")
         common_source_tuples, common_target_tuples = self.find_commonest_in_source_target_lists(table)
         print(f"target {common_target_tuples}\nsource {common_source_tuples}")
         temp_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "LR_network")
         temp_dir.mkdir(exist_ok=True)
 
         Target.make_dirs_from_targets(common_target_tuples, temp_dir)
+
+    def test_create_target_node_dir_trees_from_ipcc_chapters_DEVELOP(self):
+        """reads a chapter in HTML, finds targets in {...'...} , uses div id as anchor
+        and builds directory tree of targets
+        """
+        packages = [
+            "LongerReport",
+            "wg2_spm",
+            "wg3_spm",
+        ]
+        for package in packages:
+            file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
+            table = TargetExtractor.extract_ipcc_fulltext_into_source_target_table(file)
+            common_source_tuples, common_target_tuples = self.find_commonest_in_source_target_lists(table)
+            ipcc_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc")
+            temp_dir = Path(ipcc_dir, f"{package}_network")
+            print(f"writing to {temp_dir}")
+            temp_dir.mkdir(exist_ok=True)
+
+            Target.make_dirs_from_targets(common_target_tuples, temp_dir)
 
     def find_commonest_in_source_target_lists(self, table):
         target_dict = defaultdict(int)

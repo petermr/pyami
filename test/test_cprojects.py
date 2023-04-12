@@ -13,9 +13,21 @@ from py4ami.util import Util
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
+SYN_URL = "https://www.ipcc.ch/syn"
+SROCC_URL = "https://www.ipcc.ch/srocc"
+SRCCL_URL = "https://www.ipcc.ch/srccl"
+SR1_5_URL = "https://www.ipcc.ch/sr1.5"
 WG3_URL = "https://www.ipcc.ch/report/ar6/wg3/"
+WG2_URL = "https://www.ipcc.ch/report/ar6/wg2/"
+WG1_URL = "https://www.ipcc.ch/report/ar6/wg1/"
 
-DOWNLOAD_IPCC_DIR = Path(AmiAnyTest.TEMP_DIR, "wg3a") # make projects
+DOWNLOAD_IPCC_SYN_DIR = Path(AmiAnyTest.TEMP_DIR, "syn") # make projects
+DOWNLOAD_IPCC_SR1_5_DIR = Path(AmiAnyTest.TEMP_DIR, "sr1_5") # make projects
+DOWNLOAD_IPCC_SROCC_DIR = Path(AmiAnyTest.TEMP_DIR, "srocc") # make projects
+DOWNLOAD_IPCC_SRCCL_DIR = Path(AmiAnyTest.TEMP_DIR, "srccl") # make projects
+DOWNLOAD_IPCC_WG3A_DIR = Path(AmiAnyTest.TEMP_DIR, "wg3a") # make projects
+DOWNLOAD_IPCC_WG2A_DIR = Path(AmiAnyTest.TEMP_DIR, "wg2a") # make projects
+DOWNLOAD_IPCC_WG1A_DIR = Path(AmiAnyTest.TEMP_DIR, "wg1a") # make projects
 
 
 class TestCProjTree(unittest.TestCase):
@@ -238,22 +250,31 @@ class TestCProjTree(unittest.TestCase):
         assert file_3_38.exists(), f"file should exist {file_3_38}"
         print(f"PDFS dir {AmiAnyTest.TEMP_PDFS_DIR}")
 
-    @unittest.skipUnless(DOWNLOAD_IPCC_DIR, "VERY LONG, DOWNLOADS")
+    @unittest.skipUnless(DOWNLOAD_IPCC_WG3A_DIR, "VERY LONG, DOWNLOADS")
     def test_download_pdfs_from_hrefs_in_url(self):
         # Util.delete
-        CProject.download_hrefs_in_url(weburl=WG3_URL,
-                                       target_dir=DOWNLOAD_IPCC_DIR,
-                                       maxsave=5,
-                                       skip_exists=True)
+        downloads = [
+            (SR1_5_URL, DOWNLOAD_IPCC_SR1_5_DIR),
+            (SRCCL_URL, DOWNLOAD_IPCC_SRCCL_DIR),
+            (SROCC_URL, DOWNLOAD_IPCC_SROCC_DIR),
+            (WG1_URL, DOWNLOAD_IPCC_WG1A_DIR),
+            (WG2_URL, DOWNLOAD_IPCC_WG2A_DIR),
+            (WG3_URL, DOWNLOAD_IPCC_WG3A_DIR),
+        ]
+        for web, target in downloads:
+            CProject.download_hrefs_in_url(weburl=web,
+                                           target_dir=target,
+                                           maxsave=5,
+                                           skip_exists=True)
 
-    @unittest.skipUnless(DOWNLOAD_IPCC_DIR, "VERY LONG, DOWNLOADS")
+    @unittest.skipUnless(DOWNLOAD_IPCC_WG3A_DIR, "VERY LONG, DOWNLOADS")
     def test_make_cproject_from_webpage(self):
         """
         download whole of IPCC WG3 into CProject
         I
         """
         CProject.make_cproject_and_fulltexts_from_hrefs_in_url(weburl=WG3_URL,
-                                                               target_dir=DOWNLOAD_IPCC_DIR,
+                                                               target_dir=DOWNLOAD_IPCC_WG3A_DIR,
                                                                skip_exists=True)
 
 
