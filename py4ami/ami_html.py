@@ -1809,9 +1809,10 @@ class Target:
         assert temp_dir is not None, f"must have temp_dir"
         for target_string in common_target_tuples:
             target_strs = target_string[0]
+            # TODO make parsable target string
             target = Target.create_target_from_fields(target_strs)
             if not target:
-                print(f"bad target {target_string}")
+                # print(f"bad target {target_string}")
                 continue
             target.make_directories(temp_dir)
 
@@ -2044,7 +2045,7 @@ class TargetExtractor:
             section_match = section_re.match(strip)
             section_id = section_match.group(0) if section_match else ""
             if section_id != '':
-                print(f"section_id {section_id}")
+                # print(f"section_id {section_id}")
                 last_section_id = section_id
             unp, para_table = cls.match_id_and_targets_in_para(para_text, paragraph_id, last_section_id)
             unparsed += unp
@@ -2058,13 +2059,16 @@ class TargetExtractor:
 
     @classmethod
     def match_id_and_targets_in_para(cls, para_text, paragraph_id, last_section_id):
-        """"""
-        print(f" IN last {last_section_id}")
+        """
+
+        """
+        # print(f" IN last {last_section_id}")
         curly_re = re.compile("(.*){(.*)}(.*)")
         match_curly = curly_re.match(para_text)
         # targets = []
         subtable = []
         unparsed = 0
+        max_para_text = 50
         if match_curly:
             curly_text = match_curly.group(2)
             curly_text = cls.add_missing_commas(curly_text)
@@ -2077,8 +2081,7 @@ class TargetExtractor:
                 if len(target.unparsed_str) > 0:
                     unparsed += 1
                 row = [paragraph_id, last_section_id,
-                        target.raw, target.package, target.section, target.object, target.unparsed_str]
-                print(f"row {row}")
+                        target.raw, target.package, target.section, target.object, target.unparsed_str, para_text[:max_para_text]]
                 subtable.append(row)
         return unparsed, subtable
 
@@ -2097,34 +2100,6 @@ class TargetExtractor:
         node_counter = Counter(node_dict)
         common_node = [n for n in node_counter.most_common() if n[1] > 1]
         return common_node
-
-    # class TargetExtractor
-
-    # not used
-    # def find_commonest_in_source_target_lists(self, table, source_name=None, target_name=None):
-    #
-    #     if not source_name or not target_name:
-    #         raise ValueError(f"source and/ot target names are none")
-    #     source_col = self.column_dict.get(source_name)
-    #     if not source_col:
-    #         raise ValueError(f"source name {source_name} not in column_dict {self.column_dict}")
-    #     target_col = self.column_dict.get(target_name)
-    #     if not target_col:
-    #         raise ValueError(f"target name {target_name} not in column_dict {self.column_dict}")
-    #
-    #     target_dict = defaultdict(int)
-    #     source_dict = defaultdict(int)
-    #
-    #     table_dict = dict()
-    #     for row in table:
-    #         target_dict[row[target_col]] += 1
-    #         source_dict[row[source_col]] += 1
-    #     # print(f"id_list {id_list[:10]}")
-    #     target_counter = Counter(target_dict)
-    #     source_counter = Counter(source_dict)
-    #     common_target = [t for t in target_counter.most_common() if t[1] > 1]
-    #     common_source = [s for s in source_counter.most_common() if s[1] > 1]
-    #     return common_source, common_target
 
 
 class CSSStyle:
@@ -2647,7 +2622,7 @@ class CSSStyle:
         """
         style_elems = CSSStyle.extract_styles_from_html_head_element(html_elem)
         for style_elem in style_elems:
-            print(f"{lxml.etree.tostring(style_elem)}")
+            print(f"STYLE {lxml.etree.tostring(style_elem)}")
             CSSStyle.replace_css_style_name_values_with_normalized_font(style_elem)
 
 
@@ -2834,8 +2809,6 @@ class AmiFont:
         if css_style_obj is not None:
             font_family = css_style_obj.font_family
             ami_font = AmiFont.extract_name_weight_style_stretched(font_family)
-            # print(f"family {font_family} {ami_font}")
-            # return ami_font
             new_css_style_obj = copy.deepcopy(css_style_obj)
             new_css_style_obj.set_attribute(FONT_FAMILY, ami_font.family)
             new_css_style_obj.set_attribute(FONT_WEIGHT, ami_font.weight)

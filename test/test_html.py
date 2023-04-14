@@ -658,10 +658,9 @@ class TestHtml(AmiAnyTest):
         file = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.html")
         assert file.exists(), f"{file} should exist"
         table = TargetExtractor.extract_ipcc_fulltext_into_source_target_table(file)
-        print(f"\nTABLE {table}")
         # TODO make pandas object to manage columns
         target_extractor = TargetExtractor.create_target_extractor(
-            ['id', 'source', 'target', 'package', 'section', 'object', 'subsection'])
+            ['id', 'source', 'target', 'package', 'section', 'object', 'subsection', 'source_text'])
         df = pd.DataFrame(table, columns=target_extractor.column_dict.keys())
         print(f"df {df}")
         lr_path = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "kg", "LongReport")
