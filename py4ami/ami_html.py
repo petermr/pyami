@@ -1694,7 +1694,7 @@ class Target:
         return ll
 
     def __repr__(self):
-        return ",".join(self.create_list())
+        return "|".join(self.create_list())
 
     # class Target:
 
@@ -1717,6 +1717,8 @@ class Target:
             target.unparsed_str = strings[4]
         if strings and len(strings) == 6:
             target.raw = strings[5]
+
+        # assert target is not None, f"cannot create target from {str}"
         return target
 
     # class Target:
@@ -1800,13 +1802,17 @@ class Target:
                 unparsed_words = unparsed_words[1:]
             self.unparsed_str = " ".join(unparsed_words)
             if self.unparsed_str != "":
-                print(f"UNPARSED {self} {unparsed_words}")
+                print(f"UNPARSED {self}")
 
     @classmethod
     def make_dirs_from_targets(cls, common_target_tuples, temp_dir):
+        assert temp_dir is not None, f"must have temp_dir"
         for target_string in common_target_tuples:
             target_strs = target_string[0]
             target = Target.create_target_from_fields(target_strs)
+            if not target:
+                print(f"bad target {target_string}")
+                continue
             target.make_directories(temp_dir)
 
     def make_directories(self, temp_dir):
@@ -1837,6 +1843,10 @@ class Target:
         # words = " ".join(words[1:])
         # return words
 
+    def type(self):
+        pass
+
+
 class TargetExtractor:
 
     """
@@ -1848,7 +1858,29 @@ class TargetExtractor:
     TARGET_VALUE_RE = "name_value_re"
 
     def __init__(self):
-        pass
+        self.column_dict = dict()
+
+#class TargetExtractor
+
+    def read_columns(self, names):
+        assert names and type(names) is list, f"must give list of names"
+        for col_no, name in enumerate(names):
+            if name.strip() == "" or " " in name:
+                raise ValueError(f"names must not be/have whitespace [{name}]")
+            if name in self.column_dict:
+                raise ValueError(f"duplicate column name {name}")
+            self.column_dict[name] = col_no
+
+    @classmethod
+    def create_target_extractor(cls, column_names):
+        try:
+            target_extractor = TargetExtractor()
+            target_extractor.read_columns(column_names)
+            return target_extractor
+        except ValueError as e:
+            raise e
+
+    # class TargetExtractor
 
     def extract_node_dict_lists_from_file(self, xml_inpath, div_xp=None, regex_dict=None):
         """
@@ -1874,6 +1906,8 @@ class TargetExtractor:
             node_dict_list = self.extract_nodes_by_regex(div, regex_dict=regex_dict)
             node_dict_list_list.append(node_dict_list)
         return node_dict_list_list
+
+    # class TargetExtractor
 
     def extract_nodes_by_regex(self, div_with_text, regex_dict=None) -> list:
         """
@@ -1914,6 +1948,8 @@ class TargetExtractor:
         pass
         return node_dict_list
 
+    # class TargetExtractor
+
     def extract_anchor_paragraphs(self, div_xp, file, target_dict_from_text):
         """
         reads xml file , finds divs, applies regexes to find targetrefss in text
@@ -1942,6 +1978,8 @@ class TargetExtractor:
                     print("")
         return def_dict
 
+    # class TargetExtractor
+
     @classmethod
     def add_missing_commas(cls, string):
         """
@@ -1951,6 +1989,7 @@ class TargetExtractor:
         string = string.replace(" SR", ", SR")
         return string
 
+    # class TargetExtractor
 
     @classmethod
     def create_normalized_target(cls, target_str):
@@ -1959,6 +1998,8 @@ class TargetExtractor:
         target = Target.create_target_from_str(target_str)
         target.normalize()
         return target
+
+    # class TargetExtractor
 
     @classmethod
     def clean_target_string(cls, target_str):
@@ -1982,6 +2023,8 @@ class TargetExtractor:
             target_str = re.sub(subst[0], subst[1], target_str)  # separate subpackage from sections
         return target_str
 
+    # class TargetExtractor
+
     @classmethod
     def extract_ipcc_fulltext_into_source_target_table(cls, file):
         """partly written by ChatGPT (2023-04-06"""
@@ -1990,34 +2033,98 @@ class TargetExtractor:
         # Initialize the table
         table = []
         unparsed = 0
+        # TODO extract source_id from IPCC paragraphs
+        section_re = re.compile("^([A-Z]|\d)(\.\d+)*$")
+        last_section_id = ""
         for paragraph in root.findall('.//div'):
             paragraph_id = paragraph.get('id')
             para_text = ''.join(paragraph.itertext())
-            unparsed += cls.match_id_and_targets(para_text, paragraph_id, table)
+            label = paragraph.findall("./span")
+            strip = "no span" if not label else label[0].text.strip()
+            section_match = section_re.match(strip)
+            section_id = section_match.group(0) if section_match else ""
+            if section_id != '':
+                print(f"section_id {section_id}")
+                last_section_id = section_id
+            unp, para_table = cls.match_id_and_targets_in_para(para_text, paragraph_id, last_section_id)
+            unparsed += unp
+            if para_table == []:
+                continue
+            table.extend(para_table)
         print(f"un/parsed: {unparsed}/{len(table)}")
         return table
 
+    # class TargetExtractor
+
     @classmethod
-    def match_id_and_targets(cls, para_text, paragraph_id, table):
+    def match_id_and_targets_in_para(cls, para_text, paragraph_id, last_section_id):
+        """"""
+        print(f" IN last {last_section_id}")
         curly_re = re.compile("(.*){(.*)}(.*)")
         match_curly = curly_re.match(para_text)
-        targets = []
+        # targets = []
+        subtable = []
         unparsed = 0
         if match_curly:
             curly_text = match_curly.group(2)
             curly_text = cls.add_missing_commas(curly_text)
-            clause_parts = re.split('[:;,]', curly_text)
+            clause_parts = re.split('\s*[:;,]\s*', curly_text)
             for part in clause_parts:
                 target_str = part.strip()
                 if target_str == '':
                     continue
                 target = cls.create_normalized_target(target_str)
-                targets.append(target)
                 if len(target.unparsed_str) > 0:
-                    # print(f"target: {target.__repr__()}")
                     unparsed += 1
-                table.append([paragraph_id, str(target)])
-        return unparsed
+                row = [paragraph_id, last_section_id,
+                        target.raw, target.package, target.section, target.object, target.unparsed_str]
+                print(f"row {row}")
+                subtable.append(row)
+        return unparsed, subtable
+
+    # class TargetExtractor
+
+    def find_commonest_in_node_lists(self, table, node_name=None):
+
+        if not node_name:
+            raise ValueError(f"node names are none")
+        node_col = self.column_dict.get(node_name)
+        if not node_col:
+            raise ValueError(f"node name {node_name} not in column_dict {self.column_dict}")
+        node_dict = defaultdict(int)
+        for row in table:
+            node_dict[row[node_col]] += 1
+        node_counter = Counter(node_dict)
+        common_node = [n for n in node_counter.most_common() if n[1] > 1]
+        return common_node
+
+    # class TargetExtractor
+
+    # not used
+    # def find_commonest_in_source_target_lists(self, table, source_name=None, target_name=None):
+    #
+    #     if not source_name or not target_name:
+    #         raise ValueError(f"source and/ot target names are none")
+    #     source_col = self.column_dict.get(source_name)
+    #     if not source_col:
+    #         raise ValueError(f"source name {source_name} not in column_dict {self.column_dict}")
+    #     target_col = self.column_dict.get(target_name)
+    #     if not target_col:
+    #         raise ValueError(f"target name {target_name} not in column_dict {self.column_dict}")
+    #
+    #     target_dict = defaultdict(int)
+    #     source_dict = defaultdict(int)
+    #
+    #     table_dict = dict()
+    #     for row in table:
+    #         target_dict[row[target_col]] += 1
+    #         source_dict[row[source_col]] += 1
+    #     # print(f"id_list {id_list[:10]}")
+    #     target_counter = Counter(target_dict)
+    #     source_counter = Counter(source_dict)
+    #     common_target = [t for t in target_counter.most_common() if t[1] > 1]
+    #     common_source = [s for s in source_counter.most_common() if s[1] > 1]
+    #     return common_source, common_target
 
 
 class CSSStyle:

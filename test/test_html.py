@@ -658,12 +658,19 @@ class TestHtml(AmiAnyTest):
         file = Path(Resources.TEST_IPCC_DIR, "LongerReport", "fulltext.html")
         assert file.exists(), f"{file} should exist"
         table = TargetExtractor.extract_ipcc_fulltext_into_source_target_table(file)
-        df = pd.DataFrame(table, columns=['source', 'target'])
+        print(f"\nTABLE {table}")
+        # TODO make pandas object to manage columns
+        target_extractor = TargetExtractor.create_target_extractor(
+            ['id', 'source', 'target', 'package', 'section', 'object', 'subsection'])
+        df = pd.DataFrame(table, columns=target_extractor.column_dict.keys())
+        print(f"df {df}")
         lr_path = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "kg", "LongReport")
         lr_path.mkdir(exist_ok=True, parents=True)
-        df.to_csv(path_or_buf=Path(lr_path, "links.csv"))
+        print(f"writing CSV to {lr_path}")
+        df.to_csv(path_or_buf=Path(lr_path, "edges.csv"))
         # print(f"data frame {df}")
-        common_source_tuples, common_target_tuples = self.find_commonest_in_source_target_lists(table)
+        common_source_tuples = target_extractor.find_commonest_in_node_lists (table, node_name="source")
+        common_target_tuples = target_extractor.find_commonest_in_node_lists (table, node_name="target")
         print(f"target {common_target_tuples}\nsource {common_source_tuples}")
         temp_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "LR_network")
         temp_dir.mkdir(exist_ok=True)
@@ -689,19 +696,6 @@ class TestHtml(AmiAnyTest):
             temp_dir.mkdir(exist_ok=True)
 
             Target.make_dirs_from_targets(common_target_tuples, temp_dir)
-
-    def find_commonest_in_source_target_lists(self, table):
-        target_dict = defaultdict(int)
-        source_dict = defaultdict(int)
-        for row in table:
-            target_dict[row[1]] += 1
-            source_dict[row[0]] += 1
-        # print(f"id_list {id_list[:10]}")
-        target_counter = Counter(target_dict)
-        source_counter = Counter(source_dict)
-        common_target = [t for t in target_counter.most_common() if t[1] > 1]
-        common_source = [s for s in source_counter.most_common() if s[1] > 1]
-        return common_source, common_target
 
     def test_unescape_xml_character_entity_to_unicode(self):
         """
