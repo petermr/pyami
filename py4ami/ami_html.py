@@ -462,6 +462,30 @@ class HtmlTidy:
             body.append(elem)
         return html_with_head_body
 
+    @classmethod
+    def concatenate_spans_with_identical_styles(cls, elem, addspace=True):
+
+        """
+        Sometimes unnecessary spans are created (e.g.
+        <span class='s1'>foo</span><spane class="s1">bar</span>
+        creates <span class="s1">foo bar</span>
+        :param elem: probably a div with child spans
+        :param addspace: insert space
+        """
+        spans = elem.xpath("./span[@class]")
+        last_span = None
+        spaces = "" if not addspace else " "
+        for span in spans:
+            if last_span is not None and last_span.attrib["class"] == span.attrib["class"]:
+                # print("equal classes")
+                last_span.text = last_span.text + spaces + span.text
+                # if last_span.text[0] == "[":
+                #     print("SQUARE")
+                print(f">> {last_span.text}")
+                elem.remove(span)
+            else:
+                last_span = span
+
 
 class HtmlUtil:
     SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
@@ -2100,6 +2124,112 @@ class TargetExtractor:
         node_counter = Counter(node_dict)
         common_node = [n for n in node_counter.most_common() if n[1] > 1]
         return common_node
+
+ID = "id"
+OBJECT ="object"
+STARTEND = "start_end"
+
+class FloatBoundaryDict:
+
+    def __init__(self, html_elem, outdir=None):
+        self.float_boundary_dict = defaultdict(list)
+        self.html_elem = html_elem
+        self.outdir = outdir
+
+    def add_object(self, float_boundary):
+        key = float_boundary.key
+        self.float_boundary_dict[key].append(float_boundary)
+
+    def add_float_boundaries(self, float_boundaries):
+        for float_boundary in float_boundaries:
+            self.add_object(float_boundary)
+
+    def extract_contents_of_bracketed_boundaries(self):
+        for fb_list in self.float_boundary_dict.values():
+            if len(fb_list) == 2:
+                print(f"FB {fb_list} {fb_list[0].div_id} {fb_list[1].div_id}")
+                new_div = self.delete_between(fb_list[0].div_id, fb_list[1].div_id)
+                new_div.attrib["name"] = fb_list[0].key
+                if self.outdir:
+                    Path(self.outdir).mkdir(exist_ok=True, parents=False)
+                    XmlLib.write_xml(new_div, Path(self.outdir, new_div.attrib["name"].lower().replace("\s*", "") + ".html"))
+
+    def delete_between(self, div_id0, div_id1):
+        elem0 = self.html_elem.xpath(f".//div[@id='{div_id0}']")[0]
+        elem1 = self.html_elem.xpath(f".//div[@id='{div_id1}']")[0]
+        following = elem0.xpath("following::*")
+        new_div = lxml.etree.Element("div")
+        new_div.attrib["id"] = div_id0
+        for follow in following:
+            id_ = follow.attrib['id']
+            new_div.append(follow)
+            # follow.getparent().remove(follow)
+            if id_ == div_id1:
+                print("EXIT")
+                break
+        return new_div
+
+
+
+class FloatBoundary:
+    """
+    Holds
+    """
+    IPCC_BOUNDARY = "\[?" \
+            f"(?P<{STARTEND}>START|END)\s*" \
+            f"(?P<{OBJECT}>.*BOX|FIGURE|TABLE)\s*" \
+            f"(?P<{ID}>(?:(?:[A-Z0-9]+|\d+)?(?:\.\d+)*))\s*(?:HERE)\]?"
+
+    # [START CROSS-SECTION BOX.1 HERE]
+
+    def __init__(self):
+        self.group_dict = dict()
+        self.start = None
+        self.end = None
+        self.div_id = None
+
+    def __str__(self):
+        return self.group_dict.get(STARTEND) + ";" +  self.group_dict.get(OBJECT) + ";" +  self.group_dict.get(ID)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def add(self, name, value):
+        self.group_dict[name] = value
+
+    @property
+    def key(self):
+        return str(self.group_dict[OBJECT]) + str(self.group_dict[ID])
+
+    @property
+    def start_end(self):
+        return self.group_dict[STARTEND]
+
+
+class FloatExtractor:
+    """extracts floats (boxes, figures, etc.) using start/end regexes
+    """
+
+    def __init__(self, regex=None):
+        self.regex = regex
+
+    def extract_float_boundaries(self, html_elem, regex_str):
+        float_boundaries = []
+        regex = re.compile(regex_str)
+        print(f" regex {regex}")
+        divs = html_elem.xpath(".//div")
+        for div in divs:
+            spans = div.xpath("./span")
+            for span in spans:
+                match = re.search(regex, span.text)
+                if match:
+                    float_boundary = FloatBoundary()
+                    float_boundary.div_id = div.attrib["id"]
+                    for field in [STARTEND, OBJECT, ID]:
+                        float_boundary.add(field, match.group(field))
+                    float_boundaries.append(float_boundary)
+        return float_boundaries
+
 
 
 class CSSStyle:

@@ -15,7 +15,8 @@ from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor, Target
 
-from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont
+from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont, \
+    FloatExtractor, FloatBoundary, FloatBoundaryDict
 from py4ami.ami_pdf import PDFArgs
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
@@ -51,6 +52,8 @@ NOTE. the use of classname, classref and similar is inconsistent. We want to hav
 s1  to mean class name (classname)
 .s1 to mean a reference to a classname (only used in <style> elements but involved in conversions
 """
+
+
 
 
 
@@ -651,7 +654,7 @@ class TestHtml(AmiAnyTest):
                 matched_dict[key] = match.groupdict()
         return matched_dict
 
-    def test_create_target_node_dir_tree_from_ipcc_chapter_DEVELOP(self):
+    def test_create_target_node_dir_tree_from_ipcc_chapter_html_DEVELOP(self):
         """reads a chapter in HTML, finds targets in {...'...} , uses div id as anchor
         and builds directory tree of targets
         """
@@ -665,8 +668,9 @@ class TestHtml(AmiAnyTest):
         print(f"df {df}")
         lr_path = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "kg", "LongReport")
         lr_path.mkdir(exist_ok=True, parents=True)
-        print(f"writing CSV to {lr_path}")
-        df.to_csv(path_or_buf=Path(lr_path, "edges.csv"))
+        path = Path(lr_path, "edges.csv")
+        print(f"writing CSV: {path}")
+        df.to_csv(path_or_buf=path)
         # print(f"data frame {df}")
         common_source_tuples = target_extractor.find_commonest_in_node_lists (table, node_name="source")
         common_target_tuples = target_extractor.find_commonest_in_node_lists (table, node_name="target")
@@ -695,6 +699,30 @@ class TestHtml(AmiAnyTest):
             temp_dir.mkdir(exist_ok=True)
 
             Target.make_dirs_from_targets(common_target_tuples, temp_dir)
+
+    def test_remove_floats_from_fulltext_html_DEVELOP(self):
+        package = "LongerReport"
+        file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
+        html_elem = lxml.etree.parse(str(file)).getroot()
+        regex = FloatBoundary.IPCC_BOUNDARY
+        float_boundaries = FloatExtractor().extract_float_boundaries(html_elem, regex)
+        fbd = FloatBoundaryDict(html_elem, outdir=str(Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport")))
+        fbd.add_float_boundaries(float_boundaries)
+        fbd.extract_contents_of_bracketed_boundaries()
+        XmlLib.write_xml(html_elem, Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport", "defloated.html"))
+
+
+    def test_concatenate_equal_classes(self):
+        package = "LongerReport"
+        file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
+        html_elem = lxml.etree.parse(str(file)).getroot()
+        divs = html_elem.xpath(".//div")
+        for div in divs:
+            HtmlTidy.concatenate_spans_with_identical_styles(div)
+        outfile = Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport", "fulltext_spaced.html")
+        XmlLib.write_xml(html_elem, outfile)
+        print(f"write {outfile}")
+
 
     def test_unescape_xml_character_entity_to_unicode(self):
         """
