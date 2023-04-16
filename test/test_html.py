@@ -1,4 +1,5 @@
 """Create, transform, markup up HTML, etc."""
+import copy
 import logging
 import os
 import pprint
@@ -711,6 +712,114 @@ class TestHtml(AmiAnyTest):
         fbd.extract_contents_of_bracketed_boundaries()
         XmlLib.write_xml(html_elem, Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport", "defloated.html"))
 
+    def is_footnote_font(self, footnote_number_elem):
+        """
+        font size alone does not distinguish, so use neighbouring text
+        """
+        next = XmlLib.get_next_element(footnote_number_elem)
+        text = footnote_number_elem.text
+        if next is None:
+            print(f"NO following elem")
+            return False
+        # folloed by small font?
+        next_class = next.attrib["class"]
+        if next_class == "s1045":
+            return True
+        # print(f"text {text}: next class {next_class}")
+        return False
+
+    def test_remove_footnotes_from_fulltext_html_DEVELOP(self):
+        """
+        <style classref=".s0">.s0 {font-family:TimesNewRomanPSMT; font-size:11px; font-weight:Bold;}</style>
+        <style classref=".s1">.s1 {}</style>
+        <style classref=".s10">.s10 {font-family:TimesNewRomanPSMT; font-size:11px;}</style>
+        <style classref=".s1001">.s1001 {font-family:TimesNewRomanPSMT; font-size:11px; font-style:Italic;}</style>
+        <style classref=".s1007">.s1007 {font-family:TimesNewRomanPSMT; font-size:11px; font-weight:Bold; font-style:Italic;}</style>
+        <style classref=".s1010">.s1010 {font-family:TimesNewRomanPSMT; font-size:6px;}</style> <!-- super/.sub -->
+        <style classref=".s1045">.s1045 {font-family:TimesNewRomanPSMT; font-size:9px;}</style> <!-- main footnote -->
+        <style classref=".s1046">.s1046 {font-family:TimesNewRomanPSMT; font-size:9px; font-weight:Bold;}</style> <!-- bold footnote? -->
+        <style classref=".s1298">.s1298 {font-family:TimesNewRomanPSMT; font-size:6px; font-weight:Bold;}</style>
+        <style classref=".s1317">.s1317 {font-family:TimesNewRomanPSMT; font-size:9px; font-style:Italic;}</style> <-- Italic footnote -->
+        <style classref=".s1469">.s1469 {font-family:TimesNewRomanPSMT; font-size:5px;}</style>
+        <style classref=".s1847">.s1847 {font-family:TimesNewRomanPSMT; font-size:12px; font-weight:Bold;}</style>
+        <style classref=".s2597">.s2597 {font-family:TimesNewRomanPSMT; font-size:7px; font-weight:Bold;}</style>
+        <style classref=".s2598">.s2598 {font-family:TimesNewRomanPSMT; font-size:7px;}</style>
+        <style classref=".s3406">.s3406 {font-family:TimesNewRomanPSMT; font-size:12px;}</style>
+        <style classref=".s4097">.s4097 {font-family:TimesNewRomanPSMT; font-size:10px;}</style>
+        """
+        """<div style="top: 3278px;" id="id699" class="s1">
+             <span id="id700" class="s1010">1</span>
+             <span id="id701" class="s1045">  The  three  Working  Group  contributions  to  AR6  are:  Climate  Change  2021:  The  Physical  Science  Basis;  Climate  Change  2022: Impacts,  Adaptation  and  Vulnerability;  and  Climate  Change  2022:  Mitigation of  Climate  Change, respectively.  Their  assessments cover scientific literature accepted for publication respectively by 31 January 2021, 1 September 2021 and 11 October 2021. </span>
+<!-- sub/super s1010 , normal s1045,
+             <span id="id705" class="s1010">2</span>
+             <span id="id706" class="s1045"> The three Special Reports are : Global Warming of 1.5&#176;C (2018): an IPCC Special Report on the impacts of global warming of 1.5&#176;C above pre-industrial levels and related global greenhouse gas emission pathways, ...
+
+             pan id="id723" class="s1010">5</span>
+             <span id="id724" class="s1045">  Each  finding  is  grounded  in  an evaluation  of underlying  evidence  and  agreement.  A  level of  confidence  is  expressed  using five  qualifiers: very low, low, medium, high and very high, and typeset in italics, for example, </span><span id="id727" class="s1317">medium confidence</span><span id="id728" class="s1045">. The following terms have been used to indicate the assessed likelihood of an outcome or result: virtually certain 99&#8211;100% probability; very likely 90&#8211;100%; likely  66&#8211;100%;  more  likely  than  not  &gt;50-100%;  about  as  likely  as  not  33&#8211;66%;  unlikely  0&#8211;33%;  very  unlikely  0&#8211;10%;  and exceptionally unlikely 0&#8211;1%. Additional terms (extremely likely 95&#8211;100%; more likely than not &gt;50&#8211;100%; and extremely unlikely 0&#8211;5%) are also used when appropriate. Assessed likelihood also is typeset in italics: for example, </span><span id="id733" class="s1317">very likely</span><span id="id734" class="s1045">. This is consistent with AR5. In this Report, unless stated otherwise, square brackets [x to y] are used to provide the assessed </span><span id="id736" class="s1317">very likely</span><span id="id737" class="s1045"> range, or 90% interval. </span>
+             """
+        package = "LongerReport"
+        file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
+        html_elem = lxml.etree.parse(str(file)).getroot()
+        new_html_elem = HtmlLib.create_html_with_empty_head_body()
+        HtmlLib.add_copies_to_head(new_html_elem, html_elem.xpath(".//style"))
+        # font size seem to get rounded up/down
+        footnote_number_font_elems = html_elem.xpath(".//span[@class='s1010' or @class='s1469']")
+        last_footnum = 0
+        footnote_number_elems = []
+        ul = lxml.etree.Element("ul")
+        HtmlLib.get_body(new_html_elem).append(ul)
+        classes = ["s1010", "s1469"]
+        for i, footnote_number_elem in enumerate(footnote_number_font_elems):
+            text = footnote_number_elem.text
+            if not self.is_footnote_font(footnote_number_elem):
+                continue
+            try:
+                footnote_number = int(text)
+            except Exception:
+                # print(f"not a number: {text}")
+                continue
+            # print(f"i {i} {text}")
+            if 5 > (footnote_number - last_footnum) >= 0 :
+                # next = XmlLib.get_next_element(footnote_number_elem)
+                # print(f"footnote number {footnote_number}: {None if next is None else next.text}")
+                last_footnum = self.delete_footnote_number_and_following_text__and_add_to_list(
+                    classes, footnote_number,
+                    footnote_number_elem,
+                    last_footnum, ul)
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport")
+        outdir.mkdir(exist_ok=True, parents=False)
+        XmlLib.write_xml(new_html_elem, str(Path(outdir, "footnotes.html")))
+
+    def delete_footnote_number_and_following_text__and_add_to_list(
+            self, classes, footnote_number, footnote_number_elem,
+            last_footnum, ul):
+        li = lxml.etree.Element("li")
+        ul.append(li)
+        li.append(copy.deepcopy(footnote_number_elem))
+        footnote_followers = XmlLib.get_following_elements(footnote_number_elem)
+        # add one span(ends after font chamge)
+        next = XmlLib.get_next_element(footnote_number_elem)
+        li.append(copy.deepcopy(next))
+        XmlLib.remove_element(next)
+        # alternative is better but needs mending
+        if False:
+            self.iterate_until_unacceptable_font_class()
+        last_footnum = footnote_number
+        XmlLib.remove_element(footnote_number_elem)
+        return last_footnum
+
+    def iterate_until_unacceptable_font_class(self):
+        # TODO doesn't workyet
+        for footnote_follower in footnote_followers:
+            clazz = footnote_follower.attrib["class"]
+            print(f"class: {clazz}")
+            if clazz in classes:
+                print(f"in classes {clazz}")
+                li.append(copy.deepcopy(footnote_follower))
+                XmlLib.remove_element(footnote_follower)
+            else:
+                print(f"broke at {clazz}")
+                break
 
     def test_concatenate_equal_classes(self):
         package = "LongerReport"

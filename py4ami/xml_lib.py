@@ -1,3 +1,4 @@
+import copy
 from pathlib import Path
 import os
 from lxml import etree as LXET
@@ -412,6 +413,46 @@ class XmlLib:
             if parent is not None:
                 parent.remove(elem)
 
+    @classmethod
+    def get_next_element(cls, elem):
+        """
+        get next element after elem
+        convenience method to use following::
+        :param elem: element in tree
+        :return: next elemnt or None
+        """
+        nexts = elem.xpath("following::*")
+        return None if len(nexts) == 0 else nexts[0]
+
+    @classmethod
+    def get_following_elements(cls, elem, predicate=None, count=9999):
+        """
+        get next elements after elem
+        convenience method to use following::
+        :param elem: element in tree
+        :param predicate: condition (with the []), e.g "[@class='.s1010']"
+        :return: next elemnts or empty list
+        """
+        pred_string = f"" if predicate is None else f"{predicate}"
+        xp = f"following::*{pred_string}"
+        xp = f"following::*"
+        print(f"xp: {xp} {lxml.etree.tostring(elem)}")
+        nexts = elem.xpath(xp)
+        # next = None if len(nexts) == 0 else nexts[:count]
+        print(f"nexts {len(nexts)}")
+        return nexts
+
+    @classmethod
+    def remove_element(cls, elem):
+        """cnvenience method to remove element from tree
+        :param elem: elem to be removed
+        no-op if elem or its parent is None"""
+        if elem is not None:
+            parent = elem.getparent()
+            if parent is not None:
+                parent.remove(elem)
+
+
 
 class HtmlElement:
     """to provide fluent HTML builder and parser NYI"""
@@ -435,6 +476,46 @@ class HtmlLib:
         stringx = lxml.etree.tostring(element)
         string_unicode = html.unescape(stringx.decode(encoding))
         return string_unicode
+
+    @classmethod
+    def create_html_with_empty_head_body(cls):
+        """
+        creates
+        <html>
+          <head/>
+          <body/>
+        </html>
+        """
+        html_elem = lxml.etree.Element("html")
+        html_elem.append(lxml.etree.Element("head"))
+        html_elem.append(lxml.etree.Element("body"))
+        return html_elem
+
+    @classmethod
+    def add_copies_to_head(cls, html_elem, elems):
+        """copies elems and adds them to <head> of html_elem
+        no checks made for duplicates
+        :param html_elem: elemnt to copy into
+        :param elems: list of elements to copy (or single elemnt
+        """
+        if html_elem is None or elems is None:
+            raise ValueError("Null arguments in HtmlLib.add_copies_to_head")
+        head = html_elem.xpath("./head")[0]
+        if type(elems) is not list:
+            elems = [elems]
+        for elem in elems:
+            head.append(copy.deepcopy(elem))
+
+    @classmethod
+    def get_body(cls, html_elem):
+        bodys = html_elem.xpath("./body")
+        return bodys[0] if len(bodys) == 1 else None
+
+    @classmethod
+    def get_head(cls, html_elem):
+        heads = html_elem.xpath("./head")
+        return heads[0] if len(heads) == 1 else None
+
 
 
 class DataTable:
