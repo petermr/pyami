@@ -763,12 +763,13 @@ class TestHtml(AmiAnyTest):
         new_html_elem = HtmlLib.create_html_with_empty_head_body()
         HtmlLib.add_copies_to_head(new_html_elem, html_elem.xpath(".//style"))
         # font size seem to get rounded up/down
-        footnote_number_font_elems = html_elem.xpath(".//span[@class='s1010' or @class='s1469']")
+        footnote_text_classes = ["s1045", "s1046",  "s1317"]
+        fn_xpath = self.create_footnote_number_xpath(["s1010", "s1469"])
+        footnote_number_font_elems = html_elem.xpath(fn_xpath)
         last_footnum = 0
         footnote_number_elems = []
         ul = lxml.etree.Element("ul")
         HtmlLib.get_body(new_html_elem).append(ul)
-        classes = ["s1010", "s1469"]
         for i, footnote_number_elem in enumerate(footnote_number_font_elems):
             text = footnote_number_elem.text
             if not self.is_footnote_font(footnote_number_elem):
@@ -782,41 +783,54 @@ class TestHtml(AmiAnyTest):
             if 5 > (footnote_number - last_footnum) >= 0 :
                 # next = XmlLib.get_next_element(footnote_number_elem)
                 # print(f"footnote number {footnote_number}: {None if next is None else next.text}")
-                last_footnum = self.delete_footnote_number_and_following_text__and_add_to_list(
-                    classes, footnote_number,
+                last_footnum, li = self.delete_footnote_number_and_following_text__and_add_to_list(
+                    footnote_text_classes, footnote_number,
                     footnote_number_elem,
-                    last_footnum, ul)
+                    last_footnum)
+                ul.append(li)
         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport")
         outdir.mkdir(exist_ok=True, parents=False)
         XmlLib.write_xml(new_html_elem, str(Path(outdir, "footnotes.html")))
+        XmlLib.write_xml(html_elem, str(Path(outdir, "de_footnoted.html")))
+
+    def create_footnote_number_xpath(self, footnote_number_classes):
+        xpath0 = ""
+        for i, fnc in enumerate(footnote_number_classes):
+            xpath0 += "" if i == 0 else " or "
+            xpath0 += f"'{fnc}'"
+        fn_xpath = f".//span[{xpath0}]"
+        return fn_xpath
 
     def delete_footnote_number_and_following_text__and_add_to_list(
             self, classes, footnote_number, footnote_number_elem,
-            last_footnum, ul):
+            last_footnum):
         li = lxml.etree.Element("li")
-        ul.append(li)
         li.append(copy.deepcopy(footnote_number_elem))
         footnote_followers = XmlLib.get_following_elements(footnote_number_elem)
         # add one span(ends after font chamge)
-        next = XmlLib.get_next_element(footnote_number_elem)
-        li.append(copy.deepcopy(next))
-        XmlLib.remove_element(next)
+        single = True
+        single = False
+        if single:
+            next = XmlLib.get_next_element(footnote_number_elem)
+            print(f"next class {next.attrib['class']}")
+            li.append(copy.deepcopy(next))
+            XmlLib.remove_element(next)
         # alternative is better but needs mending
-        if False:
-            self.iterate_until_unacceptable_font_class()
+        else:
+            self.iterate_until_unacceptable_font_class(footnote_followers, li=li, classes=classes)
         last_footnum = footnote_number
         XmlLib.remove_element(footnote_number_elem)
-        return last_footnum
+        return last_footnum, li
 
-    def iterate_until_unacceptable_font_class(self):
+    def iterate_until_unacceptable_font_class(self, followers, li=None, classes=None):
         # TODO doesn't workyet
-        for footnote_follower in footnote_followers:
-            clazz = footnote_follower.attrib["class"]
-            print(f"class: {clazz}")
+        for follower in followers:
+            clazz = follower.attrib["class"]
+            # print(f"class: {clazz} {classes}")
             if clazz in classes:
-                print(f"in classes {clazz}")
-                li.append(copy.deepcopy(footnote_follower))
-                XmlLib.remove_element(footnote_follower)
+                # print(f"in classes {clazz}")
+                li.append(copy.deepcopy(follower))
+                XmlLib.remove_element(follower)
             else:
                 print(f"broke at {clazz}")
                 break
