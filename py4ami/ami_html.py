@@ -3040,3 +3040,88 @@ class SectionHierarchy:
     @classmethod
     def sort_ids(cls):
         pass
+
+class Footnote:
+    """extracts footnotes by size and style and perhaps positiom
+    """
+
+    @classmethod
+    def is_footnote_font(cls, footnote_number_elem):
+        """
+        font size alone does not distinguish, so use neighbouring text
+        """
+        next = XmlLib.get_next_element(footnote_number_elem)
+        text = footnote_number_elem.text
+        if next is None:
+            print(f"NO following elem")
+            return False
+        # folloed by small font?
+        next_class = next.attrib["class"]
+        if next_class == "s1045":
+            return True
+        # print(f"text {text}: next class {next_class}")
+        return False
+
+
+# Footnote
+
+    @classmethod
+    def extract_footnote_and_save(cls, footnote_number_elem, footnote_text_classes, last_footnum):
+        text = footnote_number_elem.text
+        footnote_number = -1
+        ignore = False
+        if not cls.is_footnote_font(footnote_number_elem):
+            ignore = True
+        try:
+            footnote_number = int(text)
+        except Exception:
+            ignore = True
+        li = None
+        if not ignore and 5 > (footnote_number - last_footnum) >= 0:
+            last_footnum, li = cls.delete_footnote_number_and_following_text__and_add_to_list(
+                footnote_text_classes, footnote_number,
+                footnote_number_elem)
+        return last_footnum, li
+
+    # Footnote
+
+    @classmethod
+    def create_footnote_number_xpath(cls, footnote_number_classes):
+        xpath0 = ""
+        for i, fnc in enumerate(footnote_number_classes):
+            xpath0 += "" if i == 0 else " or "
+            xpath0 += f"'{fnc}'"
+        fn_xpath = f".//span[{xpath0}]"
+        return fn_xpath
+
+    # Footnote
+
+    @classmethod
+    def delete_footnote_number_and_following_text__and_add_to_list(
+            cls, classes, footnote_number, footnote_number_elem):
+        li = lxml.etree.Element("li")
+        li.append(copy.deepcopy(footnote_number_elem))
+        footnote_followers = XmlLib.get_following_elements(footnote_number_elem)
+        # add one span(ends after font chamge)
+        cls.iterate_until_unacceptable_font_class(footnote_followers, li=li, fn_classes=classes)
+        last_footnum = footnote_number
+        XmlLib.remove_element(footnote_number_elem)
+        return last_footnum, li
+
+    # Footnote
+
+    @classmethod
+    def iterate_until_unacceptable_font_class(cls, followers, li=None, fn_classes=None, debug=False):
+        """iterstes over elemts following a footnote number until an incompatible
+        class style is found, when break"""
+        for follower in followers:
+            clazz = follower.attrib["class"]
+            if clazz in fn_classes:
+                li.append(copy.deepcopy(follower))
+                XmlLib.remove_element(follower)
+            else:
+                if debug:
+                    print(f"broke out of footnote at {clazz}")
+                break
+
+

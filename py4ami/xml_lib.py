@@ -303,19 +303,23 @@ class XmlLib:
         print(data, xpath, replacement)
         tree = LXET.fromstring(data)
         for r in tree.xpath(xpath):
-            print("r", r, replacement, r.tail)
-            text = replacement
-            if r.tail is not None:
-                text += r.tail
-            parent = r.getparent()
-            if parent is not None:
-                previous = r.getprevious()
-                if previous is not None:
-                    previous.tail = (previous.tail or '') + text
-                else:
-                    parent.text = (parent.text or '') + text
-                parent.remove(r)
+            XmlLib.replace_node_with_text(r, replacement)
         return tree
+
+    @classmethod
+    def replace_node_with_text(cls, r, replacement):
+        print("r", r, replacement, r.tail)
+        text = replacement
+        if r.tail is not None:
+            text += r.tail
+        parent = r.getparent()
+        if parent is not None:
+            previous = r.getprevious()
+            if previous is not None:
+                previous.tail = (previous.tail or '') + text
+            else:
+                parent.text = (parent.text or '') + text
+            parent.remove(r)
 
     @classmethod
     def remove_all_tags(cls, xml_string):
@@ -403,15 +407,15 @@ class XmlLib:
 
     @classmethod
     def remove_element(cls, elem):
-        """
-        remove an element
-        :param elem: to remove; if None or no parent, no-op
-        does not remove tail (I don't think)
-        """
+        """cnvenience method to remove element from tree
+        :param elem: elem to be removed
+        no-op if elem or its parent is None"""
+        # does not remove tail (I don't think)
         if elem is not None:
             parent = elem.getparent()
             if parent is not None:
                 parent.remove(elem)
+
 
     @classmethod
     def get_next_element(cls, elem):
@@ -442,15 +446,6 @@ class XmlLib:
         print(f"nexts {len(nexts)}")
         return nexts
 
-    @classmethod
-    def remove_element(cls, elem):
-        """cnvenience method to remove element from tree
-        :param elem: elem to be removed
-        no-op if elem or its parent is None"""
-        if elem is not None:
-            parent = elem.getparent()
-            if parent is not None:
-                parent.remove(elem)
 
 
 
