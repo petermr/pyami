@@ -22,7 +22,7 @@ from sklearn.linear_model import LinearRegression
 # from py4ami.ami_dict import AmiDictionary
 from py4ami.bbox_copy import BBox
 from py4ami.util import SScript, AbstractArgs, Util
-from py4ami.xml_lib import XmlLib
+from py4ami.xml_lib import XmlLib, HtmlLib
 
 # HTML
 H_HTML = "html"
@@ -2144,15 +2144,19 @@ class FloatBoundaryDict:
         for float_boundary in float_boundaries:
             self.add_object(float_boundary)
 
-    def extract_contents_of_bracketed_boundaries(self):
+    def extract_contents_of_bracketed_boundaries_and_write(self):
         for fb_list in self.float_boundary_dict.values():
             if len(fb_list) == 2:
                 print(f"FB {fb_list} {fb_list[0].div_id} {fb_list[1].div_id}")
                 new_div = self.delete_between(fb_list[0].div_id, fb_list[1].div_id)
-                new_div.attrib["name"] = fb_list[0].key
+                float_name = fb_list[0].key
+                new_div.attrib["name"] = float_name
+                new_html_elem = HtmlLib.create_new_html_with_old_styles(self.html_elem)
+                HtmlLib.get_body(new_html_elem).append(new_div)
                 if self.outdir:
                     Path(self.outdir).mkdir(exist_ok=True, parents=False)
-                    XmlLib.write_xml(new_div, Path(self.outdir, new_div.attrib["name"].lower().replace("\s*", "") + ".html"))
+                    file_stem = float_name.lower().replace("\s*", "")
+                    XmlLib.write_xml(new_html_elem, Path(self.outdir, file_stem + ".html"))
 
     def delete_between(self, div_id0, div_id1):
         elem0 = self.html_elem.xpath(f".//div[@id='{div_id0}']")[0]
@@ -2204,6 +2208,15 @@ class FloatBoundary:
     @property
     def start_end(self):
         return self.group_dict[STARTEND]
+
+    @classmethod
+    def extract_floats_and_boundaries(cls, html_elem, package, outdir=None):
+        regex = FloatBoundary.IPCC_BOUNDARY
+        float_boundaries = FloatExtractor().extract_float_boundaries(html_elem, regex)
+        float_boundary_dict = FloatBoundaryDict(html_elem, outdir=outdir)
+        float_boundary_dict.add_float_boundaries(float_boundaries)
+        float_boundary_dict.extract_contents_of_bracketed_boundaries_and_write()
+        return html_elem
 
 
 class FloatExtractor:
@@ -3044,6 +3057,21 @@ class SectionHierarchy:
 class Footnote:
     """extracts footnotes by size and style and perhaps positiom
     """
+
+    @classmethod
+    def extract_footnotes(cls, fn_xpath, footnote_text_classes, html_elem):
+        new_html_elem = HtmlLib.create_new_html_with_old_styles(html_elem)
+        footnote_number_font_elems = html_elem.xpath(fn_xpath)
+        last_footnum = 0
+        ul = lxml.etree.Element("ul")
+        HtmlLib.get_body(new_html_elem).append(ul)
+        # messy, need a Footnote object here
+        for footnote_number_elem in footnote_number_font_elems:
+            last_footnum, li = Footnote.extract_footnote_and_save(
+                footnote_number_elem, footnote_text_classes, last_footnum)
+            if li is not None:
+                ul.append(li)
+        return new_html_elem
 
     @classmethod
     def is_footnote_font(cls, footnote_number_elem):

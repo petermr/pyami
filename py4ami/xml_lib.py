@@ -511,6 +511,15 @@ class HtmlLib:
         heads = html_elem.xpath("./head")
         return heads[0] if len(heads) == 1 else None
 
+    @classmethod
+    def create_new_html_with_old_styles(cls, html_elem):
+        """
+        creates new HTML element with empty body and copies styles from html_elem
+        """
+        new_html_elem = HtmlLib.create_html_with_empty_head_body()
+        HtmlLib.add_copies_to_head(new_html_elem, html_elem.xpath(".//style"))
+        return new_html_elem
+
 
 
 class DataTable:

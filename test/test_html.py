@@ -705,12 +705,9 @@ class TestHtml(AmiAnyTest):
         package = "LongerReport"
         file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
         html_elem = lxml.etree.parse(str(file)).getroot()
-        regex = FloatBoundary.IPCC_BOUNDARY
-        float_boundaries = FloatExtractor().extract_float_boundaries(html_elem, regex)
-        fbd = FloatBoundaryDict(html_elem, outdir=str(Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport")))
-        fbd.add_float_boundaries(float_boundaries)
-        fbd.extract_contents_of_bracketed_boundaries()
-        XmlLib.write_xml(html_elem, Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport", "defloated.html"))
+        FloatBoundary.extract_floats_and_boundaries(html_elem, package, outdir=str(Path(AmiAnyTest.TEMP_HTML_IPCC, package)))
+        XmlLib.write_xml(html_elem, Path(AmiAnyTest.TEMP_HTML_IPCC, package, "defloated.html"))
+
 
     def test_remove_footnotes_from_fulltext_html_DEVELOP(self):
         """
@@ -744,20 +741,10 @@ class TestHtml(AmiAnyTest):
         package = "LongerReport"
         file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
         html_elem = lxml.etree.parse(str(file)).getroot()
-        new_html_elem = HtmlLib.create_html_with_empty_head_body()
-        HtmlLib.add_copies_to_head(new_html_elem, html_elem.xpath(".//style"))
         # font size seem to get rounded up/down
         footnote_text_classes = ["s1045", "s1046",  "s1317"]
         fn_xpath = Footnote.create_footnote_number_xpath(["s1010", "s1469"])
-        footnote_number_font_elems = html_elem.xpath(fn_xpath)
-        last_footnum = 0
-        ul = lxml.etree.Element("ul")
-        HtmlLib.get_body(new_html_elem).append(ul)
-        for i, footnote_number_elem in enumerate(footnote_number_font_elems):
-            last_footnum, li = Footnote.extract_footnote_and_save(
-                footnote_number_elem, footnote_text_classes, last_footnum)
-            if li is not None:
-                ul.append(li)
+        new_html_elem = Footnote.extract_footnotes(fn_xpath, footnote_text_classes, html_elem)
         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "LongerReport")
         outdir.mkdir(exist_ok=True, parents=False)
         XmlLib.write_xml(new_html_elem, str(Path(outdir, "footnotes.html")))
@@ -774,6 +761,24 @@ class TestHtml(AmiAnyTest):
         XmlLib.write_xml(html_elem, outfile)
         print(f"write {outfile}")
 
+    def test_remove_footnotes_and_floats_from_fulltext_html_DEVELOP(self):
+        """
+        combines float removal and footnote removal
+        """
+        package = "LongerReport"
+        file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
+        html_elem = lxml.etree.parse(str(file)).getroot()
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, package)
+        outdir.mkdir(exist_ok=True, parents=False)
+
+        footnote_text_classes = ["s1045", "s1046", "s1317"]
+        fn_xpath = Footnote.create_footnote_number_xpath(["s1010", "s1469"])
+        new_html_elem = Footnote.extract_footnotes(fn_xpath, footnote_text_classes, html_elem)
+        XmlLib.write_xml(new_html_elem, str(Path(outdir, "footnotes.html")))
+
+        new_new_html_elem = FloatBoundary.extract_floats_and_boundaries(html_elem, package, outdir=outdir)
+
+        XmlLib.write_xml(new_new_html_elem, str(Path(outdir, "de_footnoted_defloated.html")))
 
     def test_unescape_xml_character_entity_to_unicode(self):
         """
