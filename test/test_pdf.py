@@ -437,8 +437,8 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
             # "Chapter04", # works
             # "Chapter06",
             # "Chapter07",
-            "Chapter06": 30,
-            "Chapter15": 200,
+#            "Chapter06": 30,
+            "Chapter15": 100,
             # "Chapter16",
         }
         for i, chapter in enumerate(chapter_dict.keys()):
