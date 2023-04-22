@@ -348,6 +348,19 @@ class Util:
         """
         return codecs.open(inpath, "r", "UTF-8")
 
+    @classmethod
+    def is_base64(cls, s):
+        """
+        tests if string is base64 by encoding and decoding
+        :param s: string to test
+        :return: True if successful , Exception creates False
+        """
+        try:
+            return base64.b64encode(base64.b64decode(s)) == s
+        except Exception:
+            print(f"not b64: {s}")
+            return False
+
 
 class GithubDownloader:
     """Note: Github uses the old 'master' name but we have changed it to 'main'"""

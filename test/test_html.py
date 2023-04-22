@@ -693,7 +693,8 @@ class TestHtml(AmiAnyTest):
         for package in packages:
             file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
             table = TargetExtractor.extract_ipcc_fulltext_into_source_target_table(file)
-            common_source_tuples, common_target_tuples = self.find_commonest_in_source_target_lists(table)
+            common_source_tuples = TargetExtractor.find_commonest_in_node_lists(table, node_name="source")
+            common_target_tuples = TargetExtractor.find_commonest_in_node_lists(table, node_name="target")
             ipcc_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc")
             temp_dir = Path(ipcc_dir, f"{package}_network")
             print(f"writing to {temp_dir}")

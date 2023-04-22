@@ -84,8 +84,8 @@ class Resources:
     TEST_IPCC_CHAP17 = Path(TEST_IPCC_DIR, "Chapter17")
     assert TEST_IPCC_CHAP17.exists()
 
-    TEST_IPCC_SYNTH = Path(TEST_IPCC_DIR, "LongerReport")
-    assert TEST_IPCC_SYNTH.exists(), f"{TEST_IPCC_SYNTH} should exist"
+    TEST_IPCC_LONGER_REPORT = Path(TEST_IPCC_DIR, "LongerReport")
+    assert TEST_IPCC_LONGER_REPORT.exists(), f"{TEST_IPCC_LONGER_REPORT} should exist"
 
     # pdfs
     TEST_PDFS_DIR = Path(TEST_RESOURCES_DIR, "pdfs")

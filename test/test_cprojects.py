@@ -250,7 +250,8 @@ class TestCProjTree(unittest.TestCase):
         assert file_3_38.exists(), f"file should exist {file_3_38}"
         print(f"PDFS dir {AmiAnyTest.TEMP_PDFS_DIR}")
 
-    @unittest.skipUnless(DOWNLOAD_IPCC_WG3A_DIR, "VERY LONG, DOWNLOADS")
+    VERY_LONG = False
+    @unittest.skipUnless(DOWNLOAD_IPCC_WG3A_DIR and VERY_LONG, "VERY LONG, DOWNLOADS")
     def test_download_pdfs_from_hrefs_in_url(self):
         # Util.delete
         downloads = [
