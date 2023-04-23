@@ -22,7 +22,7 @@ from PIL import Image
 from py4ami.ami_bib import Publication
 
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, PDFArgs, PDFDebug, PDFParser
-from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage
+from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage, AmiPDFPlumber
 from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS, CURVES, RECTS, TEXTS
 from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE
 from py4ami.ami_html import H_SPAN, H_BODY, H_P
@@ -107,81 +107,6 @@ def make_html_dir():
     return html_dir
 
 
-class AmiPDFPlumber:
-    """
-    uses PDFPlumber (>=0.9.0) to parse PDF ane hold intermediates
-    """
-    def __init__(self):
-        self.pdf_json = None
-        self.pdfobj = None
-
-    def create_pdfplumber_json(self, pdfplumber_pdf):
-        self.pdf_json = json.loads(pdfplumber_pdf.to_json())
-        return self.pdf_json
-
-    def create_pdfplumber_pdf(self, path=None, pages=None):
-        if pages is None:
-            pages = range(1,9999)
-        self.pdfobj = pdfplumber.open(path, pages)
-        return self.pdfobj
-
-    def get_pages(self):
-        return self.pdf_json['pages']
-
-    def debug_page(self, page0):
-        for key in page0.keys():
-            value = page0[key]
-            if key in ["page_number", "initial_doctop", "rotation", "cropbox", "mediabox", "bbox", "width", "height"]:
-                print(f"{key} >> {value}")
-            elif key == "lines":
-                print(f"lines {len(value)}")
-            elif key == "chars":
-                chars = value
-                print(f"char: {chars[0].keys()}")
-                cc = [c['text'] for c in chars]
-                s = ''.join(cc)
-                print(f"string {s}")
-            elif key == "rects":
-                print(f"rects {len(value)}")
-            elif key == "images":
-                print(f"images {len(value)}")
-                for im in value:
-                    self.debug_image(im, str(Path(AmiAnyTest.TEMP_DIR, "images")))
-            elif key == "annots":
-                print(f"annots {len(value)}")
-            else:
-                print(f"unknown {key} {value}")
-        print("\n-------------\n")
-
-    def debug_image(self, im, imagedir):
-        Path(imagedir).mkdir(exist_ok=True, parents=False)
-        name = im.get('name')
-        print(f"===={name}====")
-        for k in im:
-            if k in ["width", "height"]:
-                print(f" {k} : {int(im[k])}")
-            elif k in ['x0', 'x1', 'y0', 'y1', 'top', 'bottom', 'doctop', 'srcsize']:
-                pass
-            elif k in ['imagemask', 'bits', 'colorspace', 'object_type']:
-                pass
-            elif k in ['page_number']:
-                pass
-            elif k == "stream":
-                """Not yet solved
-                """
-                stream = im[k]
-                rawdata = stream['rawdata']
-                print(f"b64? {Util.is_base64(rawdata)}")
-                self.save_image(rawdata, str(Path(imagedir, name + ".png")))
-                print(f'rawdata {rawdata}')
-            else:
-                print(f"{k} {im[k]}")
-
-    def save_image(self, string, file):
-        decoded = base64.decodebytes(string.encode("ascii"))
-        with open(file, "wb") as fh:
-            fh.write(decoded)
-
 
 class PDFPlumberTest(AmiAnyTest):
     """
@@ -202,35 +127,33 @@ class PDFPlumberTest(AmiAnyTest):
         """creates AmiPDFPlumber and reads pdf and debugs"""
         path = os.path.join(HERE, "resources/pdffill-demo.pdf")
         ami_pdfplumber = AmiPDFPlumber()
-        pdfplumber_pdf = ami_pdfplumber.create_pdfplumber_pdf(path, pages=[1, 2, 5])
-        pdf_json = ami_pdfplumber.create_pdfplumber_json(pdfplumber_pdf)
+        pdf_json = ami_pdfplumber.create_parsed_json(path)
         print(f"k {pdf_json.keys(), pdf_json['metadata'].keys()} \n====Pages====\n"
               f"{len(pdf_json['pages'])} "
               # f"\n\n page_keys {c['pages'][0].items()}"
               )
         pages = ami_pdfplumber.get_pages()
         page0 = pdf_json['pages'][0]
-        ami_pdfplumber.debug_page(page0)
+        imagedir = str(Path(AmiAnyTest.TEMP_DIR, "images"))
+        ami_pdfplumber.debug_page(page0, imagedir=imagedir)
         # pprint.pprint(f"c {c}[:20]")
 
-        assert pdf_json["pages"][0]["rects"][0]["bottom"] == pdfplumber_pdf.pages[0].rects[0]["bottom"]
+        assert pdf_json["pages"][0]["rects"][0]["bottom"] == ami_pdfplumber.pdf.pages[0].rects[0]["bottom"]
 
     def test_pdfplumber_json_longer_report_debug(self):
         """creates AmiPDFPlumber and reads pdf and debugs"""
         path = os.path.join(Path(Resources.TEST_IPCC_LONGER_REPORT, "fulltext.pdf"))
         ami_pdfplumber = AmiPDFPlumber()
-        pdfplumber_pdf = ami_pdfplumber.create_pdfplumber_pdf(path)
-        pdf_json = ami_pdfplumber.create_pdfplumber_json(pdfplumber_pdf)
+        pdf_json = ami_pdfplumber.create_parsed_json(path)
         print(f"k {pdf_json.keys(), pdf_json['metadata'].keys()} \n====Pages====\n"
               f"{len(pdf_json['pages'])} "
               # f"\n\n page_keys {c['pages'][0].items()}"
               )
         pages = ami_pdfplumber.get_pages()
         assert len(pages) == 85
-        page0 = pdf_json['pages'][0]
-        ami_pdfplumber.debug_page(page0)
+        for page in pages:
+            ami_pdfplumber.debug_page(page)
         # pprint.pprint(f"c {c}[:20]")
-
 
 
 class PDFTest(AmiAnyTest):
@@ -612,7 +535,7 @@ class PDFChapterTest(test.test_all.AmiAnyTest):
         pathx = Path(PMC1421_PDF)
 
         # convert PDF to html
-        result = PDFParser().convert_pdf(
+        result = PDFParser().convert_pdf_CURRENT(
             path=str(pathx),
             fmt="html",
             caching=True,
@@ -1014,7 +937,7 @@ LTPage
         fmt = "html"
         maxpages = 0
         path = Path(PMC1421_PDF)
-        result = PDFParser().convert_pdf(
+        result = PDFParser().convert_pdf_CURRENT(
             path=str(path),
             fmt=fmt,
             maxpages=maxpages

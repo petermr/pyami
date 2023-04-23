@@ -1,6 +1,8 @@
 """ Mainly for converting PDF to HTML and SVG """
 import argparse
+import base64
 import copy
+import json
 import logging
 import os.path
 import re
@@ -1179,7 +1181,7 @@ class PDFArgs(AbstractArgs):
         :return: tidied html
         """
         self.pdf_parser = PDFParser()
-        raw_html_element = self.pdf_parser.convert_pdf(
+        raw_html_element = self.pdf_parser.convert_pdf_CURRENT(
             path=pdf_path,
             # fmt=self.outform,
             maxpages=maxpage)
@@ -1715,7 +1717,8 @@ class TextStyle:
         self.stroke = None
 
     def __str__(self) -> str:
-        s = f"size {self._font_size} family {self._font_family}, style {self.font_style} weight {self.font_weight} fill {self._color} stroke {self.stroke}"
+        s = (f"size {self._font_size} family {self._font_family}, "
+             f"style {self.font_style} weight {self.font_weight} fill {self._color} stroke {self.stroke}")
         return s
 
     def __eq__(self, other):
@@ -1827,7 +1830,7 @@ class PDFParser:
         return pdf_parser
 
     # class PDFParser:
-    def convert_pdf(
+    def convert_pdf_CURRENT(
             self,
             path: str,
             fmt: str = "text",
@@ -1893,6 +1896,89 @@ class PDFParser:
         if text is None:
             raise ValueError(f"Null text in convert_pdf()")
         return text
+
+class AmiPDFPlumber:
+    """
+    uses PDFPlumber (>=0.9.0) to parse PDF ane hold intermediates
+    """
+    def __init__(self):
+        self.pdf_json = None
+        self.pdfobj = None
+
+    def create_pdfplumber_json(self, pdfplumber_pdf):
+        self.pdf_json = json.loads(pdfplumber_pdf.to_json())
+        return self.pdf_json
+
+    def create_pdfplumber_pdf(self, path=None, pages=None):
+        """first parse into PDFPlumber pdf object self.pdfobj
+        """
+        pages = range(1,9999) if not pages else pages
+        self.pdfobj = pdfplumber.open(path, pages)
+        return self.pdfobj
+
+    def create_parsed_json(self, path):
+        pdfplumber_pdf = self.create_pdfplumber_pdf(path)
+        pdf_json = self.create_pdfplumber_json(pdfplumber_pdf)
+        return pdf_json
+
+    def get_pages(self):
+        return self.pdf_json['pages']
+
+    def debug_page(self, page0, imagedir=None):
+        for key in page0.keys():
+            value = page0[key]
+            if key in ["page_number", "initial_doctop", "rotation", "cropbox", "mediabox", "bbox", "width", "height"]:
+                print(f"{key} >> {value}")
+            elif key == "lines":
+                print(f"lines {len(value)}")
+            elif key == "chars":
+                chars = value
+                print(f"char: {chars[0].keys()}")
+                cc = [c['text'] for c in chars]
+                s = ''.join(cc)
+                print(f"string {s}")
+            elif key == "rects":
+                print(f"rects {len(value)}")
+            elif key == "images":
+                print(f"images {len(value)}")
+                if imagedir:
+                    for im in value:
+                        self.debug_image(im, imagedir)
+            elif key == "annots":
+                print(f"annots {len(value)}")
+            else:
+                print(f"unknown {key} {value}")
+        print("\n-------------\n")
+
+    def debug_image(self, im, imagedir):
+        Path(imagedir).mkdir(exist_ok=True, parents=False)
+        name = im.get('name')
+        print(f"===={name}====")
+        for k in im:
+            if k in ["width", "height"]:
+                print(f" {k} : {int(im[k])}")
+            elif k in ['x0', 'x1', 'y0', 'y1', 'top', 'bottom', 'doctop', 'srcsize']:
+                pass
+            elif k in ['imagemask', 'bits', 'colorspace', 'object_type']:
+                pass
+            elif k in ['page_number']:
+                pass
+            elif k == "stream":
+                """Not yet solved
+                """
+                stream = im[k]
+                rawdata = stream['rawdata']
+                print(f"b64? {Util.is_base64(rawdata)}")
+                self.save_image(rawdata, str(Path(imagedir, name + ".png")))
+                print(f'rawdata {rawdata}')
+            else:
+                print(f"{k} {im[k]}")
+
+    def save_image(self, string, file):
+        decoded = base64.decodebytes(string.encode("ascii"))
+        with open(file, "wb") as fh:
+            fh.write(decoded)
+
 
 
 

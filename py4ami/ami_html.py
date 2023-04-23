@@ -253,7 +253,7 @@ class HtmlTidy:
         # this is set by user
         self.set_remove_flags()
 
-        self.remove_attributes_and_elements()
+        self.remove_unwanted_attributes_and_elements()
         pagesize = None
         if self.marker_xpath:
             offset, pagesize, page_coords = HtmlUtil.find_constant_coordinate_markers(self.raw_elem, self.marker_xpath)
@@ -273,7 +273,7 @@ class HtmlTidy:
         htmlstr = lxml.etree.tostring(self.raw_elem, encoding='UTF-8').decode()
         return htmlstr
 
-    def remove_attributes_and_elements(self):
+    def remove_unwanted_attributes_and_elements(self):
         """
         remove objects if flags have been set in self
         """

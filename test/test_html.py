@@ -781,6 +781,43 @@ class TestHtml(AmiAnyTest):
 
         XmlLib.write_xml(new_new_html_elem, str(Path(outdir, "de_footnoted_defloated.html")))
 
+    def test_number_paras(self):
+        """
+        splits numbered sections into paras and adds subnumbers
+        """
+        package = "LongerReport"
+        file = Path(Resources.TEST_IPCC_DIR, package, "de_footnoted_defloated.html")
+        html_elem = lxml.etree.parse(str(file)).getroot()
+        xpath = "//div[span[@class='s1007']]"
+        divs = html_elem.xpath(xpath)
+        print(f"paras {len(divs)}")
+        for div in divs:
+            span = div.xpath("./span")
+            text = span[0].text[:60]
+            print(f"text>> {text}")
+            following_divs = list(div.xpath("following::div"))
+            # following_divs.insert(0, div)
+            following_sections = []
+            last_section = None
+            for following_div in following_divs:
+                spans = following_div.xpath("./span")
+                if len(spans) > 0 and spans[0].attrib['class'] == 's1007':
+                    last_section = following_div
+                    break
+                following_sections.append(following_div)
+            if last_section is not None:
+                # following_divs.pop()
+                pass
+            print(f"{text} ==> {len(following_sections)}")
+
+        # s1
+
+
+
+
+
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, package)
+
     def test_unescape_xml_character_entity_to_unicode(self):
         """
         reads HTML with embedded character entities (e.g. "&#176;")
