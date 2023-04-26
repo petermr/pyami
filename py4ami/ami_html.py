@@ -614,7 +614,7 @@ class HtmlUtil:
         span = lxml.etree.SubElement(div, H_SPAN)
         if style:
             css_style = CSSStyle.create_css_style_from_css_string("font-size:12; font-weight: bold;")
-            HtmlStyle.set_style(span, css_style.generate_css_value())
+            HtmlStyle.set_style(span, css_style.get_css_value())
         span.text = text
         return div, span
 
@@ -2254,12 +2254,15 @@ class CSSStyle:
     BOTTOM = "bottom"
     COLOR = "color"
     DOT_B = ".B"
+    FILL = "fill"
+    STROKE = "stroke"
     FONT_FAMILY = "font-family"
     FONT_SIZE = "font-size"
     FONT_STYLE = "font-style"
     FONT_STRETCHED = "font-stretched"
     FONT_WEIGHT = "font-weight"
     HEIGHT = "height"
+    ITALIC = "italic"
     LEFT = "left"
     OPACITY = "opacity"
     POSITION = "position"
@@ -2355,6 +2358,30 @@ class CSSStyle:
         if value and len(str(value)) > 0:
             self.name_value_dict[property] = value
 
+    def get_attribute(self, property):
+        """
+        gets value for name in CSSStyle
+        ignores empty values or None
+        """
+        return self.name_value_dict and self.name_value_dict.get(property)
+
+    #    class CSSStyle:
+
+    def get_font_style_attributes(self):
+        """
+        gets tuple of 4 font attributes (size, nonstroke, stroke, fontname)
+        """
+
+        if self.name_value_dict is None:
+            return (None, None, None, None, None)
+        return (
+            # self.name_value_dict.get(CSSStyle.WIDTH),
+            self.get_attribute(CSSStyle.FONT_SIZE),
+            self.get_attribute(CSSStyle.FILL),
+            self.get_attribute(CSSStyle.STROKE),
+            self.get_attribute(CSSStyle.FONT_FAMILY)
+        )
+
     #    class CSSStyle:
 
     def remove(self, name):
@@ -2371,19 +2398,19 @@ class CSSStyle:
         """
 
         """
-        css_str = self.generate_css_value()
+        css_str = self.get_css_value()
         elem.attrib[CSSStyle.STYLE] = css_str
 
     #    class CSSStyle:
 
-    def generate_css_value(self):
+    def get_css_value(self):
         """
         generates css string without quoted names and values
         """
         s = ""
         for key in self.name_value_dict:
             val = self.name_value_dict[key]
-            s += key + ": " + val + "; "
+            s += key + ": " + str(val) + "; "
         return s.strip()
 
     def attval(self, name):
@@ -2401,10 +2428,17 @@ class CSSStyle:
 
     @property
     def font_size(self):
-        size = self.get_numeric_attval(CSSStyle.FONT_SIZE)
-        return size
+        return self.get_numeric_attval(CSSStyle.FONT_SIZE)
 
-    #    class CSSStyle:
+    @property
+    def is_bold(self):
+        weight = self.attval(CSSStyle.FONT_WEIGHT)
+        return weight is not None and weight.lower() == CSSStyle.BOLD.lower()
+
+    @property
+    def is_italic(self):
+        style = self.attval(CSSStyle.FONT_STYLE)
+        return style is not None and style.lower() == CSSStyle.ITALIC.lower()
 
     @property
     def bottom(self):
@@ -2436,15 +2470,21 @@ class CSSStyle:
         css_style.name_value_dict[css_name] = css_value
         css_style.apply_to(elem)
 
-    def get_numeric_attval(self, name):
+    def get_numeric_attval(self, name, decimal=1):
+        """
+        gets float value, rounded to demical plabes
+        :param name: of parameter
+        :param round: number of decimal places (default 2)
+        """
         value = self.attval(name)
         if not value:
             return None
-        value = value[:-2] if value.endswith(CSSStyle.PX) else value
-        try:
-            return float(value)
-        except Exception:
-            return None
+        if type(value) is str:
+            value = value[:-2] if value.endswith(CSSStyle.PX) else value
+            value = float(value)
+
+        fs = round(float(value), decimal)
+        return fs
 
     #    class CSSStyle:
 
@@ -2609,7 +2649,7 @@ class CSSStyle:
         Creates string for HTML style
         """
         DOT = "."
-        s = DOT + html_class + " " + "{" + self.generate_css_value().strip() + "}"
+        s = DOT + html_class + " " + "{" + self.get_css_value().strip() + "}"
         elem = lxml.etree.Element(CSSStyle.STYLE)
         elem.text = s
         return elem
@@ -2643,7 +2683,7 @@ class CSSStyle:
         """
         extracted_style, retained_style = self.extract_text_styles()
         extracted_html_style_element = extracted_style.create_html_style_element(class_name)
-        retained_style_attval = retained_style.generate_css_value()
+        retained_style_attval = retained_style.get_css_value()
         html_class_val = CSSStyle.create_html_class_val(class_name, old_class_val=old_classstr)
         return extracted_html_style_element, retained_style_attval, html_class_val
 
@@ -2768,6 +2808,32 @@ class CSSStyle:
             print(f"STYLE {lxml.etree.tostring(style_elem)}")
             CSSStyle.replace_css_style_name_values_with_normalized_font(style_elem)
 
+    @property
+    def short_style(self):
+        short_style = self.font_family.lower()[:3]
+        short_style += str(self.font_size).replace(".", "_")
+        if self.is_bold:
+            short_style += "b"
+        if self.is_italic:
+            short_style += "i"
+        return short_style
+
+    def get_font_attributes(self):
+        """
+        sets 4 font attributes (width, size, nonstroke, stroke, fontname
+        """
+
+        if self.name_value_dict is None:
+            return (None, None, None, None, None)
+        return (
+            # self.name_value_dict.get(CSSStyle.WIDTH),
+            self.get_attribute(CSSStyle.FONT_SIZE),
+            self.get_attribute(CSSStyle.FILL),
+            self.get_attribute(CSSStyle.STROKE),
+            self.get_attribute(CSSStyle.FONT_FAMILY)
+        )
+
+
 
 class CSSConverter:
     """
@@ -2866,7 +2932,7 @@ class AmiFont:
         return s
 
     @classmethod
-    def extract_name_weight_style_stretched(cls, name):
+    def extract_name_weight_style_stretched_as_font(cls, name):
         font = AmiFont()
         font.name = name
 
@@ -2951,13 +3017,21 @@ class AmiFont:
             symbol_ref, css_style_obj = CSSStyle.create_css_style_from_html_head_style_elem(css_style)
         if css_style_obj is not None:
             font_family = css_style_obj.font_family
-            ami_font = AmiFont.extract_name_weight_style_stretched(font_family)
+            ami_font = AmiFont.extract_name_weight_style_stretched_as_font(font_family)
             new_css_style_obj = copy.deepcopy(css_style_obj)
             new_css_style_obj.set_attribute(FONT_FAMILY, ami_font.family)
             new_css_style_obj.set_attribute(FONT_WEIGHT, ami_font.weight)
             new_css_style_obj.set_attribute(FONT_STYLE, ami_font.style)
             new_css_style_obj.set_attribute(FONT_STRETCHED, ami_font.stretched)
         return symbol_ref, new_css_style_obj
+
+    @property
+    def is_bold(self):
+        return FontProperty.BOLD == self.weight
+
+    @property
+    def is_italic(self):
+        return FontProperty.ITALIC == self.style
 
 
 class SectionHierarchy:

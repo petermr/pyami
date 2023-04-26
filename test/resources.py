@@ -87,6 +87,15 @@ class Resources:
     TEST_IPCC_LONGER_REPORT = Path(TEST_IPCC_DIR, "LongerReport")
     assert TEST_IPCC_LONGER_REPORT.exists(), f"{TEST_IPCC_LONGER_REPORT} should exist"
 
+    TEST_IPCC_SROCC = Path(TEST_IPCC_DIR, "srocc")
+    assert TEST_IPCC_SROCC.exists(), f"{TEST_IPCC_SROCC} should exist"
+
+    TEST_IPCC_SR15 = Path(TEST_IPCC_DIR, "sr15")
+    assert TEST_IPCC_SR15.exists(), f"{TEST_IPCC_SR15} should exist"
+
+    TEST_IPCC_SRCCL = Path(TEST_IPCC_DIR, "srccl")
+    assert TEST_IPCC_SRCCL.exists(), f"{TEST_IPCC_SRCCL} should exist"
+
     # pdfs
     TEST_PDFS_DIR = Path(TEST_RESOURCES_DIR, "pdfs")
     assert TEST_PDFS_DIR.exists()

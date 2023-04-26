@@ -25,14 +25,16 @@ from pdfminer.image import ImageWriter
 from pdfminer.layout import LAParams, LTImage, LTTextLineHorizontal, LTTextBoxHorizontal
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
+from pdfplumber.page import Page
 
 from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
-from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy, HtmlStyle
+from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy, HtmlStyle, HtmlLib, AmiFont
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
 # local
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util, AbstractArgs, AmiArgParser
+from py4ami.xml_lib import XmlLib
 
 # local
 
@@ -106,10 +108,10 @@ RECS_BY_SECTION = {
 }
 
 # coordinates
-X0 = 'x0'
-Y1 = 'y1'
-X1 = 'x1'
-Y0 = 'y0'
+PL_X0 = 'x0'
+PL_Y1 = 'y1'
+PL_X1 = 'x1'
+PL_Y0 = 'y0'
 
 MAX_MAXPAGE = 9999999
 
@@ -1590,7 +1592,7 @@ class PDFDebug:
             imagewriter = ImageWriter(str(Path(outdir, f"image{i}.png")))
             imagewriter.export_image(image)
         page_height = page.height
-        image_bbox = (image[X0], page_height - image[Y1], image[X1], page_height - image[Y0])
+        image_bbox = (image[PL_X0], page_height - image[PL_Y1], image[PL_X1], page_height - image[PL_Y0])
         # print(f"image: {image_bbox}")
         coord_stem = f"image_{page.page_number}_{i}_{self.format_bbox(image_bbox)}"
         self.image_coords_list.append(coord_stem)
@@ -1897,6 +1899,187 @@ class PDFParser:
             raise ValueError(f"Null text in convert_pdf()")
         return text
 
+
+class AmiPlumberJson:
+    """
+    holds PDFPlumberJSON object
+    """
+    def __init__(self, pdf_json):
+        self.pdf_json = pdf_json
+        self.json_pages = None
+
+    def get_ami_json_pages(self):
+        if not self.json_pages:
+            self.json_pages = [AmiPlumberJsonPage(p) for p in self.pdf_json['pages']]
+        return self.json_pages
+
+
+
+
+class AmiPlumberJsonPage:
+    def __init__(self, page):
+        self.page = page
+
+    def get_chars(self):
+        return self.page.get("chars") if self.page else None
+
+    def get_tables(self):
+        # plumb_page = Page(self.page)
+        # return self.page.extract_tables() if self.page else None
+        print(f" get_tables() NYI")
+        return []
+
+    def get_spans(self, epsilon=0.1, ):
+        spanlist = []
+        char_dicts = self.get_chars()
+        if char_dicts is None:
+            return spanlist
+        last_fontstyle = None
+        last_y0 = None
+        span = None
+        last_ami_font = None
+        last_span = None
+        for char_dict in char_dicts:
+            (x0, y0, x1, y1) = AmiPDFPlumber.get_coords(char_dict)
+            css, text = AmiPDFPlumber.create_char_css(char_dict)
+            if css is None:
+                return spanlist
+            css_fontstyle = css.get_font_style_attributes()
+
+            ychange = last_y0 is None or abs(last_y0 - y0) > epsilon
+            font_change = last_fontstyle is None or (css_fontstyle != last_fontstyle)
+            if text.strip() == "":
+                # add whitespace if on same y0 else ignore
+                if not ychange:
+                    self.add_character_and_update_right_coord(last_span, text, x1)
+                continue
+            if font_change or ychange:
+                span = lxml.etree.Element("span")
+                spanlist.append(span)
+
+                ami_font, css_style = self.get_ami_font_and_style(char_dict.get(PLUMB_FONTNAME))
+                self.add_span_attributes((x0, y0, x1, y1), css, css_style, span, text)
+
+                last_y0 = y0
+                last_fontstyle = css_fontstyle
+                last_ami_font = ami_font
+                last_span = span
+            else:
+                self.add_character_and_update_right_coord(span, text, x1)
+
+        return spanlist
+
+    def add_character_and_update_right_coord(self, span, text, x1):
+        span.attrib["x1"] = str(x1)
+        span.text += text
+
+    def add_span_attributes(self, coords, css, css_style, span, text):
+        css_s = css_style.get_css_value().strip()
+        if css_s != "":
+            span.attrib["style"] = css_s
+        span.attrib["x0"] = str(coords[0])
+        span.attrib["y0"] = str(coords[1])
+        span.attrib["x1"] = str(coords[2])
+        span.attrib["style"] = css.get_css_value()
+        span.text = text
+
+    def get_ami_font_and_style(self, fontname):
+        ami_font = AmiFont.extract_name_weight_style_stretched_as_font(fontname)
+        css_style = CSSStyle()
+        if ami_font.is_bold:
+            css_style.set_attribute(CSSStyle.FONT_WEIGHT, CSSStyle.BOLD)
+        if ami_font.is_italic:
+            css_style.set_attribute(CSSStyle.FONT_STYLE, CSSStyle.ITALIC)
+        return ami_font, css_style
+
+    def create_html_page(self, header_height=70, footer_height=70):
+        """
+        y runs bottom to top (i.e. first lines in visual reading have high y)
+        """
+        mediabox = self.page['mediabox']
+        footer_y = mediabox[1] + footer_height
+        header_y = mediabox[3] - header_height
+        # print(f"page {self.page.keys()}")
+        # rects = self.page["rects"]
+        # for rect in rects:
+        #     print(f" rect {rect}")
+        # print(f"page {self.__dict__}")
+        tables = self.get_tables()
+        if tables:
+            print(f"TABLES")
+        html_page = HtmlLib.create_html_with_empty_head_body()
+        body = HtmlLib.get_body(html_page)
+        spans = self.get_spans()
+        last_y0 = None
+        last_size = None
+        last_div = None
+        header_span_list = []
+        footer_span_list = []
+        for span in spans:
+            csss = CSSStyle.create_css_style_from_attribute_of_body_element(span)
+            font_size = csss.get_numeric_attval(CSSStyle.FONT_SIZE)
+            y0 = csss.get_numeric_attval("y0")
+            if y0 > header_y:
+                header_span_list.append(span)
+                continue
+            y1 = csss.get_numeric_attval("y1")
+            if y1 < footer_y:
+                footer_span_list.append(span)
+                continue
+            if self.is_newdiv(y0, last_y0, font_size, span.text):
+                div = lxml.etree.Element("div")
+                div.attrib["left"] = span.attrib["x0"]
+                div.attrib["right"] = span.attrib["x1"]
+                div.attrib["top"] = span.attrib["y0"]
+                last_div = div
+                body.append(div)
+            div.append(span)
+            last_y0 = y0
+            # print(f"  >>> {len(span.text)} {span.text}")
+        for header_span in header_span_list:
+            print(f"header {header_span.text}")
+        for footer_span in footer_span_list:
+            print(f"footer {footer_span.text}")
+
+        return html_page
+
+    def is_newdiv(self, y0, last_y0, font_size, text, para_sep=1.4, epsilon=0.1):
+        if last_y0 is None:
+            return True
+        deltay = last_y0 - y0
+        # print(f"deltay {deltay} , {font_size * para_sep}")
+        return text.strip() == ""  or abs(deltay) > font_size * para_sep
+
+
+PLUMB_FONTNAME = "fontname"
+PLUMB_NONSTROKE = "non_stroking_color"
+PLUMB_SIZE = "size"
+PLUMB_STROKE = "stroking_color"
+PLUMB_WIDTH = "width"
+PLUMB_PAGE_NUMBER = "page_number"
+PLUMB_INITIAL_DOCTOP = "initial_doctop"
+PLUMB_ROTATION = "rotation"
+PLUMB_CROPBOX = "cropbox"
+PLUMB_MEDIABOX = "mediabox"
+PLUMB_BBOX = "bbox"
+# PLUMB_WIDTH = "width"
+PLUMB_HEIGHT = "height"
+PLUMB_LINES = "lines"
+PLUMB_CHARS = "chars"
+PLUMB_RECTS = "rects"
+PLUMB_IMAGES = "images"
+PLUMB_ANNOTS = "annots"
+
+CH_CHAR = "char"
+CH_OBJECT_TYPE = "object_type"
+CH_UPRIGHT = "upright"
+
+PL_X0 = "x0"
+PL_X1 = "x1"
+PL_Y0 = "y0"
+PL_Y1 = "y1"
+
+
 class AmiPDFPlumber:
     """
     uses PDFPlumber (>=0.9.0) to parse PDF ane hold intermediates
@@ -1904,10 +2087,15 @@ class AmiPDFPlumber:
     def __init__(self):
         self.pdf_json = None
         self.pdfobj = None
+        self.pages = None
 
-    def create_pdfplumber_json(self, pdfplumber_pdf):
-        self.pdf_json = json.loads(pdfplumber_pdf.to_json())
-        return self.pdf_json
+    # AmiPDFPlumber
+
+    def _create_pdfplumber_json(self, pdfplumber_pdf):
+        """creates a PdfPlumber Json object (normally wrapped)"""
+        return json.loads(pdfplumber_pdf.to_json())
+
+    # AmiPDFPlumber
 
     def create_pdfplumber_pdf(self, path=None, pages=None):
         """first parse into PDFPlumber pdf object self.pdfobj
@@ -1916,46 +2104,58 @@ class AmiPDFPlumber:
         self.pdfobj = pdfplumber.open(path, pages)
         return self.pdfobj
 
-    def create_parsed_json(self, path):
-        pdfplumber_pdf = self.create_pdfplumber_pdf(path)
-        pdf_json = self.create_pdfplumber_json(pdfplumber_pdf)
-        return pdf_json
+    # AmiPDFPlumber
 
-    def get_pages(self):
-        return self.pdf_json['pages']
+    def create_ami_plumber_json(self, path, pages=None) -> object:
+        """
+        creates an AmiPlumberJson which wraps the pdfplumber_json
+        :param path: path to read
+        :param pages: list of page numbers to read
+        """
+        pdfplumber_pdf = self.create_pdfplumber_pdf(path, pages=pages)
+        pdf_json = self._create_pdfplumber_json(pdfplumber_pdf)
+        return AmiPlumberJson(pdf_json)
+
+    # AmiPDFPlumber
 
     def debug_page(self, page0, imagedir=None):
         for key in page0.keys():
             value = page0[key]
-            if key in ["page_number", "initial_doctop", "rotation", "cropbox", "mediabox", "bbox", "width", "height"]:
+            if key in [PLUMB_PAGE_NUMBER, PLUMB_INITIAL_DOCTOP, PLUMB_ROTATION, PLUMB_CROPBOX, PLUMB_MEDIABOX, PLUMB_BBOX,
+                       PLUMB_WIDTH, PLUMB_HEIGHT]:
                 print(f"{key} >> {value}")
-            elif key == "lines":
+            elif key == PLUMB_LINES:
                 print(f"lines {len(value)}")
-            elif key == "chars":
+            elif key == PLUMB_CHARS:
                 chars = value
                 print(f"char: {chars[0].keys()}")
                 cc = [c['text'] for c in chars]
                 s = ''.join(cc)
                 print(f"string {s}")
-            elif key == "rects":
+            elif key == PLUMB_RECTS:
                 print(f"rects {len(value)}")
-            elif key == "images":
+            elif key == PLUMB_IMAGES:
                 print(f"images {len(value)}")
                 if imagedir:
                     for im in value:
                         self.debug_image(im, imagedir)
-            elif key == "annots":
+            elif key == PLUMB_ANNOTS:
                 print(f"annots {len(value)}")
             else:
                 print(f"unknown {key} {value}")
         print("\n-------------\n")
 
+    # AmiPDFPlumber
+
     def debug_image(self, im, imagedir):
         Path(imagedir).mkdir(exist_ok=True, parents=False)
-        name = im.get('name')
+        IM_NAME = 'name'
+        name = im.get(IM_NAME)
         print(f"===={name}====")
         for k in im:
-            if k in ["width", "height"]:
+            IM_WIDTH = "width"
+            IM_HEIGHT = "height"
+            if k in [IM_WIDTH, IM_HEIGHT]:
                 print(f" {k} : {int(im[k])}")
             elif k in ['x0', 'x1', 'y0', 'y1', 'top', 'bottom', 'doctop', 'srcsize']:
                 pass
@@ -1974,10 +2174,128 @@ class AmiPDFPlumber:
             else:
                 print(f"{k} {im[k]}")
 
+    # AmiPDFPlumber
+
     def save_image(self, string, file):
         decoded = base64.decodebytes(string.encode("ascii"))
         with open(file, "wb") as fh:
             fh.write(decoded)
+
+    # AmiPDFPlumber
+
+    @classmethod
+    def create_char_css(cls, char_dict):
+        # ['matrix', 'fontname', 'adv', 'upright', 'x0', 'y0', 'x1', 'y1', 'width', 'height', 'size', 'object_type',
+        #  'page_number', 'text', 'stroking_color', 'non_stroking_color', 'top', 'bottom', 'doctop'])
+
+        upright = None
+        obj_type = char_dict.get(CH_OBJECT_TYPE)
+        if obj_type != CH_CHAR:
+                raise ValueError(f" not a char {obj_type}")
+        upright = cls.get_int(char_dict, "%s" % CH_UPRIGHT)
+        if not upright or upright != 1:
+            print(f"NOT %s {upright}" % CH_UPRIGHT)
+            return None, ""
+        x0, y0, x1, y1 = cls.get_coords(char_dict)
+        fontname = char_dict.get(PLUMB_FONTNAME)
+        top = cls.get_float(char_dict, "top")
+        css = CSSStyle()
+        css.set_attribute(PL_X0, x0)
+        css.set_attribute(PL_X1, x1)
+        css.set_attribute(PL_Y0, y0)
+        css.set_attribute(PL_Y1, y1)
+        AmiPDFPlumber.set_font_attributes(char_dict, css, fontname)
+        return css, (char_dict.get("text"))
+
+    # AmiPDFPlumber
+
+    @classmethod
+    def set_font_attributes(cls, char_dict, css, fontname):
+        """
+        sets 5 font attributes (width, size, nonstroke, stroke, fontname
+        values from cchar_dict
+        """
+        css.set_attribute(CSSStyle.WIDTH, AmiPDFPlumber.get_float(char_dict, PLUMB_WIDTH))
+        css.set_attribute(CSSStyle.FONT_SIZE, AmiPDFPlumber.get_float(char_dict, PLUMB_SIZE))
+        css.set_attribute(CSSStyle.FILL, char_dict.get(PLUMB_NONSTROKE))
+        css.set_attribute(CSSStyle.STROKE, char_dict.get(PLUMB_STROKE))
+        css.set_attribute(CSSStyle.FONT_FAMILY, char_dict.get(PLUMB_FONTNAME)
+    )
+
+    # AmiPDFPlumber
+
+
+    @classmethod
+    def get_coords(cls, char):
+        if char is None:
+            return char
+        x0 = cls.get_float(char, "x0")
+        x1 = cls.get_float(char, "x1")
+        y0 = cls.get_float(char, "y0")
+        y1 = cls.get_float(char, "y1")
+        return (x0, y0, x1, y1)
+
+    # AmiPDFPlumber
+
+    @classmethod
+    def get_float(cls, dikt, key, digits=2):
+        """
+        gets a value from a dictionary and rounds to decimal digits
+        :param dikt: dictionary with values
+        :param key: key of value reuired
+        :param digits: number of required decimal places (default 2)
+        :return: float
+        :except: missing dictionary, key, not a float, etc.
+        """
+
+        try:
+            val = float(dikt.get(key))
+            val = round(val, digits)
+            return val
+        except:
+            return None
+
+    # AmiPDFPlumber
+
+    @classmethod
+    def get_int(cls, dikt, key):
+        """
+        gets a value from a dictionary
+        :param dikt: dictionary with values
+        :param key: key of value reuired
+        :return: int
+        :except: missing dictionary, key, not a float, etc.
+        """
+        try:
+            return int(dikt.get(key))
+        except:
+            return None
+
+    # AmiPDFPlumber
+
+    @classmethod
+    def get_font_css(cls, char_dict, span):
+        """
+        read font attributes from AmiPlumber char_dict , create CSSStyle and add to span
+        """
+        css = CSSStyle()
+        # css.set_attribute(CSSStyle.WIDTH, AmiPDFPlumber.get_float(char, PLUMB_WIDTH))
+        css.set_attribute(CSSStyle.FONT_SIZE, AmiPDFPlumber.get_float(char_dict, PLUMB_SIZE))
+        css.set_attribute(CSSStyle.FILL, char_dict.get(PLUMB_NONSTROKE))
+        css.set_attribute(CSSStyle.STROKE, char_dict.get(PLUMB_STROKE))
+        css.set_attribute(CSSStyle.FONT_FAMILY, char_dict.get(PLUMB_FONTNAME))
+        span.attrib[CSSStyle.STYLE] = css.get_css_value()
+        return css
+
+    # AmiPDFPlumber
+
+    def create_html_pages(self, input_pdf, output_page_dir, pages=None, header_height=70, footer_height=70):
+        ami_plumber_json = self.create_ami_plumber_json(input_pdf, pages=pages)
+        json_pages = ami_plumber_json.get_ami_json_pages()
+        for i, json_page in enumerate(json_pages):
+            print(f"==============PAGE {i+1}================")
+            html_page = json_page.create_html_page()
+            XmlLib.write_xml(html_page, Path(output_page_dir, f"page_{i + 1}.html"))
 
 
 

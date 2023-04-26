@@ -8,6 +8,7 @@ import sys
 import unittest
 from collections import Counter
 from pathlib import Path
+import pandas as pd
 
 import lxml
 import lxml.etree
@@ -24,14 +25,15 @@ from py4ami.ami_bib import Publication
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, PDFArgs, PDFDebug, PDFParser
 from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage, AmiPDFPlumber
 from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS, CURVES, RECTS, TEXTS
-from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE
+from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE, CSSStyle, HtmlLib
 from py4ami.ami_html import H_SPAN, H_BODY, H_P
 from py4ami.pyamix import PyAMI
 from py4ami.bbox_copy import BBox
 from py4ami.file_lib import FileLib
-from test.resources import Resources
 from py4ami.util import Util
+from py4ami.xml_lib import XmlLib
 
+from test.resources import Resources
 from test.test_all import AmiAnyTest
 
 HERE = os.path.abspath(os.path.dirname(__file__))
@@ -113,16 +115,6 @@ class PDFPlumberTest(AmiAnyTest):
     tests that we can tun the new PDFPlumber tests
     """
 
-    # def __init__(self):
-    #     self.pdf = None
-    #
-    # def setup_class(self):
-    #     self.path = os.path.join(HERE, "pdfs/pdffill-demo.pdf")
-    #     self.pdf = pdfplumber.open(self.path, pages=[1, 2, 5])
-    #
-    # def teardown_class(self):
-    #     self.pdf.close()
-    #
     def test_pdfplumber_json_single_page_debug(self):
         """creates AmiPDFPlumber and reads pdf and debugs"""
         path = os.path.join(HERE, "resources/pdffill-demo.pdf")
@@ -132,24 +124,153 @@ class PDFPlumberTest(AmiAnyTest):
               f"{len(pdf_json['pages'])} "
               # f"\n\n page_keys {c['pages'][0].items()}"
               )
-        pages = ami_pdfplumber.get_pages()
+        pages = ami_pdfplumber.get_ami_json_pages()
         page0 = pdf_json['pages'][0]
         imagedir = str(Path(AmiAnyTest.TEMP_DIR, "images"))
         ami_pdfplumber.debug_page(page0, imagedir=imagedir)
+
         # pprint.pprint(f"c {c}[:20]")
 
         assert pdf_json["pages"][0]["rects"][0]["bottom"] == ami_pdfplumber.pdf.pages[0].rects[0]["bottom"]
 
+    def test_pdfplumber_singlecol_create_spans_with_CSSStyles(self):
+        """
+        creates AmiPDFPlumber and reads single-column pdf and debugs
+        """
+        input_pdf = Path(Resources.TEST_IPCC_LONGER_REPORT, "fulltext.pdf")
+        output_page_dir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "LongerReport", "pages")
+        output_page_dir.mkdir(exist_ok=True, parents=True)
+        ami_pdfplumber = AmiPDFPlumber()
+        ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, pages=[1,2,3,4,5,6,7])
+
+    def test_pdfplumber_doublecol_create_spans_with_CSSStyles(self):
+        """
+        creates AmiPDFPlumber and reads double-column pdf and debugs
+        """
+
+        reports = [
+            {"name": "SROCC_TS",
+                "input_pdf" : Path(Resources.TEST_IPCC_SROCC, "ts", "fulltext.pdf"),
+                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "srocc", "ts", "pages"),
+                "footer_height" : 70,
+                "header_height": 70
+             },
+            {"name": "SROCC_SPM",
+                "input_pdf" : Path(Resources.TEST_IPCC_SROCC, "spm", "fulltext.pdf"),
+                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "srocc", "spm", "pages"),
+                "footer_height" : 70,
+                "header_height": 70
+             },
+            {"name": "SRCCL_TS",
+                "input_pdf" : Path(Resources.TEST_IPCC_SRCCL, "ts", "fulltext.pdf"),
+                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "srccl", "ts", "pages"),
+                "footer_height" : 70,
+                "header_height": 70
+             },
+            {"name": "SRCCL_SPM",
+                "input_pdf" : Path(Resources.TEST_IPCC_SRCCL, "spm", "fulltext.pdf"),
+                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "srccl", "spm", "pages"),
+                "footer_height" : 70,
+                "header_height": 70
+             },
+            {"name": "SR15_TS",
+                "input_pdf" : Path(Resources.TEST_IPCC_SR15, "ts", "fulltext.pdf"),
+                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "sr15", "ts", "pages"),
+                "footer_height" : 70,
+                "header_height": 70
+             },
+            {"name": "SR15_SPM",
+                "input_pdf" : Path(Resources.TEST_IPCC_SR15, "spm", "fulltext.pdf"),
+                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "sr15", "spm", "pages"),
+                "footer_height" : 70,
+                "header_height": 70
+             },
+            {"name": "WG1_TS",
+             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg1_ts", "fulltext.pdf"),
+             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg1_ts", "pages"),
+             "footer_height": 70,
+             "header_height": 70
+             },
+            {"name": "WG1_SPM",
+             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg1_spm", "fulltext.pdf"),
+             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg1_spm", "pages"),
+             "footer_height": 70,
+             "header_height": 70
+             },
+            {"name": "WG2_TS",
+             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg2_ts", "fulltext.pdf"),
+             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg2_ts", "pages"),
+             "footer_height": 70,
+             "header_height": 70
+             },
+            {"name": "WG2_SPM",
+             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg2_spm", "fulltext.pdf"),
+             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg2_spm", "pages"),
+             "footer_height": 70,
+             "header_height": 70
+             },
+            {"name": "WG3_TS",
+             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg3_ts", "fulltext.pdf"),
+             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg3_ts", "pages"),
+             "footer_height": 70,
+             "header_height": 70
+             },
+            {"name": "WG3_SPM",
+             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg3_spm", "fulltext.pdf"),
+             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg3_spm", "pages"),
+             "footer_height": 70,
+             "header_height": 70
+             },
+
+        ]
+        for report in reports:
+            print(f"report: {report}")
+            input_pdf = report["input_pdf"]
+            if not input_pdf.exists():
+                print(f"cannot find {input_pdf}")
+                continue
+            output_page_dir = report["output_page_dir"]
+            output_page_dir.mkdir(exist_ok=True, parents=True)
+            ami_pdfplumber = AmiPDFPlumber()
+            header_height = float(report["header_height"])
+            footer_height = float(report["footer_height"])
+            ami_pdfplumber.create_html_pages(
+                input_pdf, output_page_dir, footer_height=footer_height, header_height=header_height)
+
+    def test_pdf_plumber_doublecol_spm_ts_SROCC_TS(self):
+        """fails as there are no tables! (they are all bitmaps)"""
+        inpdfs = [
+            Path(Resources.TEST_IPCC_SROCC, "ts", "fulltext.pdf"),
+            Path(Resources.TEST_IPCC_LONGER_REPORT, "fulltext.pdf"),
+        ]
+        for inpdf in inpdfs:
+            pass
+
+    def test_pdf_plumber_table(self):
+        """haven't found any tables yet!"""
+        inpdf = Path(Resources.TEST_IPCC_DIR, "Chapter15", "fulltext.pdf")
+        with pdfplumber.open(inpdf) as pdf:
+            for i, page in enumerate(pdf.pages):
+                tables = page.extract_tables()
+                if tables:
+                    print(f"===========page {i+1} {len(tables)}===========")
+                    for j, table in enumerate(tables):
+                        print(f"table {j+1} {table}")
+                        df = pd.DataFrame(table)
+                        print(f"df {df}")
+
+
+
     def test_pdfplumber_json_longer_report_debug(self):
         """creates AmiPDFPlumber and reads pdf and debugs"""
-        path = os.path.join(Path(Resources.TEST_IPCC_LONGER_REPORT, "fulltext.pdf"))
+        path = Path(Resources.TEST_IPCC_LONGER_REPORT, "fulltext.pdf")
         ami_pdfplumber = AmiPDFPlumber()
         pdf_json = ami_pdfplumber.create_parsed_json(path)
         print(f"k {pdf_json.keys(), pdf_json['metadata'].keys()} \n====Pages====\n"
               f"{len(pdf_json['pages'])} "
               # f"\n\n page_keys {c['pages'][0].items()}"
               )
-        pages = ami_pdfplumber.get_pages()
+        pages = ami_pdfplumber.get_ami_json_pages()
         assert len(pages) == 85
         for page in pages:
             ami_pdfplumber.debug_page(page)

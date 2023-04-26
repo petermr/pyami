@@ -1409,7 +1409,7 @@ class TestFont(AmiAnyTest):
 
     def _run_tests_0(self, tests):
         for test in tests:
-            ami_font = AmiFont.extract_name_weight_style_stretched(test[0])
+            ami_font = AmiFont.extract_name_weight_style_stretched_as_font(test[0])
             assert str(ami_font) == test[0] + "/" + test[1]
 
     # -------------------------------
