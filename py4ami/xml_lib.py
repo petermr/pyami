@@ -380,7 +380,11 @@ class XmlLib:
         :param path: path to write to
         """
         with open(path, "w") as f:
-            f.write(lxml.etree.tostring(elem).decode(encoding))
+            try:
+                f.write(lxml.etree.tostring(elem).decode(encoding))
+            except Exception as e:
+                print(f"****** cannot write XML: {e} *******")
+
 
     @classmethod
     def remove_attribute(cls, elem, att):

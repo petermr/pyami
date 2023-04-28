@@ -1914,6 +1914,20 @@ class AmiPlumberJson:
         return self.json_pages
 
 
+class RegionClipper:
+    """
+    extracts/remove chunks from the page (currently boxes)
+    """
+    def __init__(self,
+                 footer_height=None,
+                 header_height=None,
+                 mediabox=None):
+        """holds and transforms clipping regions"""
+        self.footer_height = footer_height
+        self.header_height = header_height
+        self.mediabox = mediabox
+        self.footer_y = mediabox[1] + footer_height
+        self.header_y = mediabox[3] - header_height
 
 
 class AmiPlumberJsonPage:
@@ -1924,10 +1938,10 @@ class AmiPlumberJsonPage:
         return self.page.get("chars") if self.page else None
 
     def get_tables(self):
-        # plumb_page = Page(self.page)
-        # return self.page.extract_tables() if self.page else None
-        print(f" get_tables() NYI")
         return []
+        if tables:
+            print(f"TABLES")
+        return self.page.extract_tables() if self.page else None # not working
 
     def get_spans(self, epsilon=0.1, ):
         spanlist = []
@@ -1971,9 +1985,18 @@ class AmiPlumberJsonPage:
 
     def add_character_and_update_right_coord(self, span, text, x1):
         span.attrib["x1"] = str(x1)
-        span.text += text
+        try:
+            span.text += text
+        except ValueError as e:
+            print(f"Cannot add text to XML [{text}]")
+            if span.text == None:
+                span.text = ""
+            span.text += "?"
 
     def add_span_attributes(self, coords, css, css_style, span, text):
+        if text is None:
+            print(f"null text...")
+            return
         css_s = css_style.get_css_value().strip()
         if css_s != "":
             span.attrib["style"] = css_s
@@ -1981,7 +2004,11 @@ class AmiPlumberJsonPage:
         span.attrib["y0"] = str(coords[1])
         span.attrib["x1"] = str(coords[2])
         span.attrib["style"] = css.get_css_value()
-        span.text = text
+        try:
+            span.text = text
+        except:
+            span.text = "?"
+            print(f"Cannot add [{text}] to span")
 
     def get_ami_font_and_style(self, fontname):
         ami_font = AmiFont.extract_name_weight_style_stretched_as_font(fontname)
@@ -1992,21 +2019,12 @@ class AmiPlumberJsonPage:
             css_style.set_attribute(CSSStyle.FONT_STYLE, CSSStyle.ITALIC)
         return ami_font, css_style
 
-    def create_html_page(self, header_height=70, footer_height=70):
+    def create_html_page(self, ami_plumber):
         """
         y runs bottom to top (i.e. first lines in visual reading have high y)
         """
-        mediabox = self.page['mediabox']
-        footer_y = mediabox[1] + footer_height
-        header_y = mediabox[3] - header_height
-        # print(f"page {self.page.keys()}")
-        # rects = self.page["rects"]
-        # for rect in rects:
-        #     print(f" rect {rect}")
-        # print(f"page {self.__dict__}")
+        rc = self.create_region_clipper(ami_plumber)
         tables = self.get_tables()
-        if tables:
-            print(f"TABLES")
         html_page = HtmlLib.create_html_with_empty_head_body()
         body = HtmlLib.get_body(html_page)
         spans = self.get_spans()
@@ -2019,12 +2037,10 @@ class AmiPlumberJsonPage:
             csss = CSSStyle.create_css_style_from_attribute_of_body_element(span)
             font_size = csss.get_numeric_attval(CSSStyle.FONT_SIZE)
             y0 = csss.get_numeric_attval("y0")
-            if y0 > header_y:
-                header_span_list.append(span)
-                continue
             y1 = csss.get_numeric_attval("y1")
-            if y1 < footer_y:
-                footer_span_list.append(span)
+            x1 = csss.get_numeric_attval("x1")
+            if self.capture_header(y0, rc.header_y, header_span_list, span) or \
+                self.capture_footer(y1, rc.footer_y, footer_span_list, span):
                 continue
             if self.is_newdiv(y0, last_y0, font_size, span.text):
                 div = lxml.etree.Element("div")
@@ -2036,12 +2052,28 @@ class AmiPlumberJsonPage:
             div.append(span)
             last_y0 = y0
             # print(f"  >>> {len(span.text)} {span.text}")
+            # diagnostics
+        self.print_header_footer_lists(footer_span_list, header_span_list)
+
+        return html_page
+
+    def create_region_clipper(self, ami_plumber):
+        footer_height = float(ami_plumber.param_dict["footer_height"])
+        header_height = float(ami_plumber.param_dict["header_height"])
+        # print(f"footer/header {footer_height} {header_height}")
+        mediabox = self.page['mediabox']
+        region_clipper = RegionClipper(
+            footer_height=footer_height,
+            header_height=header_height,
+            mediabox=mediabox)
+
+        return region_clipper
+
+    def print_header_footer_lists(self, footer_span_list, header_span_list):
         for header_span in header_span_list:
             print(f"header {header_span.text}")
         for footer_span in footer_span_list:
             print(f"footer {footer_span.text}")
-
-        return html_page
 
     def is_newdiv(self, y0, last_y0, font_size, text, para_sep=1.4, epsilon=0.1):
         if last_y0 is None:
@@ -2049,6 +2081,15 @@ class AmiPlumberJsonPage:
         deltay = last_y0 - y0
         # print(f"deltay {deltay} , {font_size * para_sep}")
         return text.strip() == ""  or abs(deltay) > font_size * para_sep
+
+# TODO make a class for these snipper operations
+    def capture_header(self, y0, header_y, header_span_list, span):
+        if y0 > header_y:
+            header_span_list.append(span)
+
+    def capture_footer(self, y1, footer_y, footer_span_list, span):
+        if y1 < footer_y:
+            footer_span_list.append(span)
 
 
 PLUMB_FONTNAME = "fontname"
@@ -2084,10 +2125,14 @@ class AmiPDFPlumber:
     """
     uses PDFPlumber (>=0.9.0) to parse PDF ane hold intermediates
     """
-    def __init__(self):
+    def __init__(self, param_dict=None):
+        """
+        :param parse_dict: python dict to control pasr
+        """
         self.pdf_json = None
         self.pdfobj = None
         self.pages = None
+        self.param_dict = param_dict if param_dict else self.create_param_dict()
 
     # AmiPDFPlumber
 
@@ -2289,15 +2334,21 @@ class AmiPDFPlumber:
 
     # AmiPDFPlumber
 
-    def create_html_pages(self, input_pdf, output_page_dir, pages=None, header_height=70, footer_height=70):
+    def create_html_pages(self, input_pdf, output_page_dir, pages=None, ):
         ami_plumber_json = self.create_ami_plumber_json(input_pdf, pages=pages)
-        json_pages = ami_plumber_json.get_ami_json_pages()
-        for i, json_page in enumerate(json_pages):
+        ami_json_pages = ami_plumber_json.get_ami_json_pages()
+        for i, ami_json_page in enumerate(ami_json_pages):
             print(f"==============PAGE {i+1}================")
-            html_page = json_page.create_html_page()
+            html_page = ami_json_page.create_html_page(self)
             XmlLib.write_xml(html_page, Path(output_page_dir, f"page_{i + 1}.html"))
 
-
+    def create_param_dict(self):
+        param_dict = {
+            "footer_height" : 70,
+            "header_height" : 70,
+            "inter_line_space_fract" : 0.28,
+        }
+        return param_dict
 
 
 class PDFUtil:

@@ -105,6 +105,112 @@ class Resources:
     TEST_IPCC_WG2_CHAP03_PDF = Path(TEST_IPCC_WG2_CHAP03, "fulltext.pdf")
     assert TEST_IPCC_WG2_CHAP03_PDF.exists(), f"{TEST_IPCC_WG2_CHAP03_PDF} should exist"
 
+    # could be changed by user
+    TEMP_DIR = Path(Path(__file__).parent.parent, "temp")
+
+    WG_REPORTS = {
+        "default": {
+            "footer_height": 70,
+            "header_height": 70,
+        },
+        "SROCC_TS": {
+            "name": "SROCC_TS",
+            "input_pdf": Path(TEST_IPCC_SROCC, "ts", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "srocc", "ts", "pages"),
+            "footer_height": 70,
+            "header_height": 70
+        },
+        "SROCC_SPM": {
+            "name": "SROCC_SPM",
+            "input_pdf": Path(TEST_IPCC_SROCC, "spm", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "srocc", "spm", "pages"),
+            "footer_height": 70,
+            "header_height": 70
+        },
+
+        "SRCCL_TS": {
+            "name": "SRCCL_TS",
+            "input_pdf": Path(TEST_IPCC_SRCCL, "ts", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "srccl", "ts", "pages"),
+            "footer_height": 70,
+            "header_height": 70
+        },
+
+        "SRCCL_SPM": {
+            "name": "SRCCL_SPM",
+            "input_pdf": Path(TEST_IPCC_SRCCL, "spm", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "srccl", "spm", "pages"),
+            "footer_height": 70,
+            "header_height": 70
+        },
+
+        "SR15_TS": {
+            "name": "SR15_TS",
+            "input_pdf": Path(TEST_IPCC_SR15, "ts", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "sr15", "ts", "pages"),
+            "footer_height": 70,
+            "header_height": 70
+        },
+
+        "SR15_SPM": {
+            "name": "SR15_SPM",
+            "input_pdf": Path(TEST_IPCC_SR15, "spm", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "sr15", "spm", "pages"),
+            "footer_height": 70,
+            "header_height": 70
+        },
+
+        "WG1_TS": {
+            "name": "WG1_TS",
+            "input_pdf": Path(TEST_IPCC_DIR, "wg1", "ts", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "wg1", "ts", "pages"),
+            "footer_height": 30,
+            "header_height": 50
+        },
+
+        "WG1_SPM": {
+            "name": "WG1_SPM",
+            "input_pdf": Path(TEST_IPCC_DIR, "wg1", "spm", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "wg1", "spm", "pages"),
+            "footer_height": 30,
+            "header_height": 50
+        },
+
+        "WG2_TS": {
+            "name": "WG2_TS",
+            "input_pdf": Path(TEST_IPCC_DIR, "wg2", "ts", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "wg2", "ts", "pages"),
+            "footer_height": 30,
+            "header_height": 50,
+            "left_col_left": 54,
+            "right_col_left": 318.2,
+        },
+
+        "WG2_SPM": {
+            "name": "WG2_SPM",
+            "input_pdf": Path(TEST_IPCC_DIR, "wg2", "spm", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "wg2", "spm", "pages"),
+            "footer_height": 30,
+            "header_height": 50
+        },
+
+        "WG3_TS": {
+            "name": "WG3_TS",
+            "input_pdf": Path(TEST_IPCC_DIR, "wg3", "ts", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "wg3", "ts", "pages"),
+            "footer_height": 30,
+            "header_height": 50
+        },
+
+        "WG3_SPM": {
+            "name": "WG3_SPM",
+            "input_pdf": Path(TEST_IPCC_DIR, "wg3", "spm", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "wg3", "spm", "pages"),
+            "footer_height": 30,
+            "header_height": 50
+        },
+
+    }
 
     def __init__(self):
         pass

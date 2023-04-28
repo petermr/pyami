@@ -3,7 +3,9 @@ import codecs
 import json
 import logging
 import os
+import glob
 import pprint
+import re
 import sys
 import unittest
 from collections import Counter
@@ -148,94 +150,28 @@ class PDFPlumberTest(AmiAnyTest):
         creates AmiPDFPlumber and reads double-column pdf and debugs
         """
 
-        reports = [
-            {"name": "SROCC_TS",
-                "input_pdf" : Path(Resources.TEST_IPCC_SROCC, "ts", "fulltext.pdf"),
-                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "srocc", "ts", "pages"),
-                "footer_height" : 70,
-                "header_height": 70
-             },
-            {"name": "SROCC_SPM",
-                "input_pdf" : Path(Resources.TEST_IPCC_SROCC, "spm", "fulltext.pdf"),
-                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "srocc", "spm", "pages"),
-                "footer_height" : 70,
-                "header_height": 70
-             },
-            {"name": "SRCCL_TS",
-                "input_pdf" : Path(Resources.TEST_IPCC_SRCCL, "ts", "fulltext.pdf"),
-                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "srccl", "ts", "pages"),
-                "footer_height" : 70,
-                "header_height": 70
-             },
-            {"name": "SRCCL_SPM",
-                "input_pdf" : Path(Resources.TEST_IPCC_SRCCL, "spm", "fulltext.pdf"),
-                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "srccl", "spm", "pages"),
-                "footer_height" : 70,
-                "header_height": 70
-             },
-            {"name": "SR15_TS",
-                "input_pdf" : Path(Resources.TEST_IPCC_SR15, "ts", "fulltext.pdf"),
-                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "sr15", "ts", "pages"),
-                "footer_height" : 70,
-                "header_height": 70
-             },
-            {"name": "SR15_SPM",
-                "input_pdf" : Path(Resources.TEST_IPCC_SR15, "spm", "fulltext.pdf"),
-                "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "sr15", "spm", "pages"),
-                "footer_height" : 70,
-                "header_height": 70
-             },
-            {"name": "WG1_TS",
-             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg1_ts", "fulltext.pdf"),
-             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg1_ts", "pages"),
-             "footer_height": 70,
-             "header_height": 70
-             },
-            {"name": "WG1_SPM",
-             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg1_spm", "fulltext.pdf"),
-             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg1_spm", "pages"),
-             "footer_height": 70,
-             "header_height": 70
-             },
-            {"name": "WG2_TS",
-             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg2_ts", "fulltext.pdf"),
-             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg2_ts", "pages"),
-             "footer_height": 70,
-             "header_height": 70
-             },
-            {"name": "WG2_SPM",
-             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg2_spm", "fulltext.pdf"),
-             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg2_spm", "pages"),
-             "footer_height": 70,
-             "header_height": 70
-             },
-            {"name": "WG3_TS",
-             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg3_ts", "fulltext.pdf"),
-             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg3_ts", "pages"),
-             "footer_height": 70,
-             "header_height": 70
-             },
-            {"name": "WG3_SPM",
-             "input_pdf": Path(Resources.TEST_IPCC_DIR, "wg3_spm", "fulltext.pdf"),
-             "output_page_dir": Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "wg3_spm", "pages"),
-             "footer_height": 70,
-             "header_height": 70
-             },
-
+        report_names = [
+            # "
+            # "WG1_SPM",
+            # "WG1_TS",
+            "WG2_SPM",
+            # "WG2_TS",
+            # "WG3_SPM",
+            # "WG3_TS",
         ]
-        for report in reports:
-            print(f"report: {report}")
-            input_pdf = report["input_pdf"]
+        for report_name in report_names:
+            report_dict = Resources.WG_REPORTS[report_name]
+            print(f"\n==================== {report_name} ==================")
+            input_pdf = report_dict["input_pdf"]
             if not input_pdf.exists():
                 print(f"cannot find {input_pdf}")
                 continue
-            output_page_dir = report["output_page_dir"]
+            output_page_dir = report_dict["output_page_dir"]
+            print(f"output dir {output_page_dir}")
             output_page_dir.mkdir(exist_ok=True, parents=True)
-            ami_pdfplumber = AmiPDFPlumber()
-            header_height = float(report["header_height"])
-            footer_height = float(report["footer_height"])
+            ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
             ami_pdfplumber.create_html_pages(
-                input_pdf, output_page_dir, footer_height=footer_height, header_height=header_height)
+                input_pdf, output_page_dir)
 
     def test_pdf_plumber_doublecol_spm_ts_SROCC_TS(self):
         """fails as there are no tables! (they are all bitmaps)"""
@@ -245,6 +181,68 @@ class PDFPlumberTest(AmiAnyTest):
         ]
         for inpdf in inpdfs:
             pass
+
+    def test_extract_target_section_ids_from_page(self):
+        """The IPCC report and many others have hierarchical IDs for sections
+        These are output in divs and spans
+        test/resources/ipcc/wg2/spm/page_9.html
+        e.g. <div>
+        """
+        input_html_path = Path(Resources.TEST_RESOURCES_DIR, "ipcc", "wg2", "spm", "page_9.html")
+        assert input_html_path.exists()
+        id_regex = r"^([A-F](?:.[1-9])*)\s+.*"
+
+        spanlist = self.extract_ids_from_html_page(input_html_path, regex_str=id_regex, debug=False)
+        assert len(spanlist) == 4
+
+    def test_extract_target_section_ids_from_pages(self):
+        """The IPCC report and many others have hierarchical IDs for sections
+        These are output in divs and spans
+        test/resources/ipcc/wg2/spm/page_9.html
+        e.g. <div>
+        """
+        id_regex = r"^([A-F](?:.[1-9])*)\s+.*"
+        html_dir = Path(Resources.TEST_RESOURCES_DIR, "ipcc", "wg2", "spm", "pages")
+        os.chdir(html_dir)
+        total_spanlist = []
+        files = glob.glob("*.html")
+        for i in range(len(files)):
+            file = f"page_{i+1}.html"
+            try:
+                spanlist = self.extract_ids_from_html_page(file, regex_str=id_regex, debug=False)
+            except Exception as e:
+                print(f"cannot read {file} because {e}")
+                continue
+            total_spanlist.append((file, spanlist))
+            print(f"spans {len(spanlist)}")
+        for file, spanlist in total_spanlist:
+            if spanlist:
+                print(f"========= {file} ==========")
+                for span in spanlist:
+                    text_ = span.text[:50]
+                    text1 = ""
+                    if len(text_) < 8:
+                        text1 = span.xpath("following::span")[0].text
+                    print(f"{text_} {text1}")
+
+
+    def extract_ids_from_html_page(self, input_html_path, regex_str=None, debug=False):
+        """finds possible IDs in PDF HTML pages
+        must lead the text in a span"""
+        elem = lxml.etree.parse(str(input_html_path))
+        div_with_spans = elem.xpath(".//div[span]")
+        regex = re.compile(regex_str)
+        spanlist = []
+        for div in div_with_spans:
+            spans = div.xpath(".//span")
+            for span in spans:
+                matchstr = regex.match(span.text)
+                if matchstr:
+                    if debug:
+                        print(f"matched {matchstr.group(1)} {span.text[:50]}")
+                    spanlist.append(span)
+        return spanlist
+
 
     def test_pdf_plumber_table(self):
         """haven't found any tables yet!"""
