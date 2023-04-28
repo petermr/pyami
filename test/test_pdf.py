@@ -1,5 +1,6 @@
 import base64
 import codecs
+import csv
 import json
 import logging
 import os
@@ -170,8 +171,7 @@ class PDFPlumberTest(AmiAnyTest):
             print(f"output dir {output_page_dir}")
             output_page_dir.mkdir(exist_ok=True, parents=True)
             ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
-            ami_pdfplumber.create_html_pages(
-                input_pdf, output_page_dir)
+            ami_pdfplumber.create_html_pages(input_pdf, output_page_dir)
 
     def test_pdf_plumber_doublecol_spm_ts_SROCC_TS(self):
         """fails as there are no tables! (they are all bitmaps)"""
@@ -195,7 +195,7 @@ class PDFPlumberTest(AmiAnyTest):
         spanlist = self.extract_ids_from_html_page(input_html_path, regex_str=id_regex, debug=False)
         assert len(spanlist) == 4
 
-    def test_extract_target_section_ids_from_pages(self):
+    def test_extract_target_sections_from_pages(self):
         """The IPCC report and many others have hierarchical IDs for sections
         These are output in divs and spans
         test/resources/ipcc/wg2/spm/page_9.html
@@ -214,16 +214,30 @@ class PDFPlumberTest(AmiAnyTest):
                 print(f"cannot read {file} because {e}")
                 continue
             total_spanlist.append((file, spanlist))
-            print(f"spans {len(spanlist)}")
-        for file, spanlist in total_spanlist:
-            if spanlist:
-                print(f"========= {file} ==========")
-                for span in spanlist:
-                    text_ = span.text[:50]
-                    text1 = ""
-                    if len(text_) < 8:
-                        text1 = span.xpath("following::span")[0].text
-                    print(f"{text_} {text1}")
+        # csvlist = []
+        # csvlist.append(["qid", "Len"], "P1")
+        output_dir = Path(Resources.TEMP_DIR, "html", "ipcc", "wg2", "spm", "pages")
+        output_dir.mkdir(exist_ok=True, parents=True)
+        section_file = Path(output_dir, 'sections.csv')
+        with open(section_file, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile, quotechar = '|')
+            csvwriter.writerow(["qid", "Len", "P1"])
+            for file, spanlist in total_spanlist:
+                if spanlist:
+                    print(f"========= {file} ==========")
+                    for span in spanlist:
+                        text_ = span.text[:50].strip()
+                        qid = '\"' + text_.split()[0] + '\"'
+                        # print(f" [{qid}]")
+                        text = text_.split()[1] if len(text_) > 8 else span.xpath("following::span")[0].text
+                        print(f"{qid}, {text}")
+                        csvwriter.writerow(["", qid, "Q18"])
+                        # csvlist.append(["", qid, "P18"])
+        print(f" wrote {section_file}")
+        assert section_file.exists()
+
+
+
 
 
     def extract_ids_from_html_page(self, input_html_path, regex_str=None, debug=False):
@@ -232,7 +246,7 @@ class PDFPlumberTest(AmiAnyTest):
         elem = lxml.etree.parse(str(input_html_path))
         div_with_spans = elem.xpath(".//div[span]")
         regex = re.compile(regex_str)
-        spanlist = []
+        sectionlist = []
         for div in div_with_spans:
             spans = div.xpath(".//span")
             for span in spans:
@@ -240,8 +254,8 @@ class PDFPlumberTest(AmiAnyTest):
                 if matchstr:
                     if debug:
                         print(f"matched {matchstr.group(1)} {span.text[:50]}")
-                    spanlist.append(span)
-        return spanlist
+                    sectionlist.append(span)
+        return sectionlist
 
 
     def test_pdf_plumber_table(self):

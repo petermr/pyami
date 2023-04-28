@@ -1934,6 +1934,8 @@ class AmiPlumberJsonPage:
     def __init__(self, page):
         self.page = page
 
+# AmiPlumberJsonPage:
+
     def get_chars(self):
         return self.page.get("chars") if self.page else None
 
@@ -1942,6 +1944,8 @@ class AmiPlumberJsonPage:
         if tables:
             print(f"TABLES")
         return self.page.extract_tables() if self.page else None # not working
+
+    # AmiPlumberJsonPage:
 
     def get_spans(self, epsilon=0.1, ):
         spanlist = []
@@ -1983,6 +1987,8 @@ class AmiPlumberJsonPage:
 
         return spanlist
 
+    # AmiPlumberJsonPage:
+
     def add_character_and_update_right_coord(self, span, text, x1):
         span.attrib["x1"] = str(x1)
         try:
@@ -1992,6 +1998,8 @@ class AmiPlumberJsonPage:
             if span.text == None:
                 span.text = ""
             span.text += "?"
+
+    # AmiPlumberJsonPage:
 
     def add_span_attributes(self, coords, css, css_style, span, text):
         if text is None:
@@ -2010,6 +2018,8 @@ class AmiPlumberJsonPage:
             span.text = "?"
             print(f"Cannot add [{text}] to span")
 
+    # AmiPlumberJsonPage:
+
     def get_ami_font_and_style(self, fontname):
         ami_font = AmiFont.extract_name_weight_style_stretched_as_font(fontname)
         css_style = CSSStyle()
@@ -2019,43 +2029,56 @@ class AmiPlumberJsonPage:
             css_style.set_attribute(CSSStyle.FONT_STYLE, CSSStyle.ITALIC)
         return ami_font, css_style
 
-    def create_html_page(self, ami_plumber):
+    # AmiPlumberJsonPage:
+
+    def create_html_page_and_header_footer(self, ami_plumber):
         """
         y runs bottom to top (i.e. first lines in visual reading have high y)
         """
         rc = self.create_region_clipper(ami_plumber)
         tables = self.get_tables()
         html_page = HtmlLib.create_html_with_empty_head_body()
+        HtmlLib.add_head_style(html_page, "div", [("border", "red solid 0.5px")])
+        HtmlLib.add_head_style(html_page, "span", [("border", "blue dotted 0.5px")])
         body = HtmlLib.get_body(html_page)
         spans = self.get_spans()
         last_y0 = None
-        last_size = None
-        last_div = None
+        last_span = None
+        div = None
         header_span_list = []
         footer_span_list = []
         for span in spans:
-            csss = CSSStyle.create_css_style_from_attribute_of_body_element(span)
-            font_size = csss.get_numeric_attval(CSSStyle.FONT_SIZE)
-            y0 = csss.get_numeric_attval("y0")
-            y1 = csss.get_numeric_attval("y1")
-            x1 = csss.get_numeric_attval("x1")
+            font_size, y0, y1 = self.extract_coords_and_font_properties(span)
+            delta_y = y0 - last_y0 if last_y0 else None
             if self.capture_header(y0, rc.header_y, header_span_list, span) or \
                 self.capture_footer(y1, rc.footer_y, footer_span_list, span):
                 continue
-            if self.is_newdiv(y0, last_y0, font_size, span.text):
-                div = lxml.etree.Element("div")
-                div.attrib["left"] = span.attrib["x0"]
-                div.attrib["right"] = span.attrib["x1"]
-                div.attrib["top"] = span.attrib["y0"]
-                last_div = div
+            if div is None or self.must_create_newpara(delta_y, font_size, span.text):
+                div = self.create_div_with_coords(div, span)
                 body.append(div)
-            div.append(span)
+                div.append(span)
+            elif self.join_spans(last_span, span):
+                last_span = span
+            else:
+                div.append(span)
             last_y0 = y0
-            # print(f"  >>> {len(span.text)} {span.text}")
-            # diagnostics
-        self.print_header_footer_lists(footer_span_list, header_span_list)
+            last_span = span
+        return html_page, header_span_list, footer_span_list
 
-        return html_page
+    def extract_coords_and_font_properties(self, span):
+        csss = CSSStyle.create_css_style_from_attribute_of_body_element(span)
+        font_size = csss.get_numeric_attval(CSSStyle.FONT_SIZE)
+        y0 = csss.get_numeric_attval("y0")
+        y1 = csss.get_numeric_attval("y1")
+        x1 = csss.get_numeric_attval("x1")
+        return font_size, y0, y1
+
+    def create_div_with_coords(self, div, span):
+        div = lxml.etree.Element("div")
+        div.attrib["left"] = span.attrib["x0"]
+        div.attrib["right"] = span.attrib["x1"]
+        div.attrib["top"] = span.attrib["y0"]
+        return div
 
     def create_region_clipper(self, ami_plumber):
         footer_height = float(ami_plumber.param_dict["footer_height"])
@@ -2075,12 +2098,10 @@ class AmiPlumberJsonPage:
         for footer_span in footer_span_list:
             print(f"footer {footer_span.text}")
 
-    def is_newdiv(self, y0, last_y0, font_size, text, para_sep=1.4, epsilon=0.1):
-        if last_y0 is None:
-            return True
-        deltay = last_y0 - y0
-        # print(f"deltay {deltay} , {font_size * para_sep}")
-        return text.strip() == ""  or abs(deltay) > font_size * para_sep
+    def must_create_newpara(self, delta_y, font_size, text, para_sep=1.4):
+        if not delta_y or not text.strip():
+            return False
+        return abs(delta_y) > font_size * para_sep
 
 # TODO make a class for these snipper operations
     def capture_header(self, y0, header_y, header_span_list, span):
@@ -2090,6 +2111,29 @@ class AmiPlumberJsonPage:
     def capture_footer(self, y1, footer_y, footer_span_list, span):
         if y1 < footer_y:
             footer_span_list.append(span)
+
+    def join_spans(self, last_span, span):
+        if last_span is None :
+            return False
+        last_props = self.font_properties(last_span)
+        props = self.font_properties(span)
+        # print(f"props: {props} / {last_props}")
+        if last_props != props:
+            return False
+        last_span.text += span.text
+        return True
+
+    def font_properties(self, elem):
+        """
+        :param elem: styled element
+        :return: font_family and font_size
+        """
+        if elem is None:
+            return None, None
+        csss = CSSStyle.create_css_style_from_attribute_of_body_element(elem)
+        font_size = csss.get_numeric_attval(CSSStyle.FONT_SIZE)
+        font_family = csss.get_attribute(CSSStyle.FONT_FAMILY)
+        return font_family, font_size
 
 
 PLUMB_FONTNAME = "fontname"
@@ -2334,13 +2378,26 @@ class AmiPDFPlumber:
 
     # AmiPDFPlumber
 
-    def create_html_pages(self, input_pdf, output_page_dir, pages=None, ):
+    def create_html_pages(self, input_pdf, output_page_dir, pages=None, debug=False):
         ami_plumber_json = self.create_ami_plumber_json(input_pdf, pages=pages)
         ami_json_pages = ami_plumber_json.get_ami_json_pages()
+        total_html = HtmlLib.create_html_with_empty_head_body()
+        total_html_page_body = HtmlLib.get_body(total_html)
         for i, ami_json_page in enumerate(ami_json_pages):
             print(f"==============PAGE {i+1}================")
-            html_page = ami_json_page.create_html_page(self)
+            html_page, footer_span_list, header_span_list = ami_json_page.create_html_page_and_header_footer(self)
+            if debug:
+                self.print_header_footer_lists(footer_span_list, header_span_list)
+
             XmlLib.write_xml(html_page, Path(output_page_dir, f"page_{i + 1}.html"))
+            body_elems = HtmlLib.get_body(html_page).xpath("*")
+            for elem in body_elems:
+                total_html_page_body.append(elem)
+        XmlLib.write_xml(total_html, Path(output_page_dir, "total_pages.html"))
+
+
+
+    # AmiPDFPlumber
 
     def create_param_dict(self):
         param_dict = {

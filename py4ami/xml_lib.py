@@ -378,12 +378,17 @@ class XmlLib:
         Writes XML to file
         :param elem: xml element to write
         :param path: path to write to
+        :except: bad encoding
         """
         with open(path, "w") as f:
             try:
-                f.write(lxml.etree.tostring(elem).decode(encoding))
+                xmlstr = lxml.etree.tostring(elem, encoding='UTF-8').decode(encoding)
             except Exception as e:
-                print(f"****** cannot write XML: {e} *******")
+                raise ValueError(f"****** cannot decode XML: {e} *******")
+            try:
+                f.write(xmlstr)
+            except Exception as ee:
+                raise Exception(f"cannot write XMLString {e}")
 
 
     @classmethod
@@ -523,6 +528,21 @@ class HtmlLib:
         new_html_elem = HtmlLib.create_html_with_empty_head_body()
         HtmlLib.add_copies_to_head(new_html_elem, html_elem.xpath(".//style"))
         return new_html_elem
+
+    @classmethod
+    def add_head_style(cls, html_page, target, css_value_pairs):
+        if html_page is None or not target or not css_value_pairs:
+            raise ValueError(f"None params in add_head_style")
+        head = HtmlLib.get_head(html_page)
+        style = lxml.etree.Element("style")
+        head.append(style)
+        style.text = target + " {"
+        for css_value_pair in css_value_pairs:
+            if len(css_value_pair) != 2:
+                raise ValueError(f"bad css_value_pair {css_value_pair}")
+            style.text += css_value_pair[0] + " : " + css_value_pair[1]
+        style.text += "}"
+
 
 
 
