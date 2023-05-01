@@ -926,6 +926,114 @@ class Test_PDFHTML(AmiAnyTest):
             style_dict = pdf_args.pdf_to_styled_html_CORE(inpath, maxpage, outdir, outpath1)
             pprint.pprint(f"STYLE\n{style_dict}")
 
+    def test_extract_string(self):
+        elem = lxml.etree.fromstring("""<div><span>lead A.1.2 rest</span></div>""")
+        substring = HtmlUtil.extract_substring(elem, xpath='./span',
+                                               regex='.*(?P<body>[A-Z]\.\d(\.\d+)*)', remove=False)
+        assert substring == "A.1.2"
+        assert lxml.etree.tostring(elem).decode() == "<div><span>lead A.1.2 rest</span></div>"
+
+        elem = lxml.etree.fromstring("""<div><span>lead A.1.2 rest</span></div>""")
+        substring = HtmlUtil.extract_substring(elem, xpath='./span',
+                                               regex='(?P<pre>.*)(?P<body>[A-Z]\.\d(\.\d+)*)(?P<post>.*)', remove=True)
+        assert substring == "A.1.2"
+        assert lxml.etree.tostring(elem).decode() == "<div><span>lead  rest</span></div>"
+
+    # no post string
+        elem = lxml.etree.fromstring("""<div><span>lead A.1.2 rest</span></div>""")
+        substring = HtmlUtil.extract_substring(elem, xpath='./span',
+                                               regex='(?P<pre>.*)(?P<body>[A-Z]\.\d(\.\d+)*).*', remove=True)
+        assert substring == None
+        assert lxml.etree.tostring(elem).decode() == "<div><span>lead A.1.2 rest</span></div>"
+
+    def test_extract_ids_page_IPCC(self):
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", "page_6.html")
+        html_elem = lxml.etree.parse(str(input_html))
+        section_regex = "(?P<pre>Section\s*)(?P<body>\d+)(?P<post>:.*)"
+        subsection_regex = "(?P<pre>\s*)(?P<body>\d+(\.\d+)+)(?P<post>.*)"
+        sections, subsections = self.extract_sections_subsections(
+            html_elem, section_regex=section_regex, subsection_regex=subsection_regex)
+        assert len(sections) == 1
+        assert len(subsections) == 2
+
+    def test_extract_ids_pages_IPCC(self):
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", "total_pages.html")
+        html_elem = lxml.etree.parse(str(input_html))
+        section_regex = "(?P<pre>Section\s*)(?P<body>\d+)(?P<post>:.*)"
+        subsection_regex = "(?P<pre>\s*)(?P<body>\d+(\.\d+)+)(?P<post>.*)"
+
+        sections, subsections = self.extract_sections_subsections(
+            html_elem, section_regex=section_regex, subsection_regex=subsection_regex)
+        assert sections == ['1', '2', '3', '4', '1', '2', '3', '4']
+
+        assert subsections == [
+ '2.1', '2.1.1', '2.1.2',
+ '2.2', '2.2.1', '2.2.2', '2.2.3',
+ '2.3', '2.3.1', '2.3.2', '2.3.3',
+ '3.1', '3.1.1', '3.1.2', '3.1.3',
+ '3.2',
+ '3.3', '3.3.1', '3.3.2', '3.3.3', '3.3.4',
+ '3.4', '3.4.1', '3.4.2',
+ '4.1',
+ '4.2',
+ '4.3',
+ '4.4',
+ '4.5', '4.5.1', '4.5.2', '4.5.3', '4.5.4', '4.5.5', '4.5.6',
+ '4.6',
+ '4.7',
+ '4.8', '4.8.1', '4.8.2', '4.8.3',
+ '4.9',
+
+ '2.1', '2.1.1', '2.1.2',
+ '2.2', '2.2.1', '2.2.2', '2.2.3',
+ '2.3', '2.3.1', '2.3.2', '2.3.3',
+ '3.1', '3.1.1', '3.1.2', '3.1.3',
+ '3.2',
+ '3.3', '3.3.1', '3.3.2', '3.3.3', '3.3.4',
+ '3.4', '3.4.1', '3.4.2',
+ '4.1',
+ '4.2',
+ '4.3',
+ '4.4',
+ '4.5', '4.5.1', '4.5.2', '4.5.3', '4.5.4', '4.5.5', '4.5.6',
+ '4.6',
+ '4.7',
+ '4.8', '4.8.1', '4.8.2', '4.8.3',
+ '4.9']
+
+    def extract_sections_subsections(self, html_elem, section_regex=None, subsection_regex=None ):
+        divs = html_elem.xpath(".//div")
+        sections = []
+        subsections = []
+        for div in divs:
+            if section_regex:
+                section_id = HtmlUtil.extract_substring(div, xpath="./span",
+                                                        regex=section_regex)
+                if section_id:
+                    sections.append(section_id)
+                    continue
+            if subsection_regex:
+                subsection_id = HtmlUtil.extract_substring(div, xpath="./span",
+                                                           regex=subsection_regex,
+                                                           remove=True)
+                if subsection_id:
+                    subsections.append(subsection_id)
+        return sections, subsections
+
+    def test_extract_divs_with_flattened_text_IPCC(self):
+        """extract flat text from divs for indexing"""
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "spm", "total_pages.html")
+        elem = lxml.etree.parse(str(input_html))
+        divs = elem.xpath(".//div")
+        assert 640 > len(divs) > 630
+        rows = []
+        for div in divs:
+            div_text = div.xpath('string(.//*)')
+            print (f"div: {div_text[:10000]}")
+            rows.append(HtmlUtil.get_id(div), div_text)
+        return rows
+
+
 
 class TestHtmlTidy(AmiAnyTest):
 

@@ -926,6 +926,40 @@ class HtmlUtil:
             css_style.apply_to(styled_elem)
             style = HtmlStyle.get_style(styled_elem)
 
+    @classmethod
+    def extract_substring(cls, elem, xpath=None, regex=None, remove=False):
+        """gets substring from body of text in elem
+        regex of form (?P<pre>)(?P<body>)(?P<post>)
+        pre and or post can be missing
+        (There will be better ways of doing this!)
+        :param elem:to query
+        :param xpath: to find descendant subelement
+        :param regex: to find string in subelement (must have 3 capture groups)
+        :param remove: removes body text and joins pre to post
+        if pre and tail are present, elem.text =< pre+post
+        if pre is missing elem.text => post
+        if tail is missing elem.text => pre
+        if both are missing no removal
+        :return: regex.match.groupindex(?P<body>) if matched else None
+        """
+        sub_elems = elem.xpath(xpath)
+        sub_elem = sub_elems[0] if len(sub_elems) > 0 else None
+        substring = None
+        if sub_elem is not None:
+            re0 = re.compile(regex)
+            match = re0.match(sub_elem.text)
+            if match:
+                substring = match.group("body")
+                if remove:
+                    try:
+                        pre = match.group("pre")
+                        post = match.group("post")
+                        sub_elem.text = pre + post
+                    except:
+                        substring = None
+                return substring
+        return None
+
 
 class HtmlStyle:
     """

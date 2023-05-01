@@ -185,19 +185,6 @@ class PDFPlumberTest(AmiAnyTest):
         for inpdf in inpdfs:
             pass
 
-    def test_extract_divs_with_flattened_text(self):
-        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "spm", "total_pages.html")
-        elem = lxml.etree.parse(str(input_html))
-        divs = elem.xpath(".//div")
-        assert 640 > len(divs) > 630
-        rows = []
-        for div in divs:
-            div_text = div.xpath('string(.//*)')
-            print (f"div: {div_text[:10000]}")
-        #     summary = summarize(div_text)
-        #     rows.append(div.id, summary)
-        # write_csv(rows)
-
 
 
 
