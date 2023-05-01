@@ -1,4 +1,5 @@
 import base64
+import chardet
 import codecs
 import csv
 import json
@@ -26,7 +27,7 @@ from PIL import Image
 from py4ami.ami_bib import Publication
 
 from py4ami.ami_pdf import SVG_NS, SVGX_NS, PDFArgs, PDFDebug, PDFParser
-from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage, AmiPDFPlumber
+from py4ami.ami_pdf import AmiPage, X, Y, SORT_XY, PDFImage, AmiPDFPlumber, AmiPlumberJsonPage
 from py4ami.ami_pdf import WORDS, IMAGES, ANNOTS, CURVES, RECTS, TEXTS
 from py4ami.ami_html import HtmlUtil, STYLE, FILL, STROKE, FONT_FAMILY, FONT_SIZE, CSSStyle, HtmlLib
 from py4ami.ami_html import H_SPAN, H_BODY, H_P
@@ -122,19 +123,13 @@ class PDFPlumberTest(AmiAnyTest):
         """creates AmiPDFPlumber and reads pdf and debugs"""
         path = os.path.join(HERE, "resources/pdffill-demo.pdf")
         ami_pdfplumber = AmiPDFPlumber()
-        pdf_json = ami_pdfplumber.create_parsed_json(path)
-        print(f"k {pdf_json.keys(), pdf_json['metadata'].keys()} \n====Pages====\n"
-              f"{len(pdf_json['pages'])} "
-              # f"\n\n page_keys {c['pages'][0].items()}"
-              )
-        pages = ami_pdfplumber.get_ami_json_pages()
-        page0 = pdf_json['pages'][0]
+        ami_plumber_json = ami_pdfplumber.create_ami_plumber_json(path)
+        pages = ami_plumber_json.get_ami_json_pages()
+        assert type(pages[0]) is AmiPlumberJsonPage
         imagedir = str(Path(AmiAnyTest.TEMP_DIR, "images"))
-        ami_pdfplumber.debug_page(page0, imagedir=imagedir)
+        ami_pdfplumber.debug_page(pages[0], imagedir=imagedir)
 
-        # pprint.pprint(f"c {c}[:20]")
 
-        assert pdf_json["pages"][0]["rects"][0]["bottom"] == ami_pdfplumber.pdf.pages[0].rects[0]["bottom"]
 
     def test_pdfplumber_singlecol_create_spans_with_CSSStyles(self):
         """
@@ -146,19 +141,27 @@ class PDFPlumberTest(AmiAnyTest):
         ami_pdfplumber = AmiPDFPlumber()
         ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, pages=[1,2,3,4,5,6,7])
 
-    def test_pdfplumber_doublecol_create_spans_with_CSSStyles(self):
+    def test_pdfplumber_doublecol_create_pages_for_WGs(self):
         """
         creates AmiPDFPlumber and reads double-column pdf and debugs
         """
 
+
         report_names = [
-            # "
-            # "WG1_SPM",
-            # "WG1_TS",
+            "SYR_LR",
+            "SYR_SPM",
+            "SR15_SPM",
+            "SR15_TS",
+            "SRCCL_SPM",
+            "SRCCL_TS",
+            "SROCC_SPM",
+            "SROCC_TS",
+            "WG1_SPM",
+            "WG1_TS",
             "WG2_SPM",
-            # "WG2_TS",
-            # "WG3_SPM",
-            # "WG3_TS",
+            "WG2_TS",
+            "WG3_SPM",
+            "WG3_TS",
         ]
         for report_name in report_names:
             report_dict = Resources.WG_REPORTS[report_name]
@@ -171,9 +174,9 @@ class PDFPlumberTest(AmiAnyTest):
             print(f"output dir {output_page_dir}")
             output_page_dir.mkdir(exist_ok=True, parents=True)
             ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
-            ami_pdfplumber.create_html_pages(input_pdf, output_page_dir)
+            ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True)
 
-    def test_pdf_plumber_doublecol_spm_ts_SROCC_TS(self):
+    def test_clean_pdf_html_SYR_LR(self):
         """fails as there are no tables! (they are all bitmaps)"""
         inpdfs = [
             Path(Resources.TEST_IPCC_SROCC, "ts", "fulltext.pdf"),
@@ -181,6 +184,32 @@ class PDFPlumberTest(AmiAnyTest):
         ]
         for inpdf in inpdfs:
             pass
+
+    def test_extract_divs_with_flattened_text(self):
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "spm", "total_pages.html")
+        elem = lxml.etree.parse(str(input_html))
+        divs = elem.xpath(".//div")
+        assert 640 > len(divs) > 630
+        rows = []
+        for div in divs:
+            div_text = div.xpath('string(.//*)')
+            print (f"div: {div_text[:10000]}")
+        #     summary = summarize(div_text)
+        #     rows.append(div.id, summary)
+        # write_csv(rows)
+
+
+
+
+
+    def test_misc_pdf(self):
+        """an aritrary NGO report The result"""
+        input_pdf = Path("/Users/pm286/workspace/misc/380981eng.pdf")
+        output_page_dir = Path(AmiAnyTest.TEMP_DIR, "html", "misc", "380981")
+        output_page_dir.mkdir(exist_ok=True, parents=True)
+        # ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
+        ami_pdfplumber = AmiPDFPlumber(param_dict=None)
+        ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True)
 
     def test_extract_target_section_ids_from_page(self):
         """The IPCC report and many others have hierarchical IDs for sections

@@ -2,6 +2,7 @@
 
 """
 from braceexpand import braceexpand
+import chardet
 import copy
 from enum import Enum, auto
 import errno
@@ -463,6 +464,19 @@ class FileLib:
         :return: file size bytes else None if not exist
         """
         return None if file is None or not file.exists() else os.path.getsize(file)
+
+    @classmethod
+    def get_encoding(cls, file):
+        """tries to guess (text) encoding
+        :param file: to read
+        :return: {'encoding': Guess, 'confidence': d.d, 'language': Lang}"""
+        with open(file, "rb") as f:
+            rawdata = f.read()
+            chardet.detect(rawdata)
+            encode = chardet.UniversalDetector()
+            encode.close()
+            return encode.result
+
 
 # see https://realpython.com/python-pathlib/
 

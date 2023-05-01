@@ -93,6 +93,9 @@ class Resources:
     TEST_IPCC_SR15 = Path(TEST_IPCC_DIR, "sr15")
     assert TEST_IPCC_SR15.exists(), f"{TEST_IPCC_SR15} should exist"
 
+    TEST_IPCC_SYR = Path(TEST_IPCC_DIR, "syr")
+    assert TEST_IPCC_SYR.exists(), f"{TEST_IPCC_SYR} should exist"
+
     TEST_IPCC_SRCCL = Path(TEST_IPCC_DIR, "srccl")
     assert TEST_IPCC_SRCCL.exists(), f"{TEST_IPCC_SRCCL} should exist"
 
@@ -112,6 +115,20 @@ class Resources:
         "default": {
             "footer_height": 70,
             "header_height": 70,
+        },
+        "SYR_LR": {
+            "name": "SYR_LR",
+            "input_pdf": Path(TEST_IPCC_SYR, "lr", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "syr", "lr", "pages"),
+            "footer_height": 50,
+            "header_height": 50
+        },
+        "SYR_SPM": {
+            "name": "SYR_SPM",
+            "input_pdf": Path(TEST_IPCC_SYR, "spm", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "syr", "spm", "pages"),
+            "footer_height": 50,
+            "header_height": 50
         },
         "SROCC_TS": {
             "name": "SROCC_TS",

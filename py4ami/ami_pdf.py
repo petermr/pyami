@@ -1,6 +1,7 @@
 """ Mainly for converting PDF to HTML and SVG """
 import argparse
 import base64
+from binascii import b2a_hex
 import copy
 import json
 import logging
@@ -31,7 +32,7 @@ from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy, HtmlStyle, HtmlLib, AmiFont
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
-# local
+from py4ami.file_lib import FileLib
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util, AbstractArgs, AmiArgParser
 from py4ami.xml_lib import XmlLib
@@ -1984,7 +1985,7 @@ class AmiPlumberJsonPage:
                 last_span = span
             else:
                 self.add_character_and_update_right_coord(span, text, x1)
-
+        pass
         return spanlist
 
     # AmiPlumberJsonPage:
@@ -1994,10 +1995,11 @@ class AmiPlumberJsonPage:
         try:
             span.text += text
         except ValueError as e:
-            print(f"Cannot add text to XML [{text}]")
+            chars = [ord(t) for t in text]
+            print(f"Cannot add text to XML [{text} {len(text)} {chars}]")
             if span.text == None:
                 span.text = ""
-            span.text += "?"
+            span.text += chr(127) # block
 
     # AmiPlumberJsonPage:
 
@@ -2040,6 +2042,7 @@ class AmiPlumberJsonPage:
         html_page = HtmlLib.create_html_with_empty_head_body()
         HtmlLib.add_head_style(html_page, "div", [("border", "red solid 0.5px")])
         HtmlLib.add_head_style(html_page, "span", [("border", "blue dotted 0.5px")])
+
         body = HtmlLib.get_body(html_page)
         spans = self.get_spans()
         last_y0 = None
@@ -2050,6 +2053,7 @@ class AmiPlumberJsonPage:
         for span in spans:
             font_size, y0, y1 = self.extract_coords_and_font_properties(span)
             delta_y = y0 - last_y0 if last_y0 else None
+            joined = False
             if self.capture_header(y0, rc.header_y, header_span_list, span) or \
                 self.capture_footer(y1, rc.footer_y, footer_span_list, span):
                 continue
@@ -2057,13 +2061,27 @@ class AmiPlumberJsonPage:
                 div = self.create_div_with_coords(div, span)
                 body.append(div)
                 div.append(span)
-            elif self.join_spans(last_span, span):
-                last_span = span
+            elif self.have_identical_font_properties(last_span, span):
+                joiner = self.get_text_joiner(delta_y, last_span, last_y0, span, y0)
+                last_span.text += joiner + span.text
+                joined = True
             else:
                 div.append(span)
             last_y0 = y0
-            last_span = span
+            if not joined:
+                last_span = span
         return html_page, header_span_list, footer_span_list
+
+    def get_text_joiner(self, delta_y, last_span, last_y0, span, y0):
+        """returns space or empty to join newlines"""
+        joiner = ""
+        if delta_y > 1.0 * abs(last_y0 - y0):  # newline
+            joiner = " "
+        elif last_span.text[-1] != " " and span.text[-1] != " ":
+            joiner = " "
+        return joiner
+
+    # AmiPlumberJsonPage:
 
     def extract_coords_and_font_properties(self, span):
         csss = CSSStyle.create_css_style_from_attribute_of_body_element(span)
@@ -2073,12 +2091,16 @@ class AmiPlumberJsonPage:
         x1 = csss.get_numeric_attval("x1")
         return font_size, y0, y1
 
+    # AmiPlumberJsonPage:
+
     def create_div_with_coords(self, div, span):
         div = lxml.etree.Element("div")
         div.attrib["left"] = span.attrib["x0"]
         div.attrib["right"] = span.attrib["x1"]
         div.attrib["top"] = span.attrib["y0"]
         return div
+
+    # AmiPlumberJsonPage:
 
     def create_region_clipper(self, ami_plumber):
         footer_height = float(ami_plumber.param_dict["footer_height"])
@@ -2092,11 +2114,15 @@ class AmiPlumberJsonPage:
 
         return region_clipper
 
+    # AmiPlumberJsonPage:
+
     def print_header_footer_lists(self, footer_span_list, header_span_list):
         for header_span in header_span_list:
             print(f"header {header_span.text}")
         for footer_span in footer_span_list:
             print(f"footer {footer_span.text}")
+
+    # AmiPlumberJsonPage:
 
     def must_create_newpara(self, delta_y, font_size, text, para_sep=1.4):
         if not delta_y or not text.strip():
@@ -2106,22 +2132,27 @@ class AmiPlumberJsonPage:
 # TODO make a class for these snipper operations
     def capture_header(self, y0, header_y, header_span_list, span):
         if y0 > header_y:
-            header_span_list.append(span)
+            self.remove_span_and_add_to_list(header_span_list, span)
+
+    def remove_span_and_add_to_list(self, span_list, span):
+        parent = span.getparent()
+        if parent is not None:
+            parent.remove(span)
+        span_list.append(span)
 
     def capture_footer(self, y1, footer_y, footer_span_list, span):
         if y1 < footer_y:
-            footer_span_list.append(span)
+            self.remove_span_and_add_to_list(footer_span_list, span)
 
-    def join_spans(self, last_span, span):
-        if last_span is None :
-            return False
-        last_props = self.font_properties(last_span)
-        props = self.font_properties(span)
-        # print(f"props: {props} / {last_props}")
-        if last_props != props:
-            return False
-        last_span.text += span.text
-        return True
+    # AmiPlumberJsonPage:
+
+    def have_identical_font_properties(self, last_span, span):
+        last_properties = self.font_properties(last_span)
+        properties = self.font_properties(span)
+        # print(f"last/p {last_properties} / {properties}")
+        return last_span is not None and last_properties == properties
+
+    # AmiPlumberJsonPage:
 
     def font_properties(self, elem):
         """
@@ -2207,9 +2238,10 @@ class AmiPDFPlumber:
 
     # AmiPDFPlumber
 
-    def debug_page(self, page0, imagedir=None):
-        for key in page0.keys():
-            value = page0[key]
+    def debug_page(self, page, imagedir=None):
+        json_page = page.page
+        for key in json_page.keys():
+            value = json_page[key]
             if key in [PLUMB_PAGE_NUMBER, PLUMB_INITIAL_DOCTOP, PLUMB_ROTATION, PLUMB_CROPBOX, PLUMB_MEDIABOX, PLUMB_BBOX,
                        PLUMB_WIDTH, PLUMB_HEIGHT]:
                 print(f"{key} >> {value}")
@@ -2254,15 +2286,38 @@ class AmiPDFPlumber:
                 pass
             elif k == "stream":
                 """Not yet solved
+                https://github.com/euske/pdfminer/blob/master/pdfminer/image.py#L62 ???
                 """
                 stream = im[k]
+                print(f"keys {stream.keys()}")
                 rawdata = stream['rawdata']
-                print(f"b64? {Util.is_base64(rawdata)}")
-                self.save_image(rawdata, str(Path(imagedir, name + ".png")))
+                print(f"stream type {type(rawdata)}")
+                filename = str(Path(imagedir, name + ".jpg"))
+                # print(f"writing {filename}")
                 print(f'rawdata {rawdata}')
+                # image = open(filename, "wb")
+                # decode_data = base64.decodebytes(rawdata.encode())
+                # image.write(decode_data)
+                # image.close()
             else:
                 print(f"{k} {im[k]}")
 
+    def determine_image_type(self, string):
+        """Find out the image file type based on the magic number comparison of the first 4 (or 2) bytes"""
+        file_type = None
+        bytes = string.encode()
+        bytes_as_hex = b2a_hex(bytes)
+        print(f"bytes f{bytes_as_hex[:100]}")
+        bytes_as_hex = str.encode(bytes_as_hex)
+        if bytes_as_hex.startswith('ffd8'):
+            file_type = '.jpeg'
+        elif bytes_as_hex == '89504e47':
+            file_type = '.png'
+        elif bytes_as_hex == '47494638':
+            file_type = '.gif'
+        elif bytes_as_hex.startswith('424d'):
+            file_type = '.bmp'
+        return file_type
     # AmiPDFPlumber
 
     def save_image(self, string, file):
@@ -2382,20 +2437,31 @@ class AmiPDFPlumber:
         ami_plumber_json = self.create_ami_plumber_json(input_pdf, pages=pages)
         ami_json_pages = ami_plumber_json.get_ami_json_pages()
         total_html = HtmlLib.create_html_with_empty_head_body()
+
         total_html_page_body = HtmlLib.get_body(total_html)
         for i, ami_json_page in enumerate(ami_json_pages):
             print(f"==============PAGE {i+1}================")
             html_page, footer_span_list, header_span_list = ami_json_page.create_html_page_and_header_footer(self)
             if debug:
-                self.print_header_footer_lists(footer_span_list, header_span_list)
-
-            XmlLib.write_xml(html_page, Path(output_page_dir, f"page_{i + 1}.html"))
+                ami_json_page.print_header_footer_lists(footer_span_list, header_span_list)
+            try:
+                XmlLib.write_xml(html_page, Path(output_page_dir, f"page_{i + 1}.html"))
+            except:
+                print(f"*******Cannot serialize page (probably strange fonts)******page{i+1}")
+                continue
             body_elems = HtmlLib.get_body(html_page).xpath("*")
             for elem in body_elems:
                 total_html_page_body.append(elem)
-        XmlLib.write_xml(total_html, Path(output_page_dir, "total_pages.html"))
-
-
+        path = Path(output_page_dir, "total_pages.html")
+        HtmlStyle.add_head_styles(
+            total_html,
+            [
+                ("div", [("border", "red solid 0.5px")]),
+                ("span", [("border", "blue dotted 0.5px")]),
+             ]
+        )
+        XmlLib.write_xml(total_html, path)
+        # print(f"encoding {FileLib.get_encoding(path)}")
 
     # AmiPDFPlumber
 

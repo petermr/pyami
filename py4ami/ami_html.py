@@ -491,6 +491,7 @@ class HtmlUtil:
     SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
     MARKER = "marker"
 
+
     @classmethod
     def remove_empty_elements(cls, elem, tag):
         """
@@ -1105,6 +1106,17 @@ class HtmlStyle:
             for classref in classref_list:
                 classref_index[classref] = classref0
         return classref_index
+
+    @classmethod
+    def add_head_styles(cls, html_elem, styles):
+        """
+        this is crude
+        'style of form
+            "div", [("border", "red solid 0.5px"), ("background", "yellow)])
+        """
+        for style in styles:
+            HtmlLib.add_head_style(html_elem, style[0], style[1])
+
 
 
 class HtmlClass:

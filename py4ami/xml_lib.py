@@ -379,10 +379,14 @@ class XmlLib:
         :param elem: xml element to write
         :param path: path to write to
         :except: bad encoding
+        The use of encoding='UTF-8' is because lxml has a bug in some releases
         """
         with open(path, "w") as f:
             try:
-                xmlstr = lxml.etree.tostring(elem, encoding='UTF-8').decode(encoding)
+                # this solves some problems but not unknown font encodings
+                # xmlstr = lxml.etree.tostring(elem, encoding='UTF-8').decode(encoding)
+
+                xmlstr = lxml.etree.tostring(elem).decode(encoding)
             except Exception as e:
                 raise ValueError(f"****** cannot decode XML: {e} *******")
             try:
@@ -531,6 +535,7 @@ class HtmlLib:
 
     @classmethod
     def add_head_style(cls, html_page, target, css_value_pairs):
+        """This might duplicate things in HtmlStyle"""
         if html_page is None or not target or not css_value_pairs:
             raise ValueError(f"None params in add_head_style")
         head = HtmlLib.get_head(html_page)
