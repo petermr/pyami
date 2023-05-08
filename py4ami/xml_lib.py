@@ -363,14 +363,31 @@ class XmlLib:
         except lxml.etree.XPathEvalError as e:
             logging.error(f"bad XPath {xpath}, {e}")
             raise e
+
+
     @classmethod
-    def elements_equal(cls, e1, e2):
+    def does_element_equal_serialized_string(cls, elem, string):
+        try:
+            elem1 = lxml.etree.fromstring(string)
+            return cls.are_elements_equal(elem, elem1)
+        except:
+            return False
+
+    @classmethod
+    def are_elements_equal(cls, e1, e2):
+        """compares 2 elements
+        :param e1:
+        :param e2:
+        :return: False if not equal
+        """
+        if type(e1) is not lxml.etree._Element or type(e2) is not lxml.etree._Element:
+            raise ValueError(f" not a pair of XML elements {e1} {e2}")
         if e1.tag != e2.tag: return False
         if e1.text != e2.text: return False
         if e1.tail != e2.tail: return False
         if e1.attrib != e2.attrib: return False
         if len(e1) != len(e2): return False
-        return all(cls.elements_equal(c1, c2) for c1, c2 in zip(e1, e2))
+        return all(cls.are_elements_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
     @classmethod
     def write_xml(cls, elem, path, encoding="UTF-8"):

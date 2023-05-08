@@ -278,7 +278,7 @@ class HtmlTidy:
         remove objects if flags have been set in self
         """
         if self.add_id:
-            HtmlUtil.add_ids(self.raw_elem)
+            HtmlUtil.add_generated_ids(self.raw_elem)
         for tag in self.descendants_to_remove:
             lxml.etree.strip_tags(self.raw_elem, [tag])
         if self.remove_lh_line_numbers:
@@ -647,24 +647,77 @@ class HtmlUtil:
         :param ydown: True if y increases down thr page (e.g. SVG) (DEFAULT) else False
         :return: True if smaller and moved in right y-direction
         """
-        if last_span is None:
+        if this_span is None:
             return False
+        # try to find missing last_span
+        if last_span is None:
+            last_span = this_span.xpath("preceding::span")
+            if len(last_span) == 0:
+                return False
+            last_span = last_span[0]
         last_font_size = last_span.text_style._font_size
         this_font_size = this_span.text_style._font_size
-        # is it smaller?
-        if this_font_size < HtmlUtil.SCRIPT_FACT * last_font_size:
+        is_script = cls.is_required_script_type(script_type, last_font_size, last_span, this_font_size, this_span,
+                                                ydown)
+        return is_script
+
+    @classmethod
+    def is_required_script_type(cls, script_type, last_font_size, last_span, this_font_size, this_span, ydown=True, ):
+        """old approach with AmiSpan"""
+        is_script = False
+        script_factor = HtmlUtil.SCRIPT_FACT
+        if this_font_size < script_factor * last_font_size:
             last_y = last_span.y
             this_y = this_span.y
             if script_type == SScript.SUB:
                 # is it lowered? Y DOWN
-                return ydown and (last_y < this_y)
+                is_script = ydown and (last_y < this_y)
             elif script_type == SScript.SUP:
                 # is it raised? Y DOWN
-                return ydown and (last_y > this_y)
+                is_script = ydown and (last_y > this_y)
             else:
                 raise ValueError("bad script type ", script_type)
-        else:
-            return False
+        return is_script
+
+    @classmethod
+    def annotate_script_type(cls, span, script_type, script_factor=None, last_span=None, ydown=True):
+        """is a span a sub or superscript?
+        :param span: to test
+        :param script_type: SScript.SUB or SScript.SUPER
+        :param script_factor: if None, defaults to HtmlUtil.SCRIPT_FACT
+        :param last_span: preceding span; if None tries xpath("preceding::span")
+        :param ydown: is y running donw the page?
+        """
+        if span is None or not script_type:
+            return None
+        if not script_factor:
+            script_factor = HtmlUtil.SCRIPT_FACT
+        if not last_span:
+            last_span = span.xpath("preceding::span")
+            if len(last_span) == 0:
+                return None
+            last_span = last_span[-1]
+        csss = CSSStyle.create_css_style_from_attribute_of_body_element(span)
+        last_csss = CSSStyle.create_css_style_from_attribute_of_body_element(last_span)
+        font_size = csss.font_size
+        last_font_size = last_csss.font_size
+        # print(f"this, last {font_size, span.text, last_font_size, last_span.text}")
+        is_script = None
+        if font_size < script_factor * last_font_size:
+            # print(f"TEST {last_span.text}/{span.text}")
+            last_y = CSSStyle.get_y0(last_span)
+            this_y = CSSStyle.get_y0(span)
+            if script_type == SScript.SUB:
+                # is it lowered? Y DOWN
+                is_script = ydown == (last_y < this_y)
+            elif script_type == SScript.SUP:
+                # is it raised? Y DOWN
+                is_script = ydown == (last_y > this_y)
+            if is_script:
+                print(f"script: {last_span.text}/{span.text}")
+                pass
+        return is_script
+
 
     @classmethod
     def set_attrib(cls, element, attname, attvalue):
@@ -683,7 +736,7 @@ class HtmlUtil:
         return ''.join(elem.itertext())
 
     @classmethod
-    def add_ids(cls, root_elem):
+    def add_generated_ids(cls, root_elem):
         """adds IDs to all elements in document order
         :param root_elem: element defining tree of subelements"""
         xpath = "//*"
@@ -766,7 +819,7 @@ class HtmlUtil:
 
         last_top = 0
         for elem in ref_elem.xpath("//*[@style]"):
-            ycoord0 = CSSStyle.create_css_style_from_attribute_of_body_element(elem).get_numeric_attval("top")
+            ycoord0 = HtmlUtil.get_y0(elem)
             if not ycoord0:
                 continue
             text = XmlLib.get_text(elem).strip()
@@ -927,7 +980,7 @@ class HtmlUtil:
             style = HtmlStyle.get_style(styled_elem)
 
     @classmethod
-    def extract_substring(cls, elem, xpath=None, regex=None, remove=False):
+    def extract_substrings(cls, elem, xpath=None, regex=None, remove=False, include_none=False, add_id=False):
         """gets substring from body of text in elem
         regex of form (?P<pre>)(?P<body>)(?P<post>)
         pre and or post can be missing
@@ -935,7 +988,9 @@ class HtmlUtil:
         :param elem:to query
         :param xpath: to find descendant subelement
         :param regex: to find string in subelement (must have 3 capture groups)
-        :param remove: removes body text and joins pre to post
+        :param remove: removes body text and joins pre to post (use with care, default False)
+        :param include_none: If true include failed matches as None; default False
+        :param_add_id: add extracted text as attribute on subelement
         if pre and tail are present, elem.text =< pre+post
         if pre is missing elem.text => post
         if tail is missing elem.text => pre
@@ -944,21 +999,251 @@ class HtmlUtil:
         """
         sub_elems = elem.xpath(xpath)
         sub_elem = sub_elems[0] if len(sub_elems) > 0 else None
+        substrings = []
+        re0 = re.compile(regex)
+        for sub_elem in sub_elems:
+            substring = cls.extract_substring(re0, remove, sub_elem)
+            if substring and add_id:
+                sub_elem.attrib["id"] = substring
+            if substring or include_none:
+                substrings.append(substring)
+        return substrings
+
+    @classmethod
+    def extract_substring(cls, re0, remove, sub_elem):
+        match = re0.match(sub_elem.text)
         substring = None
-        if sub_elem is not None:
-            re0 = re.compile(regex)
-            match = re0.match(sub_elem.text)
-            if match:
-                substring = match.group("body")
-                if remove:
-                    try:
-                        pre = match.group("pre")
-                        post = match.group("post")
-                        sub_elem.text = pre + post
-                    except:
-                        substring = None
-                return substring
+        if match:
+            substring = match.group("body")
+            if remove:
+                try:
+                    pre = match.group("pre")
+                    post = match.group("post")
+                    sub_elem.text = pre + post
+                except:
+                    pass
+        return substring
+
+
+class HtmlAnnotator:
+    """inline annotator for HTML elements
+    stores and runs AnnotationCommands
+
+    annotator = Annotator()
+    command = AnnotatorCommand(html_class="section_title", regex="Section\s+(?P<id>\d+):\s+(?P<title>.*)", add_id=True, add_title=True)
+    annotator.add_command(command)
+    annotator.run_commands(elem)
+
+    """
+
+    def __init__(self):
+        self.commands = []
+
+    def add_command(self, command):
+        if command:
+            self.commands.append(command)
+
+    def run_commands(self, target_elem):
+        """
+        iterate commands (order is order of their addition
+        """
+        for command in self.commands:
+            command.edit(target_elem)
+
+    @classmethod
+    def create_ipcc_annotator(cls):
+        """a set of general operations for IPCC"""
+        annotator = HtmlAnnotator()
+        annotator.add_command(
+            AnnotatorCommand(html_class="section_title", regex="Section\s+(?P<id>\d+):\s+(?P<title>.*)",
+                             add_id="section_|", add_title="|", style="{color : blue; background : pink;}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="sub_section_title", regex="\s*(?P<id>\d+\.\d+)\s+(?P<title>.*)",
+                             add_id="subsection_|", add_title="|", style="{color : green; background : yellow;}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="sub_sub_section_title", regex="^\s*(?P<id>\d+\.\d+\.\d+)\s+(?P<title>.*)",
+                             add_id="subsection_|", add_title="|", style="{color : black; background : #dddddd;}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="confidence",
+                             regex="^\s*\(?(?P<title>(very high|high|medium|low) confidence)\)?",
+                             add_id="confidence_|", add_title="|", style="{color : black; background : #dd88dd;}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="probability",
+                             regex="^\s*\(?(?P<title>(likely|very likely|extremely likely|virtually certain))\)?",
+                             add_id="probability_|", add_title="|", style="{color : cyan; background : #dd8888;}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="superscript", script="super", add_id="super_|", add_title="|",
+                             style="{color : blue; backgroound: yellow}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="start", regex="\s*\[?START\s*(?P<title>FIGURE|TABLE)\s*(?P<id>\d+\.\d+)\s*(HERE)?\]?",
+                             add_id="start_|", add_title="start_|", style="{color : green; background: pink}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="end", regex="\s*\[?END\s*(?P<title>FIGURE|TABLE)\s*(?P<id>\d+\.\d+)\s*(HERE)?\]?",
+                             add_id="end_|", add_title="end_|", style="{color : green; background: blue}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="targets", regex=".*\{(?P<title>.+)\}.*",
+                             add_id="chunk_|", add_title="|", style="{color : green; background: orange}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="cruft", regex="^.*(Subject to Copy Edit |Adopted Longer Report IPCC AR6 SYR).*$",
+                             add_id="cruft_|", add_title="|", delete=True, style="{color : green; background: black}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="page", regex="^(?P<title>p\.\d+)",
+                              add_title="|", style="{color : purple}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="fact", xpath="self::span[contains(@class, 'confidence')]/preceding-sibling::span[1]",
+                              style="{color : purple}"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="extract", group_xpath="//span[contains(@class, 'start')]", ))
+
+        return annotator
+
+
+ANN_SPLIT = "|"
+LEN_TITLE = 50
+class AnnotatorCommand:
+    """an annotation command
+    e.g.
+    command = AnnotatorCommand(html_class="section_title", regex="Section\s+(?P<id>\d+):\s+(?P<title>.*)", add_id=True, add_title=True)
+    annotator.add_command(command)
+    annotator.run_commands
+
+    """
+
+    def __init__(self, html_class=None, regex=None, add_id=None, add_title=None, script=None, style=None,
+                 delete=False, xpath=None, group_xpath=None):
+        self.html_class = html_class
+        self.re = None
+        if regex:
+            try:
+                self.re = re.compile(regex)
+            except Exception as e:
+                raise ValueError(f"Cannot compile regex {regex} because {e}")
+
+        # add_id and add_title are of form foo|bar where extracted id replaces |
+        if add_id:
+            add_id = add_id.split(ANN_SPLIT)
+        self.add_id = None if not add_id or len(add_id) != 2 else add_id
+        if add_title:
+            add_title = add_title.split(ANN_SPLIT)
+        self.add_title= None if not add_title or len(add_title) != 2 else add_title
+
+        self.html_class = html_class
+        self.script = script
+        self.style = style
+        self.delete = delete
+        self.xpath = xpath
+        self.group_xpath = group_xpath
+
+    def edit(self, elem):
+        if self.re:
+            self.edit_regex(elem)
+        elif self.extract(elem):
+            self.edit_extract(elem)
+        elif self.xpath :
+            self.edit_xpath(elem)
+        elif self.script == "sub":
+            self.edit_subscript(elem)
+        elif self.script == "super":
+            self.edit_superscript(elem)
+        elif self.group_xpath is not None:
+            """ this is a span, get the parent"""
+            self.edit_group_xpath(elem)
+
+    def edit_regex(self, elem):
+        text = elem.text
+        match = self.re.match(text)
+        if match:
+            if self.delete:
+                self.remove_elem(elem)
+                return
+            if self.add_id and "id" in match.groupdict():
+                elem.attrib["id"] = self.add_id[0] + match.group("id") + self.add_id[1]
+            if self.add_title and "title" in match.groupdict():
+                elem.attrib["title"] = self.add_title[0] + match.group("title") + self.add_title[1][:LEN_TITLE]
+            if self.html_class:
+                self.update_class(elem, self.html_class)
+
+    def edit_xpath(self, elem):
+        xp_elems = elem.xpath(self.xpath)
+        if not xp_elems:
+            return
+        for xp_elem in xp_elems:
+            # print(f"XPATH!!! {xp_elem.text}")
+            if self.delete:
+                xp_elem.getparent().remove(xp_elem)
+                return
+            if self.html_class:
+                # print(f"update!!! {self.html_class}")
+                self.update_class(xp_elem, self.html_class)
+                tostring = lxml.etree.tostring(xp_elem)
+                # print(f"=> {tostring}")
+                pass
+
+    def update_class(self, elem, html_class):
+        classes = []
+        if elem.attrib.get("class"):
+            classes = elem.attrib["class"].split(" ")
+        if html_class not in classes:
+            classes.append(html_class)
+            elem.attrib["class"] = " ".join(classes)
+
+    def edit_subscript(self, span):
+        is_sub = HtmlUtil.annotate_script_type(span, SScript.SUB, ydown=False)
+        if is_sub:
+            span.attrib["title"] = "subscript_{span.text}"
+            print(f"SUB {span.text}")
+
+    def edit_superscript(self, span):
+        is_super = HtmlUtil.annotate_script_type(span, SScript.SUP, ydown=False)
+        if is_super:
+            span.attrib["title"] = f"superscript_{span.text}"
+            print(f"SUPER {span.text}")
+
+    def edit_group_xpath(self, child_elem):
+        """group following siblings of elem"""
+
+        result = None
+        if child_elem is None:
+            return None
+        parent_elem = child_elem.getparent()
+        if parent_elem is None:
+            print(f"Null parent for {lxml.etree.tostring(child_elem)}")
+            return None
+        # print(f"parent!!!! ")
+        group_leads = parent_elem.xpath(self.group_xpath)
+        for i, group_lead in enumerate(group_leads):
+            end_grouo = group_leads[i + 1] if i < len(group_leads) - 1 else None
+            self.make_group(parent_elem, group_lead, end_grouo)
+
+    def make_group(self, elem, group_lead, end_group):
+        parent = self.getparent(elem)
+        div = lxml.etree.SubElement(parent, "div")
+        div.attrib["title"] = group_lead.text
+        parent.insert(parent.index(group_lead), div)
+        siblings = group_lead.xpath("following-sibling::*")
+        if len(siblings) == 0:
+            print(f"no siblings: {group_lead.text}")
+        for sibling in siblings:
+            if sibling != end_group:
+                print(f"sibling {sibling}")
+                elem.append(sibling)
+        return div
+
+    def extract(self, elem):
+        """extract group. optinally write to file"""
+        pass
         return None
+
+    def remove_elem(self, elem, debug=False):
+        if elem is None:
+            return
+        parent = elem.getparent()
+        if parent is None:
+            if debug:
+                print(f"element {elem} has no parent")
+            return
+        parent.remove(elem)
+
 
 
 class HtmlStyle:
@@ -1149,6 +1434,7 @@ class HtmlStyle:
             "div", [("border", "red solid 0.5px"), ("background", "yellow)])
         """
         for style in styles:
+            print(f"style {style}")
             HtmlLib.add_head_style(html_elem, style[0], style[1])
 
 
@@ -1963,7 +2249,7 @@ class TargetExtractor:
         assert xml_inpath.exists(), f"{xml_inpath} should exist"
         tree = lxml.etree.parse(str(xml_inpath))
         root = tree.getroot()
-        HtmlUtil.add_ids(root) # adds ids to each element
+        HtmlUtil.add_generated_ids(root) # adds ids to each element
         if div_xp is None or regex_dict is None:
             return None
         print(f"div_xp {div_xp}")
@@ -2098,7 +2384,9 @@ class TargetExtractor:
 
     @classmethod
     def extract_ipcc_fulltext_into_source_target_table(cls, file):
-        """partly written by ChatGPT (2023-04-06"""
+        """
+        partly written by ChatGPT (2023-04-06) but mainly by PMR
+        """
         tree = ET.parse(file)
         root = tree.getroot()
         # Initialize the table
@@ -2163,7 +2451,7 @@ class TargetExtractor:
             raise ValueError(f"node names are none")
         node_col = self.column_dict.get(node_name)
         if not node_col:
-            raise ValueError(f"node name {node_name} not in column_dict {self.column_dict}")
+            raise ValueError(f"node name '{node_name}' not in column_dict {self.column_dict.keys()}")
         node_dict = defaultdict(int)
         for row in table:
             node_dict[row[node_col]] += 1
@@ -2878,6 +3166,35 @@ class CSSStyle:
             self.get_attribute(CSSStyle.STROKE),
             self.get_attribute(CSSStyle.FONT_FAMILY)
         )
+
+    @classmethod
+    def get_coords(cls, elem):
+        """
+        :return: x0, x1, y0, y1
+        """
+        csss = cls.create_css_style_from_attribute_of_body_element(elem)
+        x0 = csss.get_numeric_attval("x0")
+        x1 = csss.get_numeric_attval("x1")
+        y0 = csss.get_numeric_attval("y0")
+        y1 = csss.get_numeric_attval("y1")
+        return (x0, y0, x1, y1)
+
+    @classmethod
+    def get_x0(cls, elem):
+        return cls.get_coords(elem)[0]
+
+    @classmethod
+    def get_y0(cls, elem):
+        return cls.get_coords(elem)[1]
+
+    @classmethod
+    def get_x1(cls, elem):
+        return cls.get_coords(elem)[2]
+
+    @classmethod
+    def get_y1(cls, elem):
+        return cls.get_coords(elem)[3]
+
 
 
 

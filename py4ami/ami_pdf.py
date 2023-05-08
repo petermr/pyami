@@ -2433,7 +2433,7 @@ class AmiPDFPlumber:
 
     # AmiPDFPlumber
 
-    def create_html_pages(self, input_pdf, output_page_dir, pages=None, debug=False):
+    def create_html_pages(self, input_pdf, output_page_dir, pages=None, debug=False, outstem="total_pages"):
         ami_plumber_json = self.create_ami_plumber_json(input_pdf, pages=pages)
         ami_json_pages = ami_plumber_json.get_ami_json_pages()
         total_html = HtmlLib.create_html_with_empty_head_body()
@@ -2452,7 +2452,7 @@ class AmiPDFPlumber:
             body_elems = HtmlLib.get_body(html_page).xpath("*")
             for elem in body_elems:
                 total_html_page_body.append(elem)
-        path = Path(output_page_dir, "total_pages.html")
+        path = Path(output_page_dir, f"{outstem}.html")
         HtmlStyle.add_head_styles(
             total_html,
             [

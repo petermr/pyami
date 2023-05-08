@@ -1,5 +1,4 @@
 """Create, transform, markup up HTML, etc."""
-import copy
 import logging
 import os
 import pprint
@@ -7,22 +6,20 @@ import re
 import unittest
 from collections import Counter, defaultdict
 from pathlib import Path
-import pandas as pd
 
 import lxml.etree
+import pandas as pd
 
 # local
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
-from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor, Target
-
+from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor, Target, AnnotatorCommand, HtmlAnnotator
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont, \
-    FloatExtractor, FloatBoundary, FloatBoundaryDict, Footnote
+    FloatBoundary, Footnote
 from py4ami.ami_pdf import PDFArgs
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib, XmlLib
-
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
@@ -398,7 +395,7 @@ class TestHtml(AmiAnyTest):
         HtmlUtil.split_span_at_match(span, regex, new_tags=["b", "a", "i"],
                                      recurse=False, id_root="ss", id_counter=0)
         assert len(div.getchildren()) == 3
-        print(f"{lxml.etree.tostring(div)}")
+        # print(f"{lxml.etree.tostring(div)}")
         bb = b'<div><b style="font-size: 12; font-weight: bold;" class="re_pref"' \
              b' id="ss0">We believe the </b><a style="font-size: 12; font-weight: bold;"' \
              b' class="re_match" id="ss1">GHG</a><i style="font-size: 12; font-weight: bold;"' \
@@ -409,7 +406,7 @@ class TestHtml(AmiAnyTest):
         test_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         test_dir.mkdir(exist_ok=True)
         with open(str(Path(test_dir, "add_href.html")), "wb") as f:
-            f.write(lxml.etree.tostring(div))
+            f.write(lxml.etree.tostring(div, method="html"))
 
     def test_markup_chapter_with_dictionary_no_css(self):
         """read dictionary file and index a set of spans
@@ -508,12 +505,13 @@ class TestHtml(AmiAnyTest):
         last_style = None
         for div in divs:
             spans = div.xpath("./span")
-            print(f"spans {len(spans)}")
+            # print(f"spans {len(spans)}")
             for span in spans:
                 style = CSSStyle.create_css_style_from_attribute_of_body_element(span)
-                print(f"{style}")
+                # print(f"{style}")
                 if style == last_style:
-                    print(f"styles match")
+                    # print(f"styles match")
+                    pass
                 last_span = span
                 last_style = style
 
@@ -681,7 +679,7 @@ class TestHtml(AmiAnyTest):
 
         Target.make_dirs_from_targets(common_target_tuples, temp_dir)
 
-    def test_create_target_node_dir_trees_from_ipcc_chapters_DEVELOP(self):
+    def test_create_target_node_dir_trees_from_ipcc_chapters_DEVELOP_HACKATHON(self):
         """reads a chapter in HTML, finds targets in {...'...} , uses div id as anchor
         and builds directory tree of targets
         """
@@ -690,11 +688,17 @@ class TestHtml(AmiAnyTest):
             "wg2_spm",
             "wg3_spm",
         ]
+        target_extractor = TargetExtractor.create_target_extractor(
+            ['id', 'source', 'target', 'package', 'section', 'object', 'subsection', 'source_text'])
+
         for package in packages:
             file = Path(Resources.TEST_IPCC_DIR, package, "fulltext.html")
             table = TargetExtractor.extract_ipcc_fulltext_into_source_target_table(file)
-            common_source_tuples = TargetExtractor.find_commonest_in_node_lists(table, node_name="source")
-            common_target_tuples = TargetExtractor.find_commonest_in_node_lists(table, node_name="target")
+            df = pd.DataFrame(table)
+            print(f"df {df}")
+            print(f"row0 /1 {table[:2]}")
+            common_source_tuples = target_extractor.find_commonest_in_node_lists(table, node_name="source")
+            common_target_tuples = target_extractor.find_commonest_in_node_lists(table, node_name="target")
             ipcc_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc")
             temp_dir = Path(ipcc_dir, f"{package}_network")
             print(f"writing to {temp_dir}")
@@ -875,7 +879,7 @@ class TestHtml(AmiAnyTest):
         in_file = str(Path(Resources.TEST_IPCC_CHAP06, "fulltext.html"))
         html_entity = lxml.etree.parse(in_file)
         html_searcher.add_xpath("text_with_paren", descend_with_paren_in_text)
-        print(f"XPATH... {html_searcher.xpath_dict.keys()}")
+        # print(f"XPATH... {html_searcher.xpath_dict.keys()}")
         html_searcher.add_chunk_re(balanced_brackets)
         html_searcher.add_splitter_re(comma_semicolon_chunks)
         html_searcher.add_subnode_key_re("ref", dates1920)
@@ -889,6 +893,64 @@ class TestHtml(AmiAnyTest):
         html_path = Path(Resources.TEST_IPCC_CHAP02, "maintext_old.html")
         html_searcher.search_path_chunk_node(html_path)
 
+    def test_write_list_of_text_strings_as_html(self):
+        """read a list of strings and outout as (X)HTML
+        """
+        import xml.etree.ElementTree as ET
+        strings = [
+            "WG1 physical basis",
+            "WG2 adaptation",
+            "WG3 mitigation",
+        ]
+        html = ET.Element('html')
+        head = ET.SubElement(html, 'head')
+        style = ET.SubElement(head, "style")
+        style.text = ".wg1 {color: red;}" \
+                     "div {background: cyan;}" \
+                     "span {background: pink;} "
+        title = ET.SubElement(head, 'title')
+        title.text = "test html"
+
+        body = ET.SubElement(html, 'body')
+        ul = ET.SubElement(body, "ul")
+        for string in strings:
+            li = ET.SubElement(ul, "li")
+            li.text = string
+            if string.startswith("WG1"):
+                li.attrib["class"] = "wg1"
+        div = ET.SubElement(body, "div")
+        span = ET.SubElement(div, "span")
+        span.attrib["style"] = "font-size: 10px; color:green;"
+        span.text = "The physical basis of climate change"
+        span = ET.SubElement(div, "span")
+        span.attrib["style"] = "font-size: 20px; border: blue dotted 1px;"
+        span.text = "very important"
+
+
+        ET.dump(html)
+        path = Path(AmiAnyTest.TEMP_HTML_DIR, "misc", "list.html")
+        with open(path, "wb") as f:
+            f.write(ET.tostring(html, method='html'))
+            assert path.exists()
+
+
+DEFAULT_STYLES = [
+    (".section_title", [("color",  "red;")]),
+    (".sub_section_title", [("color", "blue;")]),
+    (".sub_sub_section_title", [("color", "green;")]),
+    (".confidence", [("color", "orange;")]),
+    (".probability", [("color", "#8888ff;")]),
+    (".superscript", [("color", "magenta;"), ("background", "yellow;")]),
+    (".chunk", [("background", "cyan;")]),
+    (".targets", [("background", "#88ff88;")]),
+    (".start", [("background", "gray;")]),
+    (".end", [("background", "yellow;")]),
+    (".page", [("background", "magenta;")]),
+    (".statement", [("background", "#ddddff;")]),
+    (".level1", [("background", "#ffffdd;")]),
+    (".level2", [("background", "#ddffff;")]),
+    (".level3", [("background", "#ddffdd;")]),
+]
 
 
 class Test_PDFHTML(AmiAnyTest):
@@ -928,33 +990,51 @@ class Test_PDFHTML(AmiAnyTest):
 
     def test_extract_string(self):
         elem = lxml.etree.fromstring("""<div><span>lead A.1.2 rest</span></div>""")
-        substring = HtmlUtil.extract_substring(elem, xpath='./span',
-                                               regex='.*(?P<body>[A-Z]\.\d(\.\d+)*)', remove=False)
-        assert substring == "A.1.2"
+        substrings = HtmlUtil.extract_substrings(elem, xpath='./span',
+                                                regex='.*(?P<body>[A-Z]\.\d(\.\d+)*)', remove=False, add_id=False)
+        assert substrings == ["A.1.2"]
         assert lxml.etree.tostring(elem).decode() == "<div><span>lead A.1.2 rest</span></div>"
 
         elem = lxml.etree.fromstring("""<div><span>lead A.1.2 rest</span></div>""")
-        substring = HtmlUtil.extract_substring(elem, xpath='./span',
-                                               regex='(?P<pre>.*)(?P<body>[A-Z]\.\d(\.\d+)*)(?P<post>.*)', remove=True)
-        assert substring == "A.1.2"
-        assert lxml.etree.tostring(elem).decode() == "<div><span>lead  rest</span></div>"
+        substrings = HtmlUtil.extract_substrings(elem, xpath='./span',
+                            regex='(?P<pre>.*)(?P<body>[A-Z]\.\d(\.\d+)*)(?P<post>.*)', remove=True, add_id=True)
+        assert substrings == ["A.1.2"]
+        assert lxml.etree.tostring(elem).decode() == '<div><span id="A.1.2">lead  rest</span></div>'
+        spans = elem.xpath(".//span[@id='A.1.2']")
+        assert len(spans) == 1
 
-    # no post string
-        elem = lxml.etree.fromstring("""<div><span>lead A.1.2 rest</span></div>""")
-        substring = HtmlUtil.extract_substring(elem, xpath='./span',
-                                               regex='(?P<pre>.*)(?P<body>[A-Z]\.\d(\.\d+)*).*', remove=True)
-        assert substring == None
-        assert lxml.etree.tostring(elem).decode() == "<div><span>lead A.1.2 rest</span></div>"
+        #multiple
+        elem = lxml.etree.fromstring("""<div><span>lead A.1.2 rest</span><span>some junk</span><span>lead A.1.3 rest</span></div>""")
+        substrings = HtmlUtil.extract_substrings(
+            elem, xpath='./span', regex='(?P<pre>.*)(?P<body>[A-Z]\.\d(\.\d+)*).*', remove=False, include_none=True, add_id=True)
+        assert substrings == ["A.1.2", None, "A.1.3"]
+        assert XmlLib.are_elements_equal(elem, lxml.etree.fromstring(
+            "<div><span id='A.1.2'>lead A.1.2 rest</span><span>some junk</span><span id=\"A.1.3\">lead A.1.3 rest</span></div>"
+        )
+                                         )
+        #multiple
+        elem = lxml.etree.fromstring("""
+        <div><span>lead A.1.2 rest</span><span>some junk</span><span>lead A.1.3 rest</span></div>""")
+        substrings = HtmlUtil.extract_substrings(
+            elem, xpath='./span', regex='(?P<pre>.*)(?P<body>[A-Z]\.\d(\.\d+)*).*', remove=False, add_id=True)
+        assert substrings == ["A.1.2", "A.1.3"]
+        assert XmlLib.are_elements_equal(elem, lxml.etree.fromstring(
+            '<div><span id="A.1.2">lead A.1.2 rest</span><span>some junk</span><span id="A.1.3">lead A.1.3 rest</span></div>'
+        )
+                                         )
 
     def test_extract_ids_page_IPCC(self):
         input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", "page_6.html")
         html_elem = lxml.etree.parse(str(input_html))
+        divs = html_elem.xpath(".//div")
+        print(f"divs {len(divs)}")
         section_regex = "(?P<pre>Section\s*)(?P<body>\d+)(?P<post>:.*)"
         subsection_regex = "(?P<pre>\s*)(?P<body>\d+(\.\d+)+)(?P<post>.*)"
-        sections, subsections = self.extract_sections_subsections(
-            html_elem, section_regex=section_regex, subsection_regex=subsection_regex)
-        assert len(sections) == 1
-        assert len(subsections) == 2
+        sections, subsections = self.extract_section_ids(
+            html_elem, regexes=[section_regex, subsection_regex])
+        assert len(sections) == 9
+        assert len(subsections) == 0
+
 
     def test_extract_ids_pages_IPCC(self):
         input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", "total_pages.html")
@@ -962,8 +1042,8 @@ class Test_PDFHTML(AmiAnyTest):
         section_regex = "(?P<pre>Section\s*)(?P<body>\d+)(?P<post>:.*)"
         subsection_regex = "(?P<pre>\s*)(?P<body>\d+(\.\d+)+)(?P<post>.*)"
 
-        sections, subsections = self.extract_sections_subsections(
-            html_elem, section_regex=section_regex, subsection_regex=subsection_regex)
+        sections, subsections = self.extract_section_ids(
+            html_elem, regexes=[section_regex, subsection_regex])
         assert sections == ['1', '2', '3', '4', '1', '2', '3', '4']
 
         assert subsections == [
@@ -1001,21 +1081,53 @@ class Test_PDFHTML(AmiAnyTest):
  '4.8', '4.8.1', '4.8.2', '4.8.3',
  '4.9']
 
-    def extract_sections_subsections(self, html_elem, section_regex=None, subsection_regex=None ):
-        divs = html_elem.xpath(".//div")
+    def test_extract_target_links_from_page(self):
+        """extracts target ids from trailing {} on sections and paras"""
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", "page_16.html")
+        html_elem = lxml.etree.parse(str(input_html))
+        section_regex = "(?P<pre>.*)(?P<body>\{.*\})(?P<post>.*)"
+        sections, subsections = self.extract_section_ids(
+            html_elem, xpath=".//span", section_regex=section_regex)
+        assert len(sections) == 1
+        assert len(subsections) == 2
+
+
+
+    def extract_section_ids(self, html_elem, xpaths=[".//div", "./span"], regexes=None):
+        """
+        extracts sections and possibly subsections from compound elements (e.g. div)
+        :param html_elem: compound element
+        :param xpaths: list of xpath for section, optional subsection, currently len 1 or 2,
+          single xpath is then wrapped to list; default [".//div", "./span"]
+        :param regexes: list of regexes for each descent; single is wrapped to list ; if none given
+          accepts all descendants from xpath
+        """
+        if not xpaths:
+            return None
+        if not type(xpaths) is list:
+            xpaths = [xpaths]
+        assert 0 < len(xpaths) <= 2, f"no xpaths given"
+
+        if not regexes:
+            regexes = []
+        if not type(regexes) is list:
+            regexes = [regexes]
+
+        print(f"xpaths {xpaths}")
+        divs = html_elem.xpath(xpaths[0])
+        print(f"divsxx {len(divs)}")
         sections = []
         subsections = []
         for div in divs:
-            if section_regex:
-                section_id = HtmlUtil.extract_substring(div, xpath="./span",
-                                                        regex=section_regex)
+            if regexes[0]:
+                section_id = HtmlUtil.extract_substrings(div, xpath=xpaths[0], regex=regexes[0])
                 if section_id:
                     sections.append(section_id)
                     continue
-            if subsection_regex:
-                subsection_id = HtmlUtil.extract_substring(div, xpath="./span",
-                                                           regex=subsection_regex,
-                                                           remove=True)
+            if regexes[1]:
+                subsection_id = HtmlUtil.extract_substrings(div, xpath=xpaths[1],
+                                                            regex=regexes[1],
+                                                            remove=False)
                 if subsection_id:
                     subsections.append(subsection_id)
         return sections, subsections
@@ -1032,6 +1144,100 @@ class Test_PDFHTML(AmiAnyTest):
             print (f"div: {div_text[:10000]}")
             rows.append(HtmlUtil.get_id(div), div_text)
         return rows
+
+
+    def test_annotate_pdf_html_page_HACKATHON(self):
+        """annotate divs and spans in semi-structured HTML
+        The input is usually of the form
+        <html><head/><body><div><span/><span/></div><div><span/><span/></div></body></html>
+        Typical div
+        <div><span>Section 2: Current Status and Trends</span></div>
+
+        """
+        p = 16
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", f"page_{p}.html")
+        html_elem = lxml.etree.parse(str(input_html)).getroot()
+        annotator = HtmlAnnotator.create_ipcc_annotator()
+        # annotator.add_head_style(html_elem, )
+        HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
+        spans = html_elem.xpath(".//span")
+        for span in spans:
+            annotator.run_commands(span)
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "lr")
+        outdir.mkdir(exist_ok=True, parents=True)
+        outfile = Path(outdir, f"page_{p}.sections.html")
+        with open(outfile, "wb") as f:
+            f.write(lxml.etree.tostring(html_elem, method="html"))
+
+    def test_annotate_pdf_html_report_HACKATHON(self):
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", f"total_pages.html")
+        html_elem = lxml.etree.parse(str(input_html)).getroot()
+        annotator = HtmlAnnotator.create_ipcc_annotator()
+        HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
+        spans = html_elem.xpath(".//span")
+        for span in spans:
+            annotator.run_commands(span)
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "lr")
+        outdir.mkdir(exist_ok=True, parents=True)
+        outfile = Path(outdir, f"fulltext.annotations.html")
+        with open(outfile, "wb") as f:
+            f.write(lxml.etree.tostring(html_elem, method="html"))
+
+    def test_annotate_spm_reports_HACKATHON(self):
+        reports = [
+
+            "wg1",
+            "wg2",
+            "wg3",
+        ]
+        subreport = "spm"
+        for report in reports:
+            indir = Path(Resources.TEST_IPCC_DIR, report, subreport)
+            input_html = Path(indir, f"total_pages.html")
+            html_elem = lxml.etree.parse(str(input_html)).getroot()
+            annotator = HtmlAnnotator.create_ipcc_annotator()
+            HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
+            spans = html_elem.xpath(".//span")
+            for span in spans:
+                annotator.run_commands(span)
+            outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", report, subreport)
+            outdir.mkdir(exist_ok=True, parents=True)
+            outfile = Path(outdir, f"fulltext.annotations.html")
+            with open(outfile, "wb") as f:
+                f.write(lxml.etree.tostring(html_elem, method="html"))
+
+
+    def test_extract_sections_report_HACKATHON(self):
+        """extract float/s from HTML and copy to custom directories"""
+        stem = "section2mini"
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"{stem}.html")
+        html_elem = lxml.etree.parse(str(input_html)).getroot()
+        annotator = HtmlAnnotator.create_ipcc_annotator()
+        HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
+        spans = html_elem.xpath(".//span")
+        for span in spans:
+            annotator.run_commands(span)
+        spans = html_elem.xpath("//span[@class='start']")
+        assert len(spans) > 0
+
+
+    def test_add_sub_superscripts_to_page_HACKATHON(self):
+        p = 16
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", f"page_{p}.html")
+        html_elem = lxml.etree.parse(str(input_html)).getroot()
+        annotator = HtmlAnnotator()
+        command = AnnotatorCommand(html_class="subscript", script="sub", add_id="sub_|")
+        annotator.add_command(command)
+        command = AnnotatorCommand(html_class="superscript", script="super", add_id="super_|")
+        annotator.add_command(command)
+        spans = html_elem.xpath(".//span")
+        for span in spans:
+            annotator.run_commands(span)
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "lr")
+        outdir.mkdir(exist_ok=True, parents=True)
+        outfile = Path(outdir, f"page_{p}.scripts.html")
+        with open(outfile, "wb") as f:
+            f.write(lxml.etree.tostring(html_elem, method="html"))
 
 
 
@@ -1125,9 +1331,9 @@ class TestHtmlTidy(AmiAnyTest):
         html_dir.mkdir(exist_ok=True)
         assert html_dir.exists(), f"{html_dir} must exist"
         with open(Path(html_dir, "html_only.html"), "w") as f:
-            f.write(html_only)
+            f.write(html_only, method="html")
         with open(Path(html_dir, "html_tidied.html"), "w") as f:
-            f.write(html_s)
+            f.write(html_s, method="html")
 
     def test_normalize_pdf2html_ipcc(self):
         """
@@ -1209,12 +1415,12 @@ class TestCSSStyle(AmiAnyTest):
         html_elem = lxml.etree.fromstring(html_s)
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)  # redundant as tidy already
         HtmlStyle.extract_all_text_styles_to_head(html_elem)
-        print(f"ss {lxml.etree.tostring(html_elem.xpath('/html/head')[0])} \n ... {lxml.etree.tostring(html_elem)}")
+        # print(f"ss {lxml.etree.tostring(html_elem.xpath('/html/head')[0])} \n ... {lxml.etree.tostring(html_elem)}")
         html_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         html_dir.mkdir(exist_ok=True)
         outpath = Path(html_dir, "styles.html")
         with open(str(outpath), "w") as f:
-            f.write(lxml.etree.tostring(html_elem).decode('UTF-8'))
+            f.write(lxml.etree.tostring(html_elem, method="html").decode('UTF-8'))
             logger.info(f"wrote style file to {outpath}")
             print(f"(logger) wrote style file to {outpath}")
 
@@ -1233,13 +1439,13 @@ class TestCSSStyle(AmiAnyTest):
             f"raw document should have 50 elements with non-empty @style attributes"
         # this is so HTML browsers can see the initial file
         with open(str(Path(html_dir, "ipcc_styles0.html")), "wb") as f:
-            f.write(lxml.etree.tostring(html_elem))
+            f.write(lxml.etree.tostring(html_elem, method="html"))
 
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
 
         outpath = str(Path(html_dir, "ipcc_styles_voloured.html"))
         with open(outpath, "wb") as f:
-            f.write(lxml.etree.tostring(html_elem))
+            f.write(lxml.etree.tostring(html_elem, method="html"))
             print(f"(logger) output to {outpath}")
 
         assert len(html_elem.xpath("/html/head/style")) == 7, f"7 head styles"
@@ -1260,12 +1466,12 @@ class TestCSSStyle(AmiAnyTest):
             f"raw document should have 50 elements with non-empty @style attributes"
         # this is so HTML browsers can see the initial file
         with open(str(Path(output_html_dir, "ipcc_fulltext_styles0.html")), "wb") as f:
-            f.write(lxml.etree.tostring(html_elem))
+            f.write(lxml.etree.tostring(html_elem, method="html"))
 
         HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
 
         with open(str(Path(output_html_dir, "ipcc_chap4_fulltext_styles2.html")), "wb") as f:
-            f.write(lxml.etree.tostring(html_elem))
+            f.write(lxml.etree.tostring(html_elem, method="html"))
 
         assert len(html_elem.xpath("/html/head/style")) == 23, f"23 head styles"
         assert len(html_elem.xpath("/html/body//*[@class]")) == 2304, \
@@ -1287,7 +1493,7 @@ class TestCSSStyle(AmiAnyTest):
         temp_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "chapter17")
         temp_dir.mkdir(exist_ok=True, parents=True)
         with open(str(Path(temp_dir, "fulltext_styles.html")), "wb") as f:
-            f.write(lxml.etree.tostring(html_elem))
+            f.write(lxml.etree.tostring(html_elem, method="html"))
 
         assert len(html_elem.xpath("/html/head/style")) == 13, f"13 head styles"
         assert len(html_elem.xpath("/html/body//*[@class]")) == 1330, \

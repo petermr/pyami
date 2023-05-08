@@ -174,7 +174,7 @@ class PDFPlumberTest(AmiAnyTest):
             print(f"output dir {output_page_dir}")
             output_page_dir.mkdir(exist_ok=True, parents=True)
             ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
-            ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True)
+            ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True, outstem="total_pages")
 
     def test_clean_pdf_html_SYR_LR(self):
         """fails as there are no tables! (they are all bitmaps)"""
