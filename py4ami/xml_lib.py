@@ -2,6 +2,7 @@ import copy
 from pathlib import Path
 import os
 from lxml import etree as LXET
+import requests
 from urllib.request import urlopen
 import lxml, lxml.etree
 import logging
@@ -476,8 +477,26 @@ class XmlLib:
         print(f"nexts {len(nexts)}")
         return nexts
 
+    @classmethod
+    def getparent(cls, elem, debug=False):
+        if elem is None:
+            return None;
+        parent = elem.getparent()
+        if parent is None and debug:
+            print(f" parent of {elem} is None")
+        return parent
 
-
+    @classmethod
+    def read_xml_element_from_github(cls, username=None, repository=None, branch=None, filepath=None):
+        """reads raw xml and parses to elemnent. Errors uncaught
+        """
+        url = f"https://raw.githubusercontent.com/{username}/{repository}/{branch}/{filepath}"
+        if not username or not repository or not branch or not filepath:
+            print(f"must provide all components in {url}")
+        print(f"url: {url}")
+        response = requests.get(url)
+        xml_elem = lxml.etree.fromstring(response.text)
+        return xml_elem
 
 class HtmlElement:
     """to provide fluent HTML builder and parser NYI"""
@@ -565,7 +584,17 @@ class HtmlLib:
             style.text += css_value_pair[0] + " : " + css_value_pair[1]
         style.text += "}"
 
-
+    @classmethod
+    def write_html_file(self, html_elem, outfile):
+        """writes XML elemnts to file, making directory if needed .
+        adds method=True to ensure end tags
+        """
+        if html_elem is None or outfile is None:
+            raise ValueError("null argumners to write_html_file")
+        outdir = os.path.dirname(outfile)
+        Path(outdir).mkdir(exist_ok=True, parents=True)
+        with open(outfile, "wb") as f:
+            f.write(lxml.etree.tostring(html_elem, method="html"))
 
 
 class DataTable:

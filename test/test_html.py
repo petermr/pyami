@@ -8,6 +8,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import lxml.etree
+# import lxml.etree.ElementTree as ET
 import pandas as pd
 
 # local
@@ -953,6 +954,11 @@ DEFAULT_STYLES = [
 ]
 
 
+class IPCCTargetLink:
+    """link between IPCC reports"""
+    def __init__(self):
+
+
 class Test_PDFHTML(AmiAnyTest):
     """
     Combine PDF2HTML with styles and other tidy
@@ -1217,9 +1223,82 @@ class Test_PDFHTML(AmiAnyTest):
         spans = html_elem.xpath(".//span")
         for span in spans:
             annotator.run_commands(span)
-        spans = html_elem.xpath("//span[@class='start']")
-        assert len(spans) > 0
+        xp_start = "//div[span[@class='start']]"
+        xp_end= "div[span[@class='end']]"
+        divs = html_elem.xpath(xp_start)
+        print(f"divs {len(divs)}")
+        for div in divs:
+            annotator.run_commands(div)
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
+        outdir.mkdir(exist_ok=True, parents=True)
+        outfile = Path(outdir, f"test_groups.html")
+        HtmlLib.write_html_file(html_elem, outfile)
 
+    def test_download_html(self):
+        html_elem = XmlLib.read_xml_element_from_github(
+            username="petermr",
+            repository="semanticClimate",
+            branch="main",
+            filepath="ipcc/ar6/syr/lr/total_pages.annotated.html"
+        )
+        divs = html_elem.xpath("//div")
+        assert 640 > len(divs) > 635
+
+    def test_extract_anchors_initial(self):
+        import requests
+
+
+        username = "petermr"
+        repository = "semanticClimate"
+        branch = "main"
+        stem = "ipcc/ar6"
+        leaf = "fulltext.annotations.id.html"
+
+
+        wg_dict = {
+            "WGI" : "wg1",
+            "wgi": "wg1",
+            "WG2": "wg2",
+            "wg2": "wg2",
+            "WG3": "wg3",
+            "wg3": "wg3",
+        }
+        div = lxml.etree.Element("div")
+        span = lxml.etree.fromstring("""<span class="targets"> by &#177;0.2&#176;C. {WGI SPM A.1, WGI SPM A.1.2, WGI SPM A.1.3, WGI SPM A.2.2, WGI Figure SPM.2; SRCCL TS.2} </span>""")
+        div.append(span)
+        links_re = re.compile(".*{(?P<links>[^}]+)}.*")
+        match = links_re.match(span.text)
+        if match:
+            links_text = match.group("links")
+            links = re.split(",|;", links_text)
+            span_link = lxml.etree.SubElement(div, "span")
+            for link in links:
+                # target_link = IPCCTargetLink(link)
+                self.follow_link(branch, leaf, link, repository, span_link, stem, username, wg_dict)
+
+        print(f" new div {lxml.etree.tostring(div)}")
+        HtmlLib.write_html_file(div, Path(AmiAnyTest.TEMP_HTML_IPCC, "misc", "split_a.html"))
+
+    def follow_link(self, branch, leaf, link, repository, span_link, stem, username, wg_dict):
+        anchor = lxml.etree.SubElement(span_link, "a")
+        anchor.text = link
+        href = link.strip().split()
+        if len(href) != 3:
+            print(f"target must have 3 components {link}")
+        print(f"href: {href}")
+        report = wg_dict.get(href[0])
+        if not report:
+            print(f"cannot find {href[0]}")
+        chapter = href[1].lower()
+        filepath = f"{stem}/{report}/{chapter}/{leaf}"
+        print(f"filepath {filepath}")
+        html = XmlLib.read_xml_element_from_github(
+            username=username, repository=repository, branch=branch, filepath=filepath)
+        id = href[2]
+        print(f"looking for ID {id}")
+        sections = html.xpath(f"//*[@id='{id}']")
+        for section in sections:
+            print(f"section {''.join(section.getparent().itertext())}")
 
     def test_add_sub_superscripts_to_page_HACKATHON(self):
         p = 16
@@ -1234,10 +1313,8 @@ class Test_PDFHTML(AmiAnyTest):
         for span in spans:
             annotator.run_commands(span)
         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "lr")
-        outdir.mkdir(exist_ok=True, parents=True)
         outfile = Path(outdir, f"page_{p}.scripts.html")
-        with open(outfile, "wb") as f:
-            f.write(lxml.etree.tostring(html_elem, method="html"))
+        HtmlLib.write_html_file(html_elem, outfile)
 
 
 

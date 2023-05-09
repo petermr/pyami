@@ -703,7 +703,7 @@ class HtmlUtil:
         last_font_size = last_csss.font_size
         # print(f"this, last {font_size, span.text, last_font_size, last_span.text}")
         is_script = None
-        if font_size < script_factor * last_font_size:
+        if font_size and font_size < script_factor * last_font_size:
             # print(f"TEST {last_span.text}/{span.text}")
             last_y = CSSStyle.get_y0(last_span)
             this_y = CSSStyle.get_y0(span)
@@ -1048,7 +1048,7 @@ class HtmlAnnotator:
         iterate commands (order is order of their addition
         """
         for command in self.commands:
-            command.edit(target_elem)
+            command.run_command(target_elem)
 
     @classmethod
     def create_ipcc_annotator(cls):
@@ -1093,7 +1093,8 @@ class HtmlAnnotator:
             AnnotatorCommand(html_class="fact", xpath="self::span[contains(@class, 'confidence')]/preceding-sibling::span[1]",
                               style="{color : purple}"))
         annotator.add_command(
-            AnnotatorCommand(html_class="extract", group_xpath="//span[contains(@class, 'start')]", ))
+            AnnotatorCommand(html_class="group", group_xpath="div[span[contains(@class, 'start')]]",
+                             end_xpath="self::div[span[contains(text(),'END')]]"))
 
         return annotator
 
@@ -1110,7 +1111,7 @@ class AnnotatorCommand:
     """
 
     def __init__(self, html_class=None, regex=None, add_id=None, add_title=None, script=None, style=None,
-                 delete=False, xpath=None, group_xpath=None):
+                 delete=False, xpath=None, group_xpath=None, end_xpath=None):
         self.html_class = html_class
         self.re = None
         if regex:
@@ -1133,25 +1134,34 @@ class AnnotatorCommand:
         self.delete = delete
         self.xpath = xpath
         self.group_xpath = group_xpath
+        self.end_xpath = end_xpath
 
-    def edit(self, elem):
+    def run_command(self, elem):
+        # print(f"run_command , tag, {elem.tag} parent: {elem.getparent()}")
         if self.re:
-            self.edit_regex(elem)
+            self.run_regex(elem)
         elif self.extract(elem):
             self.edit_extract(elem)
         elif self.xpath :
-            self.edit_xpath(elem)
+            self.run_xpath(elem)
         elif self.script == "sub":
-            self.edit_subscript(elem)
+            self.run_subscript(elem)
         elif self.script == "super":
-            self.edit_superscript(elem)
+            self.run_superscript(elem)
         elif self.group_xpath is not None:
-            """ this is a span, get the parent"""
-            self.edit_group_xpath(elem)
+            self.run_group_xpath(elem)
 
-    def edit_regex(self, elem):
+    def run_regex(self, elem):
         text = elem.text
-        match = self.re.match(text)
+        if text is None:
+            print(f"regex: None text in {elem} {elem.tag}")
+            return
+        match = None
+        try:
+            match = self.re.match(text)
+        except Exception as e:
+            print(f"match fail {e}")
+            return
         if match:
             if self.delete:
                 self.remove_elem(elem)
@@ -1163,7 +1173,7 @@ class AnnotatorCommand:
             if self.html_class:
                 self.update_class(elem, self.html_class)
 
-    def edit_xpath(self, elem):
+    def run_xpath(self, elem):
         xp_elems = elem.xpath(self.xpath)
         if not xp_elems:
             return
@@ -1187,19 +1197,19 @@ class AnnotatorCommand:
             classes.append(html_class)
             elem.attrib["class"] = " ".join(classes)
 
-    def edit_subscript(self, span):
+    def run_subscript(self, span):
         is_sub = HtmlUtil.annotate_script_type(span, SScript.SUB, ydown=False)
         if is_sub:
             span.attrib["title"] = "subscript_{span.text}"
             print(f"SUB {span.text}")
 
-    def edit_superscript(self, span):
+    def run_superscript(self, span):
         is_super = HtmlUtil.annotate_script_type(span, SScript.SUP, ydown=False)
         if is_super:
             span.attrib["title"] = f"superscript_{span.text}"
             print(f"SUPER {span.text}")
 
-    def edit_group_xpath(self, child_elem):
+    def run_group_xpath(self, child_elem):
         """group following siblings of elem"""
 
         result = None
@@ -1207,26 +1217,49 @@ class AnnotatorCommand:
             return None
         parent_elem = child_elem.getparent()
         if parent_elem is None:
-            print(f"Null parent for {lxml.etree.tostring(child_elem)}")
+            # print(f"Null parent for {lxml.etree.tostring(child_elem)}")
             return None
         # print(f"parent!!!! ")
         group_leads = parent_elem.xpath(self.group_xpath)
+        if len(group_leads) > 0:
+            print(f"group lead count {len(group_leads)} {self.group_xpath}")
+        else:
+            # print(f"NO LEAD GROUP parents")
+            pass
         for i, group_lead in enumerate(group_leads):
-            end_grouo = group_leads[i + 1] if i < len(group_leads) - 1 else None
-            self.make_group(parent_elem, group_lead, end_grouo)
+            print(f"group lead {ET.tostring(group_lead)}")
+            # end_grouo = group_leads[i + 1] if i < len(group_leads) - 1 else None
+            self.make_group(parent_elem, group_lead)
 
-    def make_group(self, elem, group_lead, end_group):
-        parent = self.getparent(elem)
-        div = lxml.etree.SubElement(parent, "div")
-        div.attrib["title"] = group_lead.text
-        parent.insert(parent.index(group_lead), div)
+    def make_group(self, elem, group_lead, end_group=None):
+        parent = XmlLib.getparent(elem, debug=True)
+        if parent is None:
+            raise ValueError("null parent")
         siblings = group_lead.xpath("following-sibling::*")
         if len(siblings) == 0:
             print(f"no siblings: {group_lead.text}")
+            pass
+        else:
+            print(f"siblings {len(siblings)}!!!")
+        div = lxml.etree.SubElement(parent, "div")
+        div.append(group_lead)
+        div.attrib["title"] = group_lead.text if group_lead.text else "?"
+        div.attrib["style"] = "border:black dashed 2px;"
+        xp = self.end_xpath
+        xp = "self::div[span[contains(text(),'END')]]"
+        print(f"end_xpath {xp}")
         for sibling in siblings:
-            if sibling != end_group:
+            print(f"sibling: {''.join(sibling.itertext())}")
+            end_sib = None
+            try:
+                end_sib = sibling.xpath(xp)
+            except Exception as e:
+                print(f"failed xpath {xp} {e}")
+            if end_sib and len(end_sib) > 0:
+            # if sibling != end_group:
                 print(f"sibling {sibling}")
-                elem.append(sibling)
+                break
+            div.append(sibling)
         return div
 
     def extract(self, elem):
@@ -1434,7 +1467,7 @@ class HtmlStyle:
             "div", [("border", "red solid 0.5px"), ("background", "yellow)])
         """
         for style in styles:
-            print(f"style {style}")
+            # print(f"style {style}")
             HtmlLib.add_head_style(html_elem, style[0], style[1])
 
 
