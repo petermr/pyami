@@ -1027,7 +1027,7 @@ class HtmlUtil:
 
 class HtmlAnnotator:
     """inline annotator for HTML elements
-    stores and runs AnnotationCommands
+    stores and runs AnnotatorCommands
 
     annotator = Annotator()
     command = AnnotatorCommand(html_class="section_title", regex="Section\s+(?P<id>\d+):\s+(?P<title>.*)", add_id=True, add_title=True)
@@ -1056,7 +1056,9 @@ class HtmlAnnotator:
         annotator = HtmlAnnotator()
         annotator.add_command(
             AnnotatorCommand(html_class="section_title", regex="Section\s+(?P<id>\d+):\s+(?P<title>.*)",
-                             add_id="section_|", add_title="|", style="{color : blue; background : pink;}"))
+                             add_id="section_|", add_title="|", style="{color : blue; background : pink;}",
+                            desc="add id and title for 'Section: ...'")
+        )
         annotator.add_command(
             AnnotatorCommand(html_class="sub_section_title", regex="\s*(?P<id>\d+\.\d+)\s+(?P<title>.*)",
                              add_id="subsection_|", add_title="|", style="{color : green; background : yellow;}"))
@@ -1095,6 +1097,10 @@ class HtmlAnnotator:
         annotator.add_command(
             AnnotatorCommand(html_class="group", group_xpath="div[span[contains(@class, 'start')]]",
                              end_xpath="self::div[span[contains(text(),'END')]]"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="subsubsection", group_xpath="div[span[contains(@class, 'subsubsection_title')]]",
+                             end_xpath="self::div[span[contains(text(),'section_title')]]"))
+
 
         return annotator
 
@@ -1111,7 +1117,7 @@ class AnnotatorCommand:
     """
 
     def __init__(self, html_class=None, regex=None, add_id=None, add_title=None, script=None, style=None,
-                 delete=False, xpath=None, group_xpath=None, end_xpath=None):
+                 delete=False, xpath=None, group_xpath=None, end_xpath=None, desc=None):
         self.html_class = html_class
         self.re = None
         if regex:
@@ -1135,13 +1141,16 @@ class AnnotatorCommand:
         self.xpath = xpath
         self.group_xpath = group_xpath
         self.end_xpath = end_xpath
+        self.desc = desc
+
+# class AnnotatorCommand
 
     def run_command(self, elem):
         # print(f"run_command , tag, {elem.tag} parent: {elem.getparent()}")
         if self.re:
             self.run_regex(elem)
-        elif self.extract(elem):
-            self.edit_extract(elem)
+        # elif self.extract:
+        #     self.run_extract(elem)
         elif self.xpath :
             self.run_xpath(elem)
         elif self.script == "sub":
@@ -1150,6 +1159,8 @@ class AnnotatorCommand:
             self.run_superscript(elem)
         elif self.group_xpath is not None:
             self.run_group_xpath(elem)
+
+    # class AnnotatorCommand
 
     def run_regex(self, elem):
         text = elem.text
@@ -1173,6 +1184,8 @@ class AnnotatorCommand:
             if self.html_class:
                 self.update_class(elem, self.html_class)
 
+    # class AnnotatorCommand
+
     def run_xpath(self, elem):
         xp_elems = elem.xpath(self.xpath)
         if not xp_elems:
@@ -1189,13 +1202,17 @@ class AnnotatorCommand:
                 # print(f"=> {tostring}")
                 pass
 
+    # class AnnotatorCommand
+
     def update_class(self, elem, html_class):
         classes = []
-        if elem.attrib.get("class"):
-            classes = elem.attrib["class"].split(" ")
-        if html_class not in classes:
-            classes.append(html_class)
-            elem.attrib["class"] = " ".join(classes)
+        HtmlClass.set_class_on_element(elem, html_class)
+        if False:
+            if elem.attrib.get("class"):
+                classes = elem.attrib["class"].split(" ")
+            if html_class not in classes:
+                classes.append(html_class)
+                elem.attrib["class"] = " ".join(classes)
 
     def run_subscript(self, span):
         is_sub = HtmlUtil.annotate_script_type(span, SScript.SUB, ydown=False)
@@ -1203,11 +1220,15 @@ class AnnotatorCommand:
             span.attrib["title"] = "subscript_{span.text}"
             print(f"SUB {span.text}")
 
+    # class AnnotatorCommand
+
     def run_superscript(self, span):
         is_super = HtmlUtil.annotate_script_type(span, SScript.SUP, ydown=False)
         if is_super:
             span.attrib["title"] = f"superscript_{span.text}"
             print(f"SUPER {span.text}")
+
+    # class AnnotatorCommand
 
     def run_group_xpath(self, child_elem):
         """group following siblings of elem"""
@@ -1230,6 +1251,8 @@ class AnnotatorCommand:
             print(f"group lead {ET.tostring(group_lead)}")
             # end_grouo = group_leads[i + 1] if i < len(group_leads) - 1 else None
             self.make_group(parent_elem, group_lead)
+
+    # class AnnotatorCommand
 
     def make_group(self, elem, group_lead, end_group=None):
         parent = XmlLib.getparent(elem, debug=True)
@@ -1262,10 +1285,15 @@ class AnnotatorCommand:
             div.append(sibling)
         return div
 
-    def extract(self, elem):
-        """extract group. optinally write to file"""
-        pass
+    # class AnnotatorCommand
+
+    def run_extract(self, elem):
+
+        """extract group. optinally write to file. currently NO-OP"""
+        print(f"run_extract is NO-OP")
         return None
+
+    # class AnnotatorCommand
 
     def remove_elem(self, elem, debug=False):
         if elem is None:
@@ -1293,6 +1321,8 @@ class HtmlStyle:
         """
         return elem.attrib.get("style")
 
+# class HtmlStyle
+
     @classmethod
     def set_style(cls, elem, value):
         """
@@ -1302,6 +1332,8 @@ class HtmlStyle:
         """
         if elem is not None:
             XmlLib.set_attname_value(elem, "style", value)
+
+    # class HtmlStyle
 
     @classmethod
     def extract_all_text_styles_to_head(cls, html_elem):
@@ -1327,8 +1359,7 @@ class HtmlStyle:
             "color: black;"
         )
 
-
-
+    # class HtmlStyle
 
     @classmethod
     def add_element_with_style(cls, classref, html_elem, styled_elem):
@@ -1346,6 +1377,8 @@ class HtmlStyle:
         HtmlClass.set_class_on_element(styled_elem, classref, replace=False)
         head.append(extracted_style_elem)
 
+    # class HtmlStyle
+
     @classmethod
     def remove_empty_styles(cls, html_elem):
         """
@@ -1355,6 +1388,8 @@ class HtmlStyle:
         for elem in empty_styled_elems:
             HtmlStyle.delete_style(elem)
 
+    # class HtmlStyle
+
     @classmethod
     def delete_style(cls, elem):
         """
@@ -1363,6 +1398,8 @@ class HtmlStyle:
         XmlLib.remove_attribute(elem, "style")
 
     # THESE CAN BECOME INSTANCE METHODS
+
+    # class HtmlStyle
 
     @classmethod
     def normalize_head_styles(cls, elem):
@@ -1382,6 +1419,8 @@ class HtmlStyle:
             style.attrib[CLASSREF] = classref
             style_to_classref_set[value].add(classref)
         return style_to_classref_set
+
+    # class HtmlStyle
 
     @classmethod
     def extract_styles_and_normalize_classrefs(cls, html_elem):
@@ -1403,6 +1442,8 @@ class HtmlStyle:
         cls.delete_redundant_styles(deletable_classrefs, html_elem)
         cls.normalize_classrefs_on_elements(html_elem, classref_index)
 
+    # class HtmlStyle
+
     @classmethod
     def normalize_classrefs_on_elements(cls, html_elem, classref_index):
         """
@@ -1419,6 +1460,8 @@ class HtmlStyle:
                 if html_class.class_string:
                     HtmlClass.set_class_on_element(classed_elem, html_class.class_string)
 
+    # class HtmlStyle
+
     @classmethod
     def delete_redundant_styles(cls, deletable_classrefs, html_elem):
         """
@@ -1429,6 +1472,8 @@ class HtmlStyle:
             classref = style.attrib.get(CLASSREF)
             if classref in deletable_classrefs:
                 XmlLib.remove_element(style)
+
+    # class HtmlStyle
 
     @classmethod
     def get_redundant_classrefs(cls, classref_index):
@@ -1442,6 +1487,8 @@ class HtmlStyle:
             if item[0] != item[1]:
                 redundant_classrefs.append(item[0])
         return redundant_classrefs
+
+    # class HtmlStyle
 
     @classmethod
     def create_classref_index(cls, style_to_classref_set):
@@ -1459,6 +1506,8 @@ class HtmlStyle:
                 classref_index[classref] = classref0
         return classref_index
 
+    # class HtmlStyle
+
     @classmethod
     def add_head_styles(cls, html_elem, styles):
         """
@@ -1474,7 +1523,7 @@ class HtmlStyle:
 
 class HtmlClass:
     """
-    methods to process class attributes and sync with style
+    methods to process class *attributes* on HTML elemnts and sync with style
     Initially mainly @classmethod but adding instamces to manage editing
     the @class attribute
     """
@@ -1488,6 +1537,8 @@ class HtmlClass:
             else:
                 raise ValueError(f"can only create HtmlClass from strings, found {type(classstr)} : {classstr}")
 
+# class HtmlClass:
+
     @classmethod
     def create_from_classed_element(cls, elem):
         """
@@ -1497,6 +1548,8 @@ class HtmlClass:
         """
         clazz = HtmlClass.get_class_string_on_element(elem)
         return None if not clazz else HtmlClass(clazz)
+
+    # class HtmlClass:
 
     @property
     def class_string(self):
@@ -1515,6 +1568,8 @@ class HtmlClass:
         if clazz and len(clazz.strip()) > 0 and clazz not in self.classes:
             self.classes.add(clazz.strip())
 
+    # class HtmlClass:
+
     def has_class(self, clazz):
         """
         does class exist in classes
@@ -1522,15 +1577,19 @@ class HtmlClass:
         """
         return clazz in self.classes
 
+    # class HtmlClass:
+
     def replace_class(self, clazz_old, clazz=None):
         """
-        remove clazz_old ; if clazz is not None add it
+        remove clazz_old ; if clazz is not None add it as new class
         (if clazz is already present, no-op)
         """
         if clazz_old in self.classes:
             self.remove(clazz_old)
             if clazz:
                 self.add_class(clazz)
+
+    # class HtmlClass:
 
     def remove(self, clazz):
         """
@@ -1541,6 +1600,8 @@ class HtmlClass:
         if clazz in self.classes:
             self.classes.remove(clazz)
 
+    # class HtmlClass:
+
     @classmethod
     def get_class_string_on_element(cls, elem):
         """
@@ -1550,6 +1611,8 @@ class HtmlClass:
         """
 
         return elem.attrib.get("class") if type(elem) is _Element else None
+
+    # class HtmlClass:
 
     @classmethod
     def set_class_on_element(cls, elem, value, replace=True):
@@ -1569,16 +1632,20 @@ class HtmlClass:
                 old_class = value
             elem.attrib["class"] = value
 
+    # class HtmlClass:
+
     def create_classref(self):
         """
         create classref string (prepend ".")
         """
         return "." + self.class_string
 
+    # class HtmlClass:
+
     @classmethod
     def remove_dot(self, string):
         """
-        remove dot (".")
+        remove dot (".") - in html/head/style element
         """
         return string[1:] if string and string[:1] == "." else string
 
@@ -1602,6 +1669,8 @@ class HtmlTree:
 
     # XPaths
     ALL_DIV_XPATHS = ".//div"
+
+# class HtmlTree
 
     @classmethod
     def make_sections_and_output(cls, elem, output_dir, recs_by_section=None):
@@ -1636,6 +1705,8 @@ class HtmlTree:
                                                        section_rec=rec, class_dict=class_dict)
         cls.create_filename_and_output(decimal_divs, output_dir)
 
+    # class HtmlTree
+
     @classmethod
     def create_filename_and_output(cls, decimal_divs, output_dir,
                                    orig=" !\"#$%&'()*+,/:;<=>?@[\]^`{|}~", rep="_"):
@@ -1650,6 +1721,8 @@ class HtmlTree:
             for i, child_div in enumerate(decimal_divs):
                 cls.create_filename_remove_punct_and_output(child_div, output_dir, punct_mask)
 
+    # class HtmlTree
+
     @classmethod
     def create_filename_remove_punct_and_output(cls, child_div, output_dir, punct_mask):
         if HtmlUtil.MARKER in child_div.attrib:
@@ -1659,6 +1732,8 @@ class HtmlTree:
             path = Path(output_dir, f"{marker}.html")
             with open(path, "wb") as f:
                 f.write(lxml.etree.tostring(child_div, pretty_print=True))
+
+    # class HtmlTree
 
     @classmethod
     def get_div_span_starting_with(cls, elem, strg, is_bold=False, font_size_range=None):
@@ -1689,6 +1764,8 @@ class HtmlTree:
             result = divs[0]
             result.attrib["marker"] = strg
         return result, divs
+
+    # class HtmlTree
 
     @classmethod
     def get_div_spans_with_decimals(cls, elem, is_bold=None, font_size_range=None, class_dict=None, section_rec=None):
@@ -1747,6 +1824,8 @@ class HtmlTree:
                 current_div.append(div)
         return top_div
 
+    # class HtmlTree
+
     @classmethod
     def in_range(cls, num, num_range):
         """is a number in a numeric range"""
@@ -1755,6 +1834,8 @@ class HtmlTree:
         assert float(num_range[0])
         result = num_range[0] <= num <= num_range[1]
         return result
+
+    # class HtmlTree
 
     @classmethod
     def get_decimal_sections(cls, html_elem, xpath=None, regex=None):
@@ -3610,7 +3691,7 @@ class Footnote:
 
     @classmethod
     def iterate_until_unacceptable_font_class(cls, followers, li=None, fn_classes=None, debug=False):
-        """iterstes over elemts following a footnote number until an incompatible
+        """iterates over elemts following a footnote number until an incompatible
         class style is found, when break"""
         for follower in followers:
             clazz = follower.attrib["class"]
