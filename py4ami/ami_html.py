@@ -2318,6 +2318,254 @@ class Target:
         pass
 
 
+
+class IPCCTargetLink:
+    """link between IPCC reports"""
+    def __init__(self, link, span_link):
+        self.link = link
+        self.span_link = span_link
+        self.link_factory = None
+
+    def _follow_ipcc_target_link(self, ipcc_target_link, anchor_link, wg_dict=None, url_cache=None, stem="ipcc/ar6", leaf_name=None):
+
+        if not leaf_name:
+            print(f"must give leaf name")
+            return None
+        if anchor_link is not None:
+            anchor = lxml.etree.SubElement(anchor_link, "a")
+            anchor.text = ipcc_target_link
+
+        chapter, id, report = self.make_report_chapter_id(ipcc_target_link, wg_dict)
+
+        filepath = f"{stem}/{report}/{chapter}/{leaf_name}"
+        html = None
+        branch = "main"
+        site = self.link_factory.target.site
+        site = "https://raw.githubusercontent.com" if not site else site
+        username = self.link_factory.target.username
+        repository = self.link_factory.target.repository
+        target_url = f"{site}/{username}/{repository}/{branch}/{filepath}"
+        print(f"target_url {target_url}")
+        try:
+            html = XmlLib.read_xml_element_from_github(github_url=target_url, url_cache=url_cache)
+        except Exception as e:
+            print(f"failed to read HTML {e}")
+        if html is None:
+            print(f"failed to read HTML")
+            return
+        print(f"looking for ID {id}")
+        sections = html.xpath(f"//*[@id='{id}']")
+        for section in sections:
+            print(f"section {''.join(section.getparent().itertext())}")
+
+    def make_report_chapter_id(self, ipcc_link, wg_dict):
+        """splits REPORT CHAP ID string
+        e.g. WGI SPM A.1.2.3 => wg1/spm#A.1.2.3
+        """
+        href = ipcc_link.strip().split()
+        if len(href) != 3:
+            print(f"target must have 3 components {ipcc_link}")
+        report = wg_dict.get(href[0])
+        if not report:
+            print(f"cannot find report from {href[0]}")
+        chapter = href[1].lower() if len(href) > 1 else None
+        chapters = ["spm", "lr", "ts"]
+        if chapter not in chapters:
+            print(f"only chapters : {chapters} allowed")
+        id = href[2] if len(href) > 2 else None
+        return chapter, id, report
+
+    def follow_ipcc_target_link(self, url_cache=None, leaf_name=None):
+        link_factory = self.link_factory
+        link = self.link
+        span_link = self.span_link
+
+        github_url = link_factory.create_github_url()
+
+        self._follow_ipcc_target_link(
+            link,
+            span_link,
+            wg_dict=link_factory.wg_dict,
+            url_cache=url_cache,
+            leaf_name = leaf_name,
+        )
+
+    @classmethod
+    def read_links_from_span_and_follow_to_repository(cls, div, leaf_name, link_factory, span_with_curly_ids):
+        """
+        :param div: if not None adds an anchor
+        """
+        curly_brace_link_content_parser = re.compile(".*{(?P<links>[^}]+)}.*")
+        match = curly_brace_link_content_parser.match(span_with_curly_ids.text)
+        if match:
+            links_text = match.group("links")
+            links = re.split(",|;", links_text)
+            span_link = lxml.etree.SubElement(div, "span") if div is not None else None
+            github_url = HtmlLib.create_rawgithub_url(
+                site="https://raw.githubuser.com",
+                username="petermr",
+                repository="semanticClimate",
+                branch="main",
+                filepath="ipcc/ar6/syr/lr/total_pages.annotated.html"
+            )
+            print(f" github_url {github_url}")
+            url_cache = URLCache()
+            for link in links:
+                target_link = link_factory.create_target_link(link, span_link)
+                target_link.follow_ipcc_target_link(url_cache=url_cache, leaf_name=leaf_name)
+
+
+
+
+class LinkFactory:
+    """"""
+    class LinkNode:
+        """filepath = stem/leaf_name and takes precedence over those"""
+        def __init__(self, site=None, username=None, repository=None, branch=None,
+                     stem=None, leaf_name=None, filepath=None):
+            self.site = site
+            self.username = username
+            self.repository = repository
+            self.branch = branch
+            self.stem = stem
+            self.leaf_name = leaf_name
+            self.filepath = filepath
+
+        def set_file_path(
+              self,
+              stem,
+              leaf_name,
+              filepath
+        ):
+            self.filepath = filepath if filepath else (stem + "/" + leaf_name) if stem and leaf_name else None
+
+    #    class LinkFactory:
+
+    def __init__(self):
+        self.anchor = LinkFactory.LinkNode(site="https://raw.githubuser.com")
+        self.target = LinkFactory.LinkNode(site="https://raw.githubuser.com")
+        self.wg_dict = None
+
+        self.link = None
+        self.span_link = None
+
+    #    class LinkFactory:
+
+    @classmethod
+    def create_factory(
+        cls,
+        anchor_site=None,
+        anchor_username=None,
+        anchor_repository=None,
+        anchor_branch=None,
+        anchor_stem=None,
+        anchor_leaf_name=None,
+        anchor_filepath=None,
+
+        target_site=None,
+        target_username=None,
+        target_repository=None,
+        target_branch=None,
+        target_stem=None,
+        target_leaf_name=None,
+        target_filepath=None,
+
+        wg_dict = None
+    ):
+        link_factory = LinkFactory()
+
+        link_factory.anchor.site = anchor_site
+        link_factory.anchor.username = anchor_username
+        link_factory.anchor.repository = anchor_repository
+        link_factory.anchor.branch = anchor_branch
+        link_factory.anchor.set_file_path(anchor_stem,
+                                          anchor_leaf_name,
+                                          anchor_filepath)
+
+        link_factory.target.site = target_site
+        link_factory.target.username = target_username
+        link_factory.target.repository = target_repository
+        link_factory.target.branch = target_branch
+        link_factory.target.set_file_path(target_stem,
+                                          target_leaf_name,
+                                          target_filepath)
+
+        link_factory.wg_dict = wg_dict
+        return link_factory
+
+    #    class LinkFactory:
+
+    def create_ipcc_target_link(self, link, span_link):
+        target_link = IPCCTargetLink(link, span_link)
+        return target_link
+
+    @classmethod
+    def create_default_ipcc_link_factory(cls):
+        anchor_username = target_username = "petermr"
+        anchor_repository = target_repository = "semanticClimate"
+        anchor_branch = target_branch = "main"
+        anchor_stem = target_stem = "ipcc/ar6"
+        target_leaf_name = "fulltext.annotations.id.html"
+        wg_dict = {
+            "WGI": "wg1",
+            "wgi": "wg1",
+            "WG2": "wg2",
+            "wg2": "wg2",
+            "WG3": "wg3",
+            "wg3": "wg3",
+        }
+        link_factory = LinkFactory.create_factory(
+            anchor_username=anchor_username,
+            anchor_repository=anchor_repository,
+            anchor_branch=anchor_branch,
+            anchor_stem=anchor_stem,
+
+            target_username=target_username,
+            target_repository=target_repository,
+            target_branch=target_branch,
+            target_stem=target_stem,
+
+            target_leaf_name=target_leaf_name,
+
+            wg_dict=wg_dict
+        )
+        return link_factory
+
+    #    class LinkFactory:
+
+    def create_target_link(self, link, span_link):
+        target_link = IPCCTargetLink(link, span_link)
+        target_link.link_factory = self
+        return target_link
+
+    def create_github_url(self):
+        github_url = HtmlLib.create_rawgithub_url(
+            branch=self.anchor.branch,
+            filepath=self.anchor.filepath,
+            repository=self.anchor.repository,
+            username=self.anchor.username
+        )
+        return github_url
+
+
+class URLCache:
+    def __init__(self):
+        self.url_dict = dict()
+
+    def read_xml_element_from_github(self, github_url):
+        """retrieves and parses content of URL. Caches it if found
+        returns a deepcopy as elemnt is likely to be edited"""
+        html_elem = self.url_dict.get(github_url)
+        if html_elem is None:
+            try:
+                html_elem = XmlLib.read_xml_element_from_github(github_url=github_url)
+            except Exception as e:
+                print(f"cannot read {github_url} because {e}")
+                return None
+            self.url_dict[github_url] = html_elem
+        return copy.deepcopy(html_elem)
+
+
 class TargetExtractor:
 
     """

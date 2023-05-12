@@ -22,6 +22,8 @@ from py4ami.ami_pdf import PDFArgs
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib, XmlLib
+from py4ami.ami_html import URLCache, LinkFactory, IPCCTargetLink
+
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
@@ -954,144 +956,6 @@ DEFAULT_STYLES = [
     (".level3", [("background", "#ddffdd;")]),
 ]
 
-
-class IPCCTargetLink:
-    """link between IPCC reports"""
-    def __init__(self, link, span_link):
-        self.link = link
-        self.span_link = span_link
-        self.link_factory = None
-
-    @classmethod
-    def _follow_ipcc_link(cls, branch, leaf, ipcc_link, repository, span_link, stem, username, wg_dict):
-        anchor = lxml.etree.SubElement(span_link, "a")
-        anchor.text = ipcc_link
-        href = ipcc_link.strip().split()
-        if len(href) != 3:
-            print(f"target must have 3 components {ipcc_link}")
-        report = wg_dict.get(href[0])
-        if not report:
-            print(f"cannot find {href[0]}")
-        chapter = href[1].lower()
-
-        filepath = f"{stem}/{report}/{chapter}/{leaf}"
-        print(f"filepath {filepath}")
-        html = None
-        github_url = HtmlLib.create_rawgithub_url(branch=branch, filepath=filepath, repository=repository, username=username)
-
-        try:
-            html = XmlLib.read_xml_element_from_github(
-                username=username, repository=repository, branch=branch, filepath=filepath, github_url=github_url)
-        except Exception as e:
-            print(f"failed to read HTML {e}")
-            return
-        id = href[2]
-        print(f"looking for ID {id}")
-        sections = html.xpath(f"//*[@id='{id}']")
-        for section in sections:
-            print(f"section {''.join(section.getparent().itertext())}")
-
-    def follow_ipcc_target_link(self):
-        link_factory = self.link_factory
-        link = self.link
-        span_link = self.span_link
-        self._follow_ipcc_link(link_factory.anchor_branch,
-                              link_factory.target_leaf_name,
-                              link,
-                              link_factory.anchor_repository,
-                              span_link,
-                              link_factory.anchor_stem,
-                              link_factory.anchor_username,
-                              link_factory.wg_dict)
-
-
-
-class LinkFactory:
-    """"""
-    def __init__(self):
-        self.anchor_username = None
-        self.anchor_repository = None
-        self.anchor_branch = None
-        self.anchor_stem = None
-        self.target_leaf_name = None
-        self.wg_dict = None
-
-        self.link = None
-        self.span_link = None
-
-    @classmethod
-    def create_factory(cls,
-                       anchor_username,
-                       anchor_repository,
-                       anchor_branch,
-                       anchor_stem,
-                       target_leaf_name,
-                       wg_dict = None
-                       ):
-        link_factory = LinkFactory()
-        link_factory.anchor_username = anchor_username
-        link_factory.anchor_repository = anchor_repository
-        link_factory.anchor_branch = anchor_branch
-        link_factory.anchor_stem = anchor_stem
-        link_factory.target_leaf_name = target_leaf_name
-        link_factory.wg_dict = wg_dict
-        return link_factory
-
-    def create_ipcc_target_link(self, link, span_link):
-        target_link = IPCCTargetLink(link, span_link)
-        return target_link
-
-    @classmethod
-    def create_default_ipcc_link_factory(cls):
-        anchor_username = "petermr"
-        anchor_repository = "semanticClimate"
-        anchor_branch = "main"
-        anchor_stem = "ipcc/ar6"
-        target_leaf_name = "fulltext.annotations.id.html"
-        wg_dict = {
-            "WGI": "wg1",
-            "wgi": "wg1",
-            "WG2": "wg2",
-            "wg2": "wg2",
-            "WG3": "wg3",
-            "wg3": "wg3",
-        }
-        link_factory = LinkFactory.create_factory(
-            anchor_username=anchor_username,
-            anchor_repository=anchor_repository,
-            anchor_branch=anchor_branch,
-            anchor_stem=anchor_stem,
-            target_leaf_name=target_leaf_name,
-            wg_dict=wg_dict
-        )
-        return link_factory
-
-    def create_target_link(self, link, span_link):
-        target_link = IPCCTargetLink()
-        target_link.link = link
-        target_link.span_link = span_link
-        target_link.link_factory = self
-        return target_link
-
-
-class URLCache:
-    def __init__(self):
-        self.url_dict = dict()
-
-    def read_xml_element_from_github(self, github_url):
-        """retrieves and parses content of URL. Caches it if found
-        returns a deepcopy as elemnt is likely to be edited"""
-        html_elem = self.url_dict.get(github_url)
-        if html_elem is None:
-            try:
-                html_elem = XmlLib.read_xml_element_from_github(github_url=github_url)
-            except Exception as e:
-                print(f"cannot read {github_url} because {e}")
-                return None
-            self.url_dict[github_url] = html_elem
-        return copy.deepcopy(html_elem)
-
-
 class Test_PDFHTML(AmiAnyTest):
     """
     Combine PDF2HTML with styles and other tidy
@@ -1371,80 +1235,63 @@ class Test_PDFHTML(AmiAnyTest):
 
 
     def test_download_github_html(self):
-        username = "petermr"
-        repository = "semanticClimate"
-        branch = "main"
-        filepath = "ipcc/ar6/syr/lr/total_pages.annotated.html"
         github_url = HtmlLib.create_rawgithub_url(
-            username=username,
-            repository=repository,
-            branch=branch,
-            filepath=filepath)
+            username="petermr",
+            repository="semanticClimate",
+            branch="main",
+            filepath="ipcc/ar6/syr/lr/total_pages.annotated.html")
+        print(f"github_url {github_url}")
         url_cache = URLCache()
         html_elem = url_cache.read_xml_element_from_github(github_url)
         divs = html_elem.xpath("//div")
         assert 640 > len(divs) > 635
 
     def test_extract_anchors_initial_TEST_HACKATHON(self):
+        """tests target IDs in SYR/LR in WGI"""
         import requests
+
+        url_cache = URLCache()
+        # html_elem = url_cache.read_xml_element_from_github(github_url)
 
         # anchor_branch, anchor_repository, anchor_stem, anchor_username, link_factory, target_leaf_name, wg_dict = \
         link_factory = LinkFactory.create_default_ipcc_link_factory()
+
+        leaf_name = "fulltext.annotations.id.html"
 
         div = lxml.etree.Element("div")
         span = lxml.etree.fromstring(
             """<span class="targets"> by &#177;0.2&#176;C. {WGI SPM A.1, WGI SPM A.1.2, WGI SPM A.1.3, WGI SPM A.2.2, WGI Figure SPM.2; SRCCL TS.2} </span>""")
         div.append(span)
-
-        curly_brace_link_content_parser = re.compile(".*{(?P<links>[^}]+)}.*")
-        match = curly_brace_link_content_parser.match(span.text)
-        if match:
-            links_text = match.group("links")
-            links = re.split(",|;", links_text)
-            span_link = lxml.etree.SubElement(div, "span")
-            for link in links:
-                old = True
-                if old:
-                   IPCCTargetLink._follow_ipcc_link(link_factory.anchor_branch,
-                                         link_factory.target_leaf_name,
-                                         link,
-                                         link_factory.anchor_repository,
-                                         span_link,
-                                         link_factory.anchor_stem,
-                                         link_factory.anchor_username,
-                                         link_factory.wg_dict)
-                else:
-                    target_link = link_factory.create_target_link(link, span_link)
-                    target_link.follow_ipcc_target_link()
-
         print(f" new div {lxml.etree.tostring(div)}")
-        HtmlLib.write_html_file(div, Path(AmiAnyTest.TEMP_HTML_IPCC, "misc", "split_a.html"))
+        HtmlLib.write_html_file(div, Path(AmiAnyTest.TEMP_HTML_IPCC, "misc", "split_a.html"), debug=True)
 
-    # @classmethod
-    # def create_default_link_factory(cls):
-    #     anchor_username = "petermr"
-    #     anchor_repository = "semanticClimate"
-    #     anchor_branch = "main"
-    #     anchor_stem = "ipcc/ar6"
-    #     target_leaf_name = "fulltext.annotations.id.html"
-    #     wg_dict = {
-    #         "WGI": "wg1",
-    #         "wgi": "wg1",
-    #         "WG2": "wg2",
-    #         "wg2": "wg2",
-    #         "WG3": "wg3",
-    #         "wg3": "wg3",
-    #     }
-    #     link_factory = LinkFactory.create_factory(
-    #         anchor_username=anchor_username,
-    #         anchor_repository=anchor_repository,
-    #         anchor_branch=anchor_branch,
-    #         anchor_stem=anchor_stem,
-    #         target_leaf_name=target_leaf_name,
-    #         wg_dict=wg_dict
-    #     )
-    #     return link_factory
-    #     # return anchor_branch, anchor_repository, anchor_stem, anchor_username, link_factory, target_leaf_name, wg_dict
+        IPCCTargetLink.read_links_from_span_and_follow_to_repository(div, leaf_name, link_factory, span)
+
+
+    def test_extract_anchors_TEST_HACKATHON(self):
+        """ reads whole of SYR/LR and finds targets in WGI"""
+        import requests
+
+        url_cache = URLCache()
+        link_factory = LinkFactory.create_default_ipcc_link_factory()
+
+        leaf_name = "fulltext.annotations.id.html"
+
+        syr_path = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"extract_floats.html")
+        syr_lr_html = lxml.etree.parse(str(syr_path)).getroot()
+        div = None
+        span = None
+        spans = syr_lr_html.xpath("//span[@class='targets']")
+        assert 35 > len(spans) >= 29, f"expected 31 spans, found len{spans}"
+        for span in spans:
+            print(f" targets span {span.text}")
+            curly_re = re.compile(".*\{(P<curly>[.^\}]*)\}.*")
+            match = curly_re.match(span.text)
+            if match:
+                print(f"match group {match.group('curly')}")
+            IPCCTargetLink.read_links_from_span_and_follow_to_repository(div, leaf_name, link_factory, span)
+
+
 
     def test_add_sub_superscripts_to_page_HACKATHON(self):
         p = 16

@@ -487,20 +487,18 @@ class XmlLib:
         return parent
 
     @classmethod
-    def read_xml_element_from_github(cls, username=None, repository=None, branch=None, filepath=None, github_url=None):
-        """reads raw xml and parses to elemnent. Errors uncaught
+    def read_xml_element_from_github(cls, github_url=None, url_cache=None):
+        """reads raw xml and parses to elem
+
+        ent. Errors uncaught
         """
-        if github_url is not None:
-            url = github_url
+        if not github_url:
+            return None
+        # print(f"url: {github_url}")
+        if url_cache:
+            xml_elem = url_cache.read_xml_element_from_github(github_url)
         else:
-            print(f"deprecated URL creation")
-            url = None
-            # url = f"https://raw.githubusercontent.com/{username}/{repository}/{branch}/{filepath}"
-            # if not username or not repository or not branch or not filepath:
-            #     print(f"must provide all components in {url}")
-        print(f"url: {url}")
-        response = requests.get(url)
-        xml_elem = lxml.etree.fromstring(response.text)
+            xml_elem = lxml.etree.fromstring(requests.get(github_url).text)
         return xml_elem
 
 
@@ -592,7 +590,7 @@ class HtmlLib:
         style.text += "}"
 
     @classmethod
-    def write_html_file(self, html_elem, outfile):
+    def write_html_file(self, html_elem, outfile, debug=False):
         """writes XML elemnts to file, making directory if needed .
         adds method=True to ensure end tags
         """
@@ -602,12 +600,16 @@ class HtmlLib:
         Path(outdir).mkdir(exist_ok=True, parents=True)
         with open(outfile, "wb") as f:
             f.write(lxml.etree.tostring(html_elem, method="html"))
+        if debug:
+            print(f"wrote: {outfile}")
 
     @classmethod
-    def create_rawgithub_url(cls, username=None, repository=None, branch=None, filepath=None,
+    def create_rawgithub_url(cls, site=None, username=None, repository=None, branch=None, filepath=None,
                              rawgithubuser="https://raw.githubusercontent.com"):
         """creates rawgithub url for programmatic HTTPS access to repository"""
-        url = f"{rawgithubuser}/{username}/{repository}/{branch}/{filepath}"
+        site = "https://raw.githubusercontent.com"
+        url = f"{site}/{username}/{repository}/{branch}/{filepath}"
+        print(f"url {url}")
         return url
 
 
