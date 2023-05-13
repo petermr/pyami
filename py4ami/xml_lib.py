@@ -391,11 +391,12 @@ class XmlLib:
         return all(cls.are_elements_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
     @classmethod
-    def write_xml(cls, elem, path, encoding="UTF-8"):
+    def write_xml(cls, elem, path, encoding="UTF-8", method="xml"):
         """
         Writes XML to file
         :param elem: xml element to write
         :param path: path to write to
+        :param method: xml default, could be html
         :except: bad encoding
         The use of encoding='UTF-8' is because lxml has a bug in some releases
         """
@@ -501,6 +502,14 @@ class XmlLib:
             xml_elem = lxml.etree.fromstring(requests.get(github_url).text)
         return xml_elem
 
+    @classmethod
+    def is_integer(cls, elem):
+        """test whether text content parses as an integer"""
+        try:
+            i = int(elem.text)
+            return True
+        except Exception as e:
+            return False
 
 
 class HtmlElement:
@@ -611,6 +620,7 @@ class HtmlLib:
         url = f"{site}/{username}/{repository}/{branch}/{filepath}" if site and username and repository and branch and filepath else None
         # print(f"url {url}")
         return url
+
 
 
 class DataTable:

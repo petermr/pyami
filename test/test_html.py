@@ -1303,19 +1303,15 @@ class Test_PDFHTML(AmiAnyTest):
         print(f"DATAFRAME\n{df}")
         df.to_csv(str(Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", "small_table.csv")))
 
-    def test_extract_footnotes_initial(self):
+    def test_extract_footnotes_HACKATHON(self):
         """extract footnotes from HTML and copy to custom directories"""
         stem = "section2mini"
-        # stem = "total_pages.manual"
+        stem = "total_pages.manual"
         input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"{stem}.html")
         html_elem = lxml.etree.parse(str(input_html)).getroot()
-        xpath = "div[span[number(text)=number(text) and contains(@style, 'font-size: 9.0')]"
-        divs = html_elem.xpath("//div[span[contains(@style, 'font-size: 6.0') and number(.)=number(.)]]")
-        print(f"font-size 9.0 {len(divs)}")
-        for div in divs:
-            print(f"div: {''.join(div.itertext())[:50]}")
-        annotator = HtmlAnnotator.create_ipcc_annotator()
-        HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
+        HtmlUtil.extract_footnotes(html_elem, "font-size: 6.0")
+        HtmlLib.write_html_file(html_elem, str(Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", f"{stem}.footnoted.html")))
+
 
     def test_add_sub_superscripts_to_page_HACKATHON(self):
         p = 16

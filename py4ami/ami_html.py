@@ -656,29 +656,73 @@ class HtmlUtil:
             if len(last_span) == 0:
                 return False
             last_span = last_span[0]
-        last_font_size = last_span.text_style._font_size
-        this_font_size = this_span.text_style._font_size
+        try:
+            last_font_size = None
+            this_font_size = None
+            last_font_size = last_span.text_style._font_size
+            this_font_size = this_span.text_style._font_size
+        except Exception as e:
+            pass
+            # no font style
         is_script = cls.is_required_script_type(script_type, last_font_size, last_span, this_font_size, this_span,
-                                                ydown)
+                                            ydown)
         return is_script
 
     @classmethod
     def is_required_script_type(cls, script_type, last_font_size, last_span, this_font_size, this_span, ydown=True, ):
-        """old approach with AmiSpan"""
+        """old approach with AmiSpan
+        This is not right!"""
+        YFACTOR = 3 # pixels
         is_script = False
         script_factor = HtmlUtil.SCRIPT_FACT
-        if this_font_size < script_factor * last_font_size:
-            last_y = last_span.y
-            this_y = this_span.y
+        # if font sizes not given assume they don't matter
+        if last_font_size and this_font_size:
+            passed_font_size_change = this_font_size < script_factor * last_font_size
+        else:
+            passed_font_size_change = True
+        # use y coords
+        if passed_font_size_change:
+            try:
+                last_y = last_span.y
+                this_y = this_span.y
+            except Exception as e:
+                last_y = HtmlUtil.get_float(last_span, "y0")
+                this_y = HtmlUtil.get_float(this_span, "y0")
+            try:
+                last_x = last_span.x
+                this_x = this_span.x
+            except Exception as e:
+                last_x = HtmlUtil.get_float(last_span, "x0")
+                this_x = HtmlUtil.get_float(this_span, "x0")
             if script_type == SScript.SUB:
                 # is it lowered? Y DOWN
                 is_script = ydown and (last_y < this_y)
             elif script_type == SScript.SUP:
                 # is it raised? Y DOWN
-                is_script = ydown and (last_y > this_y)
+                is_script = ydown and (last_y - this_y) > YFACTOR
             else:
                 raise ValueError("bad script type ", script_type)
+            if False:
+                if is_script and last_x and this_x:
+                    is_script = last_x < this_x
         return is_script
+
+    @classmethod
+    def extract_footnotes(cls, html_elem, font_size_condition, title="Footnotes"):
+        divs = html_elem.xpath(f"//div[span[contains(@style, '{font_size_condition}') and number(.)=number(.)]]")
+        body = HtmlLib.get_body(html_elem)
+        footnote_div = lxml.etree.SubElement(body, "div")
+        footnote_title = lxml.etree.SubElement(footnote_div, "div")
+        footnote_title.text = title
+        ul = lxml.etree.SubElement(footnote_div, "ul")
+        current_li = None
+        for div in divs:
+            spans = div.xpath("./span")
+            for i, span in enumerate(spans):
+                if XmlLib.is_integer(span) and (i == 0 or HtmlUtil.is_superscript(spans[i - 1], span)):
+                    current_li = lxml.etree.SubElement(ul, "li")
+                current_li.append(span)
+
 
     @classmethod
     def annotate_script_type(cls, span, script_type, script_factor=None, last_span=None, ydown=True):
@@ -1024,6 +1068,14 @@ class HtmlUtil:
                 except:
                     pass
         return substring
+
+    @classmethod
+    def get_float(cls, elem, attrib_name):
+        try:
+            val = elem.attrib[attrib_name]
+            return float(val)
+        except Exception as e:
+            return None
 
 
 class HtmlAnnotator:
