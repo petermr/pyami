@@ -13,11 +13,13 @@ import lxml.etree
 import pandas as pd
 
 # local
+from numpy.lib.user_array import container
+
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor, Target, AnnotatorCommand, HtmlAnnotator
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont, \
-    FloatBoundary, Footnote
+    FloatBoundary, Footnote, HtmlGroup
 from py4ami.ami_pdf import PDFArgs
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
@@ -1211,10 +1213,11 @@ class Test_PDFHTML(AmiAnyTest):
                 f.write(lxml.etree.tostring(html_elem, method="html"))
 
 
-    def test_extract_sections_report_HACKATHON(self):
+    def test_extract_sections_report_HACKATHON_LATEST(self):
         """extract float/s from HTML and copy to custom directories"""
-        stem = "section2mini"
-        stem = "total_pages.manual"
+        # stem = "section2mini"
+        # stem = "total_pages.manual"
+        stem = "total_pages"
         input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"{stem}.html")
         html_elem = lxml.etree.parse(str(input_html)).getroot()
         annotator = HtmlAnnotator.create_ipcc_annotator()
@@ -1223,17 +1226,40 @@ class Test_PDFHTML(AmiAnyTest):
         for span in spans:
             annotator.run_commands(span)
         xp_start = "//div[span[@class='start']]"
-        xp_end= "div[span[@class='end']]"
-        divs = html_elem.xpath(xp_start)
-        print(f"divs {len(divs)}")
-        for div in divs:
-            annotator.run_commands(div)
-        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
-        outdir.mkdir(exist_ok=True, parents=True)
-        outfile = Path(outdir, f"test_{stem}_groups.html")
-        HtmlLib.write_html_file(html_elem, outfile)
-        print(f"wrote {outfile}")
+        # xp_end= "div[span[@class='end']]"
+        # this has sub_sub_section_title
+        """
+        id='subsection_4.5.3' class = 'sub_sub_section_title' (4.5.3)
+        """
+        HtmlGroup.group_siblings(html_elem, locator="section", style="border : solid purple 2px; margin:2px;")
+        HtmlGroup.group_siblings(html_elem, locator="sub_section", style="border : dashed green 1.5px; margin:1.5px;", debug=True)
+        HtmlGroup.group_siblings(html_elem, locator="sub_sub_section", style="border : dotted blue 1px; margin:1px;")
 
+
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
+        # outdir.mkdir(exist_ok=True, parents=True)
+        outfile = Path(outdir, f"test_{stem}_groups.html")
+        HtmlLib.write_html_file(html_elem, outfile, debug=True)
+        # print(f"wrote {outfile}")
+
+    def test_extract_sections_report_all_wg_HACKATHON_LATEST(self):
+        """create html for all WGs
+        """
+        stem = "total_pages"
+        wgs = ["wg1", "wg2", "wg3"]
+        for wg in wgs:
+            input_html = Path(Resources.TEST_IPCC_DIR, f"{wg}", "spm", f"{stem}.html")
+            html_elem = lxml.etree.parse(str(input_html)).getroot()
+            annotator = HtmlAnnotator.create_ipcc_annotator()
+            HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
+            for span in html_elem.xpath(".//span"):
+                annotator.run_commands(span)
+            HtmlGroup.group_siblings(html_elem, locator="section", style="border : solid purple 2px; margin:2px;")
+            HtmlGroup.group_siblings(html_elem, locator="sub_section", style="border : dashed green 1.5px; margin:1.5px;", debug=True)
+            HtmlGroup.group_siblings(html_elem, locator="sub_sub_section", style="border : dotted blue 1px; margin:1px;")
+
+            outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", f"{wg}", "spm")
+            HtmlLib.write_html_file(html_elem, Path(outdir, f"test_{stem}_groups.html"), debug=True)
 
     def test_download_github_html(self):
         github_url = HtmlLib.create_rawgithub_url(
@@ -1270,7 +1296,8 @@ class Test_PDFHTML(AmiAnyTest):
 
 
     def test_extract_anchors_TEST_HACKATHON(self):
-        """ reads whole of SYR/LR and finds targets in WGI"""
+        """ reads whole of SYR/LR and finds targets in WGI
+        on the basis that WGI has got annotations"""
         import requests
 
         url_cache = URLCache()
@@ -1313,6 +1340,7 @@ class Test_PDFHTML(AmiAnyTest):
         HtmlLib.write_html_file(html_elem, str(Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", f"{stem}.footnoted.html")))
 
 
+
     def test_add_sub_superscripts_to_page_HACKATHON(self):
         p = 16
         input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", f"page_{p}.html")
@@ -1328,6 +1356,7 @@ class Test_PDFHTML(AmiAnyTest):
         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "lr")
         outfile = Path(outdir, f"page_{p}.scripts.html")
         HtmlLib.write_html_file(html_elem, outfile)
+
 
 
 class TestHtmlTidy(AmiAnyTest):

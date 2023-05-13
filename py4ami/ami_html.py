@@ -487,6 +487,41 @@ class HtmlTidy:
             else:
                 last_span = span
 
+class HtmlGroup:
+    """groups siblings into divs"""
+    @classmethod
+    def group_siblings(cls, html_elem, locator=None, style=None, debug=False):
+
+        sections = html_elem.xpath(f".//span[starts-with(@class, '{locator}')]")
+        print(f"{locator}: {len(sections)}")
+        for section in sections:
+            print(f"section {section.attrib['id']}")
+            parent = section.getparent()
+            fenceposts = parent.xpath(f"following-sibling::div[span[starts-with(@class,'{locator}')]]")
+            cls.group_siblings_between_fenceposts(fenceposts, style, debug=debug)
+
+    @classmethod
+    def group_siblings_between_fenceposts(cls, fenceposts, style, debug=False):
+        for i, fencepost in enumerate(fenceposts):
+            fencepost_followers = fencepost.xpath("following-sibling::div[span]")
+            container_div = lxml.etree.Element("div")
+            container_div.attrib["style"] = style
+            fencepost.addprevious(container_div)
+            container_div.append(fencepost)
+            title = fencepost.xpath("span")[0].attrib.get("id")
+            if title:
+                container_div.attrib["title"] = title
+            for follower in fencepost_followers:
+                if follower in fenceposts:
+                    id = follower.xpath("./span")[0].attrib.get("id")
+                    if debug:
+                        print(f" id {id}")
+                    break
+                else:
+                    if debug:
+                        print(f"moved follower to {container_div.attrib.get('title')}")
+                    container_div.append(follower)
+
 
 class HtmlUtil:
     SCRIPT_FACT = 0.9  # maybe sholdn't be here; avoid circular
@@ -1150,7 +1185,8 @@ class HtmlAnnotator:
                               style="{color : purple}"))
         annotator.add_command(
             AnnotatorCommand(html_class="group", group_xpath="div[span[contains(@class, 'start')]]",
-                             end_xpath="self::div[span[contains(text(),'END')]]"))
+                             end_xpath="self::div[span[contains(text(),'END')]]",
+                            desc="?extracts groups and mmoves to end"))
         annotator.add_command(
             AnnotatorCommand(html_class="subsubsection", group_xpath="div[span[contains(@class, 'subsubsection_title')]]",
                              end_xpath="self::div[span[contains(text(),'section_title')]]"))
