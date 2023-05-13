@@ -1301,6 +1301,7 @@ class Test_PDFHTML(AmiAnyTest):
         print(f"bad_link_set {bad_link_set}")
         df = pd.DataFrame(table)
         print(f"DATAFRAME\n{df}")
+        df.to_csv(str(Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", "small_table.csv")))
 
     def test_extract_footnotes_initial(self):
         """extract footnotes from HTML and copy to custom directories"""
