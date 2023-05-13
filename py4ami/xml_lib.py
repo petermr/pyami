@@ -608,8 +608,8 @@ class HtmlLib:
                              rawgithubuser="https://raw.githubusercontent.com"):
         """creates rawgithub url for programmatic HTTPS access to repository"""
         site = "https://raw.githubusercontent.com"
-        url = f"{site}/{username}/{repository}/{branch}/{filepath}"
-        print(f"url {url}")
+        url = f"{site}/{username}/{repository}/{branch}/{filepath}" if site and username and repository and branch and filepath else None
+        # print(f"url {url}")
         return url
 
 

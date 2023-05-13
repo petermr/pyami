@@ -954,6 +954,7 @@ DEFAULT_STYLES = [
     (".level1", [("background", "#ffffdd;")]),
     (".level2", [("background", "#ddffff;")]),
     (".level3", [("background", "#ddffdd;")]),
+    (".footnote", [("background", "#ffddff;")]),
 ]
 
 class Test_PDFHTML(AmiAnyTest):
@@ -1240,7 +1241,7 @@ class Test_PDFHTML(AmiAnyTest):
             repository="semanticClimate",
             branch="main",
             filepath="ipcc/ar6/syr/lr/total_pages.annotated.html")
-        print(f"github_url {github_url}")
+        # print(f"github_url {github_url}")
         url_cache = URLCache()
         html_elem = url_cache.read_xml_element_from_github(github_url)
         divs = html_elem.xpath("//div")
@@ -1276,22 +1277,44 @@ class Test_PDFHTML(AmiAnyTest):
         link_factory = LinkFactory.create_default_ipcc_link_factory()
 
         leaf_name = "fulltext.annotations.id.html"
-
-        syr_path = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"extract_floats.html")
+        syr_leaf = f"extract_floats.html"
+        syr_path = Path(Resources.TEST_IPCC_DIR, "syr", "lr", syr_leaf)
         syr_lr_html = lxml.etree.parse(str(syr_path)).getroot()
         div = None
         span = None
         spans = syr_lr_html.xpath("//span[@class='targets']")
         assert 35 > len(spans) >= 29, f"expected 31 spans, found len{spans}"
+        table = []
+        bad_link_set = set()
+        table.append(["anchor_text", "?", "target_id", "target_text"])
         for span in spans:
-            print(f" targets span {span.text}")
+            # print(f" targets span {span.text}")
             curly_re = re.compile(".*\{(P<curly>[.^\}]*)\}.*")
             match = curly_re.match(span.text)
             if match:
                 print(f"match group {match.group('curly')}")
-            IPCCTargetLink.read_links_from_span_and_follow_to_repository(div, leaf_name, link_factory, span)
+            rows, bad_links = IPCCTargetLink.read_links_from_span_and_follow_to_repository(div, leaf_name, link_factory, span)
+            bad_link_set.update(bad_links)
+            if rows:
+                table.extend(rows)
+        print(f" table {len(table)}")
+        print(f"bad_link_set {bad_link_set}")
+        df = pd.DataFrame(table)
+        print(f"DATAFRAME\n{df}")
 
-
+    def test_extract_footnotes_initial(self):
+        """extract footnotes from HTML and copy to custom directories"""
+        stem = "section2mini"
+        # stem = "total_pages.manual"
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"{stem}.html")
+        html_elem = lxml.etree.parse(str(input_html)).getroot()
+        xpath = "div[span[number(text)=number(text) and contains(@style, 'font-size: 9.0')]"
+        divs = html_elem.xpath("//div[span[contains(@style, 'font-size: 6.0') and number(.)=number(.)]]")
+        print(f"font-size 9.0 {len(divs)}")
+        for div in divs:
+            print(f"div: {''.join(div.itertext())[:50]}")
+        annotator = HtmlAnnotator.create_ipcc_annotator()
+        HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
 
     def test_add_sub_superscripts_to_page_HACKATHON(self):
         p = 16

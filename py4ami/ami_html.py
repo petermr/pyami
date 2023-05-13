@@ -16,6 +16,7 @@ import lxml.etree
 import numpy as np
 from lxml.etree import Element, _Element, _ElementTree
 import xml.etree.ElementTree as ET
+import time
 from sklearn.linear_model import LinearRegression
 
 # local
@@ -1084,7 +1085,8 @@ class HtmlAnnotator:
                              add_id="end_|", add_title="end_|", style="{color : green; background: blue}"))
         annotator.add_command(
             AnnotatorCommand(html_class="targets", regex=".*\{(?P<title>.+)\}.*",
-                             add_id="chunk_|", add_title="|", style="{color : green; background: orange}"))
+                             add_id="chunk_|", add_title="|", style="{color : green; background: orange}",
+                            desc="IPCC target IDs in curly brackets {WG1 SPM A.1.2, WGII SPM B.2.3}"))
         annotator.add_command(
             AnnotatorCommand(html_class="cruft", regex="^.*(Subject to Copy Edit |Adopted Longer Report IPCC AR6 SYR).*$",
                              add_id="cruft_|", add_title="|", delete=True, style="{color : green; background: black}"))
@@ -1100,6 +1102,9 @@ class HtmlAnnotator:
         annotator.add_command(
             AnnotatorCommand(html_class="subsubsection", group_xpath="div[span[contains(@class, 'subsubsection_title')]]",
                              end_xpath="self::div[span[contains(text(),'section_title')]]"))
+        annotator.add_command(
+            AnnotatorCommand(html_class="footnote", xpath="//div[span[contains(@style, 'font-size: 6.0') and number(.)=number(.)]]",
+                             desc="horrible hack testing font-size"))
 
 
         return annotator
@@ -2325,17 +2330,28 @@ class IPCCTargetLink:
         self.link = link
         self.span_link = span_link
         self.link_factory = None
+        self.bad_links = set()
 
-    def _follow_ipcc_target_link(self, ipcc_target_link, anchor_link, wg_dict=None, url_cache=None, stem="ipcc/ar6", leaf_name=None):
+    def _follow_ipcc_target_link(
+            self,
+            ipcc_target_link,
+            anchor_link,
+            wg_dict=None,
+            url_cache=None,
+            stem="ipcc/ar6",
+            leaf_name=None):
 
         if not leaf_name:
             print(f"must give leaf name")
-            return None
+            return None,None
         if anchor_link is not None:
             anchor = lxml.etree.SubElement(anchor_link, "a")
             anchor.text = ipcc_target_link
 
-        chapter, id, report = self.make_report_chapter_id(ipcc_target_link, wg_dict)
+        if not self.make_report_chapter_id(ipcc_target_link, wg_dict):
+            self.bad_links.add(ipcc_target_link)
+            return None, None
+        (chapter, id, report) = self.make_report_chapter_id(ipcc_target_link, wg_dict)
 
         filepath = f"{stem}/{report}/{chapter}/{leaf_name}"
         html = None
@@ -2345,34 +2361,44 @@ class IPCCTargetLink:
         username = self.link_factory.target.username
         repository = self.link_factory.target.repository
         target_url = f"{site}/{username}/{repository}/{branch}/{filepath}"
-        print(f"target_url {target_url}")
+        # print(f"target_url {target_url}")
         try:
             html = XmlLib.read_xml_element_from_github(github_url=target_url, url_cache=url_cache)
         except Exception as e:
-            print(f"failed to read HTML {e}")
+            # print(f"failed to read HTML {e}")
+            pass
         if html is None:
-            print(f"failed to read HTML")
-            return
-        print(f"looking for ID {id}")
+            # print(f"failed to read HTML")
+            return None, None
+        # print(f"looking for ID {id}")
         sections = html.xpath(f"//*[@id='{id}']")
-        for section in sections:
-            print(f"section {''.join(section.getparent().itertext())}")
+        target_text = ""
+        for i, section in enumerate(sections):
+            target_text +=  ("" if i == 0  else "SEP") + ''.join(section.getparent().itertext())
+        return (id, target_text) if target_text else None, None
 
     def make_report_chapter_id(self, ipcc_link, wg_dict):
         """splits REPORT CHAP ID string
         e.g. WGI SPM A.1.2.3 => wg1/spm#A.1.2.3
+        :return: None if cannot parse
         """
         href = ipcc_link.strip().split()
         if len(href) != 3:
-            print(f"target must have 3 components {ipcc_link}")
+            # print(f"target must have 3 components {ipcc_link}")
+            return None
         report = wg_dict.get(href[0])
         if not report:
-            print(f"cannot find report from {href[0]}")
+            # print(f"cannot find report from {href[0]}")
+            return None
         chapter = href[1].lower() if len(href) > 1 else None
         chapters = ["spm", "lr", "ts"]
         if chapter not in chapters:
-            print(f"only chapters : {chapters} allowed")
+            # print(f"only chapters : {chapters} allowed")
+            return None
+
         id = href[2] if len(href) > 2 else None
+        if not id:
+            return None
         return chapter, id, report
 
     def follow_ipcc_target_link(self, url_cache=None, leaf_name=None):
@@ -2380,39 +2406,43 @@ class IPCCTargetLink:
         link = self.link
         span_link = self.span_link
 
-        github_url = link_factory.create_github_url()
+        # github_url = link_factory.create_github_url()
 
-        self._follow_ipcc_target_link(
+        (id, target_text) = self._follow_ipcc_target_link(
             link,
             span_link,
             wg_dict=link_factory.wg_dict,
             url_cache=url_cache,
             leaf_name = leaf_name,
         )
+        return (id, target_text)
 
     @classmethod
-    def read_links_from_span_and_follow_to_repository(cls, div, leaf_name, link_factory, span_with_curly_ids):
+    def read_links_from_span_and_follow_to_repository(cls, anchor_div, leaf_name, link_factory, span_with_curly_ids):
         """
         :param div: if not None adds an anchor
         """
         curly_brace_link_content_parser = re.compile(".*{(?P<links>[^}]+)}.*")
         match = curly_brace_link_content_parser.match(span_with_curly_ids.text)
+        rows = []
+        bad_links = set()
         if match:
             links_text = match.group("links")
             links = re.split(",|;", links_text)
-            span_link = lxml.etree.SubElement(div, "span") if div is not None else None
-            github_url = HtmlLib.create_rawgithub_url(
-                site="https://raw.githubuser.com",
-                username="petermr",
-                repository="semanticClimate",
-                branch="main",
-                filepath="ipcc/ar6/syr/lr/total_pages.annotated.html"
-            )
-            print(f" github_url {github_url}")
+            anchor_span_link = lxml.etree.SubElement(anchor_div, "span") if anchor_div is not None else None
             url_cache = URLCache()
+            parent_div = span_with_curly_ids.getparent()
+            anchor_text = ''.join(parent_div.itertext())
             for link in links:
-                target_link = link_factory.create_target_link(link, span_link)
-                target_link.follow_ipcc_target_link(url_cache=url_cache, leaf_name=leaf_name)
+                target_link = link_factory.create_target_link(link, anchor_span_link)
+                id_target_text = target_link.follow_ipcc_target_link(url_cache=url_cache, leaf_name=leaf_name)
+                if id_target_text:
+                    rows.append([anchor_text, link, id_target_text[0], id_target_text[1]])
+                bad_links.update(target_link.bad_links)
+        if rows:
+            print(f"**ROWS**{len(rows)}")
+        print(f"bad links {bad_links}")
+        return rows, bad_links
 
 
 
@@ -2495,9 +2525,9 @@ class LinkFactory:
 
     #    class LinkFactory:
 
-    def create_ipcc_target_link(self, link, span_link):
-        target_link = IPCCTargetLink(link, span_link)
-        return target_link
+    # def create_ipcc_target_link(self, link, span_link):
+    #     target_link = IPCCTargetLink(link, span_link)
+    #     return target_link
 
     @classmethod
     def create_default_ipcc_link_factory(cls):
@@ -2533,8 +2563,8 @@ class LinkFactory:
 
     #    class LinkFactory:
 
-    def create_target_link(self, link, span_link):
-        target_link = IPCCTargetLink(link, span_link)
+    def create_target_link(self, link, anchor_span_link):
+        target_link = IPCCTargetLink(link, anchor_span_link)
         target_link.link_factory = self
         return target_link
 
@@ -2552,17 +2582,21 @@ class URLCache:
     def __init__(self):
         self.url_dict = dict()
 
-    def read_xml_element_from_github(self, github_url):
+    def read_xml_element_from_github(self, github_url, delay=1):
         """retrieves and parses content of URL. Caches it if found
         returns a deepcopy as elemnt is likely to be edited"""
         html_elem = self.url_dict.get(github_url)
         if html_elem is None:
             try:
                 html_elem = XmlLib.read_xml_element_from_github(github_url=github_url)
+                time.sleep(delay)
             except Exception as e:
                 print(f"cannot read {github_url} because {e}")
                 return None
             self.url_dict[github_url] = html_elem
+        else:
+            # print(f" found in cache!")
+            pass
         return copy.deepcopy(html_elem)
 
 
