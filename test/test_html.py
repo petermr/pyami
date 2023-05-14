@@ -1212,7 +1212,6 @@ class Test_PDFHTML(AmiAnyTest):
             with open(outfile, "wb") as f:
                 f.write(lxml.etree.tostring(html_elem, method="html"))
 
-
     def test_extract_sections_report_HACKATHON_LATEST(self):
         """extract float/s from HTML and copy to custom directories"""
         # stem = "section2mini"
@@ -1225,22 +1224,44 @@ class Test_PDFHTML(AmiAnyTest):
         spans = html_elem.xpath(".//span")
         for span in spans:
             annotator.run_commands(span)
-        xp_start = "//div[span[@class='start']]"
-        # xp_end= "div[span[@class='end']]"
-        # this has sub_sub_section_title
-        """
-        id='subsection_4.5.3' class = 'sub_sub_section_title' (4.5.3)
-        """
         HtmlGroup.group_siblings(html_elem, locator="section", style="border : solid purple 2px; margin:2px;")
         HtmlGroup.group_siblings(html_elem, locator="sub_section", style="border : dashed green 1.5px; margin:1.5px;", debug=True)
         HtmlGroup.group_siblings(html_elem, locator="sub_sub_section", style="border : dotted blue 1px; margin:1px;")
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
+        outfile = Path(outdir, f"test_{stem}_groups.html")
+        HtmlLib.write_html_file(html_elem, outfile, debug=True)
 
 
+    def test_extract_sections_HACKATHON_LATEST(self):
+        """extract float/s from HTML and copy to custom directories"""
+        # stem = "section2mini"
+        # stem = "total_pages"
+        stem = "total_pages_section_3"
+        stem = "total_pages"
+        input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"{stem}.html")
+        html_elem = lxml.etree.parse(str(input_html)).getroot()
+        HtmlGroup.annotate_title_sections(html_elem, [
+            ("section", "Section\s*(?P<id>\d):\s+.*"),
+            ("sub_section", "(?P<id>\d+\.\d+)\s.*"),
+            ("sub_sub_section", "(?P<id>\d+\.\d+\.\d+)\s.*")
+        ] )
+        new_div = HtmlGroup.group_divs_into_tree(HtmlLib.get_body(html_elem))
+        new_html = HtmlLib.create_html_with_empty_head_body()
+        HtmlLib.get_body(new_html).append(new_div)
+        style = lxml.etree.SubElement(HtmlLib.get_head(new_html), "style")
+        style.text = """
+        div {border: red solid 1px; margin: 1px;}
+        span {background: #eeeeee; margin: 1px;}
+        div.float {background: #ccffff;}
+                     """
+        HtmlGroup.collect_floats_to_back(new_html)
         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
         # outdir.mkdir(exist_ok=True, parents=True)
         outfile = Path(outdir, f"test_{stem}_groups.html")
-        HtmlLib.write_html_file(html_elem, outfile, debug=True)
+
+        HtmlLib.write_html_file(new_html, outfile, debug=True)
         # print(f"wrote {outfile}")
+
 
     def test_extract_sections_report_all_wg_HACKATHON_LATEST(self):
         """create html for all WGs

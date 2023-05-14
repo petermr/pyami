@@ -490,18 +490,20 @@ class HtmlTidy:
 class HtmlGroup:
     """groups siblings into divs"""
     @classmethod
-    def group_siblings(cls, html_elem, locator=None, style=None, debug=False):
-
+    def group_siblings(cls, html_elem, locator=None, parent_locator=None, style=None, debug=False):
+        """evrything starts as a sibling!"""
         sections = html_elem.xpath(f".//span[starts-with(@class, '{locator}')]")
+        fenceposts = html_elem.xpath(f".//span[starts-with(@class,'{parent_locator}')]")
         print(f"{locator}: {len(sections)}")
-        for section in sections:
-            print(f"section {section.attrib['id']}")
-            parent = section.getparent()
-            fenceposts = parent.xpath(f"following-sibling::div[span[starts-with(@class,'{locator}')]]")
-            cls.group_siblings_between_fenceposts(fenceposts, style, debug=debug)
+        if len(sections) > 0:
+            parent = sections[0].getparent()
+            for section in sections:
+                print(f"section {section.attrib['id']}")
+
+                cls.group_siblings_between_fenceposts(fenceposts, style=style, debug=debug)
 
     @classmethod
-    def group_siblings_between_fenceposts(cls, fenceposts, style, debug=False):
+    def group_siblings_between_fenceposts(cls, fenceposts, style=None, debug=False):
         for i, fencepost in enumerate(fenceposts):
             fencepost_followers = fencepost.xpath("following-sibling::div[span]")
             container_div = lxml.etree.Element("div")
@@ -519,8 +521,275 @@ class HtmlGroup:
                     break
                 else:
                     if debug:
-                        print(f"moved follower to {container_div.attrib.get('title')}")
+                        print(f"moved follower {follower} to {container_div.attrib.get('title')}")
                     container_div.append(follower)
+
+        """I'm working with lxml in Python and wish to group a flat set of <div> elements into a tree based on their class attributes
+I have a set of sections <div> that are all children of <body> which must be arranged in a tree structure. Some of the divs contain just a title-string (title-divs) indicating the level in tree; this is indicated by a class attribute of "section", "sub_section", "sub_sub_section", etc. Any divs following title-divs belong to the same level, until a following title-div is reached. Please create code that:
+* creates a new hierarchy of divs representing the tree structure
+* adds the title-divs and their following non-title-divs to the appropriate position in the hierarchy.
+
+Here is a typical input:
+
+<html>
+  <head>...</head>
+  <body>
+    <div class="section_title">Section 1</div>
+    <div>stuff a</div>
+    <div class="subsection_title">Section 1.1</div>
+    <div>stuff b</div>
+    <div>stuff bx</div>
+    <div class="subsubsection_title">Section 1.1.1</div>
+    <div>stuff z</div>
+    <div>stuff zz</div>
+    <div class="subsubsection_title">Section 1.1.2</div>
+    <div>stuff x</div>
+    <div>stuff xx</div>
+    <div>stuff xxx</div>
+    <div class="subsection_title">Section 1.2</div>
+  </body>
+</html>
+
+   and desired output
+<html>
+  <head>...</head>
+  <body>
+    <div class="section">
+      <div class="section_title">Section 1</div>
+      <div>stuff a</div>
+	  <div class="subsection">
+        <div class="subsection_title">Section 1.1</div>
+        <div>stuff b</div>
+        <div>stuff bx</div>
+		<div class="subsubsection">
+          <div class="subsubsection_title">Section 1.1.1</div>
+          <div>stuff z</div>
+          <div>stuff zz</div>
+		</div>
+		<div class="subsubsection">
+          <div class="subsubsection_title">Section 1.1.2</div>
+          <div>stuff x</div>
+          <div>stuff xx</div>
+          <div>stuff xxx</div>
+		</div>
+	  </div>
+	</div>
+    <div class="section">
+      <div class="section_title">Section 2</div>
+	</div>
+  </body>
+</html>
+
+ChatGPT
+To achieve the desired output, you can use the following Python code to parse the HTML using lxml and restructure the <div> elements into a tree structure based on their class attributes:
+
+python
+Copy code
+from lxml import etree
+
+def group_divs_into_tree(html):
+    # Parse the HTML
+    tree = etree.HTML(html)
+
+    # Find all <div> elements within the <body> tag
+    div_elements = tree.xpath("//body/div")
+
+    # Create a new root <div> element to hold the tree structure
+    root = etree.Element("div")
+
+    # Initialize variables to keep track of the current parent <div> and its level
+    current_parent = root
+    current_level = 0
+
+    for div in div_elements:
+        # Check if the current <div> has a class attribute
+        if "class" in div.attrib:
+            class_value = div.attrib["class"]
+
+            # Determine the level based on the class attribute
+            if class_value.startswith("section_title"):
+                level = 0
+            elif class_value.startswith("subsection_title"):
+                level = 1
+            elif class_value.startswith("subsubsection_title"):
+                level = 2
+            else:
+                continue  # Skip <div> elements without title classes
+
+            # Create a new <div> element and set its class attribute
+            new_div = etree.SubElement(current_parent, "div")
+            new_div.attrib["class"] = "section" * (level + 1)  # Add appropriate class based on level
+
+            # Add the current <div> to the new <div> element
+            new_div.append(div)
+
+            # Update the current parent and level
+            current_parent = new_div
+            current_level = level
+        else:
+            # Add non-title <div> elements to the current parent
+            current_parent.append(div)
+
+    # Return the modified HTML as a string
+    return etree.tostring(tree, encoding="unicode")
+
+# Example usage
+html = '''
+<html>
+  <head>...</head>
+  <body>
+    <div class="section_title">Section 1</div>
+    <div>stuff a</div>
+    <div class="subsection_title">Section 1.1</div>
+    <div>stuff b</div>
+    <div>stuff bx</div>
+    <div class="subsubsection_title">Section 1.1.1</div>
+    <div>stuff z</div>
+    <div>stuff zz</div>
+    <div class="subsubsection_title">Section 1.1.2</div>
+    <div>stuff x</div>
+    <div>stuff xx</div>
+    <div>stuff xxx</div>
+    <div class="subsection_title">Section 1.2</div>
+  </body>
+</html>
+'''
+
+output_html = group_divs_into_tree(html)
+print(output_html)
+The code will parse the HTML, identify the title <div> elements based on their class attributes, create a new hierarchy of <div> elements, and add the title <div>s and their following non-title <div>s to the appropriate position in the hierarchy. Finally, it will return the modified HTML as a string.
+
+Please note that the code assumes that the class values for the title <div> elements follow the pattern "section_title", "subsection_title", "subsubsection_title", and so on. If your actual class names differ, you may need to modify the code accordingly.
+
+
+
+
+
+Regenerate response
+Send a message.
+
+Free Research Preview. ChatGPT may produce inaccurate information about people, places, or facts. ChatGPT May 12 Version"""
+    @classmethod
+    def group_divs_into_tree(cls, body):
+        """Peter Murray-Rust"""
+        END = "[END"
+        START = "[START"
+        FLOAT = "float"
+
+        skips = ["Adopted.*",
+                 "Subject to Copy"]
+
+        div_styles = ["border: #8888ff solid 3px;",
+                      "border: cyan dashed 2.5px;",
+                      "border: green dashed 2px;",
+                      ]
+
+        # Find all <div> elements within the <body> tag
+        div_elements = body.xpath("./div")
+
+        # Create a new root <div> element to hold the tree structure
+        root_div = lxml.etree.Element("div")
+        root_div.attrib["class"] = "root"
+        root_div.attrib["title"] = "root"
+
+        # Initialize variables to keep track of the current parent <div> and its level
+        current_parent = root_div
+        current_level = 0
+
+        parents = [root_div, None, None, None]
+        start_ends = []
+        parent = root_div
+        for div in div_elements:
+            # Check if the current <div> has a class attribute
+            text = ''.join(div.itertext())
+            if "class" in div.attrib:
+                class_value = div.attrib["class"]
+                print(f"class: {class_value}")
+
+                # Determine the level based on the class attribute
+                if class_value.startswith("section"):
+                    level = 1
+                elif class_value.startswith("sub_section"):
+                    level = 2
+                elif class_value.startswith("sub_sub_section"):
+                    level = 3
+                else:
+                    level = None
+                    # continue  # Skip <div> elements without title classes
+                if level:
+                    stack_parent = parents[level - 1]
+                    new_div = lxml.etree.SubElement(stack_parent, "div")
+                    new_div.attrib["title"] = text[:50]
+                    new_div.attrib["style"] = div_styles[level - 1]
+
+                    parent = new_div
+                    parents[level] = new_div
+                parent.append(div)
+
+            elif text.startswith(START):
+                start_str = text[len(START):]
+                start_ends.append(start_str)
+                sub_div =  lxml.etree.SubElement(parent, "div")
+                sub_div.attrib["class"] = FLOAT
+                sub_div.attrib["title"] = text
+                sub_div.attrib["style"] = "border: dashed blue 3px;"
+                parent = sub_div
+
+            elif text.startswith(END):
+                end_str = text[len(END):]
+                start_str = start_ends.pop()
+                if start_str != end_str:
+                    print(f"unbalanced: {START + start_str} and {END + end_str}")
+                parent = parent.getparent()
+
+            elif cls.skip_content(text, skips):
+                print(f"skipped {text[:50]}")
+            else:
+                parent.append(div)
+
+        return root_div
+        # Return the modified HTML as a string
+        # return etree.tostring(tree, encoding="unicode")
+    @classmethod
+    def skip_content(cls, text, skips):
+        for skip in skips:
+            if re.compile(skip).match(text):
+                return True
+        return False
+
+
+    @classmethod
+    def annotate_title_sections(cls, html_elem, section_regexes):
+        body = HtmlLib.get_body(html_elem)
+        for div in body.xpath(".//div"):
+            text = ''.join(div.itertext())
+
+            for section_regex in section_regexes:
+                section_class = section_regex[0]
+                regex = section_regex[1]
+#               print(f"regex {regex}")
+                reg = re.compile(regex)
+                match = reg.match(text)
+                if match:
+                    print(f"text: {text[:30]}")
+                    id = match.group('id')
+                    print(f"id: {section_class}: {id}")
+                    div.attrib["title"] = id
+                    div.attrib["class"] = section_class
+
+    @classmethod
+    def collect_floats_to_back(cls, html_elem):
+        back = lxml.etree.SubElement(HtmlLib.get_body(html_elem), "div")
+        back.attrib["title"] = "back matter"
+        back.attrib["style"] = "background: #ffffdd; border: solid purple 1.5px; margin: 2px;"
+        back_title = lxml.etree.SubElement(back, "div")
+        back_title.text ="Back Matter, Footnotes, Figures, Tables, Boxes"
+        back_title.attrib["style"] = "font-size: 20px; font-family: sanserif;"
+        floats = html_elem.xpath(".//div[@class='float']")
+        print(f"floats {len(floats)}")
+        for float in floats:
+            back.append(float)
+
 
 
 class HtmlUtil:
