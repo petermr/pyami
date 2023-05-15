@@ -676,8 +676,11 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         START = "[START"
         FLOAT = "float"
 
-        skips = ["Adopted.*",
-                 "Subject to Copy"]
+        skip_res = [
+            re.compile("Adopted.*"),
+            re.compile("Subject to Copy")
+        ]
+
 
         div_styles = ["border: #8888ff solid 3px;",
                       "border: cyan dashed 2.5px;",
@@ -703,60 +706,76 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
             # Check if the current <div> has a class attribute
             text = ''.join(div.itertext())
             if "class" in div.attrib:
-                class_value = div.attrib["class"]
-                print(f"class: {class_value}")
-
-                # Determine the level based on the class attribute
-                if class_value.startswith("section"):
-                    level = 1
-                elif class_value.startswith("sub_section"):
-                    level = 2
-                elif class_value.startswith("sub_sub_section"):
-                    level = 3
-                else:
-                    level = None
-                    # continue  # Skip <div> elements without title classes
-                if level:
-                    stack_parent = parents[level - 1]
-                    new_div = lxml.etree.SubElement(stack_parent, "div")
-                    new_div.attrib["title"] = text[:50]
-                    new_div.attrib["style"] = div_styles[level - 1]
-
-                    parent = new_div
-                    parents[level] = new_div
-                parent.append(div)
+                parent = cls.process_class_div(div, div_styles, parent, parents, text)
 
             elif text.startswith(START):
-                start_str = text[len(START):]
-                start_ends.append(start_str)
-                sub_div =  lxml.etree.SubElement(parent, "div")
-                sub_div.attrib["class"] = FLOAT
-                sub_div.attrib["title"] = text
-                sub_div.attrib["style"] = "border: dashed blue 3px;"
-                parent = sub_div
+                parent = cls.process_ipcc_start(FLOAT, START, parent, start_ends, text)
 
             elif text.startswith(END):
-                end_str = text[len(END):]
-                start_str = start_ends.pop()
-                if start_str != end_str:
-                    print(f"unbalanced: {START + start_str} and {END + end_str}")
-                parent = parent.getparent()
+                parent = cls.process_ipcc_end(END, START, parent, start_ends, text)
 
-            elif cls.skip_content(text, skips):
+            elif cls.skip_content(text, skip_res):
                 print(f"skipped {text[:50]}")
+
+            # elif cls.is_footnote(span):
+            #     print(f"skipped {text[:50]}")
+            #
             else:
                 parent.append(div)
 
         return root_div
-        # Return the modified HTML as a string
-        # return etree.tostring(tree, encoding="unicode")
+
     @classmethod
-    def skip_content(cls, text, skips):
-        for skip in skips:
-            if re.compile(skip).match(text):
+    def process_ipcc_end(cls, END, START, parent, start_ends, text):
+        end_str = text[len(END):]
+        start_str = start_ends.pop()
+        if start_str != end_str:
+            print(f"unbalanced: {START + start_str} and {END + end_str}")
+        parent = parent.getparent()
+        return parent
+
+    @classmethod
+    def process_ipcc_start(cls, FLOAT, START, parent, start_ends, text):
+        start_str = text[len(START):]
+        start_ends.append(start_str)
+        sub_div = lxml.etree.SubElement(parent, "div")
+        sub_div.attrib["class"] = FLOAT
+        sub_div.attrib["title"] = text
+        sub_div.attrib["style"] = "border: dashed blue 3px;"
+        parent = sub_div
+        return parent
+
+    @classmethod
+    def process_class_div(cls, div, div_styles, parent, parents, text):
+        class_value = div.attrib["class"]
+        print(f"class: {class_value}")
+        # Determine the level based on the class attribute
+        if class_value.startswith("section"):
+            level = 1
+        elif class_value.startswith("sub_section"):
+            level = 2
+        elif class_value.startswith("sub_sub_section"):
+            level = 3
+        else:
+            level = None
+            # continue  # Skip <div> elements without title classes
+        if level:
+            stack_parent = parents[level - 1]
+            new_div = lxml.etree.SubElement(stack_parent, "div")
+            new_div.attrib["title"] = text[:50]
+            new_div.attrib["style"] = div_styles[level - 1]
+
+            parent = new_div
+            parents[level] = new_div
+        parent.append(div)
+        return parent
+
+    @classmethod
+    def skip_content(cls, text, skip_res):
+        for skip_re in skip_res:
+            if skip_re.match(text):
                 return True
         return False
-
 
     @classmethod
     def annotate_title_sections(cls, html_elem, section_regexes):
@@ -779,17 +798,91 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
 
     @classmethod
     def collect_floats_to_back(cls, html_elem):
-        back = lxml.etree.SubElement(HtmlLib.get_body(html_elem), "div")
-        back.attrib["title"] = "back matter"
-        back.attrib["style"] = "background: #ffffdd; border: solid purple 1.5px; margin: 2px;"
-        back_title = lxml.etree.SubElement(back, "div")
-        back_title.text ="Back Matter, Footnotes, Figures, Tables, Boxes"
-        back_title.attrib["style"] = "font-size: 20px; font-family: sanserif;"
+        back = HtmlGroup.get_back_div(html_elem)
         floats = html_elem.xpath(".//div[@class='float']")
         print(f"floats {len(floats)}")
         for float in floats:
             back.append(float)
 
+    @classmethod
+    def create_back_div(cls, html_elem):
+        back = lxml.etree.SubElement(HtmlLib.get_body(html_elem), "div")
+        back.attrib["class"] = "back"
+        back.attrib["title"] = "back matter"
+        back.attrib["style"] = "background: #ffffdd; border: solid purple 1.5px; margin: 2px;"
+        back_title = lxml.etree.SubElement(back, "div")
+        back_title.text = "Back Matter, Footnotes, Figures, Tables, Boxes"
+        back_title.attrib["style"] = "font-size: 20px; font-family: sanserif;"
+        return back
+
+    @classmethod
+    def get_back_div(cls, html_elem):
+        """get or create body/div[@class='back']"""
+        backs = HtmlLib.get_body(html_elem).xpath("./div[class='back']")
+        return backs[0] if len(backs) > 0 else HtmlGroup.create_back_div(html_elem)
+
+    @classmethod
+    def create_head_style_elem(cls, new_html):
+        style = lxml.etree.SubElement(HtmlLib.get_head(new_html), "style")
+        style.text = """
+        div {border: red solid 1px; margin: 1px;}
+        span {background: #eeeeee; margin: 1px;}
+        div.float {background: #ccffff;}
+                     """
+
+    @classmethod
+    def extract_footnotes_to_back(cls, html_elem):
+        HtmlUtil.extract_footnotes(html_elem, "font-size: 6.0")
+
+    @classmethod
+    def remove_empty_divs(cls, elem):
+        divs = elem.xpath(".//div")
+        for div in divs:
+            text = ''.join(div.itertext())
+            if not text:
+                div.getparent().remove(div)
+
+    @classmethod
+    def join_split_divs(cls, top_div):
+        divs = top_div.xpath(".//div")
+        for i, div in enumerate(divs):
+            if i > 0:
+                div0 = divs[i - 1]
+                span0 = HtmlGroup.get_last_span(div0)
+                span1 = HtmlGroup.get_first_span(div)
+                if span0 is not None and span1 is not None:
+                    style0 = CSSStyle.create_css_style_from_attribute_of_body_element(span0)
+                    style1 = CSSStyle.create_css_style_from_attribute_of_body_element(span0)
+                    if style0 == style1:
+                        if span1 is not None and len(span1.text) > 0 and span1.text[0].islower():
+                            print(f" joined second_span {span1.text}")
+                            HtmlUtil.join_spans_in_same_div(span0, span1)
+                            for span in div.xpath("./span"):
+                                div0.append(span)
+                            div.getparent().remove(div)
+
+
+    @classmethod
+    def get_last_span(cls, div):
+        spans = div.xpath("./span")
+        return spans[-1] if len(spans) > 0 else None
+
+    @classmethod
+    def get_first_span(cls, div):
+        spans = div.xpath("./span")
+        return spans[0] if len(spans) > 0 else None
+
+    @classmethod
+    def add_paragraph_ids(cls, top_div):
+        """adds sequential paragraph numbering (e.g. 1.2.3 => 1.2.3.a, 1.2.3.b etc"""
+        title_para_divs = top_div.xpath(".//div[@title and contains(@class, '_section')]")
+        print(f"title para divs {len(title_para_divs)}")
+        abc = "abcdefghijklmnopqrstuvwxyz"
+        for title_para_div in title_para_divs:
+            followers = title_para_div.xpath("following-sibling::div")
+            for i, follower in enumerate(followers):
+                letter = abc[i]
+                print(f"letter: {letter}")
 
 
 class HtmlUtil:
@@ -1014,8 +1107,7 @@ class HtmlUtil:
     @classmethod
     def extract_footnotes(cls, html_elem, font_size_condition, title="Footnotes"):
         divs = html_elem.xpath(f"//div[span[contains(@style, '{font_size_condition}') and number(.)=number(.)]]")
-        body = HtmlLib.get_body(html_elem)
-        footnote_div = lxml.etree.SubElement(body, "div")
+        footnote_div = HtmlGroup.get_back_div(html_elem)
         footnote_title = lxml.etree.SubElement(footnote_div, "div")
         footnote_title.text = title
         ul = lxml.etree.SubElement(footnote_div, "ul")
@@ -1092,15 +1184,29 @@ class HtmlUtil:
         elems = root_elem.xpath(xpath)
         for i, el in enumerate(elems):
             el.attrib[A_ID] = A_ID + str(i)
-
-    def join_spans_in_div(self, html):
+    @classmethod
+    def join_spans_in_same_div(cls, span0, span1, addspace=True, remove=True):
         """
-        NYI
-        joint <span>...</span><span>...</span> into <span>...</span> recursively
+        joint <span>...</span><span>...</span> into <span>...</span>
         this structure arises when PDF or images is parsed and spans have the same styles (size/style/weight) and can be merged
-        :param html: contains the sibling spans
+        we assume that style and geometry cheking has been done
+        :param span0: first <span>, text will be increased from span1
+        :param span1: text will be appended to span0 text
+        :param remove: remove span1 (default)
         """
-        logging.warning(f"join_spans_in_div NYI")
+        if HtmlUtil.check_tag(span0, "span") and HtmlUtil.check_tag(span1, "span"):
+            parent1 = span1.getparent()
+            if addspace:
+                span0_not_end_space = len(span0) > 0 and span0[-1] != " "
+                span1_not_start_space = len(span1) > 0 and span1[-1] != " "
+                if span0_not_end_space and span1_not_start_space:
+                    span0.text += " "
+            span0.text += span1.text
+            if remove:
+                parent1.remove(span1)
+
+
+
 
     @classmethod
     def create_skeleton_html(cls):
@@ -1380,6 +1486,11 @@ class HtmlUtil:
             return float(val)
         except Exception as e:
             return None
+
+    @classmethod
+    def check_tag(cls, elem, tag):
+        """checks that elem is an Element with given tag"""
+        return type(elem) is lxml.etree._Element and elem.tag == tag
 
 
 class HtmlAnnotator:
