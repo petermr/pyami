@@ -14,6 +14,7 @@ from pathlib import Path
 import lxml
 import lxml.etree
 import numpy as np
+import pandas as pd
 from lxml.etree import Element, _Element, _ElementTree
 import xml.etree.ElementTree as ET
 import time
@@ -487,8 +488,23 @@ class HtmlTidy:
             else:
                 last_span = span
 
+
+
 class HtmlGroup:
     """groups siblings into divs"""
+    @classmethod
+    def generate_lowercase_letter_id(cls, i):
+        "make id of form a,b,c, ... aa, ab, ac ... ba, bb, ... zz , @.str(i)"
+        abc = "abcdefghijklmnopqrstuvwxyz"
+        ii = i % 26
+        jj = i // 26
+        if i >= 16 * 16:
+            return "@." + str(i)
+        s = "" if jj == 0 else abc[jj - 1]
+        return s + abc[ii]
+
+
+
     @classmethod
     def group_siblings(cls, html_elem, locator=None, parent_locator=None, style=None, debug=False):
         """evrything starts as a sibling!"""
@@ -761,12 +777,16 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
             # continue  # Skip <div> elements without title classes
         if level:
             stack_parent = parents[level - 1]
-            new_div = lxml.etree.SubElement(stack_parent, "div")
-            new_div.attrib["title"] = text[:50]
-            new_div.attrib["style"] = div_styles[level - 1]
+            if stack_parent is not None:
+                new_div = lxml.etree.SubElement(stack_parent, "div")
+                new_div.attrib["title"] = text[:50]
+                new_div.attrib["style"] = div_styles[level - 1]
 
-            parent = new_div
-            parents[level] = new_div
+                parent = new_div
+                parents[level] = new_div
+                print(f" made new div")
+            else:
+                print(f"no parent on stack level {level}")
         parent.append(div)
         return parent
 
@@ -778,7 +798,16 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         return False
 
     @classmethod
-    def annotate_title_sections(cls, html_elem, section_regexes):
+    def annotate_title_sections(cls, html_elem, section_regexes=None):
+        if section_regexes is None:
+            raise ValueError("must have section_regexes argument")
+            # this only works for IPCC draft
+            # section_regexes = [
+            #     ("section", "Section\s*(?P<id>\d):\s+.*"),
+            #     ("sub_section", "(?P<id>\d+\.\d+)\s.*"),
+            #     ("sub_sub_section", "(?P<id>\d+\.\d+\.\d+)\s.*")
+            # ]
+
         body = HtmlLib.get_body(html_elem)
         for div in body.xpath(".//div"):
             text = ''.join(div.itertext())
@@ -875,14 +904,64 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
     @classmethod
     def add_paragraph_ids(cls, top_div):
         """adds sequential paragraph numbering (e.g. 1.2.3 => 1.2.3.a, 1.2.3.b etc"""
-        title_para_divs = top_div.xpath(".//div[@title and contains(@class, '_section')]")
-        print(f"title para divs {len(title_para_divs)}")
-        abc = "abcdefghijklmnopqrstuvwxyz"
+        title_para_divs = top_div.xpath(".//div[@title and contains(@class, 'section')]")
         for title_para_div in title_para_divs:
+            print(f"title para divs {len(title_para_divs)}")
+            title_id = title_para_div.attrib.get('title')
+            if not title_id:
+                continue
             followers = title_para_div.xpath("following-sibling::div")
             for i, follower in enumerate(followers):
-                letter = abc[i]
-                print(f"letter: {letter}")
+                letter = HtmlGroup.generate_lowercase_letter_id(i)
+                id = title_id + "." + letter
+                span = lxml.etree.Element("span")
+                span.attrib["style"] = "background: #ffffdd; font-size: 8px"
+                span.text = id
+                span.attrib["id"] = id
+                follower.insert(0, span)
+
+    @classmethod
+    def make_hierarchical_sections(cls, html_elem, stem, section_regexes=None, outdir=None):
+        HtmlGroup.annotate_title_sections(html_elem, section_regexes=section_regexes)
+        HtmlGroup.extract_footnotes_to_back(html_elem)
+        new_div = HtmlGroup.group_divs_into_tree(HtmlLib.get_body(html_elem))
+        HtmlGroup.remove_empty_divs(new_div)
+        HtmlGroup.join_split_divs(new_div)
+        HtmlGroup.add_paragraph_ids(new_div)
+        new_html = HtmlLib.create_html_with_empty_head_body()
+        HtmlLib.get_body(new_html).append(new_div)
+        HtmlGroup.create_head_style_elem(new_html)
+        HtmlGroup.collect_floats_to_back(new_html)
+        HtmlGroup.annotate_ipcc_targets(new_html)
+        if outdir:
+            outfile = Path(outdir, f"{stem}_groups.html")
+            HtmlLib.write_html_file(new_html, outfile, debug=True)
+
+    @classmethod
+    def group_nested_siblings(cls, html_elem, styles=None):
+        if styles is None:
+            styles = [
+            "border : solid purple 2px; margin:2px;",
+            "border : dashed green 1.5px; margin:1.5px;",
+            "border : dotted blue 1px; margin:1px;",
+            ]
+
+        HtmlGroup.group_siblings(html_elem, locator="section", style=styles[0])
+        HtmlGroup.group_siblings(html_elem, locator="sub_section", style=styles[1], debug=True)
+        HtmlGroup.group_siblings(html_elem, locator="sub_sub_section", style=styles[2])
+
+    @classmethod
+    def annotate_ipcc_targets(cls, html_elem):
+        """finds sections of form {target_id, target_id...} and adds class=targets
+        This is better done in the annotator workflow where is works. This is a hack for
+        files which have been missed"""
+        TARGETS = "targets"
+        curly_spans = html_elem.xpath(f".//span[contains(., '{{') and contains(., '}}')]")
+        print(f"found curlies {len(curly_spans)}")
+        for span in curly_spans:
+            span.attrib["class"] = TARGETS
+
+
 
 
 class HtmlUtil:
@@ -1155,7 +1234,7 @@ class HtmlUtil:
                 # is it raised? Y DOWN
                 is_script = ydown == (last_y > this_y)
             if is_script:
-                print(f"script: {last_span.text}/{span.text}")
+                # print(f"script: {last_span.text}/{span.text}")
                 pass
         return is_script
 
@@ -1699,7 +1778,7 @@ class AnnotatorCommand:
         is_super = HtmlUtil.annotate_script_type(span, SScript.SUP, ydown=False)
         if is_super:
             span.attrib["title"] = f"superscript_{span.text}"
-            print(f"SUPER {span.text}")
+            # print(f"SUPER {span.text}")
 
     # class AnnotatorCommand
 
@@ -2791,11 +2870,54 @@ class Target:
         pass
 
 
+class IPCCAnchor:
+    """holds statements from IPCC Reports and outward links"""
+
+    @classmethod
+    def create_confidences(cls, div):
+        """iterates over all spans in div, terminating if "* confidence is found,
+         starting new div until end. ignores {targets}
+        some chunks may not make grammatical sense
+        :return: divs with original span"""
+        curly_re = re.compile("(?P<pre>.*)\{(?P<targets>.*)\}(?P<post>.*)")
+        confidence_re = re.compile("\s*\(?(?P<level>.*)\s+confidence\s*\)?\s*(?P<post>.*)")
+        parent = div.getparent()
+        current_div = None
+        spans = list(div.xpath("./span"))
+        for span in spans:
+            if not span.text:
+                continue
+            if current_div is None:
+                current_div = lxml.etree.SubElement(parent, "div")
+            if "confidence" in span.text and len(span.text) < 50: #because confidence can occur elsewhere
+                current_div.append(span)
+                match = confidence_re.match(span.text)
+                level = match.group("level")
+                span.attrib["confidence"] = level
+                print(f"confidence: {level}")
+                span.attrib["class"] = "confidence"
+                span.attrib["style"] = "background: #ddffff"
+                # confidence ends div
+                current_div = None
+            else:
+                match = curly_re.match(span.text)
+                if match:
+                    span = lxml.etree.SubElement(current_div, "span")
+                    span.text = match.group("pre")
+                    span = lxml.etree.SubElement(current_div, "span")
+                    span.attrib["class"] = "targets"
+                    span.text = match.group("targets")
+                    span = lxml.etree.SubElement(current_div, "span")
+                    span.text = match.group("post")
+                else:
+                    current_div.append(span)
+        parent.remove(div)
+
 
 class IPCCTargetLink:
     """link between IPCC reports"""
-    def __init__(self, link, span_link):
-        self.link = link
+    def __init__(self, ipcc_id, span_link):
+        self.ipcc_id = ipcc_id
         self.span_link = span_link
         self.link_factory = None
         self.bad_links = set()
@@ -2843,7 +2965,7 @@ class IPCCTargetLink:
         target_text = ""
         for i, section in enumerate(sections):
             target_text +=  ("" if i == 0  else "SEP") + ''.join(section.getparent().itertext())
-        return (id, target_text) if target_text else None, None
+        return (id, target_text) if target_text else (None, None)
 
     def make_report_chapter_id(self, ipcc_link, wg_dict):
         """splits REPORT CHAP ID string
@@ -2870,47 +2992,72 @@ class IPCCTargetLink:
         return chapter, id, report
 
     def follow_ipcc_target_link(self, url_cache=None, leaf_name=None):
+        """
+        :return: tuple (id, target text)
+        """
         link_factory = self.link_factory
-        link = self.link
-        span_link = self.span_link
+        ipcc_id = self.ipcc_id
+        anchor_link = self.span_link
 
         # github_url = link_factory.create_github_url()
 
-        (id, target_text) = self._follow_ipcc_target_link(
-            link,
-            span_link,
-            wg_dict=link_factory.wg_dict,
-            url_cache=url_cache,
-            leaf_name = leaf_name,
-        )
-        return (id, target_text)
+        target_result_tuple = self._follow_ipcc_target_link(ipcc_id, anchor_link, wg_dict=link_factory.wg_dict,
+                                                    url_cache=url_cache, leaf_name=leaf_name, )
+        # print(f"type {type(target_result_tuple)} len {len(target_result_tuple)}")
+        (idx, target_text) = target_result_tuple
+        # print(f"id {type(idx)} text {type(target_text)}")
+        return (idx, target_text)
 
     @classmethod
-    def read_links_from_span_and_follow_to_repository(cls, anchor_div, leaf_name, link_factory, span_with_curly_ids):
+    def read_links_from_span_and_follow_to_ipcc_repository_KEY(cls, anchor_div, leaf_name, link_factory, span_with_curly_ids):
         """
-        :param div: if not None adds an anchor
+        reads a span in an chor_div and extracts curly link_ids
+        splits the curly content into target ids (curly_count)
+
+        Follows these to repository
+        returns a table with (<= curly_count
+
+        :param anchor_div: if not None adds an anchor
         """
+        if anchor_div is None:
+            raise ValueError(f" anchor_div must not be None")
+
+        anchor_id = anchor_div.attrib.get("id")
+        if not anchor_id:
+            spans = anchor_div.xpath("./span")
+            if len(spans) > 0:
+                anchor_id = spans[0].get("id")
+        target_to_anchor_table = []
+        bad_links = set()
+        text = ''.join(anchor_div.itertext())
+        if not anchor_id:
+            print(f" anchor_id is None for {text[:50]}")
+            return target_to_anchor_table, bad_links
         curly_brace_link_content_parser = re.compile(".*{(?P<links>[^}]+)}.*")
         match = curly_brace_link_content_parser.match(span_with_curly_ids.text)
-        rows = []
-        bad_links = set()
         if match:
             links_text = match.group("links")
-            links = re.split(",|;", links_text)
-            anchor_span_link = lxml.etree.SubElement(anchor_div, "span") if anchor_div is not None else None
+            ipcc_ids = re.split(",|;", links_text)
+            anchor_span_link = lxml.etree.SubElement(anchor_div, "span")
+            anchor_span_link.attrib["id"] = anchor_id
             url_cache = URLCache()
             parent_div = span_with_curly_ids.getparent()
             anchor_text = ''.join(parent_div.itertext())
-            for link in links:
-                target_link = link_factory.create_target_link(link, anchor_span_link)
-                id_target_text = target_link.follow_ipcc_target_link(url_cache=url_cache, leaf_name=leaf_name)
-                if id_target_text:
-                    rows.append([anchor_text, link, id_target_text[0], id_target_text[1]])
+            # print (f" ipcc_ids {ipcc_ids}")
+            for ipcc_id in ipcc_ids:
+                target_link = link_factory.create_target_link(ipcc_id, anchor_span_link)
+                (target_id, target_text) = target_link.follow_ipcc_target_link(url_cache=url_cache, leaf_name=leaf_name)
+                if (target_id, target_text):
+                    anchor_to_target_row = [anchor_id, anchor_text, ipcc_id, target_id, target_text]
+                    target_to_anchor_table.append(anchor_to_target_row)
                 bad_links.update(target_link.bad_links)
-        if rows:
-            print(f"**ROWS**{len(rows)}")
-        print(f"bad links {bad_links}")
-        return rows, bad_links
+        if target_to_anchor_table:
+            # this is just debug
+            # print(f"**ROWS**{len(target_to_anchor_table)}\n{target_to_anchor_table}")
+            anchor_target_df = pd.DataFrame(target_to_anchor_table, columns=["a_id", "a_text", "ipcc_id", "t_id", "t_text"])
+            # print(f"anchor_to_target dataframe:\n {anchor_target_df}")
+        # print(f"bad links {bad_links}")
+        return target_to_anchor_table, bad_links
 
 
 
@@ -3031,8 +3178,8 @@ class LinkFactory:
 
     #    class LinkFactory:
 
-    def create_target_link(self, link, anchor_span_link):
-        target_link = IPCCTargetLink(link, anchor_span_link)
+    def create_target_link(self, ipcc_id, anchor_span_link):
+        target_link = IPCCTargetLink(ipcc_id, anchor_span_link)
         target_link.link_factory = self
         return target_link
 

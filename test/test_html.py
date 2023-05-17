@@ -19,7 +19,7 @@ from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
 from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor, Target, AnnotatorCommand, HtmlAnnotator
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont, \
-    FloatBoundary, Footnote, HtmlGroup
+    FloatBoundary, Footnote, HtmlGroup, IPCCAnchor
 from py4ami.ami_pdf import PDFArgs
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
@@ -959,6 +959,8 @@ DEFAULT_STYLES = [
     (".footnote", [("background", "#ffddff;")]),
 ]
 
+
+
 class Test_PDFHTML(AmiAnyTest):
     """
     Combine PDF2HTML with styles and other tidy
@@ -1224,37 +1226,49 @@ class Test_PDFHTML(AmiAnyTest):
         spans = html_elem.xpath(".//span")
         for span in spans:
             annotator.run_commands(span)
-        HtmlGroup.group_siblings(html_elem, locator="section", style="border : solid purple 2px; margin:2px;")
-        HtmlGroup.group_siblings(html_elem, locator="sub_section", style="border : dashed green 1.5px; margin:1.5px;", debug=True)
-        HtmlGroup.group_siblings(html_elem, locator="sub_sub_section", style="border : dotted blue 1px; margin:1px;")
+        HtmlGroup.group_nested_siblings(html_elem, styles=None)
         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
         outfile = Path(outdir, f"test_{stem}_groups.html")
         HtmlLib.write_html_file(html_elem, outfile, debug=True)
 
 
     def test_extract_sections_HACKATHON_LATEST(self):
-        """extract float/s from HTML and copy to custom directories"""
+        """extract sectionns into hierarchical divs"""
         stem = "total_pages"
         input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"{stem}.html")
         html_elem = lxml.etree.parse(str(input_html)).getroot()
-        HtmlGroup.annotate_title_sections(html_elem, [
-            ("section", "Section\s*(?P<id>\d):\s+.*"),
-            ("sub_section", "(?P<id>\d+\.\d+)\s.*"),
+        section_regexes = [
+            ("section", "Section\s*(?P<id>\d):\s+.*"), # for SYR/LR, not WGS
+            ("sub_section", "(?P<id>\d+\.\d+)\s.*"), # A.1.2
             ("sub_sub_section", "(?P<id>\d+\.\d+\.\d+)\s.*")
-        ] )
-        HtmlGroup.extract_footnotes_to_back(html_elem)
-        new_div = HtmlGroup.group_divs_into_tree(HtmlLib.get_body(html_elem))
-        HtmlGroup.remove_empty_divs(new_div)
-        HtmlGroup.join_split_divs(new_div)
-        HtmlGroup.add_paragraph_ids(new_div)
-        new_html = HtmlLib.create_html_with_empty_head_body()
-        HtmlLib.get_body(new_html).append(new_div)
-        HtmlGroup.create_head_style_elem(new_html)
-        HtmlGroup.collect_floats_to_back(new_html)
+        ]
         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
-        outfile = Path(outdir, f"{stem}_groups.html")
+        HtmlGroup.make_hierarchical_sections(html_elem, stem, section_regexes=section_regexes, outdir=outdir)
 
-        HtmlLib.write_html_file(new_html, outfile, debug=True)
+        # HtmlGroup.annotate_title_sections(html_elem, section_regexes=section_regexes)
+        # HtmlGroup.extract_footnotes_to_back(html_elem)
+        # new_div = HtmlGroup.group_divs_into_tree(HtmlLib.get_body(html_elem))
+        # HtmlGroup.remove_empty_divs(new_div)
+        # HtmlGroup.join_split_divs(new_div)
+        # HtmlGroup.add_paragraph_ids(new_div)
+        # new_html = HtmlLib.create_html_with_empty_head_body()
+        # HtmlLib.get_body(new_html).append(new_div)
+        # HtmlGroup.create_head_style_elem(new_html)
+        # HtmlGroup.collect_floats_to_back(new_html)
+
+    def test_extract_sections_wg123_HACKATHON_LATEST(self):
+        """extract sectionns into hierarchical divs"""
+        stem = "total_pages"
+        for wg in ["wg1", "wg2", "wg3"]:
+            input_html = Path(Resources.TEST_IPCC_DIR, wg, "spm", f"{stem}.html")
+            html_elem = lxml.etree.parse(str(input_html)).getroot()
+            section_regexes = [
+                ("section", "(?P<id>[A-Z])\.\s*.*"),
+                ("sub_section", "(?P<id>[A-Z]\.\d+)\s.*"),
+                ("sub_sub_section", "(?P<id>[A-Z]\.\d+\.\d+)\s.*")
+            ]
+            outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", wg, "spm")
+            HtmlGroup.make_hierarchical_sections(html_elem, stem, section_regexes=section_regexes, outdir=outdir)
 
     def test_extract_sections_report_all_wg_HACKATHON_LATEST(self):
         """create html for all WGs
@@ -1263,17 +1277,22 @@ class Test_PDFHTML(AmiAnyTest):
         wgs = ["wg1", "wg2", "wg3"]
         for wg in wgs:
             input_html = Path(Resources.TEST_IPCC_DIR, f"{wg}", "spm", f"{stem}.html")
+            print(f"\n==========input: {input_html}===============")
             html_elem = lxml.etree.parse(str(input_html)).getroot()
             annotator = HtmlAnnotator.create_ipcc_annotator()
             HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
             for span in html_elem.xpath(".//span"):
                 annotator.run_commands(span)
-            HtmlGroup.group_siblings(html_elem, locator="section", style="border : solid purple 2px; margin:2px;")
-            HtmlGroup.group_siblings(html_elem, locator="sub_section", style="border : dashed green 1.5px; margin:1.5px;", debug=True)
-            HtmlGroup.group_siblings(html_elem, locator="sub_sub_section", style="border : dotted blue 1px; margin:1px;")
-
             outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", f"{wg}", "spm")
+            HtmlLib.write_html_file(html_elem, Path(outdir, f"test_{stem}_pre_groups.html"), debug=True)
+            styles = [
+            "border : solid purple 2px; margin:2px;",
+            "border : dashed green 1.5px; margin:1.5px;",
+            "border : dotted blue 1px; margin:1px;",
+            ]
+            HtmlGroup.group_nested_siblings(html_elem, styles=styles)
             HtmlLib.write_html_file(html_elem, Path(outdir, f"test_{stem}_groups.html"), debug=True)
+
 
     def test_download_github_html(self):
         github_url = HtmlLib.create_rawgithub_url(
@@ -1287,7 +1306,7 @@ class Test_PDFHTML(AmiAnyTest):
         divs = html_elem.xpath("//div")
         assert 640 > len(divs) > 635
 
-    def test_extract_anchors_initial_TEST_HACKATHON(self):
+    def test_extract_anchors_initial_TEST_HACKATHON_KEY(self):
         """tests target IDs in SYR/LR in WGI"""
         import requests
 
@@ -1299,17 +1318,18 @@ class Test_PDFHTML(AmiAnyTest):
 
         leaf_name = "fulltext.annotations.id.html"
 
-        div = lxml.etree.Element("div")
-        span = lxml.etree.fromstring(
+        anchor_div = lxml.etree.Element("div")
+        anchor_div.attrib["id"] = "test_id"
+        span_containing_curly_list = lxml.etree.fromstring(
             """<span class="targets"> by &#177;0.2&#176;C. {WGI SPM A.1, WGI SPM A.1.2, WGI SPM A.1.3, WGI SPM A.2.2, WGI Figure SPM.2; SRCCL TS.2} </span>""")
-        div.append(span)
-        print(f" new div {lxml.etree.tostring(div)}")
-        HtmlLib.write_html_file(div, Path(AmiAnyTest.TEMP_HTML_IPCC, "misc", "split_a.html"), debug=True)
+        anchor_div.append(span_containing_curly_list)
+        print(f" new div {lxml.etree.tostring(anchor_div)}")
+        HtmlLib.write_html_file(anchor_div, Path(AmiAnyTest.TEMP_HTML_IPCC, "misc", "split_a.html"), debug=True)
 
-        IPCCTargetLink.read_links_from_span_and_follow_to_repository(div, leaf_name, link_factory, span)
+        IPCCTargetLink.read_links_from_span_and_follow_to_ipcc_repository_KEY(anchor_div, leaf_name, link_factory, span_containing_curly_list)
 
 
-    def test_extract_anchors_TEST_HACKATHON(self):
+    def test_extract_anchors_TEST_HACKATHON_KEY(self):
         """ reads whole of SYR/LR and finds targets in WGI
         on the basis that WGI has got annotations"""
         import requests
@@ -1319,30 +1339,46 @@ class Test_PDFHTML(AmiAnyTest):
 
         leaf_name = "fulltext.annotations.id.html"
         syr_leaf = f"extract_floats.html"
-        syr_path = Path(Resources.TEST_IPCC_DIR, "syr", "lr", syr_leaf)
+        syr_stem = "total_pages_groups"
+        # syr_stem = f"extract_floats"
+        syr_path = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"{syr_stem}.html")
         syr_lr_html = lxml.etree.parse(str(syr_path)).getroot()
         div = None
         span = None
-        spans = syr_lr_html.xpath("//span[@class='targets']")
-        assert 35 > len(spans) >= 29, f"expected 31 spans, found len{spans}"
+        divs = syr_lr_html.xpath("//div[span[@class='targets']]")
+        assert 204 > len(divs) >= 200, f"expected 202 divs, found len{divs}"
+        df = self.create_dataframe_from_divs_KEY(divs, leaf_name, link_factory)
+        print(f"DATAFRAME\n{df}")
+        path = Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", f"{syr_stem}_table.csv")
+        df.to_csv(str(path))
+        print(f" wrote link table {path}")
+        path = Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", f"{syr_stem}_confidence.html")
+        HtmlLib.write_html_file(syr_lr_html, outfile=path)
+
+    def create_dataframe_from_divs_KEY(self, divs, leaf_name, link_factory):
         table = []
         bad_link_set = set()
-        table.append(["anchor_text", "?", "target_id", "target_text"])
-        for span in spans:
+        table.append(["anchor_text", "anchor_id", "target_id", "target_text"])
+        curly_re = re.compile(".*\{(P<curly>[.^\}]*)\}.*")
+        for div in divs:
+            id_spans = div.xpath("./span[@id]")
+            anchor_id = None if len(id_spans) == 0 else id_spans[0].attrib.get("id")
+            # print(f"anchor_id {anchor_id}")
             # print(f" targets span {span.text}")
-            curly_re = re.compile(".*\{(P<curly>[.^\}]*)\}.*")
-            match = curly_re.match(span.text)
-            if match:
-                print(f"match group {match.group('curly')}")
-            rows, bad_links = IPCCTargetLink.read_links_from_span_and_follow_to_repository(div, leaf_name, link_factory, span)
-            bad_link_set.update(bad_links)
-            if rows:
-                table.extend(rows)
+            for span in div.xpath("./span[@class='targets']"):
+                match = curly_re.match(span.text)
+                if match:
+                    print(f"match group {match.group('curly')}")
+                rows, bad_links = IPCCTargetLink.read_links_from_span_and_follow_to_ipcc_repository_KEY(div, leaf_name, link_factory,
+                                                                                                        span)
+                bad_link_set.update(bad_links)
+                if rows:
+                    table.extend(rows)
+            IPCCAnchor.create_confidences(div)
         print(f" table {len(table)}")
         print(f"bad_link_set {bad_link_set}")
         df = pd.DataFrame(table)
-        print(f"DATAFRAME\n{df}")
-        df.to_csv(str(Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", "small_table.csv")))
+        return df
 
     def test_extract_footnotes_HACKATHON(self):
         """extract footnotes from HTML and copy to custom directories"""
