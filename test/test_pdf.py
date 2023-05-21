@@ -141,27 +141,28 @@ class PDFPlumberTest(AmiAnyTest):
         ami_pdfplumber = AmiPDFPlumber()
         ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, pages=[1,2,3,4,5,6,7])
 
-    def test_pdfplumber_doublecol_create_pages_for_WGs(self):
+    def test_pdfplumber_doublecol_create_pages_for_WGs_HACKATHON(self):
         """
         creates AmiPDFPlumber and reads double-column pdf and debugs
         """
 
 
         report_names = [
-            "SYR_LR",
-            "SYR_SPM",
-            "SR15_SPM",
-            "SR15_TS",
-            "SRCCL_SPM",
-            "SRCCL_TS",
-            "SROCC_SPM",
-            "SROCC_TS",
-            "WG1_SPM",
-            "WG1_TS",
-            "WG2_SPM",
-            "WG2_TS",
-            "WG3_SPM",
-            "WG3_TS",
+            # "SYR_LR",
+            # "SYR_SPM",
+            # "SR15_SPM",
+            # "SR15_TS",
+            # "SRCCL_SPM",
+            # "SRCCL_TS",
+            # "SROCC_SPM",
+            # "SROCC_TS",
+            # "WG1_SPM",
+            # "WG1_TS",
+            # "WG2_SPM",
+            # "WG2_TS",
+            # "WG3_SPM",
+            # "WG3_TS",
+            "WG3_CHAP08",
         ]
         for report_name in report_names:
             report_dict = Resources.WG_REPORTS[report_name]
@@ -175,6 +176,12 @@ class PDFPlumberTest(AmiAnyTest):
             output_page_dir.mkdir(exist_ok=True, parents=True)
             ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
             ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True, outstem="total_pages")
+
+    def test_unusual_chars(self):
+        """badly decoded characters default to #65533"""
+        x = """Systems������������ 867"""
+        for c in x:
+            print(f"c {c} {ord(c)}")
 
     def test_clean_pdf_html_SYR_LR(self):
         """fails as there are no tables! (they are all bitmaps)"""

@@ -2445,13 +2445,23 @@ class AmiPDFPlumber:
             if debug:
                 ami_json_page.print_header_footer_lists(footer_span_list, header_span_list)
             try:
-                XmlLib.write_xml(html_page, Path(output_page_dir, f"page_{i + 1}.html"))
-            except:
-                print(f"*******Cannot serialize page (probably strange fonts)******page{i+1}")
+                path = Path(output_page_dir, f"page_{i + 1}.html")
+                if debug:
+                    print(f"writing xml file {path}")
+                XmlLib.write_xml(html_page, path)
+            except Exception as e:
+                print(f"*******Cannot serialize page (probably strange fonts)******page{i+1} {e}")
                 continue
             body_elems = HtmlLib.get_body(html_page).xpath("*")
-            for elem in body_elems:
-                total_html_page_body.append(elem)
+            for body_elem in body_elems:
+                total_html_page_body.append(body_elem)
+        for i, _ in enumerate(ami_json_pages):
+            page_file = Path(output_page_dir, f"page_{i + 1}.html")
+            try:
+                html_elem = lxml.etree.parse(str(page_file))
+            except Exception as e:
+                print(f"could not read XML {page_file} because {e}")
+
         path = Path(output_page_dir, f"{outstem}.html")
         HtmlStyle.add_head_styles(
             total_html,
@@ -2461,6 +2471,8 @@ class AmiPDFPlumber:
              ]
         )
         XmlLib.write_xml(total_html, path)
+        if debug:
+            print(f"wrote html {path}")
         # print(f"encoding {FileLib.get_encoding(path)}")
 
     # AmiPDFPlumber

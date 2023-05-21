@@ -921,7 +921,9 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
                 follower.insert(0, span)
 
     @classmethod
-    def make_hierarchical_sections(cls, html_elem, stem, section_regexes=None, outdir=None):
+    def make_hierarchical_sections_KEY(cls, html_elem, stem, section_regexes=None, outdir=None):
+        """Key formatting routine
+        """
         HtmlGroup.annotate_title_sections(html_elem, section_regexes=section_regexes)
         HtmlGroup.extract_footnotes_to_back(html_elem)
         new_div = HtmlGroup.group_divs_into_tree(HtmlLib.get_body(html_elem))
@@ -962,6 +964,46 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
             span.attrib["class"] = TARGETS
 
 
+
+    @classmethod
+    def extract_section_ids(cls, html_elem, xpaths=[".//div", "./span"], regexes=None):
+        """
+        extracts sections and possibly subsections from compound elements (e.g. div)
+        :param html_elem: compound element
+        :param xpaths: list of xpath for section, optional subsection, currently len 1 or 2,
+          single xpath is then wrapped to list; default [".//div", "./span"]
+        :param regexes: list of regexes for each descent; single is wrapped to list ; if none given
+          accepts all descendants from xpath
+        """
+        if not xpaths:
+            return None
+        if not type(xpaths) is list:
+            xpaths = [xpaths]
+        assert 0 < len(xpaths) <= 2, f"no xpaths given"
+
+        if not regexes:
+            regexes = []
+        if not type(regexes) is list:
+            regexes = [regexes]
+
+        print(f"xpaths {xpaths}")
+        divs = html_elem.xpath(xpaths[0])
+        print(f"divsxx {len(divs)}")
+        sections = []
+        subsections = []
+        for div in divs:
+            if regexes[0]:
+                section_id = HtmlUtil.extract_substrings(div, xpath=xpaths[0], regex=regexes[0])
+                if section_id:
+                    sections.append(section_id)
+                    continue
+            if regexes[1]:
+                subsection_id = HtmlUtil.extract_substrings(div, xpath=xpaths[1],
+                                                            regex=regexes[1],
+                                                            remove=False)
+                if subsection_id:
+                    subsections.append(subsection_id)
+        return sections, subsections
 
 
 class HtmlUtil:
@@ -1570,6 +1612,13 @@ class HtmlUtil:
     def check_tag(cls, elem, tag):
         """checks that elem is an Element with given tag"""
         return type(elem) is lxml.etree._Element and elem.tag == tag
+
+    @classmethod
+    def get_id(cls, div):
+        """gets value of "id" attribute
+        """
+        return None if div is None else div.attrib.get("id")
+
 
 
 class HtmlAnnotator:
@@ -3059,7 +3108,36 @@ class IPCCTargetLink:
         # print(f"bad links {bad_links}")
         return target_to_anchor_table, bad_links
 
+    @classmethod
+    def create_dataframe_from_IPCC_target_ids_in_curly_brackets_divs_KEY(cls, divs, leaf_name, link_factory):
+        table = []
+        bad_link_set = set()
+        table.append(["anchor_text", "anchor_id", "target_id", "target_text"])
+        curly_re = re.compile(".*\{(P<curly>[.^\}]*)\}.*")
+        for div in divs:
+            cls.follow_ids_in_curly_links(bad_link_set, curly_re, div, leaf_name, link_factory, table)
+            IPCCAnchor.create_confidences(div)
+        print(f" table {len(table)}")
+        print(f"bad_link_set {bad_link_set}")
+        df = pd.DataFrame(table)
+        return df
 
+    @classmethod
+    def follow_ids_in_curly_links(cls, bad_link_set, curly_re, div, leaf_name, link_factory, table):
+        id_spans = div.xpath("./span[@id]")
+        anchor_id = None if len(id_spans) == 0 else id_spans[0].attrib.get("id")
+        # print(f"anchor_id {anchor_id}")
+        # print(f" targets span {span.text}")
+        for span in div.xpath("./span[@class='targets']"):
+            match = curly_re.match(span.text)
+            if match:
+                print(f"match group {match.group('curly')}")
+            rows, bad_links = IPCCTargetLink.read_links_from_span_and_follow_to_ipcc_repository_KEY(div, leaf_name,
+                                                                                                    link_factory,
+                                                                                                    span)
+            bad_link_set.update(bad_links)
+            if rows:
+                table.extend(rows)
 
 
 class LinkFactory:

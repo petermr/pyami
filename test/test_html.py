@@ -20,7 +20,7 @@ from py4ami.ami_dict import AmiDictionary
 from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor, Target, AnnotatorCommand, HtmlAnnotator
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont, \
     FloatBoundary, Footnote, HtmlGroup, IPCCAnchor
-from py4ami.ami_pdf import PDFArgs
+from py4ami.ami_pdf import PDFArgs, AmiPDFPlumber
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib, XmlLib
@@ -1038,7 +1038,7 @@ class Test_PDFHTML(AmiAnyTest):
         print(f"divs {len(divs)}")
         section_regex = "(?P<pre>Section\s*)(?P<body>\d+)(?P<post>:.*)"
         subsection_regex = "(?P<pre>\s*)(?P<body>\d+(\.\d+)+)(?P<post>.*)"
-        sections, subsections = self.extract_section_ids(
+        sections, subsections = HtmlGroup.extract_section_ids(
             html_elem, regexes=[section_regex, subsection_regex])
         assert len(sections) == 9
         assert len(subsections) == 0
@@ -1050,7 +1050,7 @@ class Test_PDFHTML(AmiAnyTest):
         section_regex = "(?P<pre>Section\s*)(?P<body>\d+)(?P<post>:.*)"
         subsection_regex = "(?P<pre>\s*)(?P<body>\d+(\.\d+)+)(?P<post>.*)"
 
-        sections, subsections = self.extract_section_ids(
+        sections, subsections = HtmlGroup.extract_section_ids(
             html_elem, regexes=[section_regex, subsection_regex])
         assert sections == ['1', '2', '3', '4', '1', '2', '3', '4']
 
@@ -1090,55 +1090,17 @@ class Test_PDFHTML(AmiAnyTest):
  '4.9']
 
     def test_extract_target_links_from_page(self):
-        """extracts target ids from trailing {} on sections and paras"""
+        """extracts target ids from trailing {} on sections and paras
+        does this still work? extract_section_ids
+        """
         input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", "pages", "page_16.html")
         html_elem = lxml.etree.parse(str(input_html))
         section_regex = "(?P<pre>.*)(?P<body>\{.*\})(?P<post>.*)"
-        sections, subsections = self.extract_section_ids(
-            html_elem, xpath=".//span", section_regex=section_regex)
+        sections, subsections = HtmlGroup.extract_section_ids(
+            html_elem, xpaths=[".//span"], section_regex=section_regex)
         assert len(sections) == 1
         assert len(subsections) == 2
 
-
-
-    def extract_section_ids(self, html_elem, xpaths=[".//div", "./span"], regexes=None):
-        """
-        extracts sections and possibly subsections from compound elements (e.g. div)
-        :param html_elem: compound element
-        :param xpaths: list of xpath for section, optional subsection, currently len 1 or 2,
-          single xpath is then wrapped to list; default [".//div", "./span"]
-        :param regexes: list of regexes for each descent; single is wrapped to list ; if none given
-          accepts all descendants from xpath
-        """
-        if not xpaths:
-            return None
-        if not type(xpaths) is list:
-            xpaths = [xpaths]
-        assert 0 < len(xpaths) <= 2, f"no xpaths given"
-
-        if not regexes:
-            regexes = []
-        if not type(regexes) is list:
-            regexes = [regexes]
-
-        print(f"xpaths {xpaths}")
-        divs = html_elem.xpath(xpaths[0])
-        print(f"divsxx {len(divs)}")
-        sections = []
-        subsections = []
-        for div in divs:
-            if regexes[0]:
-                section_id = HtmlUtil.extract_substrings(div, xpath=xpaths[0], regex=regexes[0])
-                if section_id:
-                    sections.append(section_id)
-                    continue
-            if regexes[1]:
-                subsection_id = HtmlUtil.extract_substrings(div, xpath=xpaths[1],
-                                                            regex=regexes[1],
-                                                            remove=False)
-                if subsection_id:
-                    subsections.append(subsection_id)
-        return sections, subsections
 
     def test_extract_divs_with_flattened_text_IPCC(self):
         """extract flat text from divs for indexing"""
@@ -1192,6 +1154,7 @@ class Test_PDFHTML(AmiAnyTest):
             f.write(lxml.etree.tostring(html_elem, method="html"))
 
     def test_annotate_spm_reports_HACKATHON(self):
+        """uses Annotator approach"""
         reports = [
 
             "wg1",
@@ -1220,6 +1183,12 @@ class Test_PDFHTML(AmiAnyTest):
         # stem = "total_pages.manual"
         stem = "total_pages"
         input_html = Path(Resources.TEST_IPCC_DIR, "syr", "lr", f"{stem}.html")
+        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
+        outfile = Path(outdir, f"test_{stem}_groups.html")
+        self.annotate_div_spans_write_final_html(input_html, outfile)
+
+    @classmethod
+    def annotate_div_spans_write_final_html(cls, input_html, outfile):
         html_elem = lxml.etree.parse(str(input_html)).getroot()
         annotator = HtmlAnnotator.create_ipcc_annotator()
         HtmlStyle.add_head_styles(html_elem, DEFAULT_STYLES)
@@ -1227,10 +1196,7 @@ class Test_PDFHTML(AmiAnyTest):
         for span in spans:
             annotator.run_commands(span)
         HtmlGroup.group_nested_siblings(html_elem, styles=None)
-        outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
-        outfile = Path(outdir, f"test_{stem}_groups.html")
         HtmlLib.write_html_file(html_elem, outfile, debug=True)
-
 
     def test_extract_sections_HACKATHON_LATEST(self):
         """extract sectionns into hierarchical divs"""
@@ -1243,18 +1209,7 @@ class Test_PDFHTML(AmiAnyTest):
             ("sub_sub_section", "(?P<id>\d+\.\d+\.\d+)\s.*")
         ]
         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", "syr", "lr")
-        HtmlGroup.make_hierarchical_sections(html_elem, stem, section_regexes=section_regexes, outdir=outdir)
-
-        # HtmlGroup.annotate_title_sections(html_elem, section_regexes=section_regexes)
-        # HtmlGroup.extract_footnotes_to_back(html_elem)
-        # new_div = HtmlGroup.group_divs_into_tree(HtmlLib.get_body(html_elem))
-        # HtmlGroup.remove_empty_divs(new_div)
-        # HtmlGroup.join_split_divs(new_div)
-        # HtmlGroup.add_paragraph_ids(new_div)
-        # new_html = HtmlLib.create_html_with_empty_head_body()
-        # HtmlLib.get_body(new_html).append(new_div)
-        # HtmlGroup.create_head_style_elem(new_html)
-        # HtmlGroup.collect_floats_to_back(new_html)
+        HtmlGroup.make_hierarchical_sections_KEY(html_elem, stem, section_regexes=section_regexes, outdir=outdir)
 
     def test_extract_sections_wg123_HACKATHON_LATEST(self):
         """extract sectionns into hierarchical divs"""
@@ -1268,15 +1223,27 @@ class Test_PDFHTML(AmiAnyTest):
                 ("sub_sub_section", "(?P<id>[A-Z]\.\d+\.\d+)\s.*")
             ]
             outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", wg, "spm")
-            HtmlGroup.make_hierarchical_sections(html_elem, stem, section_regexes=section_regexes, outdir=outdir)
+            HtmlGroup.make_hierarchical_sections_KEY(html_elem, stem, section_regexes=section_regexes, outdir=outdir)
 
     def test_extract_sections_report_all_wg_HACKATHON_LATEST(self):
         """create html for all WGs
+        starts_with *total_pages.html
+        creates *_groups.html files
         """
         stem = "total_pages"
-        wgs = ["wg1", "wg2", "wg3"]
+        wgs = [
+            # "wg1",
+            # "wg2",
+            # "wg3",
+            "srocc",
+            "srccl",
+            "sr15",
+        ]
+        pages = "pages/"   # maybe "" in some dirs
+
+
         for wg in wgs:
-            input_html = Path(Resources.TEST_IPCC_DIR, f"{wg}", "spm", f"{stem}.html")
+            input_html = Path(Resources.TEST_IPCC_DIR, f"{wg}", "spm", f"{pages}{stem}.html")
             print(f"\n==========input: {input_html}===============")
             html_elem = lxml.etree.parse(str(input_html)).getroot()
             annotator = HtmlAnnotator.create_ipcc_annotator()
@@ -1293,6 +1260,68 @@ class Test_PDFHTML(AmiAnyTest):
             HtmlGroup.group_nested_siblings(html_elem, styles=styles)
             HtmlLib.write_html_file(html_elem, Path(outdir, f"test_{stem}_groups.html"), debug=True)
 
+    def test_chapter_toolchain_chapters_HACKATHON(self):
+        total_pages = "total_pages"
+        stem = total_pages
+        group_stem = "groups"
+        wgs = [
+            # "wg1",
+            # "wg2",
+            "wg3",
+            # "srocc",
+            # "srccl",
+            # "sr15",
+        ]
+        pages = "pages/"   # maybe "" in some dirs
+        chapters = [
+            "Chapter07",
+            "Chapter08",
+            ]
+
+        report_names = [
+            # "WG3_CHAP07",
+            "WG3_CHAP08",
+        ]
+        wg = "wg3"
+        for report_name in report_names:
+            chapter = "Chapter07" if "07" in report_name else "Chapter08"
+            report_dict = Resources.WG_REPORTS[report_name]
+            print(f"\n==================== {report_name} ==================")
+            input_pdf = report_dict["input_pdf"]
+            if not input_pdf.exists():
+                print(f"cannot find {input_pdf}")
+                continue
+            output_page_dir = report_dict["output_page_dir"]
+            print(f"output dir {output_page_dir}")
+            output_page_dir.mkdir(exist_ok=True, parents=True)
+            ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
+            ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True, outstem=total_pages)
+            outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", f"{wg}", f"{chapter}")
+            outfile = Path(outdir, "fulltext_final.html")
+            input_html_path = Path(output_page_dir, f"{total_pages}.html")
+            # self.annotate_div_spans_write_final_html(input_html_path, outfile)
+            html_elem = lxml.etree.parse(input_html_path)
+            # section_regexes = [
+            #     ("section", "\s*(?P<id>Frequently Asked Questions)\s*.*"),  # 7.1 Introductiom
+            #     ("sub_section", "(?P<id>FAQ\s+\d+\.\d+):.*"),  # 7.1.2 subtitle or FAQ 7.1 subtitle
+            #     # ("sub_sub_section", "(?P<id>\d+\.\d+\.\d+\.\d+)\s*.*") # 7.1.2.3 subsubtitle
+            # ]
+            section_regexes = [
+                ("section", "\s*(?P<id>Table of Contents|Frequently Asked Questions|Executive Summary|References|\d+\.\d+)\s*.*"),  # 7.1 Introductiom
+                ("sub_section", "(?P<id>FAQ \d+\.\d+|\d+\.\d+\.\d+)\s.*"),  # 7.1.2 subtitle or FAQ 7.1 subtitle
+                ("sub_sub_section", "(?P<id>\d+\.\d+\.\d+\.\d+)\s*.*") # 7.1.2.3 subsubtitle
+            ]
+
+            HtmlGroup.make_hierarchical_sections_KEY(html_elem, group_stem, section_regexes=section_regexes, outdir=outdir)
+            pass
+        # for wg in wgs:
+        #     for chapter in chapters:
+        #         input_pdf = Path(Resources.TEST_IPCC_DIR, f"{wg}", f"{chapter}", f"fulltext.pdf")
+        #         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", f"{wg}", f"{chapter}, ")
+        #
+        #     input_html = Path(Resources.TEST_IPCC_DIR, f"{wg}", "spm", f"{pages}{stem}.html")
+        #     print(f"\n==========input: {input_html}===============")
+        #     html_elem = lxml.etree.parse(str(input_html)).getroot()
 
     def test_download_github_html(self):
         github_url = HtmlLib.create_rawgithub_url(
@@ -1329,9 +1358,11 @@ class Test_PDFHTML(AmiAnyTest):
         IPCCTargetLink.read_links_from_span_and_follow_to_ipcc_repository_KEY(anchor_div, leaf_name, link_factory, span_containing_curly_list)
 
 
-    def test_extract_anchors_TEST_HACKATHON_KEY(self):
-        """ reads whole of SYR/LR and finds targets in WGI
-        on the basis that WGI has got annotations"""
+    def test_extract_anchors_add_confidence_HACKATHON_KEY(self):
+        """ reads whole of SYR/LR after grouping
+      Then parses the confidence statements is SYR/LR
+
+        """
         import requests
 
         url_cache = URLCache()
@@ -1347,38 +1378,13 @@ class Test_PDFHTML(AmiAnyTest):
         span = None
         divs = syr_lr_html.xpath("//div[span[@class='targets']]")
         assert 204 > len(divs) >= 200, f"expected 202 divs, found len{divs}"
-        df = self.create_dataframe_from_divs_KEY(divs, leaf_name, link_factory)
+        df = IPCCTargetLink.create_dataframe_from_IPCC_target_ids_in_curly_brackets_divs_KEY(divs, leaf_name, link_factory)
         print(f"DATAFRAME\n{df}")
         path = Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", f"{syr_stem}_table.csv")
         df.to_csv(str(path))
         print(f" wrote link table {path}")
         path = Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", f"{syr_stem}_confidence.html")
         HtmlLib.write_html_file(syr_lr_html, outfile=path)
-
-    def create_dataframe_from_divs_KEY(self, divs, leaf_name, link_factory):
-        table = []
-        bad_link_set = set()
-        table.append(["anchor_text", "anchor_id", "target_id", "target_text"])
-        curly_re = re.compile(".*\{(P<curly>[.^\}]*)\}.*")
-        for div in divs:
-            id_spans = div.xpath("./span[@id]")
-            anchor_id = None if len(id_spans) == 0 else id_spans[0].attrib.get("id")
-            # print(f"anchor_id {anchor_id}")
-            # print(f" targets span {span.text}")
-            for span in div.xpath("./span[@class='targets']"):
-                match = curly_re.match(span.text)
-                if match:
-                    print(f"match group {match.group('curly')}")
-                rows, bad_links = IPCCTargetLink.read_links_from_span_and_follow_to_ipcc_repository_KEY(div, leaf_name, link_factory,
-                                                                                                        span)
-                bad_link_set.update(bad_links)
-                if rows:
-                    table.extend(rows)
-            IPCCAnchor.create_confidences(div)
-        print(f" table {len(table)}")
-        print(f"bad_link_set {bad_link_set}")
-        df = pd.DataFrame(table)
-        return df
 
     def test_extract_footnotes_HACKATHON(self):
         """extract footnotes from HTML and copy to custom directories"""

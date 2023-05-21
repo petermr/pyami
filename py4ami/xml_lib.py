@@ -391,7 +391,7 @@ class XmlLib:
         return all(cls.are_elements_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
     @classmethod
-    def write_xml(cls, elem, path, encoding="UTF-8", method="xml"):
+    def write_xml(cls, elem, path, encoding="UTF-8", method="xml", debug=False):
         """
         Writes XML to file
         :param elem: xml element to write
@@ -407,8 +407,10 @@ class XmlLib:
 
                 xmlstr = lxml.etree.tostring(elem).decode(encoding)
             except Exception as e:
-                raise ValueError(f"****** cannot decode XML: {e} *******")
+                raise ValueError(f"****** cannot decode XML to {path}: {e} *******")
             try:
+                if debug:
+                    print(f"writing XML {path}")
                 f.write(xmlstr)
             except Exception as ee:
                 raise Exception(f"cannot write XMLString {e}")

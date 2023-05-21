@@ -227,6 +227,22 @@ class Resources:
             "header_height": 50
         },
 
+        "WG3_CHAP07": {
+            "name": "WG3_Chapter07",
+            "input_pdf": Path(TEST_IPCC_DIR, "wg3", "Chapter07", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "wg3", "Chapter07", "pages"),
+            "footer_height": 30,
+            "header_height": 50
+        },
+
+        "WG3_CHAP08": {
+            "name": "WG3_Chapter08",
+            "input_pdf": Path(TEST_IPCC_DIR, "wg3", "Chapter08", "fulltext.pdf"),
+            "output_page_dir": Path(TEMP_DIR, "html", "ipcc", "wg3", "Chapter08", "pages"),
+            "footer_height": 30,
+            "header_height": 50
+        },
+
     }
 
     def __init__(self):
