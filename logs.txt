@@ -1,65 +1,47 @@
-The composition of 8 in solution was furthermore analyzed
-by multinuclear NMR spectroscopy (1H, 13C{1H}, 31P{1H} 195Pt, 11B,
-19F). 31P{1H} NMR measurements (CDCl3) of 8 confirmed a symmetrical
-square planar platinum(II) coordination, as a single
-resonance at d=19.4 ppm and the corresponding 195Pt satellites
-(d, 1JP,Pt=3178.5 Hz), which are due to a coupling with the
-NMR active 195Pt isotopes (33.8 %, s=1=2), are observed.[77]
 
-Yield, 0.0586 g (76.52%). 1HNMR(499.8 MHz, dmf-d7):  =1.79, 2.83, 3.03 (6H,CH2(CBDC)), 3.51 (s,
-6H, 2   CH3(dmso)), 7.55 (s, H, H6), 9.21 ppm (s, H, H2); 13C NMR (125.7 MHz, dmf-d7):   = 107.0 (C6),
-152.7 (C3a), 153.0 (C2), 159.0 (C7), 179.7 (C5) ppm. 15N NMR (50.6 MHz, dmf-d7):   = 􀀀106.0 (N1),
-􀀀122.0 (N4), 􀀀161.0 (N8), 􀀀253.0 ppm (N3); 195Pt NMR (107.4 MHz, dmf-d7): 􀀀2607 ppm (s, PtO2NS).
-IR (KBr): 1339 ( sym(OCO—)), 1542 ( triazole ring), 1618 ( pyrim ring), 1656 cm􀀀1 ( as(OCO—)).
-Analysis found: C, 38.30; H, 6.16; N, 8.00%. Calculation for C21H26N4O6PtS (monohydrate):
-C, 37.89; H, 5.15; N, 8.42%.
+(base) pm286macbook:pyami pm286$ git status
+HEAD detached at 3d1991f
+nothing to commit, working tree clean
+(base) pm286macbook:pyami pm286$ git log
+commit 3d1991f4a2cb0398d4bfda292a1de5f04c1a4b0c (HEAD)
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Tue Mar 28 17:37:41 2023 +0100
 
-Elemental analysis for formula C8H10N6O4Cl2Pt of compound 1:
-Calculated/Found (%): C 18.47/18.80, H 1.94/1.89, N 16.16/15.97, Cl 13.63/13.70. 1H NMR (300.15 MHz,
-acetone-d6):  [ppm] 4.55 (s, 3H, N-CH3), 8.58 (s, 1H, H ar.), 8.98 (s, 1H, H ar.). 195Pt NMR (acetone-d6,
-external standard references K2PtCl4,  [ppm] = 􀀀1618):  [ppm] = 􀀀2091. IR, far IR  [cm􀀀1]:
-1520( as NO2), 1321( s NO2), 817(def. NO2), 450( asN-Pt) 349( sCl-Pt), 341( asCl-Pt). Combustion
-and spectral analyses for the trans complex 2: Elemental analysis for formula C8H10N6O4Cl2Pt of
-the trans-complex 2: Calculated/Found (%): C 18.47/18.76, H 1.94/1.84, N 16.16/15.86, Cl 13.63/13.93.
-1H NMR (300.15 MHz, acetone-d6):  [ppm] 5.00(s, 3H, N-CH3), 9.04(s, 1H, H ar.), 9.44(s, 1H, H ar.).
-195Pt NMR (acetone-d6, external standard reference K2PtCl4,  [ppm] = 􀀀1618):  [ppm] = 􀀀2119. IR,
-far IR  [cm􀀀1]: 1521( as NO2), 1325( s NO2), 821(def. NO2), 451( asN-Pt), 350( asCl-Pt). Analysis of
-Mass Spectrum (ESI-MS) of both complexes 1 and 2
+    tidied conversion routines to make them more modular - good interirm results.
 
-[Pt(apyTSCLp)Cl]: Yield: 141 mg (0.2 mmol, 83%). Anal. calc. for
-C23H36ClN5O4PtS (709.16) C 38.95, H 5.12, N 9.88, S 4.52; found C
-38.98, H 5.12, N 9.87, S 4.55%. 1H NMR: (300 MHz, CDCl3): δ=8.88
-(d, 1H, J=5.5 Hz, 3JPtH=14 Hz, HPy6), 7.90 (t, 1H, J=7.6 Hz, HPy4),
-7.78 (d, 1H„ J=9.0 Hz, HPy3), 7.69 (d, 1H, J=6.7 Hz, HPy5), 7.07 (d,
-1H, J=8.3 Hz, NH7), 4.24-4.01 (m, 1H, H5), 3.47 (q, 2H, J=6.7 Hz,
-H1), 2.29 (s, 3H, CH3im), 1.86-1.52 (m, 6H, H2,3,4), 1.45 (s, 9H,
-H13,14,15), 1.43 (s, 9H, H9,10,11) ppm. 1H/195Pt-HMBC NMR:
-(300 MHz, CDCl3): δ=􀀀 3108 (3JPt-HPy6=14 Hz, 4JPt-HCH3 obscured, 5JPt-
-HPy4=21 Hz) ppm. HR-ESI-MS(+): m/z calculated [M+Na]+:
-732.17167; found: 732.16964. FTIR-ATR: ν [cm􀀀 1] 3853 (w), 3675 (m),
-3424 (w), 2987 (s), 2901 (s), 2359 (w), 1715 (m), 1558 (w), 1507 (m),
-1455 (m), 1406 (m), 1394 (m), 1380 (m), 1250 (m), 1230 (m), 1154
-(m), 1075 (s), 1066 (s), 1056 (s), 1028 (m), 891 (w), 789 (w), 706 (w),
-642 (w), 626 (w), 618 (m), 606 (m), 591 (w), 581 (w), 570 (w), 560 (w),
-546 (w), 540 (w), 526 (w)
+commit 2c00b76da02a1aa3e09f306c75e4b94409cfbd78
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Tue Mar 28 13:18:49 2023 +0100
 
-washed with water, methanol, and diethyl ether. Yield: 51%. ESI-MS (positive ion mode):
-found 469 m/z; calcd. for C12H8Cl2N2NaPt [M + Na]+ 469 m/z. 1H-NMR (DMF-d7)  : 8.26
-(dd, 2H, H3 and H8, J3 = 8.2 Hz, J3 = 5.4 Hz), 8.38 (s, 2H, H5 and H6), 9.14 (dd, 2H, H4
-and H7, J3 = 8.2 Hz, J4 = 1.1 Hz), 9.86 (dd, 2H, H2 and 9, J3 = 5.4 Hz, J4 = 1.1 Hz) ppm.
-13C-NMR (DMF-d7)  : 126.4 (C3 and C8), 128.2 (C5 and C6), 131.4 (C4a and C6a), 139.8
-(C4 and C7), 148.4 (C1a and C10a), 149.4 (C2 and C9) ppm. 195Pt-NMR (DMF-d7)  : 􀀀2322
-ppm. Elemental analysis calcd. for C12H8Cl2N2Pt C, 32.30%; H, 1.81%; N, 6.28% found C,
-32.51%; H, 1.76%; N, 6.20%.
+    tested font-expansion and corrected tests as directories have moved
 
-Kathleen Jagodnik to Everyone (4 Apr 2023, 16:11)
-Plan Keynote Lecture:
-https://docs.google.com/document/d/1_y41xQQKbOKwnoE-L_QHi-vd0yH8wp5s_Sm1L9alGeY/edit?usp=sharing
+commit 33e6b81547c2ddd6c6dd7645eed60a9aba66ebad
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Sun Mar 26 22:10:59 2023 +0100
 
-Plan Hackathon:
-https://docs.google.com/document/d/15aQHbRA2YyQD6nLvKUXR3JNDeCs-f0CYDUHBQIhS1zE/edit?usp=sharing
+    tested empirical font-property-from-name tools
 
+commit 5001619e5cb0ff29f3a2ec2d326b53b1fd96a84c
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Sat Mar 25 09:05:15 2023 +0000
 
-Samuel Moo
+    integrated styles normalisation with PDF2HTML
 
-Samuel Moo
+commit a7a115f2a66734c2bc955055591cf69e1c5cbb41 (pmr14)
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Fri Mar 24 15:16:10 2023 +0000
+
+    removed dependency on pyamiimage
+
+commit 34286e3c21bf29a263f4c881079bda4aebb59f60
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Fri Mar 24 10:13:20 2023 +0000
+
+    removed pm286 from tests and added Synthesis report
+
+commit 28045ed7e6519e436e9afd091f2a13f7c568452f
+Author: petermr <peter.murray.rust@googlemail.com>
+Date:   Fri Mar 10 11:35:28 2023 +0000
+
+    developed test_pdf test_make_ipcc_html_spans intending to move it to commandline
+
