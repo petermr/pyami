@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import re
 import unicodedata
-import xml.etree.ElementTree as ET
+import lxml
 
 logging.debug("loading text_lib")
 
@@ -498,7 +498,7 @@ class TextUtil:
         """
         # remove tags
         untagged_text = str.join(
-            " ", list(ET.fromstring(xml_string).itertext()))
+            " ", list(lxml.etree.fromstring(xml_string).itertext()))
         return untagged_text
 
     @staticmethod

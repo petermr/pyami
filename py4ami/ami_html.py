@@ -16,7 +16,6 @@ import lxml.etree
 import numpy as np
 import pandas as pd
 from lxml.etree import Element, _Element, _ElementTree
-import xml.etree.ElementTree as ET
 import time
 from sklearn.linear_model import LinearRegression
 
@@ -492,6 +491,26 @@ class HtmlTidy:
 
 class HtmlGroup:
     """groups siblings into divs"""
+
+    DEFAULT_STYLES = [
+        (".section_title", [("color", "red;")]),
+        (".sub_section_title", [("color", "blue;")]),
+        (".sub_sub_section_title", [("color", "green;")]),
+        (".confidence", [("color", "orange;")]),
+        (".probability", [("color", "#8888ff;")]),
+        (".superscript", [("color", "magenta;"), ("background", "yellow;")]),
+        (".chunk", [("background", "cyan;")]),
+        (".targets", [("background", "#88ff88;")]),
+        (".start", [("background", "gray;")]),
+        (".end", [("background", "yellow;")]),
+        (".page", [("background", "magenta;")]),
+        (".statement", [("background", "#ddddff;")]),
+        (".level1", [("background", "#ffffdd;")]),
+        (".level2", [("background", "#ddffff;")]),
+        (".level3", [("background", "#ddffdd;")]),
+        (".footnote", [("background", "#ffddff;")]),
+    ]
+
     @classmethod
     def generate_lowercase_letter_id(cls, i):
         "make id of form a,b,c, ... aa, ab, ac ... ba, bb, ... zz , @.str(i)"
@@ -992,18 +1011,32 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         sections = []
         subsections = []
         for div in divs:
-            if regexes[0]:
+            if len(regexes) > 0 and regexes[0]:
                 section_id = HtmlUtil.extract_substrings(div, xpath=xpaths[0], regex=regexes[0])
                 if section_id:
                     sections.append(section_id)
                     continue
-            if regexes[1]:
+            if len (regexes) > 1 and regexes[1]:
                 subsection_id = HtmlUtil.extract_substrings(div, xpath=xpaths[1],
                                                             regex=regexes[1],
                                                             remove=False)
                 if subsection_id:
                     subsections.append(subsection_id)
         return sections, subsections
+
+    @classmethod
+    def annotate_div_spans_write_final_html(cls, input_html, outfile, styles=None):
+        if not styles:
+            styles = HtmlGroup.DEFAULT_STYLES
+        html_elem = lxml.etree.parse(str(input_html)).getroot()
+        annotator = HtmlAnnotator.create_ipcc_annotator()
+        HtmlStyle.add_head_styles(html_elem, styles)
+        spans = html_elem.xpath(".//span")
+        for span in spans:
+            annotator.run_commands(span)
+        HtmlGroup.group_nested_siblings(html_elem, styles=None)
+        HtmlLib.write_html_file(html_elem, outfile, debug=True)
+
 
 
 class HtmlUtil:
@@ -1849,7 +1882,7 @@ class AnnotatorCommand:
             # print(f"NO LEAD GROUP parents")
             pass
         for i, group_lead in enumerate(group_leads):
-            print(f"group lead {ET.tostring(group_lead)}")
+            print(f"group lead {lxml.etree.tostring(group_lead)}")
             # end_grouo = group_leads[i + 1] if i < len(group_leads) - 1 else None
             self.make_group(parent_elem, group_lead)
 
@@ -3476,7 +3509,7 @@ class TargetExtractor:
         """
         partly written by ChatGPT (2023-04-06) but mainly by PMR
         """
-        tree = ET.parse(file)
+        tree = lxml.etree.parse(file)
         root = tree.getroot()
         # Initialize the table
         table = []
