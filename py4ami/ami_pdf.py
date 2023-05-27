@@ -17,6 +17,7 @@ from typing import Container
 
 import lxml
 import lxml.html
+import pandas as pd
 import pdfplumber
 from PIL import Image
 from lxml import etree
@@ -32,6 +33,7 @@ from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H
 from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy, HtmlStyle, HtmlLib, AmiFont
 from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
+from py4ami.ami_svg import AmiSVG
 from py4ami.file_lib import FileLib
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util, AbstractArgs, AmiArgParser
@@ -69,10 +71,12 @@ CURVES = "curves"
 HYPERLINKS = "hyperlinks"
 IMAGES = "images"
 LINES = "lines"
+PTS = 'pts'
 RECTS = "rects"
 TABLES = "tables"
 TEXTS = "texts"
 WORDS = "words"
+
 DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, TEXTS, ANNOTS]
 DEBUG_ALL = "debug_all"
 
@@ -1552,13 +1556,27 @@ class PDFDebug:
                 for rect in page.rects[:self.max_rect]:
                     print(f"rect (({rect['x0']},{rect['x1']}),({rect['y0']},{rect['y1']})) ")
 
-    def print_curves(self, page):
-        n_curve = len(page.curves)
-        if n_curve > 0:
-            print(f"curves {n_curve}", end=" | ")
-            for curve in page.curves[:self.max_curve]:
-                print(f"keys: {curve.keys()}")
-                print(f"curve {curve['points']}")
+    @classmethod
+    def print_curves(cls, page, max_curve=1000, svg_dir=None, page_no=None):
+        """print curve info and points
+        pdfplumber does NOT (yet) extract curve operators, only the points"""
+        curves = page.get(CURVES)
+        if curves and len(curves) > 0:
+            print(f"n_curves {len(curves)}", end=" | ")
+            svg0 = AmiSVG.create_svg()
+            for i, curve in enumerate(curves[:max_curve]):
+                # print(f"keys: {curve.keys()}")
+                points_ = curve[PTS]
+                # print(f"curve: {points_}")
+                if svg_dir:
+                    svg = AmiSVG.create_svg()
+                    svg_pts = [[p[0],p[1]] for p in points_]
+                    polyline = AmiSVG.create_polyline(svg_pts, parent=svg, stroke_width=0.3)
+                    path = Path(svg_dir, f"curve_{i}.svg")
+                    # XmlLib.write_xml(svg, path) # disjointed curves may be too granular
+                    svg0.append(polyline)
+            path = Path(svg_dir, f"p_{page_no}_curves.svg")
+            XmlLib.write_xml(svg0, path, debug=True)
 
     def print_images(self, page, maximage=10, outdir=None):
         maximage = 999
@@ -1905,18 +1923,27 @@ class AmiPlumberJson:
     """
     holds PDFPlumberJSON object
     """
-    def __init__(self, pdf_json):
-        self.pdf_json = pdf_json
-        self.json_pages = None
+    def __init__(self, pdf_json_dict, pdfplumber_pdf):
+        self.pdf_json_dict = pdf_json_dict
+        self.ami_json_pages = None
+        self.pdfplumber_pdf = pdfplumber_pdf
 
     def get_ami_json_pages(self):
-        if not self.json_pages:
-            self.json_pages = [AmiPlumberJsonPage(p) for p in self.pdf_json['pages']]
-        return self.json_pages
+
+        if not self.ami_json_pages:
+            plumber_pages = self.pdfplumber_pdf.pages
+            json_pages = self.pdf_json_dict.get('pages')
+            if len(plumber_pages) != len(json_pages):
+                raise ValueError(f"page lists are out of sync {len(plumber_pages)} != {len(json_pages)}")
+            self.ami_json_pages = [AmiPlumberJsonPage(j_page, p_page) for j_page, p_page in zip(json_pages, plumber_pages)]
+            a_page0 = self.ami_json_pages[0]
+            assert (t := type(a_page0)) is AmiPlumberJsonPage, f"found {t}"
+            assert (t := type(a_page0.plumber_page)) is Page, f"found {t}"
+        return self.ami_json_pages
 
     @property
     def keys(self):
-        return self.pdf_json.keys if self.pdf_json else None
+        return self.pdf_json_dict.keys if self.pdf_json_dict else None
 
 
 
@@ -1937,19 +1964,19 @@ class RegionClipper:
 
 
 class AmiPlumberJsonPage:
-    def __init__(self, page):
-        self.page = page
+    def __init__(self, page_dict, plumber_page):
+        self.plumber_page_dict = page_dict
+        self.plumber_page = plumber_page
 
 # AmiPlumberJsonPage:
 
     def get_chars(self):
-        return self.page.get("chars") if self.page else None
+        return self.plumber_page_dict.get("chars") if self.plumber_page_dict else None
 
     def get_tables(self):
-        return []
+        tables = self.plumber_page.extract_tables() if self.plumber_page else None # not working
         if tables:
-            print(f"TABLES")
-        return self.page.extract_tables() if self.page else None # not working
+            print(f"TABLES: {len(tables)}")
 
     # AmiPlumberJsonPage:
 
@@ -2038,12 +2065,14 @@ class AmiPlumberJsonPage:
 
     # AmiPlumberJsonPage:
 
-    def create_html_page_and_header_footer(self, ami_plumber):
+    def create_html_page_and_header_footer(self, ami_plumber, debug=False):
         """
         y runs bottom to top (i.e. first lines in visual reading have high y)
         """
         rc = self.create_region_clipper(ami_plumber)
         tables = self.get_tables()
+        if tables and len(tables):
+            print(f"tables: {len(tables)}")
         html_page = HtmlLib.create_html_with_empty_head_body()
         HtmlLib.add_head_style(html_page, "div", [("border", "red solid 0.5px")])
         HtmlLib.add_head_style(html_page, "span", [("border", "blue dotted 0.5px")])
@@ -2058,24 +2087,34 @@ class AmiPlumberJsonPage:
         for span in spans:
             font_size, y0, y1 = self.extract_coords_and_font_properties(span)
             delta_y = y0 - last_y0 if last_y0 else None
-            joined = False
-            if self.capture_header(y0, rc.header_y, header_span_list, span) or \
-                self.capture_footer(y1, rc.footer_y, footer_span_list, span):
-                continue
-            if div is None or self.must_create_newpara(delta_y, font_size, span.text):
-                div = self.create_div_with_coords(div, span)
-                body.append(div)
-                div.append(span)
-            elif self.have_identical_font_properties(last_span, span):
-                joiner = self.get_text_joiner(delta_y, last_span, last_y0, span, y0)
-                last_span.text += joiner + span.text
-                joined = True
-            else:
-                div.append(span)
-            last_y0 = y0
-            if not joined:
-                last_span = span
+            header = self.capture_header(y0, rc.header_y, header_span_list, span)
+            if not header:
+                footer = self.capture_footer(y1, rc.footer_y, footer_span_list, span)
+            if not header and not header:
+                append_span, div, joined = self._analyze_joinability(body, delta_y, div, font_size,
+                                                                               last_span, last_y0, span, y0)
+                if append_span:
+                    div.append(span)
+                last_y0 = y0
+                if not joined:
+                    last_span = span
         return html_page, header_span_list, footer_span_list
+
+    def _analyze_joinability(self, body, delta_y, div, font_size, last_span, last_y0,
+                            span, y0):
+        joined = False
+        append_span = False
+        if div is None or self.must_create_newpara(delta_y, font_size, span.text):
+            div = self.create_div_with_coords(div, span)
+            body.append(div)
+            div.append(span)
+        elif self.have_identical_font_properties(last_span, span):
+            joiner = self.get_text_joiner(delta_y, last_span, last_y0, span, y0)
+            last_span.text += joiner + span.text
+            joined = True
+        else:
+            append_span = True
+        return append_span, div, joined
 
     def get_text_joiner(self, delta_y, last_span, last_y0, span, y0):
         """returns space or empty to join newlines"""
@@ -2111,7 +2150,7 @@ class AmiPlumberJsonPage:
         footer_height = float(ami_plumber.param_dict["footer_height"])
         header_height = float(ami_plumber.param_dict["header_height"])
         # print(f"footer/header {footer_height} {header_height}")
-        mediabox = self.page['mediabox']
+        mediabox = self.plumber_page_dict['mediabox']
         region_clipper = RegionClipper(
             footer_height=footer_height,
             header_height=header_height,
@@ -2138,6 +2177,8 @@ class AmiPlumberJsonPage:
     def capture_header(self, y0, header_y, header_span_list, span):
         if y0 > header_y:
             self.remove_span_and_add_to_list(header_span_list, span)
+            return True
+        return False
 
     def remove_span_and_add_to_list(self, span_list, span):
         parent = span.getparent()
@@ -2148,6 +2189,8 @@ class AmiPlumberJsonPage:
     def capture_footer(self, y1, footer_y, footer_span_list, span):
         if y1 < footer_y:
             self.remove_span_and_add_to_list(footer_span_list, span)
+            return True
+        return False
 
     # AmiPlumberJsonPage:
 
@@ -2171,6 +2214,81 @@ class AmiPlumberJsonPage:
         font_family = csss.get_attribute(CSSStyle.FONT_FAMILY)
         return font_family, font_size
 
+    def create_non_text_html(self, svg_dir=None):
+        def curves_to_edges(cs):
+            """See https://github.com/jsvine/pdfplumber/issues/127"""
+            edges = []
+            for c in cs:
+                try:
+                    edge = pdfplumber.utils.rect_to_edges(c)
+                    edges += edge
+                    # print(f"edge {edge}")
+                except KeyError as e:
+                    msg = str(e)
+                    # print(f"exception {e}  {msg}")
+                    if msg == "'y1'":
+                        # print(f"curve may not have y1 coords")
+                        pass
+            return edges
+
+        table_div = lxml.etree.Element("div")
+        table_div.attrib["title"] = "tables"
+        curve_div = lxml.etree.Element("div")
+        curve_div.attrib["title"] = "curves"
+        line_div = lxml.etree.Element("div")
+        line_div.attrib["title"] = "lines"
+        print(f"page {type(self.plumber_page_dict)} {self.plumber_page_dict.get('mediabox')}")
+        print(f"page {self.plumber_page} \n {self.plumber_page.__dir__()}\n"
+              f"curve_edges: {len(self.plumber_page.curve_edges)}\n"
+              # f"{self.pdf_page.curve_edges}\n"
+              f"tablefinder: {self.plumber_page.debug_tablefinder()}")
+        if lines := self.plumber_page_dict.get(LINES):
+            print(f"debug_lines {len(lines)}")
+            for line in lines:
+                print(f"debug_line: {line} {line.__dir__}")
+        if curves := self.plumber_page_dict.get(CURVES):
+            print(f"debug_curves: {len(curves)}")
+        #      make svg here
+
+        if tables := self.plumber_page_dict.get(TABLES):
+            print(f"debug_tables {len(tables)}")
+        table_div, svg = self.make_html_tables(curves_to_edges, table_div)
+        return line_div, curve_div, table_div, svg
+
+    def make_html_tables(self, curves_to_edges, table_div):
+        table_finder = self.plumber_page.debug_tablefinder()
+        p = self.plumber_page
+        # Table settings.
+        ts = {
+            "vertical_strategy": "explicit",
+            "horizontal_strategy": "explicit",
+            "explicit_vertical_lines": curves_to_edges(p.curves + p.edges),
+            "explicit_horizontal_lines": curves_to_edges(p.curves + p.edges),
+            "intersection_y_tolerance": 10,
+        }
+        # Get the bounding boxes of the tables on the page.
+        bboxes = [table.bbox for table in p.find_tables(table_settings=ts)]
+        print(f"table_bbox {bboxes}")
+        svg_top = AmiSVG.create_svg()
+        box = [float(xy) for xy in self.plumber_page.mediabox]
+        media_box = AmiSVG.create_rect(box, parent=svg_top, fill="none", stroke="black", stroke_width=0.3)
+        if bboxes:
+            for bbox in bboxes:
+                svg_box = AmiSVG.create_rect(bbox, parent=svg_top)
+
+        print(f"debug_table_finder {len(table_finder.__dict__)}")
+        if tables := self.plumber_page.extract_tables():
+            table_div = lxml.etree.Element("div")
+            for i, table in enumerate(tables):
+                if i == 0:
+                    print(f"table0 {table}")
+                df = pd.DataFrame(table)
+                html_table = lxml.etree.fromstring(df.to_html())
+                table_div.append(html_table)
+        return table_div, svg_top
+
+
+# =========================================================
 
 PLUMB_FONTNAME = "fontname"
 PLUMB_NONSTROKE = "non_stroking_color"
@@ -2210,8 +2328,8 @@ class AmiPDFPlumber:
         :param parse_dict: python dict to control pasr
         """
         self.pdf_json = None
-        self.pdfobj = None
-        self.pages = None
+        self.pdfplumber_pdf = None # the pdfplumber object created when loading/parsing
+        self.pages = None # maybe not used?
         self.param_dict = param_dict if param_dict else self.create_param_dict()
 
     # AmiPDFPlumber
@@ -2226,8 +2344,9 @@ class AmiPDFPlumber:
         """first parse into PDFPlumber pdf object self.pdfobj
         """
         pages = range(1,9999) if not pages else pages
-        self.pdfobj = pdfplumber.open(path, pages)
-        return self.pdfobj
+        self.pdfplumber_pdf = pdfplumber.open(path, pages)
+        assert type(self.pdfplumber_pdf) is pdfplumber.pdf.PDF, f"found {type(self.pdfplumber_pdf)}"
+        return self.pdfplumber_pdf
 
     # AmiPDFPlumber
 
@@ -2238,8 +2357,16 @@ class AmiPDFPlumber:
         :param pages: list of page numbers to read
         """
         pdfplumber_pdf = self.create_pdfplumber_pdf(path, pages=pages)
+        assert pdfplumber_pdf and type(pdfplumber_pdf) is pdfplumber.pdf.PDF, f"found {type(pdfplumber_pdf)}"
+        assert (t := type(pdfplumber_pdf)) is pdfplumber.pdf.PDF, f"found {t}"
         pdf_json = self._create_pdfplumber_json(pdfplumber_pdf)
-        return AmiPlumberJson(pdf_json)
+        assert (l := len(pdfplumber_pdf.pages)) > 0, f"found {l}"
+        page0 = pdfplumber_pdf.pages[0]
+        # print(f"type {type(page0)}")
+        assert type(page0) is Page, print(f"found {t}")
+        assert (t := type(pdf_json)) is dict,  f"pdf_json is {t}"
+        ami_plumber_json = AmiPlumberJson(pdf_json, pdfplumber_pdf)
+        return ami_plumber_json
 
     # AmiPDFPlumber
 
@@ -2438,34 +2565,24 @@ class AmiPDFPlumber:
 
     # AmiPDFPlumber
 
-    def create_html_pages(self, input_pdf, output_page_dir, pages=None, debug=False, outstem="total_pages"):
+    def create_html_pages(self, input_pdf, output_page_dir, pages=None, debug=False, outstem="total_pages", svg_dir=None):
         ami_plumber_json = self.create_ami_plumber_json(input_pdf, pages=pages)
-        ami_json_pages = ami_plumber_json.get_ami_json_pages()
+        assert (t := type(ami_plumber_json)) is AmiPlumberJson, f"expected {t}"
         total_html = HtmlLib.create_html_with_empty_head_body()
-
+        output_page_dir.mkdir(exist_ok=True, parents=True)
         total_html_page_body = HtmlLib.get_body(total_html)
+
+        ami_json_pages = ami_plumber_json.get_ami_json_pages()
         for i, ami_json_page in enumerate(ami_json_pages):
             print(f"==============PAGE {i+1}================")
-            html_page, footer_span_list, header_span_list = ami_json_page.create_html_page_and_header_footer(self)
-            if debug:
-                ami_json_page.print_header_footer_lists(footer_span_list, header_span_list)
-            try:
-                path = Path(output_page_dir, f"page_{i + 1}.html")
-                if debug:
-                    print(f"writing xml file {path}")
-                XmlLib.write_xml(html_page, path)
-            except Exception as e:
-                print(f"*******Cannot serialize page (probably strange fonts)******page{i+1} {e}")
-                continue
-            body_elems = HtmlLib.get_body(html_page).xpath("*")
-            for body_elem in body_elems:
-                total_html_page_body.append(body_elem)
-        for i, _ in enumerate(ami_json_pages):
-            page_file = Path(output_page_dir, f"page_{i + 1}.html")
-            try:
-                html_elem = lxml.etree.parse(str(page_file))
-            except Exception as e:
-                print(f"could not read XML {page_file} because {e}")
+            html_page = self.create_html_page(ami_json_page, output_page_dir, debug=debug, page_no=(i + 1), svg_dir=svg_dir)
+            if html_page is not None:
+                body_elems = HtmlLib.get_body(html_page).xpath("*")
+                for body_elem in body_elems:
+                    total_html_page_body.append(body_elem)
+
+        if debug:
+            self._check_html_pages(ami_json_pages, output_page_dir)
 
         path = Path(output_page_dir, f"{outstem}.html")
         HtmlStyle.add_head_styles(
@@ -2475,10 +2592,40 @@ class AmiPDFPlumber:
                 ("span", [("border", "blue dotted 0.5px")]),
              ]
         )
-        XmlLib.write_xml(total_html, path)
+        XmlLib.write_xml(total_html, path, debug=debug)
+
+    def create_html_page(self, ami_json_page, output_page_dir, debug=False, page_no=None, svg_dir=None):
         if debug:
-            print(f"wrote html {path}")
-        # print(f"encoding {FileLib.get_encoding(path)}")
+            line_div, curve_div, table_div, svg = ami_json_page.create_non_text_html(svg_dir=svg_dir)
+            if len(tables := table_div.xpath("*")):
+                table_html = HtmlLib.create_html_with_empty_head_body()
+                HtmlLib.get_body(table_html).append(table_div)
+                HtmlLib.write_html_file(table_div, Path(output_page_dir, f"tables_{page_no}.html"), debug=True)
+
+            if svg_dir:
+                PDFDebug().print_curves(ami_json_page.plumber_page_dict, svg_dir=svg_dir, page_no=page_no)
+                if len(svg.xpath("*")) > 0:
+                    XmlLib.write_xml(svg, Path(svg_dir, f"table_box_{page_no}.svg"), debug=debug)
+
+        html_page, footer_span_list, header_span_list = ami_json_page.create_html_page_and_header_footer(self)
+        if debug:
+            ami_json_page.print_header_footer_lists(footer_span_list, header_span_list)
+        try:
+            path = Path(output_page_dir, f"page_{page_no}.html")
+            XmlLib.write_xml(html_page, path, debug=debug)
+        except Exception as e:
+            print(f"*******Cannot serialize page (probably strange fonts)******page{page_no} {e}")
+            html_page = None
+        return html_page
+
+    def _check_html_pages(self, ami_json_pages, output_page_dir):
+        """checks that HTML can be parsed (not normally necessary)"""
+        for i, _ in enumerate(ami_json_pages):
+            page_file = Path(output_page_dir, f"page_{i + 1}.html")
+            try:
+                html_elem = lxml.etree.parse(str(page_file))
+            except Exception as e:
+                print(f"could not read XML {page_file} because {e}")
 
     # AmiPDFPlumber
 

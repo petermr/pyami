@@ -392,7 +392,7 @@ class XmlLib:
         return all(cls.are_elements_equal(c1, c2) for c1, c2 in zip(e1, e2))
 
     @classmethod
-    def write_xml(cls, elem, path, encoding="UTF-8", method="xml", debug=False):
+    def write_xml(cls, elem, path, encoding="UTF-8", method="xml", debug=False, mkdir=True):
         """
         Writes XML to file
         :param elem: xml element to write
@@ -401,6 +401,11 @@ class XmlLib:
         :except: bad encoding
         The use of encoding='UTF-8' is because lxml has a bug in some releases
         """
+        if not path:
+            return
+        if mkdir:
+            path.parent.mkdir(parents=True, exist_ok=True)
+
         with open(path, "w") as f:
             try:
                 # this solves some problems but not unknown font encodings

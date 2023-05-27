@@ -1271,7 +1271,8 @@ class HtmlUtil:
             for i, span in enumerate(spans):
                 if XmlLib.is_integer(span) and (i == 0 or HtmlUtil.is_superscript(spans[i - 1], span)):
                     current_li = lxml.etree.SubElement(ul, "li")
-                current_li.append(span)
+                if current_li is not None:
+                    current_li.append(span)
 
 
     @classmethod

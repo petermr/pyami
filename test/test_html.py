@@ -1287,15 +1287,6 @@ class Test_PDFHTML(AmiAnyTest):
             ]
 
             HtmlGroup.make_hierarchical_sections_KEY(html_elem, group_stem, section_regexes=section_regexes, outdir=outdir)
-            pass
-        # for wg in wgs:
-        #     for chapter in chapters:
-        #         input_pdf = Path(Resources.TEST_IPCC_DIR, f"{wg}", f"{chapter}", f"fulltext.pdf")
-        #         outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", f"{wg}", f"{chapter}, ")
-        #
-        #     input_html = Path(Resources.TEST_IPCC_DIR, f"{wg}", "spm", f"{pages}{stem}.html")
-        #     print(f"\n==========input: {input_html}===============")
-        #     html_elem = lxml.etree.parse(str(input_html)).getroot()
 
     def test_download_github_html(self):
         github_url = HtmlLib.create_rawgithub_url(
