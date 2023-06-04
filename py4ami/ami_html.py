@@ -488,6 +488,27 @@ class HtmlTidy:
                 last_span = span
 
 
+def get_target_href(target_id):
+    re_target = re.compile("\s*(?P<report>WGI|WGII|WGIII|SRCCL|SROCC|SR15|SYR)\s+(?P<chapter>SPM|TS)\s+(?P<section>[A-G]\.?\d+(?:\.\d+)*)")
+    github_base = "https://htmlpreview.github.io/?https://github.com"
+    working_url = "https://htmlpreview.github.io/?https://github.com/petermr/semanticClimate/blob/main/test.html"
+    report_dict = {
+        "wgi" : "wg1",
+        "wgii": "wg2",
+        "wgiii": "wg3",
+    }
+    href = ""
+    match = re_target.match(target_id)
+    if match:
+        report = match.group("report").lower()
+        report1 = report_dict.get(report)
+        report = report1 if report1 else report
+        chapter = match.group("chapter").lower()
+        section = match.group("section").lower()
+        href = f"{github_base}/petermr/semanticClimate/blob/main/ipcc/ar6/{report}/{chapter}/html/fulltext/groups.groups.html#{section}"
+
+    return href
+
 
 class HtmlGroup:
     """groups siblings into divs"""
@@ -763,10 +784,13 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
     @classmethod
     def process_ipcc_end(cls, END, START, parent, start_ends, text):
         end_str = text[len(END):]
-        start_str = start_ends.pop()
-        if start_str != end_str:
-            print(f"unbalanced: {START + start_str} and {END + end_str}")
-        parent = parent.getparent()
+        if start_ends:
+            # sometimes unbalanced in document
+            start_str = start_ends.pop()
+            if start_str != end_str:
+                print(f"unbalanced: {START + start_str} and {END + end_str}")
+            else:
+                parent = parent.getparent()
         return parent
 
     @classmethod
@@ -816,6 +840,23 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
                 return True
         return False
 
+    def match_regex(div, regex, section_class, text):
+        try:
+            reg = re.compile(regex)
+        except Exception as e:
+            raise ValueError(f"BAD REGEX {regex} because {e}")
+        match = reg.match(text)
+        if match:
+            print(f"text: {text[:30]}")
+            try:
+                id = match.group('id')
+                print(f"id: {section_class}: {id}")
+                div.attrib["title"] = id
+            except Exception as e:
+                print(f"failed to match id in {regex}")
+            div.attrib["class"] = section_class
+
+
     @classmethod
     def annotate_title_sections(cls, html_elem, section_regexes=None):
         if section_regexes is None:
@@ -834,15 +875,10 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
             for section_regex in section_regexes:
                 section_class = section_regex[0]
                 regex = section_regex[1]
+                if not regex:
+                    raise ValueError(f"******None: regex in section_regex {section_regex}")
 #               print(f"regex {regex}")
-                reg = re.compile(regex)
-                match = reg.match(text)
-                if match:
-                    print(f"text: {text[:30]}")
-                    id = match.group('id')
-                    print(f"id: {section_class}: {id}")
-                    div.attrib["title"] = id
-                    div.attrib["class"] = section_class
+                cls.match_regex(div, regex, section_class, text)
 
     @classmethod
     def collect_floats_to_back(cls, html_elem):
@@ -953,7 +989,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         HtmlLib.get_body(new_html).append(new_div)
         HtmlGroup.create_head_style_elem(new_html)
         HtmlGroup.collect_floats_to_back(new_html)
-        HtmlGroup.annotate_ipcc_targets(new_html)
+        HtmlGroup.annotate_ipcc_target_ids(new_html)
         if outdir:
             outfile = Path(outdir, f"{stem}_groups.html")
             HtmlLib.write_html_file(new_html, outfile, debug=True)
@@ -972,15 +1008,44 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         HtmlGroup.group_siblings(html_elem, locator="sub_sub_section", style=styles[2])
 
     @classmethod
-    def annotate_ipcc_targets(cls, html_elem):
+    def annotate_ipcc_target_ids(cls, html_elem):
         """finds sections of form {target_id, target_id...} and adds class=targets
-        This is better done in the annotator workflow where is works. This is a hack for
+        This is better done in the annotator workflow where it works. This is a hack for
         files which have been missed"""
+        re_curly = re.compile(r"(?P<pre>.*){(?P<body>[^}]+)}(?P<post>.*)")
         TARGETS = "targets"
         curly_spans = html_elem.xpath(f".//span[contains(., '{{') and contains(., '}}')]")
         print(f"found curlies {len(curly_spans)}")
         for span in curly_spans:
+            parent = span.getparent()
+            match = re_curly.match(span.text)
+            if match:
+                for gp in ["pre", "body", "post"]:
+                    t = match.group(gp)
+                    if len(t) > 0:
+                        if gp == "body":
+                            target_ids = re.split("[,;]", t)
+                            for target_id in target_ids:
+                                a = lxml.etree.SubElement(parent, "a")
+                                span.addprevious(a)
+                                a.text = target_id
+                                a.attrib["href"] = get_target_href(t)
+                            # parent.remove(span)
+                        else:
+                            spanx = lxml.etree.SubElement(parent, "span")
+                            spanx.text = t
+                            for att in span.attrib:
+                                spanx.attrib[att] = span.attrib[att]
+                            span.addprevious(spanx)
+                            spanx.attrib["anchor"] = gp
+
+                parent.remove(span)
+
+
+
+
             span.attrib["class"] = TARGETS
+
 
 
 

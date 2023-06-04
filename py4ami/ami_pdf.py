@@ -10,6 +10,7 @@ import re
 import statistics
 import sys
 import textwrap
+import time
 import traceback
 from io import BytesIO, StringIO
 from pathlib import Path
@@ -850,7 +851,7 @@ class PDFArgs(AbstractArgs):
         self.parser.formatter_class = argparse.RawDescriptionHelpFormatter
         # self.parser.add_argument("--convert", type=str, choices=[], help="conversions (NYI)")
         self.parser.add_argument("--debug", type=str, choices=DEBUG_OPTIONS, help="debug these during parsing (NYI)")
-        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML, e.g. join l;ines, pages (heuristics)", default=True)
+        self.parser.add_argument("--flow", type=bool, nargs=1, help="create flowing HTML, e.g. join lines, pages (heuristics)", default=True)
         self.parser.add_argument("--footer", type=float, nargs=1, help="bottom margin (clip everythimg above)", default=80)
         self.parser.add_argument("--header", type=float, nargs=1, help="top margin (clip everything below", default=80)
         self.parser.add_argument("--imagedir", type=str, nargs=1, help="output images to imagedir")
@@ -1931,11 +1932,18 @@ class AmiPlumberJson:
     def get_ami_json_pages(self):
 
         if not self.ami_json_pages:
+            start = time.time()
             plumber_pages = self.pdfplumber_pdf.pages
+            pages = time.time()
+            print(f"PDF PAGES {round(pages - start, 2)}")
             json_pages = self.pdf_json_dict.get('pages')
+            end = time.time()
+            print(f"DICT GET {round(end - pages, 2)}")
             if len(plumber_pages) != len(json_pages):
                 raise ValueError(f"page lists are out of sync {len(plumber_pages)} != {len(json_pages)}")
             self.ami_json_pages = [AmiPlumberJsonPage(j_page, p_page) for j_page, p_page in zip(json_pages, plumber_pages)]
+            zipped = time.time()
+            print(f"ZIPPED {round(zipped - end, 2)}")
             a_page0 = self.ami_json_pages[0]
             assert (t := type(a_page0)) is AmiPlumberJsonPage, f"found {t}"
             assert (t := type(a_page0.plumber_page)) is Page, f"found {t}"
@@ -2105,20 +2113,34 @@ class AmiPlumberJsonPage:
         joined = False
         append_span = False
         if div is None or self.must_create_newpara(delta_y, font_size, span.text):
-            div = self.create_div_with_coords(div, span)
-            body.append(div)
-            div.append(span)
+            div = self.make_new_div(body, div, span)
         elif self.have_identical_font_properties(last_span, span):
             joiner = self.get_text_joiner(delta_y, last_span, last_y0, span, y0)
-            last_span.text += joiner + span.text
-            joined = True
+            if joiner is None: # e.g. bullet point
+                div = self.make_new_div(body, div, span)
+            else:
+                last_span.text += joiner + span.text
+                joined = True
         else:
             append_span = True
         return append_span, div, joined
 
+    def make_new_div(self, body, div, span):
+        div = self.create_div_with_coords(div, span)
+        body.append(div)
+        div.append(span)
+        return div
+
     def get_text_joiner(self, delta_y, last_span, last_y0, span, y0):
-        """returns space or empty to join newlines"""
+        """returns space or empty to join newlines
+        :return: None for don't join, else returns joining spaces"""
         joiner = ""
+        # list, no join
+        list_ords = [9679, 183]
+        list_chars = ['●', '·']
+        if span.text[0] in list_chars or ord(span.text[0]) in list_ords:
+            return None
+
         if delta_y > 1.0 * abs(last_y0 - y0):  # newline
             joiner = " "
         elif last_span.text[-1] != " " and span.text[-1] != " ":
@@ -2214,18 +2236,20 @@ class AmiPlumberJsonPage:
         font_family = csss.get_attribute(CSSStyle.FONT_FAMILY)
         return font_family, font_size
 
-    def create_non_text_html(self, svg_dir=None):
-        def curves_to_edges(cs):
+    def create_non_text_html(self, svg_dir=None, max_edges=10000, max_lines=10):
+        def curves_to_edges(curves, max_edges=10000):
             """See https://github.com/jsvine/pdfplumber/issues/127"""
             edges = []
-            for c in cs:
+            if (lc := len(curves)) > max_edges:
+                print(f"=======================\n"
+                      f"max_edges exceeded {lc} > {max_edges}"
+                      f"=======================")
+            for curve in curves[:max_edges]:
                 try:
-                    edge = pdfplumber.utils.rect_to_edges(c)
+                    edge = pdfplumber.utils.rect_to_edges(curve)
                     edges += edge
-                    # print(f"edge {edge}")
                 except KeyError as e:
                     msg = str(e)
-                    # print(f"exception {e}  {msg}")
                     if msg == "'y1'":
                         # print(f"curve may not have y1 coords")
                         pass
@@ -2244,26 +2268,28 @@ class AmiPlumberJsonPage:
               f"tablefinder: {self.plumber_page.debug_tablefinder()}")
         if lines := self.plumber_page_dict.get(LINES):
             print(f"debug_lines {len(lines)}")
-            for line in lines:
-                print(f"debug_line: {line} {line.__dir__}")
+            for line in lines[:max_lines]:
+                print(f"debug_line: {line} {line.__dir__()}")
         if curves := self.plumber_page_dict.get(CURVES):
             print(f"debug_curves: {len(curves)}")
         #      make svg here
 
         if tables := self.plumber_page_dict.get(TABLES):
             print(f"debug_tables {len(tables)}")
-        table_div, svg = self.make_html_tables(curves_to_edges, table_div)
+        table_div, svg = self.make_html_tables(curves_to_edges, table_div, max_edges=max_edges)
         return line_div, curve_div, table_div, svg
 
-    def make_html_tables(self, curves_to_edges, table_div):
+    def make_html_tables(self, curves_to_edges, table_div, max_edges=10000):
         table_finder = self.plumber_page.debug_tablefinder()
         p = self.plumber_page
         # Table settings.
         ts = {
-            "vertical_strategy": "explicit",
-            "horizontal_strategy": "explicit",
-            "explicit_vertical_lines": curves_to_edges(p.curves + p.edges),
-            "explicit_horizontal_lines": curves_to_edges(p.curves + p.edges),
+            # "vertical_strategy": "explicit",
+            # "horizontal_strategy": "explicit",
+            "vertical_strategy": "lines",
+            "horizontal_strategy": "lines",
+            "explicit_vertical_lines": curves_to_edges(p.curves + p.edges, max_edges=max_edges),
+            "explicit_horizontal_lines": curves_to_edges(p.curves + p.edges, max_edges=max_edges),
             "intersection_y_tolerance": 10,
         }
         # Get the bounding boxes of the tables on the page.
@@ -2356,6 +2382,7 @@ class AmiPDFPlumber:
         :param path: path to read
         :param pages: list of page numbers to read
         """
+        t0 = time.time()
         pdfplumber_pdf = self.create_pdfplumber_pdf(path, pages=pages)
         assert pdfplumber_pdf and type(pdfplumber_pdf) is pdfplumber.pdf.PDF, f"found {type(pdfplumber_pdf)}"
         assert (t := type(pdfplumber_pdf)) is pdfplumber.pdf.PDF, f"found {t}"
@@ -2565,21 +2592,37 @@ class AmiPDFPlumber:
 
     # AmiPDFPlumber
 
-    def create_html_pages(self, input_pdf, output_page_dir, pages=None, debug=False, outstem="total_pages", svg_dir=None):
+    def create_html_pages(self, input_pdf, output_page_dir, pages=None, debug=False, outstem="total_pages", svg_dir=None, max_edges=10000, max_lines=100):
+
+        pre_plumber = round(time.time(), 2)
         ami_plumber_json = self.create_ami_plumber_json(input_pdf, pages=pages)
         assert (t := type(ami_plumber_json)) is AmiPlumberJson, f"expected {t}"
         total_html = HtmlLib.create_html_with_empty_head_body()
         output_page_dir.mkdir(exist_ok=True, parents=True)
         total_html_page_body = HtmlLib.get_body(total_html)
 
-        ami_json_pages = ami_plumber_json.get_ami_json_pages()
+        pre_parse = round(time.time(), 2)
+        print(f"PRE {round(pre_parse - pre_plumber)}")
+        ami_json_pages = list(ami_plumber_json.get_ami_json_pages())
+        post_parse = round(time.time(), 2)
+        print(f"PARSE {post_parse - pre_parse}")
+
+
         for i, ami_json_page in enumerate(ami_json_pages):
+            page_start_time = time.time()
             print(f"==============PAGE {i+1}================")
-            html_page = self.create_html_page(ami_json_page, output_page_dir, debug=debug, page_no=(i + 1), svg_dir=svg_dir)
+            html_page = self.create_html_page(ami_json_page, output_page_dir, debug=debug, page_no=(i + 1), svg_dir=svg_dir,
+                                              max_edges=max_edges, max_lines=max_lines)
+            page_end_time = time.time()
             if html_page is not None:
                 body_elems = HtmlLib.get_body(html_page).xpath("*")
                 for body_elem in body_elems:
                     total_html_page_body.append(body_elem)
+            total_page_time = round(time.time(), 2)
+            page_time = round(page_end_time - page_start_time, 2)
+            html_time = round(total_page_time - page_end_time, 2)
+            if page_time > 1 or html_time > 1:
+                print(f"=====================\nLONG PARSE  create_page {page_time} {html_time}\n====================")
 
         if debug:
             self._check_html_pages(ami_json_pages, output_page_dir)
@@ -2594,9 +2637,12 @@ class AmiPDFPlumber:
         )
         XmlLib.write_xml(total_html, path, debug=debug)
 
-    def create_html_page(self, ami_json_page, output_page_dir, debug=False, page_no=None, svg_dir=None):
+    def create_html_page(self, ami_json_page, output_page_dir, debug=False, page_no=None, svg_dir=None, max_edges=10000, max_lines=100):
         if debug:
-            line_div, curve_div, table_div, svg = ami_json_page.create_non_text_html(svg_dir=svg_dir)
+            t1 = time.time()
+            line_div, curve_div, table_div, svg = ami_json_page.create_non_text_html(svg_dir=svg_dir, max_edges=max_edges, max_lines=max_lines)
+            t2 = time.time()
+            print(f"NON TEXT {round(t2 - t1, 2)}")
             if len(tables := table_div.xpath("*")):
                 table_html = HtmlLib.create_html_with_empty_head_body()
                 HtmlLib.get_body(table_html).append(table_div)
@@ -2604,7 +2650,7 @@ class AmiPDFPlumber:
 
             if svg_dir:
                 PDFDebug().print_curves(ami_json_page.plumber_page_dict, svg_dir=svg_dir, page_no=page_no)
-                if len(svg.xpath("*")) > 0:
+                if len(svg.xpath("*")) > 1: # skip if only a box
                     XmlLib.write_xml(svg, Path(svg_dir, f"table_box_{page_no}.svg"), debug=debug)
 
         html_page, footer_span_list, header_span_list = ami_json_page.create_html_page_and_header_footer(self)

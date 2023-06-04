@@ -44,7 +44,7 @@ class AmiSVG:
         return circle_elem
 
     @classmethod
-    def create_polyline(cls, xy_array, parent=None, fill="yellow", stroke="red", stroke_width=1):
+    def create_polyline(cls, xy_array, parent=None, fill="yellow", stroke="red", stroke_width=1, ndec=2):
         """
         creates svg:polyline
         :param xy_array: N*2 array of row-wies x,y coords
@@ -61,7 +61,7 @@ class AmiSVG:
             for i, xy in enumerate(xy_array):
                 if i > 0:
                     points += " "
-                points += str(xy[0])+","+str(xy[1])
+                points += str(round(xy[0], ndec))+","+str(round(xy[1], ndec))
             polyline_elem.attrib[POINTS] = points
             polyline_elem.attrib[FILL] = fill
             polyline_elem.attrib[STROKE] = stroke
