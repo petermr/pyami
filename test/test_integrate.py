@@ -125,33 +125,33 @@ class AmiIntegrateTest(AmiAnyTest):
             # Path(IPBES_DIR, "2020 IPBES GLOBAL REPORT (CHAPTER 1)_V5_SINGLE.pdf"),
             # # Path(MISC_DIR, "2502872.pdf"),
             Path(AR6_DIR, "syr", "lr", "fulltext.pdf"),
-            # Path(AR6_DIR, "syr", "spm", "fulltext.pdf"),
-            #
-            # Path(AR6_DIR, "wg1", "spm", "fulltext.pdf"),
-            # Path(AR6_DIR, "wg1", "ts", "fulltext.pdf"),
-            #
-            # Path(AR6_DIR, "wg2", "spm", "fulltext.pdf"),
-            # Path(AR6_DIR, "wg2", "ts", "fulltext.pdf"),
-            # Path(AR6_DIR, "wg2", "chapters", "Chapter10.pdf"),
-            # Path(AR6_DIR, "wg2", "chapters", "CCP2.pdf"),
-            # Path(AR6_DIR, "wg2", "faqs", "FAQ1.pdf"),
-            # Path(AR6_DIR, "wg2", "faqs", "FAQ2.pdf"),
-            # Path(AR6_DIR, "wg2", "faqs", "FAQ3.pdf"),
+            Path(AR6_DIR, "syr", "spm", "fulltext.pdf"),
 
-            # Path(AR6_DIR, "wg3", "spm", "fulltext.pdf"),
-            # Path(AR6_DIR, "wg3", "ts", "fulltext.pdf"),
-            # Path(AR6_DIR, "wg3", "Chapter07.pdf"),
+            Path(AR6_DIR, "wg1", "spm", "fulltext.pdf"),
+            Path(AR6_DIR, "wg1", "ts", "fulltext.pdf"),
 
-            # Path(AR6_DIR, "srocc", "spm", "fulltext.pdf"),
-            # Path(AR6_DIR, "srocc", "ts", "fulltext.pdf"),
-            # Path(AR6_DIR, "srocc", "chapters", "Ch02.pdf"),
-            # Path(AR6_DIR, "srocc", "annexes", "glossary.pdf"),
-            #
-            # Path(AR6_DIR, "sr15", "spm", "fulltext.pdf"),
-            # Path(AR6_DIR, "sr15", "glossary", "fulltext.pdf"),
-            #
-            # Path(AR6_DIR, "srccl", "spm", "fulltext.pdf"),
-            # Path(AR6_DIR, "srccl", "ts", "fulltext.pdf"),
+            Path(AR6_DIR, "wg2", "spm", "fulltext.pdf"),
+            Path(AR6_DIR, "wg2", "ts", "fulltext.pdf"),
+            Path(AR6_DIR, "wg2", "chapters", "Chapter10.pdf"),
+            Path(AR6_DIR, "wg2", "chapters", "CCP2.pdf"),
+            Path(AR6_DIR, "wg2", "faqs", "FAQ1.pdf"),
+            Path(AR6_DIR, "wg2", "faqs", "FAQ2.pdf"),
+            Path(AR6_DIR, "wg2", "faqs", "FAQ3.pdf"),
+
+            Path(AR6_DIR, "wg3", "spm", "fulltext.pdf"),
+            Path(AR6_DIR, "wg3", "ts", "fulltext.pdf"),
+            Path(AR6_DIR, "wg3", "Chapter07.pdf"),
+
+            Path(AR6_DIR, "srocc", "spm", "fulltext.pdf"),
+            Path(AR6_DIR, "srocc", "ts", "fulltext.pdf"),
+            Path(AR6_DIR, "srocc", "chapters", "Ch02.pdf"),
+            Path(AR6_DIR, "srocc", "annexes", "glossary.pdf"),
+
+            Path(AR6_DIR, "sr15", "spm", "fulltext.pdf"),
+            Path(AR6_DIR, "sr15", "glossary", "fulltext.pdf"),
+
+            Path(AR6_DIR, "srccl", "spm", "fulltext.pdf"),
+            Path(AR6_DIR, "srccl", "ts", "fulltext.pdf"),
         ]
         front_back = "Table of Contents|Frequently Asked Questions|Executive Summary|References"
         section_regex_dict, section_regexes = get_ipcc_regexes(front_back)
