@@ -97,6 +97,9 @@ Created subcommands (subparsers) in `py4ami`:
 * `PDF` convert PDF to semantic form
 * `PROJECT`: make `CProject` from a list of raw files (normally PDF)
 
+# update 2023-06-05
+test_integrate.py runs prototype applications
+
 <!-- this is HTML
 <table>
   <tbody>
