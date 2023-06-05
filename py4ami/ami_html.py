@@ -505,7 +505,7 @@ def get_target_href(target_id):
         report = report1 if report1 else report
         chapter = match.group("chapter").lower()
         section = match.group("section").lower()
-        href = f"{github_base}/petermr/semanticClimate/blob/main/ipcc/ar6/{report}/{chapter}/html/fulltext/groups.groups.html#{section}"
+        href = f"{github_base}/petermr/semanticClimate/blob/main/ipcc/ar6/{report}/{chapter}/html/fulltext/groups_groups.html#{section}"
 
     return href
 
@@ -991,8 +991,11 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         HtmlGroup.collect_floats_to_back(new_html)
         HtmlGroup.annotate_ipcc_target_ids(new_html)
         if outdir:
-            outfile = Path(outdir, f"{stem}_groups.html")
-            HtmlLib.write_html_file(new_html, outfile, debug=True)
+            HtmlLib.write_html_file(new_html, Path(outdir, f"{stem}_groups.html"), debug=True)
+        split_span_regex = "(?P<pre>.*(?:high|medium|low)\s*(confidence))(?P<post>.*)"
+        HtmlGroup.split_spans(new_html, split_span_regex)
+        if outdir:
+            HtmlLib.write_html_file(new_html, Path(outdir, f"{stem}_statements.html"), debug=True)
 
     @classmethod
     def group_nested_siblings(cls, html_elem, styles=None):
@@ -1101,6 +1104,38 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
             annotator.run_commands(span)
         HtmlGroup.group_nested_siblings(html_elem, styles=None)
         HtmlLib.write_html_file(html_elem, outfile, debug=True)
+
+    @classmethod
+    def split_spans(cls, html, split_span_regex):
+        re_split = re.compile(split_span_regex)
+        spans = html.xpath("//span")
+        nspans = len(spans)
+
+        cls.scan_remaining_spans(re_split, spans)
+
+    @classmethod
+    def scan_remaining_spans(cls, re_split, spans):
+        div = None
+        while len(spans) > 0:
+            for i, span in enumerate(spans):
+                if div is not None:
+                    div.append(span)
+                match = re_split.match(span.text)
+                if match:
+                    pre = match.group("pre")
+                    post = match.group("post")
+                    span.text = pre
+                    parent_div = span.getparent()
+                    next_span = lxml.etree.SubElement(parent_div, "span")
+                    for att in span.attrib:
+                        next_span.attrib[att[0]] = att[1]
+                        span.addnext(next_span)
+                    spans = spans[i + 1:]
+                    div = lxml.etree.SubElement(parent_div.getparent(), "div")
+
+                    break
+                if i == len(spans) - 1:
+                    spans = []
 
 
 

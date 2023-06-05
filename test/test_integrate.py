@@ -2,6 +2,8 @@ import re
 from pathlib import Path
 import traceback
 import lxml
+from urllib import request
+import requests
 
 from py4ami.ami_html import HtmlGroup
 from py4ami.ami_pdf import AmiPDFPlumber
@@ -175,6 +177,37 @@ class AmiIntegrateTest(AmiAnyTest):
                         ]
                         self.run_section_regexes(group_stem, input_pdf, section_regexes_new, total_pages, use_svg)
                     # raise e
+
+    def test_github_hyperlinks(self):
+        """tests that Github links can retrieve and display content"""
+        SC_REPO = "https://github.com/petermr/semanticClimate"
+        GITHUB_DISPLAY = "https://htmlpreview.github.io/?"
+        BLOB_MAIN = "blob/main"
+        test_url = f"{SC_REPO}/{BLOB_MAIN}/test.html"
+
+        print(f"test: {test_url}")
+
+        with request.urlopen(test_url) as f:
+            s = f.read().decode()  # the decode turns the bytes into a string for printing
+            # this is NOT the raw content, but wrapped to display as raw htnl
+        assert " <title>semanticClimate/test.html at main · petermr/semanticClimate · GitHub</title>" in s
+
+        # this is the HTML for web display
+        display_url = f"{GITHUB_DISPLAY}{SC_REPO}/{BLOB_MAIN}/test.html"
+        print(f"display url: {display_url}")
+        try:
+            page = requests.get(display_url)
+            content = page.content
+            print(content)
+            html = lxml.html.fromstring(content)
+        except OSError as e:
+            print(f"error {e}")
+        body = html.xpath("/html/body")[0]
+        print(f"body {lxml.etree.tostring(body)}")
+        assert body is not None
+
+
+
 
     def run_section_regexes(self, group_stem, input_pdf, section_regexes, total_pages, use_svg):
         print(f"section_regexes ========== {section_regexes}")

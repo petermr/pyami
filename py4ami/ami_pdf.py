@@ -2398,9 +2398,9 @@ class AmiPDFPlumber:
     # AmiPDFPlumber
 
     def debug_page(self, page, imagedir=None):
-        json_page = page.page
-        for key in json_page.keys():
-            value = json_page[key]
+        json_page_dict = page.plumber_page_dict
+        for key in json_page_dict.keys():
+            value = json_page_dict[key]
             if key in [PLUMB_PAGE_NUMBER, PLUMB_INITIAL_DOCTOP, PLUMB_ROTATION, PLUMB_CROPBOX, PLUMB_MEDIABOX, PLUMB_BBOX,
                        PLUMB_WIDTH, PLUMB_HEIGHT]:
                 print(f"{key} >> {value}")

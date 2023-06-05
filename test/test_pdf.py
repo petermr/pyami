@@ -303,7 +303,7 @@ class PDFPlumberTest(AmiAnyTest):
         # pdf_json = ami_pdfplumber.create_parsed_json(path)
         plumber_json = ami_pdfplumber.create_ami_plumber_json(path)
         assert type(plumber_json) is AmiPlumberJson
-        metadata_ = plumber_json.pdf_json['metadata']
+        metadata_ = plumber_json.pdf_json_dict['metadata']
         print(f"k {(plumber_json.keys), metadata_.keys} \n====Pages====\n"
               # f"{len(plumber_json['pages'])} "
               # f"\n\n page_keys {c['pages'][0].items()}"

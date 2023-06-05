@@ -403,6 +403,7 @@ class XmlLib:
         """
         if not path:
             return
+        path = Path(path)
         if mkdir:
             path.parent.mkdir(parents=True, exist_ok=True)
 

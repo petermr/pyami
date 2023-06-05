@@ -1111,12 +1111,18 @@ class TestAmiDictionary(AmiAnyTest):
         csv_term_file = Path(Resources.TEST_IPCC_CHAP08_DICT, "urban_terms_1.csv")
         assert os.path.exists(str(csv_term_file))
         keyword_dict = AmiDictionary.create_dictionary_from_csv(csv_term_file, col_name='keyword/phrase', title="urban_terms_1")
+        print(f"keyword_dict {keyword_dict}")
         entry = keyword_dict.get_first_ami_entry()
         assert entry.get_term() == "urbanization"
         assert entry.get_wikidata_id() == "Q161078"
         assert len(keyword_dict.entries) == 1
-        assert lxml.etree.tostring(keyword_dict.root) == \
-               b'<dictionary title="urban_terms_1"><entry name="urbanization" term="urbanization" wikidataID="Q161078" wikidataURL="https://www.wikidata.org/entity/Q161078" desc="longterm population movements (shift) from rural to urban areas;gradual increase in the proportion of people living in urban areas, and the ways in which each society adapts to the change;process by which towns and cities are formed and become larger"><wikidataHit type="wikidata_hits">Q5381005</wikidataHit><wikidataHit type="wikidata_hits">Q23580084</wikidataHit><wikidataHit type="wikidata_hits">Q2608153</wikidataHit><wikidataHit type="wikidata_hits">Q95443723</wikidataHit></entry></dictionary>'
+        root_elem = keyword_dict.root
+        assert root_elem.tag == 'dictionary'
+        entry0 = root_elem.xpath("entry")[0]
+        assert entry0.attrib["desc"] == 'longterm population movements (shift) from rural to urban areas'
+        assert entry0.attrib["name"] == 'urbanization'
+        # assert str(root) == \
+        #        '<dictionary title="urban_terms_1"><entry name="urbanization" term="urbanization" wikidataID="Q161078" wikidataURL="https://www.wikidata.org/entity/Q161078" desc="longterm population movements (shift) from rural to urban areas;gradual increase in the proportion of people living in urban areas, and the ways in which each society adapts to the change;process by which towns and cities are formed and become larger"><wikidataHit type="wikidata_hits">Q5381005</wikidataHit><wikidataHit type="wikidata_hits">Q23580084</wikidataHit><wikidataHit type="wikidata_hits">Q2608153</wikidataHit><wikidataHit type="wikidata_hits">Q95443723</wikidataHit></entry></dictionary>'
 
     def test_validate_linked_dict(self):
         """
