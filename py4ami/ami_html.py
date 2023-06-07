@@ -976,7 +976,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
                 follower.insert(0, span)
 
     @classmethod
-    def make_hierarchical_sections_KEY(cls, html_elem, stem, section_regexes=None, outdir=None):
+    def make_hierarchical_sections_KEY(cls, html_elem, stem, section_regexes=None, split_span_regex=None, outdir=None):
         """Key formatting routine
         """
         HtmlGroup.annotate_title_sections(html_elem, section_regexes=section_regexes)
@@ -992,10 +992,10 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         HtmlGroup.annotate_ipcc_target_ids(new_html)
         if outdir:
             HtmlLib.write_html_file(new_html, Path(outdir, f"{stem}_groups.html"), debug=True)
-        split_span_regex = "(?P<pre>.*(?:high|medium|low)\s*(confidence))(?P<post>.*)"
-        HtmlGroup.split_spans(new_html, split_span_regex)
-        if outdir:
-            HtmlLib.write_html_file(new_html, Path(outdir, f"{stem}_statements.html"), debug=True)
+        if split_span_regex:
+            HtmlGroup.split_spans(new_html, split_span_regex)
+            if outdir:
+                HtmlLib.write_html_file(new_html, Path(outdir, f"{stem}_statements.html"), debug=True)
 
     @classmethod
     def group_nested_siblings(cls, html_elem, styles=None):

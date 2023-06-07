@@ -1285,8 +1285,10 @@ class Test_PDFHTML(AmiAnyTest):
                 ("sub_section", "(?P<id>FAQ \d+\.\d+|\d+\.\d+\.\d+)\s.*"),  # 7.1.2 subtitle or FAQ 7.1 subtitle
                 ("sub_sub_section", "(?P<id>\d+\.\d+\.\d+\.\d+)\s*.*") # 7.1.2.3 subsubtitle
             ]
+            # split_span_regex = "(?P<pre>.*(?:high|medium|low)\s*(confidence))(?P<post>.*)"
 
-            HtmlGroup.make_hierarchical_sections_KEY(html_elem, group_stem, section_regexes=section_regexes, outdir=outdir)
+            HtmlGroup.make_hierarchical_sections_KEY(
+                html_elem, group_stem, section_regexes=section_regexes, outdir=outdir)
 
     def test_download_github_html(self):
         github_url = HtmlLib.create_rawgithub_url(

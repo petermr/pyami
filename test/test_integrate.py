@@ -25,27 +25,95 @@ IPBES_DIR = Path(SEMANTIC_CLIMATE_DIR, "ipbes")
 AR6_DIR = Path(SEMANTIC_CLIMATE_DIR, "ipcc", "ar6")
 
 
+def check_regex_compile(section_regexes):
+    for sr in section_regexes:
+        try:
+            re.compile(sr[1])
+        except Exception as e:
+            print(f"\nfailed to compile: {sr[0]}: {sr[1]})")
+            raise e
+
+
+def get_ipcc_syr_regexes(front_back):
+    section_regexes = [
+        # C: Adaptation...
+        ("section",
+         fr"\s*(?P<id>"  # start id
+         fr"\d+\.\d+"
+         fr")"  # end id
+         fr"\s+[A-Z].*"  # all are followed by upper-case text
+         ),
+
+        # 7.1 Introduction
+        ("sub_section",
+         fr"(?P<id>"  # start id
+         fr"\d+\.\d+\.\d+"
+         fr")"
+         fr"\s+[A-Z]*"
+         ),  # 7.1.2 subtitle or FAQ 7.1 subtitle D.1.2 Subtitle
+
+        ("sub_sub_section",
+         fr"(?P<id>"
+         fr"\d+\.\d+\.\d+\.\d+"  # 7.1.2.3 subsubtitle
+         fr")"
+         fr"\s+[A-Z].*"
+         )
+
+    ]
+    check_regex_compile(section_regexes)
+
+
 
 def get_ipcc_regexes(front_back):
     section_regexes = [
         # C: Adaptation...
         ("section",
-         #                f"\s*(?P<id>Table of Contents|Frequently Asked Questions|Executive Summary|References|(?:(?:[A-G]|\d+)[\.:]\d+\s+[A-Z]).*"),
-         fr"\s*(?P<id>Table of Contents|Frequently Asked Questions|Executive Summary|References"
-         fr"|(?:[A-Z]|\d+)[.:]\d*)\s+[A-Z].*"),
+         fr"\s*(?P<id>" # start id
+         fr"Table of Contents|Frequently Asked Questions|Executive Summary|References"
+         fr"|(?:" # start numbered sections
+         fr"(?:"
+         fr"[A-Z]\d+[.:]\d*)"
+         fr"|(?:TS\.\d+)"
+         fr"|(?:Infographic\s+TS\.\d+\s*\|)"  # Box TS.6 | Wat... OR Infographic TS.1 | Clim...
+         fr"|(?:Cross-Section\s+Box\s+TS\.\d+\s*\|)"  # Box TS.6 | Wat... OR Infographic TS.1 | Clim...
+         fr"|(?:Box\s+TS\.\d+\s*\|)"  # Box TS.6 | Wat... OR Infographic TS.1 | Clim...
+         fr")" # end numbered sections
+         fr")" # end id
+         fr"\s+[A-Z].*"   # all are followed by upper-case text
+         ),
+
         # 7.1 Introduction
         ("sub_section",
-         fr"(?P<id>FAQ \d+\.\d+"
-         fr"|(?:\d+\.\d+"
-         fr"|[A-Z]\.\d+)"
-         fr"\.\d+)"
-         fr"\s+[A-Z]*"),  # 7.1.2 subtitle or FAQ 7.1 subtitle D.1.2 Subtitle
+         fr"(?P<id>" # start id
+         fr"FAQ\s+\d+\.\d+"
+         fr"|(?:" # start numbered sections
+         fr"\d+\.\d+"
+         fr"|[A-Z]\.\d+"
+         fr"|TS\.\d+"
+         fr"|Box\s+TS\.\d+"
+         fr")"
+         fr"\.\d+)" # subsection number
+         fr"\s+[A-Z]*"
+         ),  # 7.1.2 subtitle or FAQ 7.1 subtitle D.1.2 Subtitle
+
         ("sub_sub_section",
          fr"(?P<id>"
-         fr"(?:\d+\.\d+\.\d+\.\d+"  # 7.1.2.3 subsubtitle
-         fr"|[A-Z]\.\d+\.\d+)"
-         fr")\s+[A-Z].*")  # D.1.3
+         fr"\d+\.\d+\.\d+\.\d+"  # 7.1.2.3 subsubtitle
+         fr"|[A-Z]\.\d+\.\d+"
+         fr"|TS\.\d+\.\d+"
+         fr")\s+[A-Z].*"
+          # D.1.3
+         )
+
     ]
+    for sr in section_regexes:
+        try:
+            re.compile(sr[1])
+        except Exception as e:
+            print (f"\nfailed to compile: {sr[0]}: {sr[1]})")
+            raise e
+
+
     section_regex_dict = {
         "num_faq": {
             "file_regex": "NEVER.*/spm/.*",  # check this
@@ -124,42 +192,47 @@ class AmiIntegrateTest(AmiAnyTest):
             # Path(IPBES_DIR, "ipbes_global_assessment_report_summary_for_policymakers.pdf"),
             # Path(IPBES_DIR, "2020 IPBES GLOBAL REPORT (CHAPTER 1)_V5_SINGLE.pdf"),
             # # Path(MISC_DIR, "2502872.pdf"),
+
             Path(AR6_DIR, "syr", "lr", "fulltext.pdf"),
-            Path(AR6_DIR, "syr", "spm", "fulltext.pdf"),
-
-            Path(AR6_DIR, "wg1", "spm", "fulltext.pdf"),
-            Path(AR6_DIR, "wg1", "ts", "fulltext.pdf"),
-
-            Path(AR6_DIR, "wg2", "spm", "fulltext.pdf"),
-            Path(AR6_DIR, "wg2", "ts", "fulltext.pdf"),
-            Path(AR6_DIR, "wg2", "chapters", "Chapter10.pdf"),
-            Path(AR6_DIR, "wg2", "chapters", "CCP2.pdf"),
-            Path(AR6_DIR, "wg2", "faqs", "FAQ1.pdf"),
-            Path(AR6_DIR, "wg2", "faqs", "FAQ2.pdf"),
-            Path(AR6_DIR, "wg2", "faqs", "FAQ3.pdf"),
-
-            Path(AR6_DIR, "wg3", "spm", "fulltext.pdf"),
-            Path(AR6_DIR, "wg3", "ts", "fulltext.pdf"),
-            Path(AR6_DIR, "wg3", "Chapter07.pdf"),
-
-            Path(AR6_DIR, "srocc", "spm", "fulltext.pdf"),
-            Path(AR6_DIR, "srocc", "ts", "fulltext.pdf"),
-            Path(AR6_DIR, "srocc", "chapters", "Ch02.pdf"),
-            Path(AR6_DIR, "srocc", "annexes", "glossary.pdf"),
-
-            Path(AR6_DIR, "sr15", "spm", "fulltext.pdf"),
-            Path(AR6_DIR, "sr15", "glossary", "fulltext.pdf"),
-
-            Path(AR6_DIR, "srccl", "spm", "fulltext.pdf"),
-            Path(AR6_DIR, "srccl", "ts", "fulltext.pdf"),
+            # Path(AR6_DIR, "syr", "spm", "fulltext.pdf"),
+            #
+            # Path(AR6_DIR, "wg1", "spm", "fulltext.pdf"),
+            # Path(AR6_DIR, "wg1", "ts", "fulltext.pdf"),
+            # Path(AR6_DIR, "wg1", "chapters", "Chapter01.pdf"),
+            #
+            # Path(AR6_DIR, "wg2", "spm", "fulltext.pdf"),
+            # Path(AR6_DIR, "wg2", "ts", "fulltext.pdf"),
+            # Path(AR6_DIR, "wg2", "chapters", "Chapter10.pdf"),
+            # Path(AR6_DIR, "wg2", "chapters", "CCP2.pdf"),
+            # Path(AR6_DIR, "wg2", "faqs", "FAQ1.pdf"),
+            # Path(AR6_DIR, "wg2", "faqs", "FAQ2.pdf"),
+            # Path(AR6_DIR, "wg2", "faqs", "FAQ3.pdf"),
+            #
+            # Path(AR6_DIR, "wg3", "spm", "fulltext.pdf"),
+            # Path(AR6_DIR, "wg3", "ts", "fulltext.pdf"),
+            # Path(AR6_DIR, "wg3", "chapters", "Chapter07.pdf"),
+            #
+            # Path(AR6_DIR, "srocc", "spm", "fulltext.pdf"),
+            # Path(AR6_DIR, "srocc", "ts", "fulltext.pdf"),
+            # Path(AR6_DIR, "srocc", "chapters", "Chapter02.pdf"),
+            # Path(AR6_DIR, "srocc", "annexes", "glossary.pdf"),
+            #
+            # Path(AR6_DIR, "sr15", "spm", "fulltext.pdf"),
+            # Path(AR6_DIR, "sr15", "glossary", "fulltext.pdf"),
+            #
+            # Path(AR6_DIR, "srccl", "spm", "fulltext.pdf"),
+            # Path(AR6_DIR, "srccl", "ts", "fulltext.pdf"),
+            # Path(AR6_DIR, "srccl", "chapters", "Chapter01.pdf"),
         ]
         front_back = "Table of Contents|Frequently Asked Questions|Executive Summary|References"
+        split_span_regex = "(?P<pre>.*(?:high|medium|low)\s*(confidence))(?P<post>.*)"
+
         section_regex_dict, section_regexes = get_ipcc_regexes(front_back)
         old_style = False or True
 
         if old_style:
             for input_pdf in input_pdfs:
-                self.run_section_regexes(group_stem, input_pdf, section_regexes, total_pages, use_svg)
+                self.run_section_regexes(group_stem, input_pdf, section_regexes, total_pages, use_svg, split_span_regex=split_span_regex)
         else:
             for input_pdf in input_pdfs:
                 filename = str(input_pdf)
@@ -209,7 +282,7 @@ class AmiIntegrateTest(AmiAnyTest):
 
 
 
-    def run_section_regexes(self, group_stem, input_pdf, section_regexes, total_pages, use_svg):
+    def run_section_regexes(self, group_stem, input_pdf, section_regexes, total_pages, use_svg, split_span_regex=None):
         print(f"section_regexes ========== {section_regexes}")
 
         try:
@@ -223,7 +296,9 @@ class AmiIntegrateTest(AmiAnyTest):
 
     def convert_to_html(self, group_stem, input_pdf, section_regexes, total_pages, write=True, debug=False,
                         svg_dir=None,
-                        max_edges=10000, max_lines=100):
+                        max_edges=10000,
+                        max_lines=100,
+                        split_span_regex=None):
         print(f"\n==================== {input_pdf} ==================")
         if not input_pdf.exists():
             raise FileExistsError(f"cannot find {input_pdf}")
@@ -239,4 +314,4 @@ class AmiIntegrateTest(AmiAnyTest):
         html_elem = lxml.etree.parse(input_html_path)
 
         HtmlGroup.make_hierarchical_sections_KEY(
-            html_elem, group_stem, section_regexes=section_regexes, outdir=outdir)
+            html_elem, group_stem, section_regexes=section_regexes, outdir=outdir, split_span_regex=split_span_regex)
