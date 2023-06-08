@@ -2,7 +2,7 @@ import copy
 from pathlib import Path
 import os
 from lxml import etree as LXET
-from lxml.etree import _Element
+from lxml.etree import _Element, _ElementTree
 import requests
 from urllib.request import urlopen
 import lxml, lxml.etree
@@ -609,11 +609,13 @@ class HtmlLib:
 
     @classmethod
     def write_html_file(self, html_elem, outfile, debug=False, mkdir=True):
-        """writes XML elemnts to file, making directory if needed .
+        """writes XML element (or tree) to file, making directory if needed .
         adds method=True to ensure end tags
         """
         if html_elem is None or outfile is None:
             raise ValueError("null arguments to write_html_file")
+        if type(html_elem) is _ElementTree:
+            html_elem = html_elem.getroot()
         if not type(html_elem) is _Element:
             raise ValueError(f"type(html_elem) should be _Element not {type(html_elem)}")
         outdir = os.path.dirname(outfile)

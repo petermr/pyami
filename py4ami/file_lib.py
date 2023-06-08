@@ -70,9 +70,12 @@ RAW = "raw"
 
 
 class Globber:
-    """utilities for globbing - may be obsolete"""
+    """utilities for globbing - may be obsolete
+    glob.glob does most of this
+    """
 
     def __init__(self, ami_path, recurse=True, cwd=None) -> None:
+
         self.ami_path = ami_path
         self.recurse = recurse
         self.cwd = os.getcwd() if cwd is None else cwd
@@ -118,6 +121,7 @@ class AmiPath:
         key: to template
         edit_dict: dictionary with values to edit in
         """
+        """Doesn't look right!"""
         key = key.lower()
         if key is None or key not in TEMPLATES:
             cls.logger.error(f"cannot find key {key}")

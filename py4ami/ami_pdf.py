@@ -30,19 +30,22 @@ from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 from pdfplumber.page import Page
 
-from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
-from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy, HtmlStyle, HtmlLib, AmiFont
-from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
-    CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
+# these have to move
+# from py4ami.ami_html import H_SPAN, H_A, A_HREF, H_TR, H_TD, H_TABLE, H_THEAD, H_TBODY
+# from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy, HtmlStyle, HtmlLib, AmiFont
+# from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
+#     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
 from py4ami.ami_svg import AmiSVG
 from py4ami.file_lib import FileLib
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
 from py4ami.util import Util, AbstractArgs, AmiArgParser
-from py4ami.xml_lib import XmlLib
+from py4ami.xml_lib import XmlLib, HtmlLib
 
 # local
 
 # text attributes
+from test.test_integrate import HtmlGenerator
+
 FACT = 2.8
 SVG_NS = "http://www.w3.org/2000/svg"
 SVGX_NS = "http://www.xml-cml.org/schema/svgx"
@@ -107,11 +110,11 @@ IPCC_CHAP_TOP_REC = re.compile(""
 SECTIONS_DECIMAL_REC = re.compile("\\d+\\.\\d+$")
 SUBSECTS_DECIMAL_REC = re.compile("\\d+\\.\\d+\\.\\d+$")
 
-RECS_BY_SECTION = {
-    HtmlTree.CHAP_TOP: IPCC_CHAP_TOP_REC,
-    HtmlTree.CHAP_SECTIONS: SECTIONS_DECIMAL_REC,
-    HtmlTree.CHAP_SUBSECTS: SUBSECTS_DECIMAL_REC,
-}
+# RECS_BY_SECTION = {
+#     HtmlTree.CHAP_TOP: IPCC_CHAP_TOP_REC,
+#     HtmlTree.CHAP_SECTIONS: SECTIONS_DECIMAL_REC,
+#     HtmlTree.CHAP_SUBSECTS: SUBSECTS_DECIMAL_REC,
+# }
 
 # coordinates
 PL_X0 = 'x0'
@@ -437,67 +440,6 @@ class AmiPage:
     # AmiPage
 
     @classmethod
-    # TODO should be new class
-    def chars_to_spans(cls, bbox, input_pdf, page_no):
-        with pdfplumber.open(input_pdf) as pdf:
-            pdf_page = pdf.pages[page_no]
-            ami_page = AmiPage()
-            # print(f"crop: {page0.cropbox} media {page0.mediabox}, bbox {page0.bbox}")
-            # print(f"rotation: {page0.rotation} doctop {page0.initial_doctop}")
-            # print(f"width {page0.width} height {page0.height}")
-            # print(f"text {page0.extract_text()[:2]}")
-            # print(f"words {page0.extract_words()[:3]}")
-            #
-            # print(f"char {page0.chars[:1]}")
-            span = None
-            span_list = []
-            maxchars = 999999
-            ndec_coord = 3  # decimals for coords
-            ndec_fontsize = 2
-            html = HtmlUtil.create_skeleton_html()
-            top_div = lxml.etree.SubElement(html.xpath(H_BODY)[0], H_DIV)
-            top_div.attrib["class"] = "top"
-            for ch in pdf_page.chars[:maxchars]:
-                if cls.skip_rotated_text(ch):
-                    continue
-                x0, x1, y0, y1 = cls.get_xy_tuple(ch, ndec_coord)
-                if bbox and not bbox.contains_point((x0, y0)):
-                    # print(f" outside box: {x0, y0}")
-                    continue
-
-                text_style = TextStyle()
-                text_style.set_font_family(ch.get(P_FONTNAME))
-                text_style.set_font_size(ch.get(P_HEIGHT), ndec=ndec_fontsize)
-                text_style.stroke = ch.get(P_STROKING_COLOR)
-                text_style.fill = ch.get(P_NON_STROKING_COLOR)
-
-                # style or y0 changes
-                if not span or not span.text_style or span.text_style != text_style or span.y0 != y0:
-                    # cls.debug_span_changed(span, text_style, y0)
-                    span = AmiSpan()
-                    span_list.append(span)
-                    span.text_style = text_style
-                    span.y0 = y0
-                    span.x0 = x0  # set left x
-                span.x1 = x1  # update right x, including width
-                span.string += ch.get(P_TEXT)
-
-            # top_div = lxml.etree.Element(H_DIV)
-            div = lxml.etree.SubElement(top_div, H_DIV)
-            last_span = None
-            for span in span_list:
-                if last_span is None or last_span.y0 != span.y0:
-                    div = lxml.etree.SubElement(top_div, H_DIV)
-                last_span = span
-                span.create_and_add_to(div)
-        for ch in pdf_page.chars[:maxchars]:
-            col = ch.get('non_stroking_color')
-            if col:
-                logging.debug(f"txt {ch.get('text')} : col {col}")
-        # print(f"HTML {html}")
-        return html
-
-    @classmethod
     def debug_span_changed(cls, span, text_style, y0):
         if span:
             if span.text_style != text_style:
@@ -564,7 +506,7 @@ class AmiPage:
             if not Util.range_list_contains_int(page_no + 1, range_list):
                 continue
             logging.debug(f"accept page {page_no}")
-            html = AmiPage.chars_to_spans(bbox, input_pdf, page_no)
+            html = HtmlGenerator.chars_to_spans_using_pdfplumber(bbox, input_pdf, page_no)
             output_html = Path(output_dir, f"{output_stem}_{page_no}.html")
             with open(output_html, "wb") as f:
                 f.write(lxml.etree.tostring(html))
@@ -1397,6 +1339,8 @@ class PDFArgs(AbstractArgs):
             outdir=None,
             outpath=None,
     ):
+        from py4ami.ami_html import CSSStyle # messy
+
         """
         main routine for converting PDF all the way to tidied styled HTML
         uses a lot of defaults. will be better when we have a converter tool
@@ -2063,6 +2007,9 @@ class AmiPlumberJsonPage:
     # AmiPlumberJsonPage:
 
     def get_ami_font_and_style(self, fontname):
+        from py4ami.ami_html import CSSStyle
+        from py4ami.ami_html import AmiFont
+
         ami_font = AmiFont.extract_name_weight_style_stretched_as_font(fontname)
         css_style = CSSStyle()
         if ami_font.is_bold:
@@ -2077,6 +2024,7 @@ class AmiPlumberJsonPage:
         """
         y runs bottom to top (i.e. first lines in visual reading have high y)
         """
+        from py4ami.ami_html import CSSStyle
         rc = self.create_region_clipper(ami_plumber)
         tables = self.get_tables()
         if tables and len(tables):
@@ -2093,7 +2041,7 @@ class AmiPlumberJsonPage:
         header_span_list = []
         footer_span_list = []
         for span in spans:
-            font_size, y0, y1 = self.extract_coords_and_font_properties(span)
+            font_size, y0, y1 = CSSStyle.extract_coords_and_font_properties(span)
             delta_y = y0 - last_y0 if last_y0 else None
             header = self.capture_header(y0, rc.header_y, header_span_list, span)
             if not header:
@@ -2148,14 +2096,6 @@ class AmiPlumberJsonPage:
         return joiner
 
     # AmiPlumberJsonPage:
-
-    def extract_coords_and_font_properties(self, span):
-        csss = CSSStyle.create_css_style_from_attribute_of_body_element(span)
-        font_size = csss.get_numeric_attval(CSSStyle.FONT_SIZE)
-        y0 = csss.get_numeric_attval("y0")
-        y1 = csss.get_numeric_attval("y1")
-        x1 = csss.get_numeric_attval("x1")
-        return font_size, y0, y1
 
     # AmiPlumberJsonPage:
 
@@ -2229,6 +2169,7 @@ class AmiPlumberJsonPage:
         :param elem: styled element
         :return: font_family and font_size
         """
+        from py4ami.ami_html import CSSStyle
         if elem is None:
             return None, None
         csss = CSSStyle.create_css_style_from_attribute_of_body_element(elem)
@@ -2369,7 +2310,9 @@ class AmiPDFPlumber:
     def create_pdfplumber_pdf(self, path=None, pages=None):
         """first parse into PDFPlumber pdf object self.pdfobj
         """
+        path = Path(path)
         pages = range(1,9999) if not pages else pages
+        assert not path.is_dir(), f"must give single PDF, found dir {path}"
         self.pdfplumber_pdf = pdfplumber.open(path, pages)
         assert type(self.pdfplumber_pdf) is pdfplumber.pdf.PDF, f"found {type(self.pdfplumber_pdf)}"
         return self.pdfplumber_pdf
@@ -2383,6 +2326,7 @@ class AmiPDFPlumber:
         :param pages: list of page numbers to read
         """
         t0 = time.time()
+
         pdfplumber_pdf = self.create_pdfplumber_pdf(path, pages=pages)
         assert pdfplumber_pdf and type(pdfplumber_pdf) is pdfplumber.pdf.PDF, f"found {type(pdfplumber_pdf)}"
         assert (t := type(pdfplumber_pdf)) is pdfplumber.pdf.PDF, f"found {t}"
@@ -2490,6 +2434,7 @@ class AmiPDFPlumber:
     def create_char_css(cls, char_dict):
         # ['matrix', 'fontname', 'adv', 'upright', 'x0', 'y0', 'x1', 'y1', 'width', 'height', 'size', 'object_type',
         #  'page_number', 'text', 'stroking_color', 'non_stroking_color', 'top', 'bottom', 'doctop'])
+        from py4ami.ami_html import CSSStyle
 
         upright = None
         obj_type = char_dict.get(CH_OBJECT_TYPE)
@@ -2518,6 +2463,7 @@ class AmiPDFPlumber:
         sets 5 font attributes (width, size, nonstroke, stroke, fontname
         values from cchar_dict
         """
+        from py4ami.ami_html import CSSStyle
         css.set_attribute(CSSStyle.WIDTH, AmiPDFPlumber.get_float(char_dict, PLUMB_WIDTH))
         css.set_attribute(CSSStyle.FONT_SIZE, AmiPDFPlumber.get_float(char_dict, PLUMB_SIZE))
         css.set_attribute(CSSStyle.FILL, char_dict.get(PLUMB_NONSTROKE))
@@ -2589,89 +2535,6 @@ class AmiPDFPlumber:
         css.set_attribute(CSSStyle.FONT_FAMILY, char_dict.get(PLUMB_FONTNAME))
         span.attrib[CSSStyle.STYLE] = css.get_css_value()
         return css
-
-    # AmiPDFPlumber
-
-    def create_html_pages(self, input_pdf, output_page_dir, pages=None, debug=False, outstem="total_pages", svg_dir=None, max_edges=10000, max_lines=100):
-
-        pre_plumber = round(time.time(), 2)
-        ami_plumber_json = self.create_ami_plumber_json(input_pdf, pages=pages)
-        assert (t := type(ami_plumber_json)) is AmiPlumberJson, f"expected {t}"
-        total_html = HtmlLib.create_html_with_empty_head_body()
-        output_page_dir.mkdir(exist_ok=True, parents=True)
-        total_html_page_body = HtmlLib.get_body(total_html)
-
-        pre_parse = round(time.time(), 2)
-        print(f"PRE {round(pre_parse - pre_plumber)}")
-        ami_json_pages = list(ami_plumber_json.get_ami_json_pages())
-        post_parse = round(time.time(), 2)
-        print(f"PARSE {post_parse - pre_parse}")
-
-
-        for i, ami_json_page in enumerate(ami_json_pages):
-            page_start_time = time.time()
-            print(f"==============PAGE {i+1}================")
-            html_page = self.create_html_page(ami_json_page, output_page_dir, debug=debug, page_no=(i + 1), svg_dir=svg_dir,
-                                              max_edges=max_edges, max_lines=max_lines)
-            page_end_time = time.time()
-            if html_page is not None:
-                body_elems = HtmlLib.get_body(html_page).xpath("*")
-                for body_elem in body_elems:
-                    total_html_page_body.append(body_elem)
-            total_page_time = round(time.time(), 2)
-            page_time = round(page_end_time - page_start_time, 2)
-            html_time = round(total_page_time - page_end_time, 2)
-            if page_time > 1 or html_time > 1:
-                print(f"=====================\nLONG PARSE  create_page {page_time} {html_time}\n====================")
-
-        if debug:
-            self._check_html_pages(ami_json_pages, output_page_dir)
-
-        path = Path(output_page_dir, f"{outstem}.html")
-        HtmlStyle.add_head_styles(
-            total_html,
-            [
-                ("div", [("border", "red solid 0.5px")]),
-                ("span", [("border", "blue dotted 0.5px")]),
-             ]
-        )
-        XmlLib.write_xml(total_html, path, debug=debug)
-
-    def create_html_page(self, ami_json_page, output_page_dir, debug=False, page_no=None, svg_dir=None, max_edges=10000, max_lines=100):
-        if debug:
-            t1 = time.time()
-            line_div, curve_div, table_div, svg = ami_json_page.create_non_text_html(svg_dir=svg_dir, max_edges=max_edges, max_lines=max_lines)
-            t2 = time.time()
-            print(f"NON TEXT {round(t2 - t1, 2)}")
-            if len(tables := table_div.xpath("*")):
-                table_html = HtmlLib.create_html_with_empty_head_body()
-                HtmlLib.get_body(table_html).append(table_div)
-                HtmlLib.write_html_file(table_div, Path(output_page_dir, f"tables_{page_no}.html"), debug=True)
-
-            if svg_dir:
-                PDFDebug().print_curves(ami_json_page.plumber_page_dict, svg_dir=svg_dir, page_no=page_no)
-                if len(svg.xpath("*")) > 1: # skip if only a box
-                    XmlLib.write_xml(svg, Path(svg_dir, f"table_box_{page_no}.svg"), debug=debug)
-
-        html_page, footer_span_list, header_span_list = ami_json_page.create_html_page_and_header_footer(self)
-        if debug:
-            ami_json_page.print_header_footer_lists(footer_span_list, header_span_list)
-        try:
-            path = Path(output_page_dir, f"page_{page_no}.html")
-            XmlLib.write_xml(html_page, path, debug=debug)
-        except Exception as e:
-            print(f"*******Cannot serialize page (probably strange fonts)******page{page_no} {e}")
-            html_page = None
-        return html_page
-
-    def _check_html_pages(self, ami_json_pages, output_page_dir):
-        """checks that HTML can be parsed (not normally necessary)"""
-        for i, _ in enumerate(ami_json_pages):
-            page_file = Path(output_page_dir, f"page_{i + 1}.html")
-            try:
-                html_elem = lxml.etree.parse(str(page_file))
-            except Exception as e:
-                print(f"could not read XML {page_file} because {e}")
 
     # AmiPDFPlumber
 

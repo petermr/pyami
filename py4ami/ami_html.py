@@ -2,10 +2,9 @@
 Should have relatively few dependencies"""
 import argparse
 import copy
-import json
 import logging
-import pprint
 import re
+import time
 from collections import defaultdict, Counter
 from enum import Enum
 from io import StringIO
@@ -16,11 +15,11 @@ import lxml.etree
 import numpy as np
 import pandas as pd
 from lxml.etree import Element, _Element, _ElementTree
-import time
 from sklearn.linear_model import LinearRegression
 
 # local
 # from py4ami.ami_dict import AmiDictionary
+# from py4ami.ami_pdf import AmiPDFPlumber
 from py4ami.bbox_copy import BBox
 from py4ami.util import SScript, AbstractArgs, Util
 from py4ami.xml_lib import XmlLib, HtmlLib
@@ -353,10 +352,6 @@ class HtmlTidy:
             css_last = css
         return elem_with_pagenos
 
-        """
-<br></span><span style="font-family: Calibri; font-size:10px"> *** THIS SPAN WRAPS ALL REMAMING PAGERS???
-<br><span style="position:absolute; border: gray 1px solid; left:0px; top:941px; width:595px; height:841px;"></span>
-        """
 
     def print_pages_div(self, ranges=None):
         """
@@ -908,11 +903,13 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
     @classmethod
     def create_head_style_elem(cls, new_html):
         style = lxml.etree.SubElement(HtmlLib.get_head(new_html), "style")
+        # basic styling to show divs and spans
         style.text = """
         div {border: red solid 1px; margin: 1px;}
         span {background: #eeeeee; margin: 1px;}
-        div.float {background: #ccffff;}
+        div.float {background: #ddffff;}
                      """
+        return style
 
     @classmethod
     def extract_footnotes_to_back(cls, html_elem):
@@ -976,18 +973,22 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
                 follower.insert(0, span)
 
     @classmethod
-    def make_hierarchical_sections_KEY(cls, html_elem, stem, section_regexes=None, outdir=None):
+    def make_hierarchical_sections_KEY(cls, html_elem, stem, section_regexes=None, outdir=None, debug=False):
         """Key formatting routine
         """
+        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
+        if outdir:
+            HtmlLib.write_html_file(html_elem, Path(outdir, f"{stem}_styles.html"), debug=True)
         HtmlGroup.annotate_title_sections(html_elem, section_regexes=section_regexes)
         HtmlGroup.extract_footnotes_to_back(html_elem)
         new_div = HtmlGroup.group_divs_into_tree(HtmlLib.get_body(html_elem))
         HtmlGroup.remove_empty_divs(new_div)
         HtmlGroup.join_split_divs(new_div)
         HtmlGroup.add_paragraph_ids(new_div)
+        # transfer to new element (may not be necessary?)
         new_html = HtmlLib.create_html_with_empty_head_body()
         HtmlLib.get_body(new_html).append(new_div)
-        HtmlGroup.create_head_style_elem(new_html)
+        HtmlStyle.transfer_head_styles(html_elem, new_html)
         HtmlGroup.collect_floats_to_back(new_html)
         HtmlGroup.annotate_ipcc_target_ids(new_html)
         if outdir:
@@ -996,6 +997,8 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         HtmlGroup.split_spans(new_html, split_span_regex)
         if outdir:
             HtmlLib.write_html_file(new_html, Path(outdir, f"{stem}_statements.html"), debug=True)
+
+        return new_html
 
     @classmethod
     def group_nested_siblings(cls, html_elem, styles=None):
@@ -2045,6 +2048,7 @@ class AnnotatorCommand:
 class HtmlStyle:
     """
     methods to process style attributes and <style> elements
+    MOVE TO HTML (doesn't just belone in PDF
     """
 
     @classmethod
@@ -2071,7 +2075,7 @@ class HtmlStyle:
     # class HtmlStyle
 
     @classmethod
-    def extract_all_text_styles_to_head(cls, html_elem):
+    def extract_all_style_attributes_to_head(cls, html_elem):
         """
         Finds all elements with @style attribute and extacts the tdxt styles to <head>
         Also sets body styles to normal
@@ -2082,6 +2086,7 @@ class HtmlStyle:
         for i, styled_elem in enumerate(styled_elems):
             classref = f"s{i}"
             HtmlStyle.add_element_with_style(classref, html_elem, styled_elem)
+        # does this do anything???
         body = html_elem.xpath("/html/body")
         if len(body) != 1:
             raise ValueError(f"document should have exactly 1 body tag")
@@ -2170,7 +2175,7 @@ class HtmlStyle:
 
 
         """
-        cls.extract_all_text_styles_to_head(html_elem)
+        cls.extract_all_style_attributes_to_head(html_elem)
         style_to_classref_set = cls.normalize_head_styles(html_elem)
         classref_index = cls.create_classref_index(style_to_classref_set)
         deletable_classrefs = cls.get_redundant_classrefs(classref_index)
@@ -2253,6 +2258,14 @@ class HtmlStyle:
         for style in styles:
             # print(f"style {style}")
             HtmlLib.add_head_style(html_elem, style[0], style[1])
+
+    @classmethod
+    def transfer_head_styles(cls, html_elem, new_html):
+        """copies html/head/"""
+        new_style_elem = HtmlGroup.create_head_style_elem(new_html)
+        styles = html_elem.xpath("/html/head/style")
+        for style in styles:
+            new_style_elem.append(copy.deepcopy(style))
 
 
 
@@ -4418,7 +4431,14 @@ class CSSStyle:
     def get_y1(cls, elem):
         return cls.get_coords(elem)[3]
 
-
+    @classmethod
+    def extract_coords_and_font_properties(cls, span):
+        csss = CSSStyle.create_css_style_from_attribute_of_body_element(span)
+        font_size = csss.get_numeric_attval(CSSStyle.FONT_SIZE)
+        y0 = csss.get_numeric_attval("y0")
+        y1 = csss.get_numeric_attval("y1")
+        x1 = csss.get_numeric_attval("x1")
+        return font_size, y0, y1
 
 
 class CSSConverter:

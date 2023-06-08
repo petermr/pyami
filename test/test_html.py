@@ -1501,7 +1501,7 @@ class TestCSSStyle(AmiAnyTest):
 
     def test_extract_text_styles(self):
         """
-        Extracts named styled components into new styles and creates HtmlStyle
+        Extracts named styled components from string into new styles and creates HtmlStyle
         """
         css = CSSStyle.create_css_style_from_css_string(
             "font-weight: bold; font-family: monospace; font-size: 13px; color: blue; bottom: 10px;")
@@ -1551,7 +1551,7 @@ class TestCSSStyle(AmiAnyTest):
             """
         html_elem = lxml.etree.fromstring(html_s)
         html_elem = HtmlTidy.ensure_html_head_body(html_elem)  # redundant as tidy already
-        HtmlStyle.extract_all_text_styles_to_head(html_elem)
+        HtmlStyle.extract_all_style_attributes_to_head(html_elem)
         # print(f"ss {lxml.etree.tostring(html_elem.xpath('/html/head')[0])} \n ... {lxml.etree.tostring(html_elem)}")
         html_dir = Path(AmiAnyTest.TEMP_DIR, "html")
         html_dir.mkdir(exist_ok=True)
