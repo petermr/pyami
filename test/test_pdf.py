@@ -19,6 +19,7 @@ import lxml.etree
 import lxml.html
 
 import test.test_all
+from test.test_integrate import HtmlGenerator
 
 """NOTE REQUIRES LATEST pdfplumber"""
 import pdfplumber
@@ -139,7 +140,7 @@ class PDFPlumberTest(AmiAnyTest):
         output_page_dir = Path(AmiAnyTest.TEMP_DIR, "html", "ipcc", "LongerReport", "pages")
         output_page_dir.mkdir(exist_ok=True, parents=True)
         ami_pdfplumber = AmiPDFPlumber()
-        ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, pages=[1,2,3,4,5,6,7])
+        HtmlGenerator.create_html_pages(ami_pdfplumber, input_pdf, output_page_dir, pages=[1,2,3,4,5,6,7])
 
     def test_pdfplumber_doublecol_create_pages_for_WGs_HACKATHON(self):
         """
@@ -175,7 +176,7 @@ class PDFPlumberTest(AmiAnyTest):
             print(f"output dir {output_page_dir}")
             output_page_dir.mkdir(exist_ok=True, parents=True)
             ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
-            ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True, outstem="total_pages")
+            HtmlGenerator.create_html_pages(ami_pdfplumber, input_pdf, output_page_dir, debug=True, outstem="total_pages")
 
     def test_unusual_chars(self):
         """badly decoded characters default to #65533"""
@@ -203,7 +204,7 @@ class PDFPlumberTest(AmiAnyTest):
         output_page_dir.mkdir(exist_ok=True, parents=True)
         # ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
         ami_pdfplumber = AmiPDFPlumber(param_dict=None)
-        ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True)
+        HtmlGenerator.create_html_pages(ami_pdfplumber, input_pdf, output_page_dir, debug=True)
 
     def test_extract_target_section_ids_from_page(self):
         """The IPCC report and many others have hierarchical IDs for sections

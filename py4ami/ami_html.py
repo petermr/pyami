@@ -73,6 +73,18 @@ FONT_STRETCHED = "font-stretched"
 FILL = "fill"
 STROKE = "stroke"
 
+# character properties
+P_FONTNAME = "fontname"
+P_HEIGHT = "height"
+P_STROKING_COLOR = "stroking_color"
+P_NON_STROKING_COLOR = "non_stroking_color"
+
+P_X0 = "x0"
+P_X1 = "x1"
+P_Y0 = "y0"
+P_Y1 = "y1"
+P_TEXT = "text"
+
 # Unwanted sections
 U_XPATH = "xpath"
 U_REGEX = "regex"

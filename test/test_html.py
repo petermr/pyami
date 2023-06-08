@@ -28,6 +28,7 @@ from py4ami.ami_html import URLCache, LinkFactory, IPCCTargetLink
 
 from test.resources import Resources
 from test.test_all import AmiAnyTest
+from test.test_integrate import HtmlGenerator
 
 PARA1 = """
 <span style="font-family: TimesNewRomanPSMT; font-size: 11px;" id="id2507">First, the studies are relevant to different spatial levels, ranging from macro-scale regions with globally
@@ -1268,7 +1269,7 @@ class Test_PDFHTML(AmiAnyTest):
             print(f"output dir {output_page_dir}")
             output_page_dir.mkdir(exist_ok=True, parents=True)
             ami_pdfplumber = AmiPDFPlumber(param_dict=report_dict)
-            ami_pdfplumber.create_html_pages(input_pdf, output_page_dir, debug=True, outstem=total_pages)
+            HtmlGenerator.create_html_pages(ami_pdfplumber, input_pdf, output_page_dir, debug=True, outstem=total_pages)
 
             outdir = Path(AmiAnyTest.TEMP_HTML_IPCC, "annotation", f"{wg}", f"{chapter}")
             outfile = Path(outdir, "fulltext_final.html")

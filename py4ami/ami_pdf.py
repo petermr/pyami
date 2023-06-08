@@ -35,6 +35,9 @@ from pdfplumber.page import Page
 # from py4ami.ami_html import HtmlUtil, CSSStyle, HtmlTree, AmiSpan, HtmlTidy, HtmlStyle, HtmlLib, AmiFont
 # from py4ami.ami_html import STYLE, BOLD, ITALIC, FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, FILL, TIMES, \
 #     CALIBRI, FONT_FAMILIES, H_DIV, H_BODY
+from py4ami.ami_html import STYLE, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, CSSStyle, FONT_FAMILY, P_X0, P_X1, P_Y0, \
+    P_Y1, BOLD, ITALIC, HtmlUtil, FILL, TIMES, CALIBRI, FONT_FAMILIES, A_HREF, H_A, H_SPAN, H_TABLE, H_THEAD, H_TBODY, \
+    H_TR, H_TD
 from py4ami.ami_svg import AmiSVG
 from py4ami.file_lib import FileLib
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
@@ -83,18 +86,6 @@ WORDS = "words"
 
 DEBUG_OPTIONS = [WORDS, LINES, RECTS, CURVES, IMAGES, TABLES, HYPERLINKS, TEXTS, ANNOTS]
 DEBUG_ALL = "debug_all"
-
-# character properties
-P_FONTNAME = "fontname"
-P_HEIGHT = "height"
-P_STROKING_COLOR = "stroking_color"
-P_NON_STROKING_COLOR = "non_stroking_color"
-
-P_X0 = "x0"
-P_X1 = "x1"
-P_Y0 = "y0"
-P_Y1 = "y1"
-P_TEXT = "text"
 
 # Unwanted sections
 U_XPATH = "xpath"
@@ -742,6 +733,8 @@ class PDFArgs(AbstractArgs):
         self.unwanteds = None
 
     """
+    from py4ami.ami_html import HtmlTidy
+
     def __init__(self):
         """arg_dict is set to default"""
         super().__init__()
@@ -1113,6 +1106,9 @@ class PDFArgs(AbstractArgs):
             footer=80,
             maxpage=9999
     ):
+
+        from py4ami.ami_html import HtmlTidy
+
         """converts PDF to raw_html and (optionally raw_html to tidy_html
         Uses PDFParser.convert_pdf to create raw_html_element
 
@@ -1340,6 +1336,7 @@ class PDFArgs(AbstractArgs):
             outpath=None,
     ):
         from py4ami.ami_html import CSSStyle # messy
+        from py4ami.ami_html import HtmlStyle
 
         """
         main routine for converting PDF all the way to tidied styled HTML

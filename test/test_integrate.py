@@ -10,11 +10,13 @@ import pdfplumber
 import requests
 
 # from py4ami.ami_pdf import AmiPDFPlumber, AmiPlumberJson, PDFDebug, TextStyle, AmiPage
+# from py4ami.ami_pdf import AmiPage
 from py4ami.xml_lib import XmlLib, HtmlLib
 from py4ami.ami_html import HtmlUtil
 from py4ami.ami_html import AmiSpan
 from py4ami.ami_html import HtmlStyle
 from py4ami.ami_html import HtmlGroup
+from py4ami.ami_html import P_FONTNAME, P_HEIGHT, P_STROKING_COLOR, P_NON_STROKING_COLOR, P_TEXT
 
 from test.resources import Resources
 from test.test_all import AmiAnyTest
@@ -301,6 +303,10 @@ class HtmlGenerator:
     @classmethod
     # TODO should be new class
     def chars_to_spans_using_pdfplumber(cls, bbox, input_pdf, page_no):
+        from py4ami.ami_pdf import AmiPage
+        from py4ami.ami_html import H_BODY, H_DIV
+        from py4ami.ami_pdf import TextStyle
+
         with pdfplumber.open(input_pdf) as pdf:
             pdf_page = pdf.pages[page_no]
             ami_page = AmiPage()
@@ -320,9 +326,9 @@ class HtmlGenerator:
             top_div = lxml.etree.SubElement(html.xpath(H_BODY)[0], H_DIV)
             top_div.attrib["class"] = "top"
             for ch in pdf_page.chars[:maxchars]:
-                if cls.skip_rotated_text(ch):
+                if AmiPage.skip_rotated_text(ch):
                     continue
-                x0, x1, y0, y1 = cls.get_xy_tuple(ch, ndec_coord)
+                x0, x1, y0, y1 = AmiPage.get_xy_tuple(ch, ndec_coord)
                 if bbox and not bbox.contains_point((x0, y0)):
                     # print(f" outside box: {x0, y0}")
                     continue
@@ -358,7 +364,6 @@ class HtmlGenerator:
                 logging.debug(f"txt {ch.get('text')} : col {col}")
         # print(f"HTML {html}")
         return html
-
 
 
 class AmiIntegrateTest(AmiAnyTest):
