@@ -17,14 +17,15 @@ from numpy.lib.user_array import container
 
 from py4ami.ami_bib import Reference, Biblioref
 from py4ami.ami_dict import AmiDictionary
-from py4ami.ami_html import HTMLSearcher, HtmlTree, TargetExtractor, Target, AnnotatorCommand, HtmlAnnotator
+from py4ami.ami_html import HTMLSearcher, HtmlTree, HtmlAnnotator, AnnotatorCommand
 from py4ami.ami_html import HtmlUtil, H_SPAN, CSSStyle, HtmlTidy, HtmlStyle, HtmlClass, SectionHierarchy, AmiFont, \
-    FloatBoundary, Footnote, HtmlGroup, IPCCAnchor
+    FloatBoundary, Footnote, HtmlGroup
 from py4ami.ami_pdf import PDFArgs, AmiPDFPlumber
+from py4ami.ipcc import TargetExtractor, IPCCTarget, LinkFactory, IPCCTargetLink
 from py4ami.pyamix import PyAMI
 from py4ami.util import Util
 from py4ami.xml_lib import HtmlLib, XmlLib
-from py4ami.ami_html import URLCache, LinkFactory, IPCCTargetLink
+from py4ami.ami_html import URLCache
 
 from test.resources import Resources
 from test.test_all import AmiAnyTest
@@ -684,7 +685,7 @@ class TestHtml(AmiAnyTest):
         temp_dir = Path(AmiAnyTest.TEMP_HTML_DIR, "ipcc", "LR_network")
         temp_dir.mkdir(exist_ok=True)
 
-        Target.make_dirs_from_targets(common_target_tuples, temp_dir)
+        IPCCTarget.make_dirs_from_targets(common_target_tuples, temp_dir)
 
     def test_create_target_node_dir_trees_from_ipcc_chapters_DEVELOP_HACKATHON(self):
         """reads a chapter in HTML, finds targets in {...'...} , uses div id as anchor
@@ -711,7 +712,7 @@ class TestHtml(AmiAnyTest):
             print(f"writing to {temp_dir}")
             temp_dir.mkdir(exist_ok=True)
 
-            Target.make_dirs_from_targets(common_target_tuples, temp_dir)
+            IPCCTarget.make_dirs_from_targets(common_target_tuples, temp_dir)
 
     def test_remove_floats_from_fulltext_html_DEVELOP(self):
         package = "LongerReport"
