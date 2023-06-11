@@ -493,13 +493,10 @@ class TestHtml(AmiAnyTest):
         #                          'font-family: TimesNewRomanPSMT; font-size: 6px;',
         #                          'font-family: TimesNewRomanPSMT; font-size: 9px;'
         #                          ]
-        css_classes = dict()
-        for style in sorted_styles:
 
-            style_s = str(style)
-            css_style = CSSStyle.create_css_style_from_css_string(style_s)
-            if css_style:
-                css_style.extract_bold_italic_from_font_family()
+        CSSStyle.extract_bold_italic_from_font_family_for_styles(sorted_styles)
+        for style in sorted_styles:
+            print(f"normalized style {style}")
 
     def test_join_spans(self):
         """join sibling spans with the same styles
@@ -1648,6 +1645,16 @@ class TestCSSStyle(AmiAnyTest):
         assert css_style.get("height") == "22"
         assert "width" in css_style
         assert css_style.get("width") == "34"
+
+    def test_css_parse_with_curlies(self):
+        css_str = "{height: 22; width: 34;}"
+        css_style = CSSStyle.create_dict_from_name_value_array_string(css_str, )
+        assert css_style
+        assert "height" in css_style
+        assert css_style.get("height") == "22"
+        assert "width" in css_style
+        assert css_style.get("width") == "34"
+
 
     def test_make_style_dict_from_html(self):
         """

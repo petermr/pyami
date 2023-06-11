@@ -1957,12 +1957,13 @@ class AmiPlumberJsonPage:
                 span = lxml.etree.Element("span")
                 spanlist.append(span)
 
-                ami_font, css_style = self.get_ami_font_and_style(char_dict.get(PLUMB_FONTNAME))
+                fontname = char_dict.get(PLUMB_FONTNAME) # pdfplumber calls font_maily fontname
+                ami_font, css_style = self.get_ami_font_and_style(fontname)
                 self.add_span_attributes((x0, y0, x1, y1), css, css_style, span, text)
 
                 last_y0 = y0
                 last_fontstyle = css_fontstyle
-                last_ami_font = ami_font
+                last_ami_font = ami_font # not used?
                 last_span = span
             else:
                 self.add_character_and_update_right_coord(span, text, x1)
@@ -2004,6 +2005,7 @@ class AmiPlumberJsonPage:
     # AmiPlumberJsonPage:
 
     def get_ami_font_and_style(self, fontname):
+        """create AmiFont and CSSStyle from font-name"""
         from py4ami.ami_html import CSSStyle
         from py4ami.ami_html import AmiFont
 
@@ -2013,6 +2015,8 @@ class AmiPlumberJsonPage:
             css_style.set_attribute(CSSStyle.FONT_WEIGHT, CSSStyle.BOLD)
         if ami_font.is_italic:
             css_style.set_attribute(CSSStyle.FONT_STYLE, CSSStyle.ITALIC)
+        if ami_font.stretched:
+            css_style.set_attribute(CSSStyle.FONT_STRETCHED, ami_font.stretched)
         return ami_font, css_style
 
     # AmiPlumberJsonPage:
@@ -2032,6 +2036,7 @@ class AmiPlumberJsonPage:
 
         body = HtmlLib.get_body(html_page)
         spans = self.get_spans()
+
         last_y0 = None
         last_span = None
         div = None
@@ -2039,11 +2044,13 @@ class AmiPlumberJsonPage:
         footer_span_list = []
         for span in spans:
             font_size, y0, y1 = CSSStyle.extract_coords_and_font_properties(span)
+            if not y0:
+                raise ValueError(f"no y0 in {span}")
             delta_y = y0 - last_y0 if last_y0 else None
             header = self.capture_header(y0, rc.header_y, header_span_list, span)
             if not header:
                 footer = self.capture_footer(y1, rc.footer_y, footer_span_list, span)
-            if not header and not header:
+            if not header and not footer:
                 append_span, div, joined = self._analyze_joinability(body, delta_y, div, font_size,
                                                                                last_span, last_y0, span, y0)
                 if append_span:
@@ -2080,13 +2087,18 @@ class AmiPlumberJsonPage:
         """returns space or empty to join newlines
         :return: None for don't join, else returns joining spaces"""
         joiner = ""
+        if not last_y0 or not y0:
+            raise ValueError(f"no last_y0 or y0 span={lxml.etree.tostring(span)}")
         # list, no join
         list_ords = [9679, 183]
         list_chars = ['●', '·']
         if span.text[0] in list_chars or ord(span.text[0]) in list_ords:
             return None
 
-        if delta_y > 1.0 * abs(last_y0 - y0):  # newline
+        if not delta_y:
+            joiner = ""
+            # raise ValueError(f"no delta_y span={lxml.etree.tostring(span)}")
+        elif delta_y > 1.0 * abs(last_y0 - y0):  # newline
             joiner = " "
         elif last_span.text[-1] != " " and span.text[-1] != " ":
             joiner = " "
@@ -2134,7 +2146,9 @@ class AmiPlumberJsonPage:
 
 # TODO make a class for these snipper operations
     def capture_header(self, y0, header_y, header_span_list, span):
-        if y0 > header_y:
+        if not y0:
+            raise ValueError("null coordinate y0")
+        if y0 and y0 > header_y:
             self.remove_span_and_add_to_list(header_span_list, span)
             return True
         return False
@@ -2146,7 +2160,9 @@ class AmiPlumberJsonPage:
         span_list.append(span)
 
     def capture_footer(self, y1, footer_y, footer_span_list, span):
-        if y1 < footer_y:
+        if not y1:
+            raise ValueError("no y1 coord")
+        if y1 and y1 < footer_y:
             self.remove_span_and_add_to_list(footer_span_list, span)
             return True
         return False
@@ -2156,6 +2172,7 @@ class AmiPlumberJsonPage:
     def have_identical_font_properties(self, last_span, span):
         last_properties = self.font_properties(last_span)
         properties = self.font_properties(span)
+        assert len(properties) > 0, f"missing font-properties is probably an error"
         # print(f"last/p {last_properties} / {properties}")
         return last_span is not None and last_properties == properties
 
@@ -2205,9 +2222,9 @@ class AmiPlumberJsonPage:
               # f"{self.pdf_page.curve_edges}\n"
               f"tablefinder: {self.plumber_page.debug_tablefinder()}")
         if lines := self.plumber_page_dict.get(LINES):
-            print(f"debug_lines {len(lines)}")
+            print(f"debug_lines {len(lines)} - {max_lines}")
             for line in lines[:max_lines]:
-                print(f"debug_line: {line} {line.__dir__()}")
+                print(f"-----------------\ndebug_line: {line} {line.__dir__()}")
         if curves := self.plumber_page_dict.get(CURVES):
             print(f"debug_curves: {len(curves)}")
         #      make svg here

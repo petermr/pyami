@@ -14,7 +14,7 @@ class HtmlGenerator:
     # class HtmlGenerator
 
     @classmethod
-    def run_section_regexes(cls, group_stem, input_pdf, section_regexes, total_pages, use_svg):
+    def run_section_regexes(cls, input_pdf, section_regexes, total_pages="total_pages", group_stem="groups", use_svg=True):
         path = Path(input_pdf)
         if not path.exists():
             print(f"path does not exist {path}")
@@ -36,7 +36,7 @@ class HtmlGenerator:
     @classmethod
     def convert_to_html(cls, group_stem, input_pdf, section_regexes, total_pages, write=True, debug=False,
                         svg_dir=None,
-                        max_edges=10000, max_lines=100):
+                        max_edges=10000, max_lines=10):
         from py4ami.ami_pdf import AmiPDFPlumber # HORRIBLE
         input_pdf = Path(input_pdf)
         print(f"\n==================== {input_pdf} ==================")
@@ -127,7 +127,7 @@ class HtmlGenerator:
 
     @classmethod
     def create_html_page(cls, ami_plumber, ami_json_page, output_page_dir, debug=False, page_no=None, svg_dir=None, max_edges=10000,
-                         max_lines=100):
+                         max_lines=10):
         from py4ami.ami_pdf import PDFDebug
 
         if debug:

@@ -913,8 +913,10 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         return backs[0] if len(backs) > 0 else HtmlGroup.create_back_div(html_elem)
 
     @classmethod
-    def create_head_style_elem(cls, new_html):
-        style = lxml.etree.SubElement(HtmlLib.get_head(new_html), "style")
+    def create_head_style_elem(cls, new_html, tail="ZZZ"):
+        style = lxml.etree.SubElement(HtmlLib.get_head(new_html), CSSStyle.STYLE)
+        if tail:
+            style.tail = tail
         # basic styling to show divs and spans
         style.text = """
         div {border: red solid 1px; margin: 1px;}
@@ -988,7 +990,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
     def make_hierarchical_sections_KEY(cls, html_elem, stem, section_regexes=None, outdir=None, debug=False):
         """Key formatting routine
         """
-        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem)
+        HtmlStyle.extract_styles_and_normalize_classrefs(html_elem, outdir=outdir)
         if outdir:
             HtmlLib.write_html_file(html_elem, Path(outdir, f"{stem}_styles.html"), debug=True)
         HtmlGroup.annotate_title_sections(html_elem, section_regexes=section_regexes)
@@ -2154,7 +2156,7 @@ class HtmlStyle:
     # class HtmlStyle
 
     @classmethod
-    def normalize_head_styles(cls, elem):
+    def normalize_head_styles(cls, elem, italic_bold=True):
         """
         creates multidict fot head styles
         :param elem: document to analyse
@@ -2164,18 +2166,27 @@ class HtmlStyle:
         """
         style_to_classref_set = defaultdict(set)
         head_styles = elem.xpath("/html/head/style")
+        # we use one classref - style per HTML style
         for style in head_styles:
+            # consists of classref snd style_string
             style_s = style.text.strip()
             classref = style_s.split()[0]
-            value = style_s[len(classref):].strip()
+
+            style_value = style_s[len(classref):].strip()
+            print(f"style_value {style_value}")
+            if italic_bold:
+                css_style = CSSStyle.create_css_style_from_css_string(style_s)
+                if css_style:
+                    css_style.extract_bold_italic_from_font_family()
+                    style_value = css_style.get_css_value(wrap_with_curly=True)
             style.attrib[CLASSREF] = classref
-            style_to_classref_set[value].add(classref)
+            style_to_classref_set[style_value].add(classref)
         return style_to_classref_set
 
     # class HtmlStyle
 
     @classmethod
-    def extract_styles_and_normalize_classrefs(cls, html_elem):
+    def extract_styles_and_normalize_classrefs(cls, html_elem, outdir=None):
         """
         Extract styles from document
         move to head and normalize classrefs
@@ -2187,7 +2198,10 @@ class HtmlStyle:
 
 
         """
+        # html_elem = html_elem.xpath("/*")[0] if type(html_elem) is _ElementTree else html_elem
         cls.extract_all_style_attributes_to_head(html_elem)
+        if outdir:
+            HtmlLib.write_html_file(html_elem, Path(outdir, "styles1.html"), debug=True)
         style_to_classref_set = cls.normalize_head_styles(html_elem)
         classref_index = cls.create_classref_index(style_to_classref_set)
         deletable_classrefs = cls.get_redundant_classrefs(classref_index)
@@ -2274,11 +2288,10 @@ class HtmlStyle:
     @classmethod
     def transfer_head_styles(cls, html_elem, new_html):
         """copies html/head/"""
-        new_style_elem = HtmlGroup.create_head_style_elem(new_html)
+        new_style_elem = HtmlGroup.create_head_style_elem(new_html, tail="\n")
         styles = html_elem.xpath("/html/head/style")
         for style in styles:
-            new_style_elem.append(copy.deepcopy(style))
-
+            new_style_elem.getparent().append(copy.deepcopy(style))
 
 
 class HtmlClass:
@@ -3050,6 +3063,7 @@ class CSSStyle:
     HEIGHT = "height"
     ITALIC = "italic"
     LEFT = "left"
+    NORMAL = "normal"
     OPACITY = "opacity"
     POSITION = "position"
     PX = "px"
@@ -3095,36 +3109,48 @@ class CSSStyle:
         assumes string of type "a: b; c: d;" optionally enclosed in {...}
         :param style_str: 
         """
-        curly_re = re.compile("\s*{?\s*(.*)\s*}?\s*")
+        re_str = "(?P<pre>.*){(?P<curly>.*)}(?P<post>.*)"
+        curly_re = re.compile(re_str)
         name_value_dict = dict()
         if style_str:
-            if False and remove_curly:
-                match = curly_re.match(curly_re)
+            if remove_curly:
+                match = curly_re.match(style_str)
                 if match:
-                    style_str = match.group(1)
-            style_str = style_str.strip()
-            styles = style_str.split(";")
-            for style in styles:
-                style = style.strip()
-                if len(style) > 0:
-                    ss = style.split(":")
-                    if len(ss) != 2:
-                        raise KeyError(f"bad style {style} in CSS: {style_str}")
-                    name = ss[0].strip()
-                    if name in name_value_dict:
-                        raise KeyError(f"{name} duplicated in CSS: {style_str}")
-                    name_value_dict[name] = ss[1].strip()
+                    style_str = match.group("curly")
+            name_value_dict = cls.create_name_value_dict(style_str)
+        return name_value_dict
+
+    @classmethod
+    def create_name_value_dict(cls, style_str):
+        name_value_dict = dict()
+        style_str = style_str.strip()
+        styles = style_str.split(";")
+        for style in styles:
+            style = style.strip()
+            if len(style) > 0:
+                ss = style.split(":")
+                if len(ss) != 2:
+                    raise KeyError(f"bad style {style} in CSS: {style_str}")
+                name = ss[0].strip()
+                if name in name_value_dict:
+                    raise KeyError(f"{name} duplicated in CSS: {style_str}")
+                name_value_dict[name] = ss[1].strip()
         return name_value_dict
 
     #    class CSSStyle:
 
     @classmethod
-    def create_css_style_from_css_string(cls, css_string):
+    def create_css_style_from_css_string(cls, css_string, remove_prefix=True):
         """creates CSSStyle object from CSS string"""
         css_style = None
         if css_string:
             css_style = CSSStyle()
             css_style.name_value_dict = cls.create_dict_from_name_value_array_string(css_string)
+            if remove_prefix:
+                font_family = css_style.name_value_dict.get(CSSStyle.FONT_FAMILY)
+                font_family1 = AmiFont.trim_pdf_prefix(font_family)
+                if font_family1 and font_family1 != font_family:
+                    css_style.name_value_dict[CSSStyle.FONT_FAMILY] = font_family1
         return css_style
 
     def __eq__(self, other):
@@ -3143,6 +3169,24 @@ class CSSStyle:
         """
         if value and len(str(value)) > 0:
             self.name_value_dict[property] = value
+
+    def set_family(self, family):
+        if family:
+            self.set_attribute(CSSStyle.FONT_FAMILY, family)
+
+    def set_font_weight(self, weight):
+        if weight:
+            if weight.lower() == CSSStyle.NORMAL.lower():
+                self.set_attribute(CSSStyle.FONT_WEIGHT, CSSStyle.NORMAL)
+            if weight.lower() == CSSStyle.BOLD.lower():
+                self.set_attribute(CSSStyle.FONT_WEIGHT, CSSStyle.BOLD)
+
+    def set_font_style(self, style):
+        if style:
+            if style.lower() == CSSStyle.NORMAL.lower():
+                self.set_attribute(CSSStyle.FONT_STYLE, CSSStyle.NORMAL)
+            if style.lower() == CSSStyle.ITALIC.lower():
+                self.set_attribute(CSSStyle.FONT_STYLE, CSSStyle.ITALIC)
 
     def get_attribute(self, property):
         """
@@ -3189,15 +3233,17 @@ class CSSStyle:
 
     #    class CSSStyle:
 
-    def get_css_value(self):
+    def get_css_value(self, wrap_with_curly=False):
         """
         generates css string without quoted names and values
+        :param wrap_with_curly: if true enclose string in "{" ... "}"
         """
         s = ""
         for key in self.name_value_dict:
             val = self.name_value_dict[key]
             s += key + ": " + str(val) + "; "
-        return s.strip()
+        s = s.strip()
+        return "{" + s + "}" if wrap_with_curly else s
 
     def attval(self, name):
         return self.name_value_dict.get(name) if self.name_value_dict else None
@@ -3377,8 +3423,17 @@ class CSSStyle:
         family = self.font_family
         if not family:
             return
-        family, value1 = self.match_weight_style(family, style_regex, value="I", mark="SS")
-        family, value2 = self.match_weight_style(family, weight_regex, value="B", mark="WW")
+        family_style, style = self.match_weight_style(family, style_regex, value="I", mark="SS")
+        family_weight, weight = self.match_weight_style(family, weight_regex, value="B", mark="WW")
+        # print(f"family: {family}; style: {style}; weight: {weight};")
+        if family_weight and overwrite_family:
+            self.set_family(family_weight)
+        if weight and overwrite_bold:
+            self.set_font_weight(weight)
+        if style and overwrite_style:
+            self.set_font_style(style)
+        # print(f"new style {self}")
+
 
     #    class CSSStyle:
 
@@ -3415,6 +3470,8 @@ class CSSStyle:
         :return 2-tuple of 1) CSSStyle object with extracted names 2) CSSStyle of the remainder;
             either/both may be empty CSSStyle.
         """
+        if not self.name_value_dict:
+            raise ValueError(f"name_value_dict is None")
         if css_names is None:
             return None, None
         css_retained = copy.deepcopy(self)
@@ -3435,7 +3492,7 @@ class CSSStyle:
         Creates string for HTML style
         """
         DOT = "."
-        s = DOT + html_class + " " + "{" + self.get_css_value().strip() + "}"
+        s = DOT + html_class + " " + self.get_css_value(wrap_with_curly=True)
         elem = lxml.etree.Element(CSSStyle.STYLE)
         elem.text = s
         return elem
@@ -3468,6 +3525,8 @@ class CSSStyle:
         :return: 3-tuple of (extracted_style_element, retained_style_string, new classs_string)
         """
         extracted_style, retained_style = self.extract_text_styles()
+        extracted_style = CSSStyle.extract_bold_italic_from_font_family_for_style(extracted_style)
+        print(f"extracted style {extracted_style}")
         extracted_html_style_element = extracted_style.create_html_style_element(class_name)
         retained_style_attval = retained_style.get_css_value()
         html_class_val = CSSStyle.create_html_class_val(class_name, old_class_val=old_classstr)
@@ -3656,6 +3715,26 @@ class CSSStyle:
         x1 = csss.get_numeric_attval("x1")
         return font_size, y0, y1
 
+    @classmethod
+    def extract_bold_italic_from_font_family_for_styles(cls, styles):
+        """
+        :styles: list of CSSStyle objects to normalize
+
+        """
+        extracted = []
+        for style in styles:
+            extracted.append(cls.extract_bold_italic_from_font_family_for_style(style))
+        return extracted
+
+    @classmethod
+    def extract_bold_italic_from_font_family_for_style(cls, style_s):
+        css_style = CSSStyle.create_css_style_from_css_string(str(style_s))
+        if css_style:
+            css_style.extract_bold_italic_from_font_family(
+                overwrite_family=True, overwrite_bold=True, overwrite_style=True)
+            print(f"new css style: {css_style}")
+        return css_style
+
 
 class CSSConverter:
     """
@@ -3708,6 +3787,8 @@ class FontProperty(Enum):
     def __str__(self):
         return self.value
 
+# strips prefix off font-names
+RE_PREF = re.compile("[A-Z]{6}\+(?P<name>[^\s]+)\s*")
 class AmiFont:
     """
     empirical normalization of fonts. Tries to convert all to the
@@ -3741,6 +3822,8 @@ class AmiFont:
 
     style_regex = re.compile("(.*)(Italic|Ita|Oblique)(.*)")
 
+#    class AmiFont:
+
     def __init__(self):
         self.name = None
         self.family = None
@@ -3749,6 +3832,8 @@ class AmiFont:
         self.stretched = FontProperty.NORMAL
         self.font = FontProperty.SANS
 
+    #    class AmiFont:
+
     def __str__(self):
         s = self.name +"/" + str(self.family) + "/" + str(self.weight) + "/" + str(self.style) + "/" + str(self.stretched)
         return s
@@ -3756,7 +3841,8 @@ class AmiFont:
     @classmethod
     def extract_name_weight_style_stretched_as_font(cls, name):
         font = AmiFont()
-        font.name = name
+
+        font.name = AmiFont.trim_pdf_prefix(name)
 
         name, match = cls.match_font_property(name, AmiFont.cond_regex)
         if match:
@@ -3782,6 +3868,8 @@ class AmiFont:
 
         font.family = name
         return font
+
+    #    class AmiFont:
 
     """
     Bold Fonts: 1. Arial
@@ -3812,6 +3900,8 @@ class AmiFont:
     Zurich 
     """
 
+    #    class AmiFont:
+
     @classmethod
     def match_font_property(cls, name, regex):
         match = regex.match(name)
@@ -3822,6 +3912,8 @@ class AmiFont:
     @classmethod
     def convert_common_fonts(cls):
         pass
+
+    #    class AmiFont:
 
     @classmethod
     def create_font_edited_style_from_css_style_object(cls, css_style):
@@ -3847,6 +3939,8 @@ class AmiFont:
             new_css_style_obj.set_attribute(FONT_STRETCHED, ami_font.stretched)
         return symbol_ref, new_css_style_obj
 
+    #    class AmiFont:
+
     @property
     def is_bold(self):
         return FontProperty.BOLD == self.weight
@@ -3854,6 +3948,16 @@ class AmiFont:
     @property
     def is_italic(self):
         return FontProperty.ITALIC == self.style
+
+    @classmethod
+    def trim_pdf_prefix(cls, name):
+        """removes the ABCDEF+ prefix from font-name
+        This prefix serves no useful purpose for text analysis and is discarded"""
+        if name:
+            match = RE_PREF.match(name)
+            if match:
+                name = match.group("name")
+        return name
 
 
 class SectionHierarchy:

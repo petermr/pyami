@@ -24,7 +24,14 @@ IPBES_DIR = Path(SEMANTIC_CLIMATE_DIR, "ipbes")
 AR6_DIR = Path(SEMANTIC_CLIMATE_DIR, "ipcc", "ar6")
 
 
-def get_ipcc_regexes(front_back):
+def get_ipcc_regexes(front_back="Table of Contents|Frequently Asked Questions|Executive Summary|References"):
+    """
+    :param front_back: common section headings (not numbered)
+    :return: (section_regex_dict, section_regexes) to manage regexes (largely for IPCC).
+
+    The dict is more powerful but doesn't work properly yet
+
+    """
     section_regexes = [
         # C: Adaptation...
         ("section",
@@ -115,7 +122,9 @@ INPUT_PDFS = [
     # Path(IPBES_DIR, "ipbes_global_assessment_report_summary_for_policymakers.pdf"), # something wrong with IPBES
     # Path(IPBES_DIR, "2020 IPBES GLOBAL REPORT (CHAPTER 1)_V5_SINGLE.pdf"),
     # # Path(MISC_DIR, "2502872.pdf"),
-    Path(AR6_DIR, "syr", "lr", "fulltext.pdf"),
+    Path(AR6_DIR, "misc", "AR6_FS_review_process.pdf"),
+    Path(AR6_DIR, "misc", "2018-03-Preface-3.pdf"),
+    # Path(AR6_DIR, "syr", "lr", "fulltext.pdf"),
     # Path(AR6_DIR, "syr", "spm", "fulltext.pdf"),
     #
     # Path(AR6_DIR, "wg1", "spm", "fulltext.pdf"),
@@ -155,7 +164,7 @@ class AmiIntegrateTest(AmiAnyTest):
         use_svg = True  # output surves as svg?
         pages = "pages/"  # maybe "" in some dirs
         front_back = "Table of Contents|Frequently Asked Questions|Executive Summary|References"
-        section_regex_dict, section_regexes = get_ipcc_regexes(front_back)
+        section_regex_dict, section_regexes = get_ipcc_regexes(front_back=front_back)
         old_style = False or True
 
         input_pdfs = []
@@ -165,7 +174,7 @@ class AmiIntegrateTest(AmiAnyTest):
 
         if old_style:
             for input_pdf in input_pdfs:
-                HtmlGenerator.run_section_regexes(group_stem, input_pdf, section_regexes, total_pages, use_svg)
+                HtmlGenerator.run_section_regexes(input_pdf, section_regexes)
         else:
             for input_pdf in input_pdfs:
                 filename = str(input_pdf)
@@ -181,9 +190,21 @@ class AmiIntegrateTest(AmiAnyTest):
                             ('sub_section', rx.get("sub_section")),
                             ('sub_sub_section', rx.get("sub_sub_section"))
                         ]
-                        HtmlGenerator.run_section_regexes(group_stem, input_pdf, section_regexes_new, total_pages,
-                                                          use_svg)
+                        HtmlGenerator.run_section_regexes(input_pdf, section_regexes_new)
                     # raise e
+
+    def test_small_pdf_with_styles_KEY(self):
+
+        input_pdfs = [
+            Path(AR6_DIR, "misc", "AR6_FS_review_process.pdf"),
+            Path(AR6_DIR, "misc", "2018-03-Preface-3.pdf"),
+        ]
+        front_back = ""
+        section_regex_dict, section_regexes = get_ipcc_regexes(front_back)
+
+        use_svg = True
+        for input_pdf in input_pdfs:
+            HtmlGenerator.run_section_regexes(input_pdf, section_regexes, group_stem="styles")
 
     def test_github_hyperlinks(self):
         """tests that Github links can retrieve and display content"""
