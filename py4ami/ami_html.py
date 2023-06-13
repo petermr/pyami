@@ -1704,7 +1704,7 @@ class HtmlUtil:
             css_style = CSSStyle.create_css_style_from_attribute_of_body_element(styled_elem)
             css_style.remove(names)
             css_style.apply_to(styled_elem)
-            style = HtmlStyle.get_style(styled_elem)
+            style = HtmlStyle.get_cssstyle_string(styled_elem)
 
     @classmethod
     def extract_substrings(cls, elem, xpath=None, regex=None, remove=False, include_none=False, add_id=False):
@@ -2066,7 +2066,7 @@ class HtmlStyle:
     """
 
     @classmethod
-    def get_style(cls, elem):
+    def get_cssstyle_string(cls, elem):
         """
         convenience method to get element style
         :param elem: to get style from
@@ -2121,15 +2121,18 @@ class HtmlStyle:
         adds
         """
         head = html_elem.xpath("/html/head")[0]
-        elem_style = HtmlStyle.get_style(styled_elem)
+        elem_style = HtmlStyle.get_cssstyle_string(styled_elem)
         if elem_style is None or elem_style == "":
             return
         css = CSSStyle.create_css_style_from_css_string(elem_style)
+        if css is None:
+            raise ValueError(f"css is None")
 
         extracted_style_elem, remaining_style, new_class = css.extract_text_styles_into_class(classref)
-        HtmlStyle.set_style(styled_elem, remaining_style)
-        HtmlClass.set_class_on_element(styled_elem, classref, replace=False)
-        head.append(extracted_style_elem)
+        if extracted_style_elem is not None:
+            HtmlStyle.set_style(styled_elem, remaining_style)
+            HtmlClass.set_class_on_element(styled_elem, classref, replace=False)
+            head.append(extracted_style_elem)
 
     # class HtmlStyle
 
@@ -2169,11 +2172,7 @@ class HtmlStyle:
         # we use one classref - style per HTML style
         for style in head_styles:
             # consists of classref snd style_string
-            style_s = style.text.strip()
-            classref = style_s.split()[0]
-
-            style_value = style_s[len(classref):].strip()
-            print(f"style_value {style_value}")
+            classref, style_s, style_value = cls.extract_classref_and_cssstring(style)
             if italic_bold:
                 css_style = CSSStyle.create_css_style_from_css_string(style_s)
                 if css_style:
@@ -2182,6 +2181,20 @@ class HtmlStyle:
             style.attrib[CLASSREF] = classref
             style_to_classref_set[style_value].add(classref)
         return style_to_classref_set
+
+    @classmethod
+    def extract_classref_and_cssstring_from_style_text(cls, html_style_string):
+        """parses text in html <style> into classref and cssstring
+        only one style per html element
+        :param html_style_string: of form <selector> {<value>}
+        :return selector , value
+        """
+
+        style_re = re.compile("\s*(?P<classref>[^\s]*)\s+{\s*(?P<cssstring>.*)}\s*")
+        match = style_re.match(html_style_string)
+        if not match:
+            return None, None
+        return match.group("classref"), match.group("cssstring")
 
     # class HtmlStyle
 
@@ -3525,10 +3538,20 @@ class CSSStyle:
         :return: 3-tuple of (extracted_style_element, retained_style_string, new classs_string)
         """
         extracted_style, retained_style = self.extract_text_styles()
-        extracted_style = CSSStyle.extract_bold_italic_from_font_family_for_style(extracted_style)
-        print(f"extracted style {extracted_style}")
-        extracted_html_style_element = extracted_style.create_html_style_element(class_name)
-        retained_style_attval = retained_style.get_css_value()
+
+        if not extracted_style:
+            raise ValueError("extracted style is None")
+        extracted_style1 = CSSStyle.extract_bold_italic_from_font_family_for_style(extracted_style) if extracted_style else None
+        # print(f"extracted style {extracted_style1}")
+        # print(f"extracting class {class_name}")
+        extracted_html_style_element = extracted_style1.create_html_style_element(class_name) if extracted_style1 is not None else None
+        # except Exception as e:
+        #     print(f"error {e} in extract_text_styles_into_class() {e.__traceback__}")
+        #     for i in range(10):
+        #         print(f"clear buffer? {i} ======================")
+        #     raise e
+
+        retained_style_attval = retained_style.get_css_value() if retained_style else None
         html_class_val = CSSStyle.create_html_class_val(class_name, old_class_val=old_classstr)
         return extracted_html_style_element, retained_style_attval, html_class_val
 
@@ -3728,11 +3751,13 @@ class CSSStyle:
 
     @classmethod
     def extract_bold_italic_from_font_family_for_style(cls, style_s):
+        if not style_s:
+            raise ValueError("style_s is None")
         css_style = CSSStyle.create_css_style_from_css_string(str(style_s))
         if css_style:
             css_style.extract_bold_italic_from_font_family(
                 overwrite_family=True, overwrite_bold=True, overwrite_style=True)
-            print(f"new css style: {css_style}")
+            # print(f"new css style: {css_style}")
         return css_style
 
 
@@ -3839,35 +3864,49 @@ class AmiFont:
         return s
 
     @classmethod
-    def extract_name_weight_style_stretched_as_font(cls, name):
+    def extract_name_weight_style_stretched_as_font(cls, name0):
+
         font = AmiFont()
+        name = AmiFont.trim_pdf_prefix(name0)
 
-        font.name = AmiFont.trim_pdf_prefix(name)
-
-        name, match = cls.match_font_property(name, AmiFont.cond_regex)
-        if match:
-            font.stretched = FontProperty.NARROW
-
-        name, match = cls.match_font_property(name, AmiFont.wide_regex)
-        if match:
-            font.stretched = FontProperty.WIDE
-
-        name, match = cls.match_font_property(name, AmiFont.light_regex)
-        if match:
-            font.weight = FontProperty.LIGHT
-
-        name, match = cls.match_font_property(name, AmiFont.bold_regex)
-        if match:
-            font.weight = FontProperty.BOLD
-
-        name, match = cls.match_font_property(name, AmiFont.style_regex)
-        if match:
-            font.style = FontProperty.ITALIC
+        while True:
+            name, match = cls.extract_enumerated_styles(font, name)
+            if not match:
+                break
 
         name = name.replace("-","")
 
         font.family = name
         return font
+
+    @classmethod
+    def extract_enumerated_styles(cls, font, name):
+        if "Ita" in name:
+            print(f"name {name}")
+
+        name, match = cls.match_font_property(name, AmiFont.cond_regex)
+        if match:
+            font.stretched = FontProperty.NARROW
+            return name, match
+        name, match = cls.match_font_property(name, AmiFont.wide_regex)
+        if match:
+            font.stretched = FontProperty.WIDE
+            return name, match
+        name, match = cls.match_font_property(name, AmiFont.light_regex)
+        if match:
+            font.weight = FontProperty.LIGHT
+            return name, match
+        name, match = cls.match_font_property(name, AmiFont.bold_regex)
+        if match:
+            font.weight = FontProperty.BOLD
+            return name, match
+
+        name, match = cls.match_font_property(name, AmiFont.style_regex)
+        if match:
+            font.style = FontProperty.ITALIC
+            return name, match
+
+        return name, None
 
     #    class AmiFont:
 

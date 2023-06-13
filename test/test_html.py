@@ -1727,6 +1727,52 @@ class TestCSSStyle(AmiAnyTest):
         except KeyError as e:
             assert str(e) == "'bad style font-size:8 px border: solid 1 px in CSS: font-size:8 px border: solid 1 px;'"
 
+    def test_extract_styles_from_font_names(self):
+        """empirically uses fontnames to create styles for weight, styles, stretch, colour
+        """
+        test_head = """<html><head>
+<style>
+        div {border: red solid 1px; margin: 1px;}
+        span {background: #eeeeee; margin: 1px;}
+        div.float {background: #ddffff;}
+                     </style>
+
+<style classref="div">div {border : red solid 0.5px}</style>
+<style classref="span">span {border : blue dotted 0.5px}</style>
+<style classref=".s0">.s0 {font-family: FrutigerLTProCn; font-size: 28.0; font-weight: Bold;}</style>
+<style classref=".s10">.s10 {font-family: FrutigerLTPro-LightCn; font-size: 8.0;}</style>
+<style classref=".s11">.s11 {font-family: FrutigerLTPro-LightCnIta; font-size: 8.0;}</style>
+<style classref=".s16">.s16 {font-family: FrutigerLTPro-Condensed; font-size: 10.0;}</style>
+<style classref=".s369">.s369 {font-family: Calibri; font-size: 9.5;}</style>
+<style classref=".s666">.s666 {font-family: SymbolMT; font-size: 9.5;}</style>
+<style classref=".s1000">.s1000 {font-family: FrutigerLTPro-Condensed; font-size: 9.5;}</style>
+<style classref=".s1020">.s1020 {font-family: FrutigerLTPro-BlackCn; font-size: 9.5;}</style>
+<style classref=".s1184">.s1184 {font-family: FrutigerLTPro-CondensedIta; font-size: 5.54;}</style>
+<style classref=".s2726">.s2726 {font-family: Calibri-Italic; font-size: 9.5; font-style: italic;}</style>
+<style classref=".s5690">.s5690 {font-family: FrutigerLTPro-Condensed; font-size: 8.5;}</style>
+<style classref=".s5778">.s5778 {font-family: MyriadPro-Regular; font-size: 8.59;}</style></head></html>"""
+
+        html_elem = lxml.etree.fromstring(test_head)
+        styles = html_elem.xpath("/html/head/style")
+        assert len(styles) == 15
+        style = html_elem.xpath("/html/head/style[contains(., 'FrutigerLTProCn;')]")[0]
+        classref,cssstring = HtmlStyle.extract_classref_and_cssstring_from_style_text(style.text)
+        print(f"classref: {classref} cssstring: {cssstring}")
+
+        assert classref, cssstring == (".s0", "font-family: FrutigerLTProCn; font-size: 28.0; font-weight: Bold")
+
+
+    def test_tinycss(self):
+        import tinycss
+        parser = tinycss.make_parser('page3')
+        stylesheet = parser.parse_stylesheet_bytes(b'''@import "foo.css";
+        ...     p.error { color: red }  @lorem-ipsum;
+        ...     @page tables { size: landscape }''')
+        print(f"stylesheet {stylesheet.__dir__()}")
+        print(f"stylesheet.rules {stylesheet.rules}")
+        for rule in stylesheet.rules:
+            print(f"rule {rule}: {rule.__dir__}")
+
 
 class TestHtmlClass(AmiAnyTest):
     """

@@ -122,8 +122,8 @@ INPUT_PDFS = [
     # Path(IPBES_DIR, "ipbes_global_assessment_report_summary_for_policymakers.pdf"), # something wrong with IPBES
     # Path(IPBES_DIR, "2020 IPBES GLOBAL REPORT (CHAPTER 1)_V5_SINGLE.pdf"),
     # # Path(MISC_DIR, "2502872.pdf"),
-    Path(AR6_DIR, "misc", "AR6_FS_review_process.pdf"),
-    Path(AR6_DIR, "misc", "2018-03-Preface-3.pdf"),
+    # Path(AR6_DIR, "misc", "AR6_FS_review_process.pdf"),
+    # Path(AR6_DIR, "misc", "2018-03-Preface-3.pdf"),
     # Path(AR6_DIR, "syr", "lr", "fulltext.pdf"),
     # Path(AR6_DIR, "syr", "spm", "fulltext.pdf"),
     #
@@ -131,8 +131,9 @@ INPUT_PDFS = [
     # Path(AR6_DIR, "wg1", "ts", "fulltext.pdf"),
     # Path(AR6_DIR, "wg1", "faqs", "faqs.pdf"),
     # Path(AR6_DIR, "wg1", "chapters/*.pdf" ),
-    # Path(AR6_DIR, "wg1", "annexes/*.pdf"),
-    #
+    # Path(AR6_DIR, "wg1", "annexes/*.pdf"), # repeat
+    Path(AR6_DIR, "wg1", "annexes", "glossary.pdf")
+
     # Path(AR6_DIR, "wg2", "spm", "fulltext.pdf"),
     # Path(AR6_DIR, "wg2", "ts", "fulltext.pdf"),
     # Path(AR6_DIR, "wg2", "chapters/*.pdf"),
