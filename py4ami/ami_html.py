@@ -69,6 +69,8 @@ FONT_SIZE = "font-size"
 FONT_STYLE = "font-style"
 FONT_WEIGHT = "font-weight"
 FONT_FAMILY = "font-family"
+FONT_FONT = "font"
+FONT_NAME = "font-name"
 FONT_STRETCHED = "font-stretched"
 FILL = "fill"
 STROKE = "stroke"
@@ -2059,10 +2061,11 @@ class AnnotatorCommand:
 
 
 
+STYLE_CURLY_RE = re.compile("(?P<pre>.*){(?P<value>[^}]*)}(?P<post>.*)")
 class HtmlStyle:
     """
     methods to process style attributes and <style> elements
-    MOVE TO HTML (doesn't just belone in PDF
+    no instance data
     """
 
     @classmethod
@@ -2159,7 +2162,7 @@ class HtmlStyle:
     # class HtmlStyle
 
     @classmethod
-    def normalize_head_styles(cls, elem, italic_bold=True):
+    def normalize_head_styles(cls, elem, italic_bold=True, outdir=None):
         """
         creates multidict fot head styles
         :param elem: document to analyse
@@ -2170,16 +2173,22 @@ class HtmlStyle:
         style_to_classref_set = defaultdict(set)
         head_styles = elem.xpath("/html/head/style")
         # we use one classref - style per HTML style
-        for style in head_styles:
+        for html_style in head_styles:
             # consists of classref snd style_string
-            classref, style_s, style_value = cls.extract_classref_and_cssstring(style)
+            classref, style_s = cls.extract_classref_and_cssstring_from_html_style(html_style)
+            style_value = style_s
             if italic_bold:
-                css_style = CSSStyle.create_css_style_from_css_string(style_s)
-                if css_style:
+                new_css_s = AmiFont.create_font_edited_style_from_css_style_object(style_s)
+                css_style = CSSStyle.create_css_style_from_css_string(new_css_s)
+                if css_style is not None:
                     css_style.extract_bold_italic_from_font_family()
                     style_value = css_style.get_css_value(wrap_with_curly=True)
-            style.attrib[CLASSREF] = classref
+                    HtmlStyle.replace_curly(html_style, style_value)
+            html_style.attrib[CLASSREF] = classref
             style_to_classref_set[style_value].add(classref)
+        print(f"html head: {lxml.etree.tostring(elem.xpath('/html/head')[0])}")
+        if outdir:
+            HtmlLib.write_html_file(elem, Path(outdir, "normalized.html"))
         return style_to_classref_set
 
     @classmethod
@@ -2215,7 +2224,7 @@ class HtmlStyle:
         cls.extract_all_style_attributes_to_head(html_elem)
         if outdir:
             HtmlLib.write_html_file(html_elem, Path(outdir, "styles1.html"), debug=True)
-        style_to_classref_set = cls.normalize_head_styles(html_elem)
+        style_to_classref_set = cls.normalize_head_styles(html_elem, outdir=outdir)
         classref_index = cls.create_classref_index(style_to_classref_set)
         deletable_classrefs = cls.get_redundant_classrefs(classref_index)
         cls.delete_redundant_styles(deletable_classrefs, html_elem)
@@ -2288,7 +2297,7 @@ class HtmlStyle:
     # class HtmlStyle
 
     @classmethod
-    def add_head_styles(cls, html_elem, styles):
+    def add_head_styles(cls, html_elem, styles, normalize_font=True):
         """
         this is crude
         'style of form
@@ -2298,6 +2307,9 @@ class HtmlStyle:
             # print(f"style {style}")
             HtmlLib.add_head_style(html_elem, style[0], style[1])
 
+# TODO
+# create_font_edited_style_from_css_style_object
+
     @classmethod
     def transfer_head_styles(cls, html_elem, new_html):
         """copies html/head/"""
@@ -2305,6 +2317,34 @@ class HtmlStyle:
         styles = html_elem.xpath("/html/head/style")
         for style in styles:
             new_style_elem.getparent().append(copy.deepcopy(style))
+
+    @classmethod
+    def extract_classref_and_cssstring_from_html_style(cls, html_style_elem):
+        if html_style_elem is None:
+            return None, None
+        return cls.extract_classref_and_cssstring_from_style_text(html_style_elem.text)
+
+    @classmethod
+    def create_classref_cssstring_table(cls, html_styles):
+        table = []
+        for html_style in html_styles:
+            table.append(HtmlStyle.extract_classref_and_cssstring_from_html_style(html_style))
+        return table
+
+    @classmethod
+    def replace_curly(cls, elem, new_curly):
+        """
+        replace contents of {...}
+        :param elem: html <style> element
+        :param elem: new content
+        """
+
+        if elem is not None:
+            match = STYLE_CURLY_RE.match(elem.text)
+            if match:
+                new_text = match.group("pre") + new_curly + match.group("post")
+                print(f"new text: {new_text}")
+                elem.text = new_text
 
 
 class HtmlClass:
@@ -3061,7 +3101,8 @@ class CSSStyle:
     """
     common subset of CSS styles/commands
     """
-    BOLD = "Bold"
+    # all are lowercase
+    BOLD = "bold"
     BORDER = "border"
     BOTTOM = "bottom"
     COLOR = "color"
@@ -3076,6 +3117,7 @@ class CSSStyle:
     HEIGHT = "height"
     ITALIC = "italic"
     LEFT = "left"
+    LIGHT = "light"
     NORMAL = "normal"
     OPACITY = "opacity"
     POSITION = "position"
@@ -3098,6 +3140,9 @@ class CSSStyle:
             s += f"{k}:{v}; "
         s = s.strip()
         return s
+
+    def __repr__(self):
+        return f"{self.name_value_dict}"
 
 #    class CSSStyle:
 
@@ -3125,6 +3170,8 @@ class CSSStyle:
         re_str = "(?P<pre>.*){(?P<curly>.*)}(?P<post>.*)"
         curly_re = re.compile(re_str)
         name_value_dict = dict()
+        if type(style_str) is CSSStyle:
+            style_str = style_str.get_css_value(style_str)
         if style_str:
             if remove_curly:
                 match = curly_re.match(style_str)
@@ -3188,11 +3235,14 @@ class CSSStyle:
             self.set_attribute(CSSStyle.FONT_FAMILY, family)
 
     def set_font_weight(self, weight):
+        weight = weight.lower()
         if weight:
-            if weight.lower() == CSSStyle.NORMAL.lower():
+            if weight == CSSStyle.NORMAL:
                 self.set_attribute(CSSStyle.FONT_WEIGHT, CSSStyle.NORMAL)
-            if weight.lower() == CSSStyle.BOLD.lower():
+            if weight == CSSStyle.BOLD:
                 self.set_attribute(CSSStyle.FONT_WEIGHT, CSSStyle.BOLD)
+            if weight == CSSStyle.LIGHT:
+                self.set_attribute(CSSStyle.FONT_WEIGHT, CSSStyle.LIGHT)
 
     def set_font_style(self, style):
         if style:
@@ -3445,6 +3495,8 @@ class CSSStyle:
             self.set_font_weight(weight)
         if style and overwrite_style:
             self.set_font_style(style)
+        # if style and overwrite_stretched:
+        #     self.set_font_stretched(style)
         # print(f"new style {self}")
 
 
@@ -3796,21 +3848,24 @@ class FontProperty(Enum):
     #
     NORMAL = ""
 
-    NARROW = "Narrow"
-    WIDE = "Wide"
+    NARROW = "narrow"
+    WIDE = "wide"
 
-    LIGHT = "Light"
-    BOLD = "Bold"
+    LIGHT = "light"
+    BOLD = "bold"
 
-    ITALIC = "Italic"
+    ITALIC = "italic"
 
-    SANS = "Sans"
-    SERIF = "Serif"
-    SYMBOL = "Symbol"
-    MONOSPACE = "Monospace"
+    SANS = "sans"
+    SERIF = "serif"
+    SYMBOL = "symbol"
+    MONOSPACE = "sonospace"
 
     def __str__(self):
-        return self.value
+        return str(self.value)
+
+    def __repr__(self):
+        return str(self.value)
 
 # strips prefix off font-names
 RE_PREF = re.compile("[A-Z]{6}\+(?P<name>[^\s]+)\s*")
@@ -3852,15 +3907,15 @@ class AmiFont:
     def __init__(self):
         self.name = None
         self.family = None
-        self.weight = FontProperty.NORMAL
-        self.style = FontProperty.NORMAL
-        self.stretched = FontProperty.NORMAL
-        self.font = FontProperty.SANS
+        self.weight = str(FontProperty.NORMAL)
+        self.style = str(FontProperty.NORMAL)
+        self.stretched = str(FontProperty.NORMAL)
+        self.font = str(FontProperty.SANS)
 
     #    class AmiFont:
 
     def __str__(self):
-        s = self.name +"/" + str(self.family) + "/" + str(self.weight) + "/" + str(self.style) + "/" + str(self.stretched)
+        s = f"name:{self.name};family:{self.family};weight:{self.weight};style:{self.style};stretched:{self.stretched};font:{self.font}"
         return s
 
     @classmethod
@@ -3877,6 +3932,7 @@ class AmiFont:
         name = name.replace("-","")
 
         font.family = name
+        font.name = name0
         return font
 
     @classmethod
@@ -3955,38 +4011,65 @@ class AmiFont:
     #    class AmiFont:
 
     @classmethod
+    def create_font_edited_style_from_head_style(cls, style_elem):
+        """
+        empirically create standard fonts and attributes from font names
+        :param css_style: CSSStyle Object or HTML head/style with unknown font-family
+        :return: tuple (symbol_ref, new css_style object with standard font and maybe new weight or style)
+        """
+        if not stype(style_elem) is _Element:
+            return None, None
+        symbol_ref, css_style = CSSStyle.create_css_style_from_html_head_style_elem(css_style)
+        create_font_edited_style_from_css_style_object
+        if css_style is not None:
+            font_family = css_style.font_family
+            ami_font = AmiFont.extract_name_weight_style_stretched_as_font(font_family)
+            new_css_style = CSSStyle()
+            for item in css_style.name_value_dict:
+                new_css_style.name_value_dict[item[0]] = item[1]
+            new_css_style.set_attribute(FONT_FAMILY, ami_font.family)
+            new_css_style.set_attribute(FONT_WEIGHT, ami_font.weight)
+            new_css_style.set_attribute(FONT_STYLE, ami_font.style)
+            new_css_style.set_attribute(FONT_STRETCHED, ami_font.stretched)
+        print(f"new css {new_css_style}")
+        return symbol_ref, new_css_style
+
+    @classmethod
     def create_font_edited_style_from_css_style_object(cls, css_style):
         """
         empirically create standard fonts and attributes from font names
         :param css_style: CSSStyle Object or HTML head/style with unknown font-family
         :return: tuple (symbol_ref, new css_style object with standard font and maybe new weight or style)
         """
-
-        new_css_style_obj = None
-        symbol_ref = None
-        if type(css_style) is CSSStyle:
-            css_style_obj = css_style
-        elif type(css_style) is _Element:
-            symbol_ref, css_style_obj = CSSStyle.create_css_style_from_html_head_style_elem(css_style)
-        if css_style_obj is not None:
-            font_family = css_style_obj.font_family
-            ami_font = AmiFont.extract_name_weight_style_stretched_as_font(font_family)
-            new_css_style_obj = copy.deepcopy(css_style_obj)
-            new_css_style_obj.set_attribute(FONT_FAMILY, ami_font.family)
-            new_css_style_obj.set_attribute(FONT_WEIGHT, ami_font.weight)
-            new_css_style_obj.set_attribute(FONT_STYLE, ami_font.style)
-            new_css_style_obj.set_attribute(FONT_STRETCHED, ami_font.stretched)
-        return symbol_ref, new_css_style_obj
+        if css_style is None:
+            return None
+        if type(css_style) is str:
+            css_style = CSSStyle.create_css_style_from_css_string(css_style)
+        if css_style is None:
+            return None
+        if not css_style.font_family:
+            return css_style
+        ami_font = AmiFont.extract_name_weight_style_stretched_as_font(css_style.font_family)
+        new_css_style = CSSStyle()
+        for item in css_style.name_value_dict.items():
+            new_css_style.name_value_dict[item[0]] = item[1]
+        new_css_style.set_attribute(FONT_NAME, str(ami_font.name))
+        new_css_style.set_attribute(FONT_FONT, str(ami_font.font))
+        new_css_style.set_attribute(FONT_FAMILY, str(ami_font.family))
+        new_css_style.set_attribute(FONT_WEIGHT, str(ami_font.weight).lower())
+        new_css_style.set_attribute(FONT_STYLE, str(ami_font.style).lower())
+        new_css_style.set_attribute(FONT_STRETCHED, str(ami_font.stretched).lower())
+        return new_css_style
 
     #    class AmiFont:
 
     @property
     def is_bold(self):
-        return FontProperty.BOLD == self.weight
+        return str(FontProperty.BOLD) == self.weight
 
     @property
     def is_italic(self):
-        return FontProperty.ITALIC == self.style
+        return str(FontProperty.ITALIC) == self.style
 
     @classmethod
     def trim_pdf_prefix(cls, name):

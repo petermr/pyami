@@ -1480,6 +1480,28 @@ class TestHtmlTidy(AmiAnyTest):
         path = Path(AmiAnyTest.TEMP_DIR, "html", "tidy_mini.html")
         XmlLib.write_xml(html_tidy_elem, path)
 
+TEST_HEAD = """<html><head>
+<style>
+        div {border: red solid 1px; margin: 1px;}
+        span {background: #eeeeee; margin: 1px;}
+        div.float {background: #ddffff;}
+                     </style>
+
+<style classref="div">div {border : red solid 0.5px}</style>
+<style classref="span">span {border : blue dotted 0.5px}</style>
+<style classref=".s0">.s0 {font-family: FrutigerLTProCn; font-size: 28.0; font-weight: Bold;}</style>
+<style classref=".s10">.s10 {font-family: FrutigerLTPro-LightCn; font-size: 8.0;}</style>
+<style classref=".s11">.s11 {font-family: FrutigerLTPro-LightCnIta; font-size: 8.0;}</style>
+<style classref=".s16">.s16 {font-family: FrutigerLTPro-Condensed; font-size: 10.0;}</style>
+<style classref=".s369">.s369 {font-family: Calibri; font-size: 9.5;}</style>
+<style classref=".s666">.s666 {font-family: SymbolMT; font-size: 9.5;}</style>
+<style classref=".s1000">.s1000 {font-family: FrutigerLTPro-Condensed; font-size: 9.5;}</style>
+<style classref=".s1020">.s1020 {font-family: FrutigerLTPro-BlackCn; font-size: 9.5;}</style>
+<style classref=".s1184">.s1184 {font-family: FrutigerLTPro-CondensedIta; font-size: 5.54;}</style>
+<style classref=".s2726">.s2726 {font-family: Calibri-Italic; font-size: 9.5; font-style: italic;}</style>
+<style classref=".s5690">.s5690 {font-family: FrutigerLTPro-Condensed; font-size: 8.5;}</style>
+<style classref=".s5778">.s5778 {font-family: MyriadPro-Regular; font-size: 8.59;}</style></head></html>"""
+
 
 class TestCSSStyle(AmiAnyTest):
 
@@ -1727,7 +1749,7 @@ class TestCSSStyle(AmiAnyTest):
         except KeyError as e:
             assert str(e) == "'bad style font-size:8 px border: solid 1 px in CSS: font-size:8 px border: solid 1 px;'"
 
-    def test_extract_styles_from_font_names(self):
+    def test_extract_styles_from_html_style(self):
         """empirically uses fontnames to create styles for weight, styles, stretch, colour
         """
         test_head = """<html><head>
@@ -1752,15 +1774,85 @@ class TestCSSStyle(AmiAnyTest):
 <style classref=".s5690">.s5690 {font-family: FrutigerLTPro-Condensed; font-size: 8.5;}</style>
 <style classref=".s5778">.s5778 {font-family: MyriadPro-Regular; font-size: 8.59;}</style></head></html>"""
 
-        html_elem = lxml.etree.fromstring(test_head)
-        styles = html_elem.xpath("/html/head/style")
-        assert len(styles) == 15
-        style = html_elem.xpath("/html/head/style[contains(., 'FrutigerLTProCn;')]")[0]
-        classref,cssstring = HtmlStyle.extract_classref_and_cssstring_from_style_text(style.text)
-        print(f"classref: {classref} cssstring: {cssstring}")
+        html_elem = lxml.etree.fromstring(TEST_HEAD)
+        html_styles = html_elem.xpath("/html/head/style")
+        assert len(html_styles) == 15
+        style_elem = html_elem.xpath("/html/head/style[contains(., 'FrutigerLTProCn;')]")[0]
+        classref,cssstring = HtmlStyle.extract_classref_and_cssstring_from_style_text(style_elem.text)
+        assert classref == ".s0"
+        assert cssstring == "font-family: FrutigerLTProCn; font-size: 28.0; font-weight: Bold;"
+        classref,cssstring = HtmlStyle.extract_classref_and_cssstring_from_html_style(style_elem)
+        assert classref == ".s0"
+        assert cssstring == "font-family: FrutigerLTProCn; font-size: 28.0; font-weight: Bold;"
 
-        assert classref, cssstring == (".s0", "font-family: FrutigerLTProCn; font-size: 28.0; font-weight: Bold")
+        table = HtmlStyle.create_classref_cssstring_table(html_styles)
+        assert table == [('div', 'border: red solid 1px; margin: 1px;'),
+ ('div', 'border : red solid 0.5px'),
+ ('span', 'border : blue dotted 0.5px'),
+ ('.s0', 'font-family: FrutigerLTProCn; font-size: 28.0; font-weight: Bold;'),
+ ('.s10', 'font-family: FrutigerLTPro-LightCn; font-size: 8.0;'),
+ ('.s11', 'font-family: FrutigerLTPro-LightCnIta; font-size: 8.0;'),
+ ('.s16', 'font-family: FrutigerLTPro-Condensed; font-size: 10.0;'),
+ ('.s369', 'font-family: Calibri; font-size: 9.5;'),
+ ('.s666', 'font-family: SymbolMT; font-size: 9.5;'),
+ ('.s1000', 'font-family: FrutigerLTPro-Condensed; font-size: 9.5;'),
+ ('.s1020', 'font-family: FrutigerLTPro-BlackCn; font-size: 9.5;'),
+ ('.s1184', 'font-family: FrutigerLTPro-CondensedIta; font-size: 5.54;'),
+ ('.s2726', 'font-family: Calibri-Italic; font-size: 9.5; font-style: italic;'),
+ ('.s5690', 'font-family: FrutigerLTPro-Condensed; font-size: 8.5;'),
+ ('.s5778', 'font-family: MyriadPro-Regular; font-size: 8.59;')]
 
+    def test_extract_styles_from_font_name(self):
+        """extracts weight/style from name"""
+        cssstring = 'font-family: Helvetica; font-size: 8.0; x0: 23.4;'
+        cssstyle = AmiFont.create_font_edited_style_from_css_style_object(cssstring)
+        assert cssstyle.name_value_dict == {'font-family': 'Helvetica', 'font-name': 'None', 'font-size': '8.0', 'x0': '23.4', 'font': 'sans'}
+
+        cssstring = 'font-family: HelveticaBold; font-size: 8.0; x0: 23.4;'
+        cssstyle = AmiFont.create_font_edited_style_from_css_style_object(cssstring)
+        assert cssstyle.name_value_dict == {'font-family': 'Helvetica', 'font-name': 'None', 'font-size': '8.0', 'x0': '23.4', 'font': 'sans', 'font-weight': 'bold'}
+
+        cssstring = 'font-family: HelveticaItalic; font-size: 8.0; x0: 23.4;'
+        cssstyle = AmiFont.create_font_edited_style_from_css_style_object(cssstring)
+        assert cssstyle.name_value_dict == {'font-family': 'Helvetica', 'font-name': 'None', 'font-size': '8.0', 'x0': '23.4', 'font': 'sans', 'font-style': 'italic'}
+
+        cssstring = 'font-family: HelveticaBoldItalic; font-size: 8.0; x0: 23.4;'
+        cssstyle = AmiFont.create_font_edited_style_from_css_style_object(cssstring)
+        assert cssstyle.name_value_dict == {'font-family': 'Helvetica', 'font-name': 'None', 'font-size': '8.0',
+                                            'x0': '23.4', 'font': 'sans', 'font-style': 'italic', 'font-weight': 'bold'}
+
+        # this isn't a real font but we can parse it
+        cssstring = 'font-family: HelveticaItalicBold; font-size: 8.0; x0: 23.4;'
+        cssstyle = AmiFont.create_font_edited_style_from_css_style_object(cssstring)
+        assert cssstyle.name_value_dict == {'font-family': 'Helvetica', 'font-name': 'None', 'font-size': '8.0',
+                                            'x0': '23.4', 'font': 'sans', 'font-style': 'italic', 'font-weight': 'bold'}
+
+        # this isn't a real font but we can parse it
+        cssstring = 'font-family: Foo-Bold; font-size: 8.0; x0: 23.4;'
+        cssstyle = AmiFont.create_font_edited_style_from_css_style_object(cssstring)
+        assert cssstyle.name_value_dict == {'font-family': 'Helvetica', 'font-name': 'None', 'font-size': '8.0',
+                                            'x0': '23.4', 'font': 'sans', 'font-style': 'italic', 'font-weight': 'bold'}
+
+    def test_extract_styles_from_font_names(self):
+        font_css_list = [
+            ["FrutigerLTProCn", {'font': 'sans', 'font-family': 'FrutigerLTPro', 'font-name': 'FrutigerLTProCn', 'font-stretched': 'narrow'}],
+            ["FrutigerLTPro-LightCn", {'font': 'sans', 'font-family': 'FrutigerLTPro', 'font-name': 'FrutigerLTPro-LightCn',
+                                       'font-stretched': 'narrow', 'font-weight': 'light'}],
+            ["FrutigerLTPro-LightCnIta", {'font': 'sans', 'font-family': 'FrutigerLTPro', 'font-name': 'FrutigerLTPro-LightCnIta',
+                                          'font-stretched': 'narrow','font-style': 'italic', 'font-weight': 'light'}],
+            ["FrutigerLTPro-Condensed", {'font': 'sans', 'font-family': 'FrutigerLTPro', 'font-name': 'FrutigerLTPro-Condensed',
+                                         'font-stretched': 'narrow'}],
+            ["Calibri", {'font': 'sans', 'font-family': 'Calibri', 'font-name': 'Calibri'}],
+            ["SymbolMT", {'font': 'sans', 'font-family': 'SymbolMT', 'font-name': 'SymbolMT'}],
+            ["FrutigerLTPro-BlackCn", {'font': 'sans', 'font-family': 'FrutigerLTPro', 'font-name': 'FrutigerLTPro-BlackCn',
+                                       'font-stretched': 'narrow', 'font-weight': 'bold'}],
+            ["Calibri-Italic", {'font': 'sans', 'font-family': 'Calibri', 'font-name': 'Calibri-Italic', 'font-style': 'italic'}],
+            ["MyriadPro-Regular", {'font': 'sans', 'font-family': 'MyriadProRegular', 'font-name': 'MyriadPro-Regular'}],
+        ]
+        for f in font_css_list:
+            assert len(f) == 2
+            cssstyle = AmiFont.create_font_edited_style_from_css_style_object(f"font-family: {f[0]}")
+            assert cssstyle.name_value_dict == f[1]
 
     def test_tinycss(self):
         import tinycss

@@ -7,6 +7,8 @@ import lxml
 import requests
 
 from py4ami.ami_integrate import HtmlGenerator
+from py4ami.ipcc import IPCCSections
+
 from test.resources import Resources
 from test.test_all import AmiAnyTest
 
@@ -22,93 +24,6 @@ MISC_DIR = Path(SEMANTIC_CLIMATE_DIR, "misc")
 SC_OPEN_DOC_DIR = Path(SEMANTIC_CLIMATE_DIR, "openDocuments")
 IPBES_DIR = Path(SEMANTIC_CLIMATE_DIR, "ipbes")
 AR6_DIR = Path(SEMANTIC_CLIMATE_DIR, "ipcc", "ar6")
-
-
-def get_ipcc_regexes(front_back="Table of Contents|Frequently Asked Questions|Executive Summary|References"):
-    """
-    :param front_back: common section headings (not numbered)
-    :return: (section_regex_dict, section_regexes) to manage regexes (largely for IPCC).
-
-    The dict is more powerful but doesn't work properly yet
-
-    """
-    section_regexes = [
-        # C: Adaptation...
-        ("section",
-         #                f"\s*(?P<id>Table of Contents|Frequently Asked Questions|Executive Summary|References|(?:(?:[A-G]|\d+)[\.:]\d+\s+[A-Z]).*"),
-         fr"\s*(?P<id>Table of Contents|Frequently Asked Questions|Executive Summary|References"
-         fr"|(?:[A-Z]|\d+)[.:]\d*)\s+[A-Z].*"),
-        # 7.1 Introduction
-        ("sub_section",
-         fr"(?P<id>FAQ \d+\.\d+"
-         fr"|(?:\d+\.\d+"
-         fr"|[A-Z]\.\d+)"
-         fr"\.\d+)"
-         fr"\s+[A-Z]*"),  # 7.1.2 subtitle or FAQ 7.1 subtitle D.1.2 Subtitle
-        ("sub_sub_section",
-         fr"(?P<id>"
-         fr"(?:\d+\.\d+\.\d+\.\d+"  # 7.1.2.3 subsubtitle
-         fr"|[A-Z]\.\d+\.\d+)"
-         fr")\s+[A-Z].*")  # D.1.3
-    ]
-    section_regex_dict = {
-        "num_faq": {
-            "file_regex": "NEVER.*/spm/.*",  # check this
-            "sub_section": fr"(?P<id>FAQ \d+\.\d+)"
-        },
-        "alpha_sect": {
-            "file_regex": ".*(srocc).*/spm/.*",  # check this
-            "desc": "sections of form 'A: Foo', 'A.1 Bar', 'A.1.2 'Baz'",
-            "section": fr"\s*(?P<id>[A-Z][.:]\s+[A-Z].*)",  # A: Foo
-            "sub_section": fr"\s(?P<id>[A-Z]\.\d+\.\d+)\s+[A-Z]*",  # A.1 Bar
-            "sub_sub_section": fr"\s(?P<id>[A-Z]\.\d+\.\d+)\s+[A-Z]*"  # A.1.2 Plugh
-        },
-        "num_sect_old": {
-            "file_regex": ".*NEVER.*",
-            "desc": "sections of form '1. Introduction', "
-                    "subsections '1.2 Bar' "
-                    "subsubsections '1.2.3 Plugh'"
-                    "subsubsubsections  '1.2.3.4 Xyzzy (may not be any)",
-            "section": fr"\s*(?P<id>(?:{front_back}|\s*\d+[.:]?)\s+[A-Z].*",  # A: Foo
-            "sub_section": fr"\s(?P<id>\d+\.\d+)\s+[A-Z].*",  # A.1 Bar
-            "sub_sub_section": fr"\s(?P<id>\d+\.\d+\.\d+)\s+[A-Z].*"  # A.1.2 Plugh
-
-        },
-        "num_sect": {
-            "file_regex": ".*/syr/lr.*",
-            "desc": "sections of form '1. Introduction', "
-                    "subsections '1.2 Bar' "
-                    "subsubsections '1.2.3 Plugh'"
-                    "subsubsubsections  '1.2.3.4 Xyzzy (may not be any)",
-            "section": fr"\s*(?P<id>{front_back})"
-                       fr"|Section\s*(?P<id1>\d+):\s*[A-Z].*"
-                       fr"|\s*(?P<id2>\d+)\.\s+[A-Z].*",  # A: Foo
-            "sub_section": fr"\s*(?P<id>\d+\.\d+)\s+[A-Z].*",  # 1.1 Bar
-            "sub_sub_section": fr"\s(?P<id>\d+\.\d+\.\d+)\s+[A-Z].*"  # A.1.2 Plugh
-
-        },
-        "num_sect_new": {
-            "file_regex": fr"NEW.*/syr/lr.*",
-            "sections": {
-                "desc": f"sections of form '1. Introduction', "
-                        f"subsections '1.2 Bar' "
-                        f"subsubsections '1.2.3 Plugh'"
-                        f"subsubsubsections  '1.2.3.4 Xyzzy (may not be any)",
-                "section": {
-                    "desc": "sections of form '1. Introduction' ",
-                    "regex": fr"\s*(?P<id>{front_back}|\s*\d+[.:]?)\s+[A-Z].*",  # A: Foo
-                },
-                "sub_section": {
-                    "desc": "sections of form ''1.2 Bar' ",
-                    "regex": fr"\s(?P<id>\d+\.\d+)\s+[A-Z].*",  # A.1 Bar
-                },
-                "sub_sub_section": fr"\s(?P<id>\d+\.\d+\.\d+)\s+[A-Z].*",  # A.1.2 Plugh
-            },
-            "references": "dummy"
-
-        },
-    }
-    return section_regex_dict, section_regexes
 
 
 INPUT_PDFS = [
@@ -165,7 +80,7 @@ class AmiIntegrateTest(AmiAnyTest):
         use_svg = True  # output surves as svg?
         pages = "pages/"  # maybe "" in some dirs
         front_back = "Table of Contents|Frequently Asked Questions|Executive Summary|References"
-        section_regex_dict, section_regexes = get_ipcc_regexes(front_back=front_back)
+        section_regex_dict, section_regexes = IPCCSections.get_ipcc_regexes(front_back=front_back)
         old_style = False or True
 
         input_pdfs = []
@@ -201,7 +116,7 @@ class AmiIntegrateTest(AmiAnyTest):
             Path(AR6_DIR, "misc", "2018-03-Preface-3.pdf"),
         ]
         front_back = ""
-        section_regex_dict, section_regexes = get_ipcc_regexes(front_back)
+        section_regex_dict, section_regexes = IPCCSections.get_ipcc_regexes(front_back)
 
         use_svg = True
         for input_pdf in input_pdfs:
