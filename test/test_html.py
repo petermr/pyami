@@ -937,7 +937,31 @@ class TestHtml(AmiAnyTest):
         HtmlLib.write_html_file(html, path)
         assert path.exists()
 
+    def test_get_html_head_style_from_classref(self):
+        html = lxml.etree.fromstring(
+"""
+        <html>
+          <head>
+            <style>.s1 {font-size: 12px;}</style>
+            <style>.s2 {font-size: 14px; font-weight: bold;}</style>
+          </head>
+          <body>
+            <span class="s1">value1</span>
+            <span class="s2">value2</span>
+          </body>
+        </html>
+""")
+        span1 = html.xpath("/html/body/span[@class='s1']")[0]
+        class1 = span1.get("class")
+        assert class1 == "s1"
+        head_style1 = html.xpath(f"/html/head/style[contains(.,'.{class1} ')]")[0]
+        assert lxml.etree.tostring(head_style1).decode("UTF-8").strip() == "<style>.s1 {font-size: 12px;}</style>"
+        _, css_style1 = CSSStyle.create_css_style_from_html_head_style_elem(head_style1)
+        assert not css_style1.is_bold
 
+        span2 = html.xpath("/html/body/span[@class='s2']")[0]
+        css_style2 = HtmlStyle.lookup_head_style_by_classref(span2)
+        assert css_style2.is_bold
 
 
 class Test_PDFHTML(AmiAnyTest):
@@ -1358,7 +1382,6 @@ class Test_PDFHTML(AmiAnyTest):
         html_elem = lxml.etree.parse(str(input_html)).getroot()
         HtmlUtil.extract_footnotes(html_elem, "font-size: 6.0")
         HtmlLib.write_html_file(html_elem, str(Path(AmiAnyTest.TEMP_HTML_IPCC, "syr", "lr", f"{stem}.footnoted.html")))
-
 
 
     def test_add_sub_superscripts_to_page_HACKATHON(self):

@@ -6,8 +6,11 @@ from urllib import request
 import lxml
 import requests
 
+from py4ami.ami_html import HtmlStyle
 from py4ami.ami_integrate import HtmlGenerator
 from py4ami.ipcc import IPCCSections
+from py4ami.wikimedia import WikidataLookup
+from py4ami.xml_lib import HtmlLib
 
 from test.resources import Resources
 from test.test_all import AmiAnyTest
@@ -47,13 +50,14 @@ INPUT_PDFS = [
     # Path(AR6_DIR, "wg1", "faqs", "faqs.pdf"),
     # Path(AR6_DIR, "wg1", "chapters/*.pdf" ),
     # Path(AR6_DIR, "wg1", "annexes/*.pdf"), # repeat
-    Path(AR6_DIR, "wg1", "annexes", "glossary.pdf")
+    # Path(AR6_DIR, "wg1", "annexes", "glossary.pdf")
 
     # Path(AR6_DIR, "wg2", "spm", "fulltext.pdf"),
     # Path(AR6_DIR, "wg2", "ts", "fulltext.pdf"),
     # Path(AR6_DIR, "wg2", "chapters/*.pdf"),
     # Path(AR6_DIR, "wg2", "faqs/*.pdf"),
 
+    Path(AR6_DIR, "wg3", "annexes/*.pdf"),
     # Path(AR6_DIR, "wg3", "spm", "fulltext.pdf"),
     # Path(AR6_DIR, "wg3", "ts", "fulltext.pdf"),
     # Path(AR6_DIR, "wg3", "Chapter07.pdf"),
@@ -68,6 +72,103 @@ INPUT_PDFS = [
     #
     # Path(AR6_DIR, "srccl", "spm", "fulltext.pdf"),
     # Path(AR6_DIR, "srccl", "ts", "fulltext.pdf"),
+]
+
+
+def annotate_glossary(glossary_html, style_class, link_class):
+    if not Path(glossary_html).exists():
+        print(f"Glossary does not exists {glossary_html}")
+        return
+    glossary_elem = lxml.etree.parse(glossary_html)
+    annotate_lead_entries(glossary_elem, style_class, use_bold=True)
+
+    add_links_to_terms(glossary_elem, link_class)
+
+    HtmlLib.write_html_file(glossary_elem, Path(Path(glossary_html).parent, "annotated_glossary.html"))
+    return glossary_elem
+
+
+def add_links_to_terms(glossary_elem, link_class):
+    unlinked_set = set()
+    link_spans = glossary_elem.xpath(f".//div/span[@class='{link_class}']")
+    link_spans = glossary_elem.xpath(f".//div/span")
+    link_spans = [span for span in link_spans if HtmlStyle.is_bold(span)]
+    div_bolds = [div for div in glossary_elem.xpath(".//div")]
+    for div in div_bolds:
+        spans = div.xpath("./span")
+        if len(spans) > 0 and HtmlStyle.is_bold(spans[0]):
+            for span in spans[1:]:
+                if HtmlStyle.is_italic(span):
+                    add_link(glossary_elem, span, unlinked_set)
+            print(f"is bold {spans[0].text}")
+
+    attnames = ["style", "x0", "x1", "y0", "y1", "width", "top", "left", "right"]
+    add_inline_links(attnames, glossary_elem, link_class, link_spans, unlinked_set)
+
+    print(f"unlinked {len(unlinked_set)} {unlinked_set}")
+
+
+def add_inline_links(attnames, glossary_elem, link_class, link_spans, unlinked_set):
+    for span in link_spans:
+        delete_atts(attnames, span)
+        if span.attrib.get("class") == link_class:
+            add_link(glossary_elem, span, unlinked_set)
+
+
+def add_link(glossary_elem, span, unlinked_set):
+    ref = normalize_id(span.text)
+    targets = glossary_elem.xpath(f".//div/a[@class='lead' and @name='{ref}']")
+    if len(targets) == 1:
+        a_elem = lxml.etree.SubElement(span, "a")
+        a_elem.attrib["href"] = "#" + ref
+        a_elem.text = span.text
+        span.text = ""
+        print(f"... {ref}")
+    elif len(targets) > 0:
+        print(f"multiple targets {ref}")
+    else:
+        span.attrib["style"] = "color: red"
+        unlinked_set.add(ref)
+
+
+def delete_atts(attnames, span):
+    for att in attnames:
+        attval = span.attrib.get(att)
+        if attval:
+            del (span.attrib[att])
+
+
+def annotate_lead_entries(glossary_elem, style_class, use_bold=False):
+    if use_bold:
+        div_entries = [div for div in glossary_elem.xpath(f".//div[span]") if HtmlStyle.is_bold(div.xpath('./span')[0])]
+    else:
+        div_entries = glossary_elem.xpath(f".//div[span[@class='{style_class}']]")
+    print(f"entries: {len(div_entries)}")
+    for div_entry in div_entries:
+        spans = div_entry.xpath('./span')
+        del (spans[0].attrib["style"])
+        lead_text = spans[0].text.strip()
+        lead_id = normalize_id(lead_text)
+        print(f"> {lead_text}")
+        a_elem = lxml.etree.SubElement(div_entry, "a")
+        a_elem.attrib["id"] = lead_id
+        a_elem.attrib["name"] = lead_id
+        a_elem.attrib["class"] = "lead"
+        div_entry.insert(0, a_elem)
+        a_elem.attrib["style"] = "background: #ffeeee;"
+        a_elem.text = " "
+
+
+def normalize_id(text):
+    return None if not text else text.strip().replace(" ()@$#%^&*-+~<>,.?/:;\"'[]{}", "_").lower()
+
+REPORTS =  [
+    "wg1",
+    "wg2",
+    "wg3",
+    "sr15",
+    "srocc",
+    "srccl",
 ]
 
 
@@ -121,6 +222,109 @@ class AmiIntegrateTest(AmiAnyTest):
         use_svg = True
         for input_pdf in input_pdfs:
             HtmlGenerator.run_section_regexes(input_pdf, section_regexes, group_stem="styles")
+
+
+    def test_glossaries_KEY(self):
+        """iterates over glossaries and adds internal links"""
+
+        front_back = ""
+        section_regex_dict, section_regexes = IPCCSections.get_ipcc_regexes(front_back)
+
+        use_svg = True
+        for report in REPORTS:
+            for g_type in [
+                "glossary",
+                # "acronyms"
+            ]:
+                input_pdf = Path(AR6_DIR, report, "annexes", f"{g_type}.pdf")
+                HtmlGenerator.run_section_regexes(input_pdf, section_regexes, group_stem="glossary")
+                glossary_html = Path(AR6_DIR, report, "annexes", "html", "glossary", "glossary_groups.html")
+                if glossary_html.exists():
+                    glossary_elem = annotate_glossary(glossary_html, style_class="s1020", link_class='s100')
+                    glossary_file = Path(AR6_DIR, report, "annexes", "html", "glossary", "annotated_glossary.html")
+                    if glossary_file.exists():
+                        annotated_glossary = lxml.etree.parse(glossary_file)
+
+    def test_merge_glossaries_KEY(self):
+        """iterates over 6 glossaries and adds internal links"""
+
+        reports = [
+            "wg1",
+            "wg2",
+            "wg3",
+            "sr15",
+            "srocc",
+            "srccl",
+        ]
+        name_set = set()
+        for report in reports:
+            glossary_file = Path(AR6_DIR, report, "annexes", "html", "glossary", "annotated_glossary.html")
+            if not glossary_file.exists():
+                print(f"files does not exist {glossary_file}")
+                continue
+            glossary_elem = lxml.etree.parse(str(glossary_file))
+            head_divs = glossary_elem.xpath("//div[span]")
+            for head_div in head_divs:
+                name = head_div.xpath("span")[0].text
+                if not name:
+                    continue
+                name = name.strip()
+                if name[:2] != "AI" and name[:2] != "AV" and name[:1] != "(" and name[:5] != "[Note":
+                    name_set.add(name)
+            print (f"entries {len(head_divs)}")
+        print(f"names {len(name_set)}")
+        sorted_names = sorted(name_set)
+        for name in sorted_names:
+            print(f"> {name}")
+
+
+    def test_lookup_wikidata(self):
+        max_entries = 50
+        report = "wg1"
+        annotated_glossary = lxml.etree.parse(
+            Path(AR6_DIR, report, "annexes", "html", "glossary", "annotated_glossary.html"))
+        lead_divs = annotated_glossary.xpath(".//div[a]")
+        for div in lead_divs[:max_entries]:
+            term = div.xpath("./a")[0].attrib["name"]
+            term = div.xpath("span")[0].text
+            qitem0, desc, wikidata_hits = WikidataLookup().lookup_wikidata(term)
+            print(f"{term}: qitem {qitem0} desc {desc}")
+
+    def test_extract_suthors(self):
+        """
+        extract authors from chapters using regex
+
+        """
+        chap_html = lxml.etree.parse(Path(AR6_DIR, "syr", "lr", "html", "fulltext", "groups_groups.old.html"))
+        author_roles = [
+            "Core Writing Team:",
+            "Extended Writing Team:",
+            "Contributing Authors:",
+            "Review Editors:",
+            "Scientific Steering Committee:",
+            "Visual Conception and Information Design:",
+            # "Date of Draft:",
+
+        ]
+        author_re = re.compile("\s*(?P<auth>.*)\s*(?P<country>.*)")
+        for role in author_roles:
+            htmls = chap_html.xpath(f".//div/span[normalize-space(.)='{role}']")
+            if len(htmls) == 0:
+                print(f"{role} not found")
+                continue
+            following = htmls[0].xpath("following-sibling::span")
+            if len(following) != 1:
+                print(f"FAIL to find author_list")
+                continue
+            authors = following[0].text.split(",")
+            for author in authors:
+                match = author_re.match(author)
+                if match:
+                    print(f"{match.group('auth')}: {match.group('country')} ")
+                else:
+                    print(f"FAIL {author}")
+
+
 
     def test_github_hyperlinks(self):
         """tests that Github links can retrieve and display content"""

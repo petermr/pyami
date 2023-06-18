@@ -2224,7 +2224,8 @@ class AmiPlumberJsonPage:
         if lines := self.plumber_page_dict.get(LINES):
             print(f"debug_lines {len(lines)} - {max_lines}")
             for line in lines[:max_lines]:
-                print(f"-----------------\ndebug_line: {line} {line.__dir__()}")
+                # print(f"-----------------\ndebug_line: {line} {line.__dir__()}")
+                pass
         if curves := self.plumber_page_dict.get(CURVES):
             print(f"debug_curves: {len(curves)}")
         #      make svg here

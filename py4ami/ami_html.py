@@ -487,11 +487,7 @@ class HtmlTidy:
         spaces = "" if not addspace else " "
         for span in spans:
             if last_span is not None and last_span.attrib["class"] == span.attrib["class"]:
-                # print("equal classes")
                 last_span.text = last_span.text + spaces + span.text
-                # if last_span.text[0] == "[":
-                #     print("SQUARE")
-                print(f">> {last_span.text}")
                 elem.remove(span)
             else:
                 last_span = span
@@ -559,12 +555,9 @@ class HtmlGroup:
         """evrything starts as a sibling!"""
         sections = html_elem.xpath(f".//span[starts-with(@class, '{locator}')]")
         fenceposts = html_elem.xpath(f".//span[starts-with(@class,'{parent_locator}')]")
-        print(f"{locator}: {len(sections)}")
         if len(sections) > 0:
             parent = sections[0].getparent()
             for section in sections:
-                print(f"section {section.attrib['id']}")
-
                 cls.group_siblings_between_fenceposts(fenceposts, style=style, debug=debug)
 
     @classmethod
@@ -582,7 +575,7 @@ class HtmlGroup:
                 if follower in fenceposts:
                     id = follower.xpath("./span")[0].attrib.get("id")
                     if debug:
-                        print(f" id {id}")
+                        print(f" id: {id}")
                     break
                 else:
                     if debug:
@@ -816,7 +809,6 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
     @classmethod
     def process_class_div(cls, div, div_styles, parent, parents, text):
         class_value = div.attrib["class"]
-        print(f"class: {class_value}")
         # Determine the level based on the class attribute
         if class_value.startswith("section"):
             level = 1
@@ -836,7 +828,6 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
 
                 parent = new_div
                 parents[level] = new_div
-                print(f" made new div")
             else:
                 print(f"no parent on stack level {level}")
         parent.append(div)
@@ -856,10 +847,8 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
             raise ValueError(f"BAD REGEX {regex} because {e}")
         match = reg.match(text)
         if match:
-            print(f"text: {text[:30]}")
             try:
                 id = match.group('id')
-                print(f"id: {section_class}: {id}")
                 div.attrib["title"] = id
             except Exception as e:
                 print(f"failed to match id in {regex}")
@@ -886,7 +875,6 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
                 regex = section_regex[1]
                 if not regex:
                     raise ValueError(f"******None: regex in section_regex {section_regex}")
-#               print(f"regex {regex}")
                 cls.match_regex(div, regex, section_class, text)
 
     @classmethod
@@ -952,7 +940,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
                     style1 = CSSStyle.create_css_style_from_attribute_of_body_element(span0)
                     if style0 == style1:
                         if span1 is not None and len(span1.text) > 0 and span1.text[0].islower():
-                            print(f" joined second_span {span1.text}")
+                            # print(f" joined second_span {span1.text}")
                             HtmlUtil.join_spans_in_same_div(span0, span1)
                             for span in div.xpath("./span"):
                                 div0.append(span)
@@ -1092,9 +1080,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         if not type(regexes) is list:
             regexes = [regexes]
 
-        print(f"xpaths {xpaths}")
         divs = html_elem.xpath(xpaths[0])
-        print(f"divsxx {len(divs)}")
         sections = []
         subsections = []
         for div in divs:
@@ -1416,10 +1402,8 @@ class HtmlUtil:
         last_csss = CSSStyle.create_css_style_from_attribute_of_body_element(last_span)
         font_size = csss.font_size
         last_font_size = last_csss.font_size
-        # print(f"this, last {font_size, span.text, last_font_size, last_span.text}")
         is_script = None
         if font_size and font_size < script_factor * last_font_size:
-            # print(f"TEST {last_span.text}/{span.text}")
             last_y = CSSStyle.get_y0(last_span)
             this_y = CSSStyle.get_y0(span)
             if script_type == SScript.SUB:
@@ -1429,7 +1413,6 @@ class HtmlUtil:
                 # is it raised? Y DOWN
                 is_script = ydown == (last_y > this_y)
             if is_script:
-                # print(f"script: {last_span.text}/{span.text}")
                 pass
         return is_script
 
@@ -1558,10 +1541,6 @@ class HtmlUtil:
                 continue
             page_top_y = float(page_top_y)
             ycoord = ycoord0 - page_top_y
-
-            # if re.match("Page\s\d+", text):
-            #     print(f"text: {text} {float(top0) - float(top)} {top0} {top}")
-            #     last_top = top0
 
             # print(f"TOP {ycoord0} {ycoord} {pagesize} {ycoord % pagesize}")
             in_top = ycoord < header_height
@@ -1945,15 +1924,12 @@ class AnnotatorCommand:
         if not xp_elems:
             return
         for xp_elem in xp_elems:
-            # print(f"XPATH!!! {xp_elem.text}")
             if self.delete:
                 xp_elem.getparent().remove(xp_elem)
                 return
             if self.html_class:
-                # print(f"update!!! {self.html_class}")
                 self.update_class(xp_elem, self.html_class)
                 tostring = lxml.etree.tostring(xp_elem)
-                # print(f"=> {tostring}")
                 pass
 
     # class AnnotatorCommand
@@ -1980,7 +1956,6 @@ class AnnotatorCommand:
         is_super = HtmlUtil.annotate_script_type(span, SScript.SUP, ydown=False)
         if is_super:
             span.attrib["title"] = f"superscript_{span.text}"
-            # print(f"SUPER {span.text}")
 
     # class AnnotatorCommand
 
@@ -1992,17 +1967,14 @@ class AnnotatorCommand:
             return None
         parent_elem = child_elem.getparent()
         if parent_elem is None:
-            # print(f"Null parent for {lxml.etree.tostring(child_elem)}")
             return None
-        # print(f"parent!!!! ")
         group_leads = parent_elem.xpath(self.group_xpath)
         if len(group_leads) > 0:
             print(f"group lead count {len(group_leads)} {self.group_xpath}")
         else:
-            # print(f"NO LEAD GROUP parents")
             pass
         for i, group_lead in enumerate(group_leads):
-            print(f"group lead {lxml.etree.tostring(group_lead)}")
+            # print(f"group lead {lxml.etree.tostring(group_lead)}")
             # end_grouo = group_leads[i + 1] if i < len(group_leads) - 1 else None
             self.make_group(parent_elem, group_lead)
 
@@ -2024,7 +1996,7 @@ class AnnotatorCommand:
         div.attrib["style"] = "border:black dashed 2px;"
         xp = self.end_xpath
         xp = "self::div[span[contains(text(),'END')]]"
-        print(f"end_xpath {xp}")
+        # print(f"end_xpath {xp}")
         for sibling in siblings:
             print(f"sibling: {''.join(sibling.itertext())}")
             end_sib = None
@@ -2034,7 +2006,7 @@ class AnnotatorCommand:
                 print(f"failed xpath {xp} {e}")
             if end_sib and len(end_sib) > 0:
             # if sibling != end_group:
-                print(f"sibling {sibling}")
+            #     print(f"sibling {sibling}")
                 break
             div.append(sibling)
         return div
@@ -2186,7 +2158,6 @@ class HtmlStyle:
                     HtmlStyle.replace_curly(html_style, style_value)
             html_style.attrib[CLASSREF] = classref
             style_to_classref_set[style_value].add(classref)
-        print(f"html head: {lxml.etree.tostring(elem.xpath('/html/head')[0])}")
         if outdir:
             HtmlLib.write_html_file(elem, Path(outdir, "normalized.html"))
         return style_to_classref_set
@@ -2343,8 +2314,57 @@ class HtmlStyle:
             match = STYLE_CURLY_RE.match(elem.text)
             if match:
                 new_text = match.group("pre") + new_curly + match.group("post")
-                print(f"new text: {new_text}")
                 elem.text = new_text
+
+    @classmethod
+    def lookup_head_style_by_classref(cls, elem):
+        """
+        :param elem: elements with @class attribute
+        :return: CSSStyle object with HtmlStyle
+        """
+        clazz = elem.get("class")
+        css_style = HtmlStyle.lookup_head_style_by_class(elem, clazz)
+        return css_style
+
+    @classmethod
+    def lookup_head_style_by_class(cls, html, clazz):
+        """
+        :param html: HTML element with head/style
+        :param clazz: class to retirve style element
+        """
+        styles = html.xpath(f"/html/head/style[contains(.,'.{clazz} ')]")
+        if len(styles) == 0:
+            print(f"no styles for {clazz}")
+            return None
+        head_style = styles[0]
+        _, css_style = CSSStyle.create_css_style_from_html_head_style_elem(head_style)
+        return css_style
+
+    @classmethod
+    def is_bold(cls, elem):
+        """
+        finds @class in elem and looks up style in html/head
+        """
+        if elem is None:
+            return False
+        css_style = HtmlStyle.lookup_head_style_by_classref(elem)
+        if not css_style:
+            print(f"no style resolved for {lxml.etree.tostring(elem)}")
+            return False
+        return css_style.is_bold
+
+    @classmethod
+    def is_italic(cls, elem):
+        """
+        finds @class in elem and looks up style in html/head
+        """
+        if elem is None:
+            return False
+        css_style = HtmlStyle.lookup_head_style_by_classref(elem)
+        if not css_style:
+            print(f"no style resolved for {lxml.etree.tostring(elem)}")
+            return False
+        return css_style.is_italic
 
 
 class HtmlClass:
@@ -2999,7 +3019,7 @@ class FloatBoundaryDict:
     def extract_contents_of_bracketed_boundaries_and_write(self):
         for fb_list in self.float_boundary_dict.values():
             if len(fb_list) == 2:
-                print(f"FB {fb_list} {fb_list[0].div_id} {fb_list[1].div_id}")
+                # print(f"FB {fb_list} {fb_list[0].div_id} {fb_list[1].div_id}")
                 new_div = self.delete_between(fb_list[0].div_id, fb_list[1].div_id)
                 float_name = fb_list[0].key
                 new_div.attrib["name"] = float_name
@@ -3081,7 +3101,7 @@ class FloatExtractor:
     def extract_float_boundaries(self, html_elem, regex_str):
         float_boundaries = []
         regex = re.compile(regex_str)
-        print(f" regex {regex}")
+        # print(f" regex {regex}")
         divs = html_elem.xpath(".//div")
         for div in divs:
             spans = div.xpath("./span")
@@ -3594,14 +3614,7 @@ class CSSStyle:
         if not extracted_style:
             raise ValueError("extracted style is None")
         extracted_style1 = CSSStyle.extract_bold_italic_from_font_family_for_style(extracted_style) if extracted_style else None
-        # print(f"extracted style {extracted_style1}")
-        # print(f"extracting class {class_name}")
         extracted_html_style_element = extracted_style1.create_html_style_element(class_name) if extracted_style1 is not None else None
-        # except Exception as e:
-        #     print(f"error {e} in extract_text_styles_into_class() {e.__traceback__}")
-        #     for i in range(10):
-        #         print(f"clear buffer? {i} ======================")
-        #     raise e
 
         retained_style_attval = retained_style.get_css_value() if retained_style else None
         html_class_val = CSSStyle.create_html_class_val(class_name, old_class_val=old_classstr)
@@ -3725,7 +3738,6 @@ class CSSStyle:
         """
         style_elems = CSSStyle.extract_styles_from_html_head_element(html_elem)
         for style_elem in style_elems:
-            print(f"STYLE {lxml.etree.tostring(style_elem)}")
             CSSStyle.replace_css_style_name_values_with_normalized_font(style_elem)
 
     @property
@@ -3809,7 +3821,6 @@ class CSSStyle:
         if css_style:
             css_style.extract_bold_italic_from_font_family(
                 overwrite_family=True, overwrite_bold=True, overwrite_style=True)
-            # print(f"new css style: {css_style}")
         return css_style
 
 
@@ -3937,8 +3948,6 @@ class AmiFont:
 
     @classmethod
     def extract_enumerated_styles(cls, font, name):
-        if "Ita" in name:
-            print(f"name {name}")
 
         name, match = cls.match_font_property(name, AmiFont.cond_regex)
         if match:
@@ -4017,10 +4026,9 @@ class AmiFont:
         :param css_style: CSSStyle Object or HTML head/style with unknown font-family
         :return: tuple (symbol_ref, new css_style object with standard font and maybe new weight or style)
         """
-        if not stype(style_elem) is _Element:
+        if not type(style_elem) is _Element:
             return None, None
-        symbol_ref, css_style = CSSStyle.create_css_style_from_html_head_style_elem(css_style)
-        create_font_edited_style_from_css_style_object
+        symbol_ref, css_style = CSSStyle.create_css_style_from_html_head_style_elem(style_elem)
         if css_style is not None:
             font_family = css_style.font_family
             ami_font = AmiFont.extract_name_weight_style_stretched_as_font(font_family)
@@ -4031,7 +4039,6 @@ class AmiFont:
             new_css_style.set_attribute(FONT_WEIGHT, ami_font.weight)
             new_css_style.set_attribute(FONT_STYLE, ami_font.style)
             new_css_style.set_attribute(FONT_STRETCHED, ami_font.stretched)
-        print(f"new css {new_css_style}")
         return symbol_ref, new_css_style
 
     @classmethod
@@ -4109,10 +4116,8 @@ class SectionHierarchy:
 
         root = Element(self.SECT)
         root.attrib[self.ID] = "4"
-        print(f"root {lxml.etree.tostring(root, pretty_print=True)}")
         for sect_id in parent_dict.keys():
             self.ensure_element(root, sect_id, parent_dict)
-        print(f"tree:\n {lxml.etree.tostring(root, pretty_print=True).decode('UTF-8')}")
 
     def create_parent_dict(self, sections_by_level):
         parent_dict = dict()
@@ -4209,7 +4214,6 @@ class Footnote:
         next_class = next.attrib["class"]
         if next_class == "s1045":
             return True
-        # print(f"text {text}: next class {next_class}")
         return False
 
 
