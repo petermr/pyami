@@ -1,4 +1,7 @@
+import argparse
+import os
 import re
+import textwrap
 from collections import defaultdict, Counter
 from pathlib import Path
 
@@ -7,7 +10,218 @@ from lxml.etree import _Element
 import pandas as pd
 
 from py4ami.ami_html import URLCache, HtmlUtil
+from py4ami.ami_integrate import HtmlGenerator
+from py4ami.util import AbstractArgs
 from py4ami.xml_lib import HtmlLib, XmlLib
+
+class IPCCCommand:
+
+    @classmethod
+    def run_toolchain_pdf_to_structured_html(cls, input_pdf, section_regexes):
+        HtmlGenerator.run_section_regexes(input_pdf, section_regexes)
+
+    @classmethod
+    def get_paths(cls, input):
+        paths = []
+        if not input:
+            print(f"no input given")
+            return paths
+
+        inputs = input if type(input) is list else [input]
+        print(f"inputs {inputs}")
+
+
+        paths = [Path(input) for input in inputs if Path(input).exists() and not Path(input).is_dir()]
+        return paths
+
+    @classmethod
+    def extract_authors_and_roles(cls, filename, author_roles=None, output_dir=None, outfilename="author_table.html"):
+        """
+        extracts author names and countries from frontmatter
+        :param filename: input html file
+        :param author_roles: Roles of authors (subsection titles)
+        :param output_dir: if not, uses input file parent
+        :param outfilename: output filename (default "author_table.html")
+        """
+        if not author_roles:
+            author_roles = cls.get_author_roles()
+
+        if not output_dir:
+            output_dir = Path(filename).parent
+        AUTHOR_RE = re.compile("\s*(?P<auth>.*)\s+\((?P<country>.*)\)")
+        chap_html = lxml.etree.parse(Path(output_dir, filename))
+        table = []
+        for role in author_roles:
+            htmls = chap_html.xpath(f".//div/span[normalize-space(.)='{role}']")
+            if len(htmls) == 0:
+                print(f"{role} not found")
+                continue
+            following = htmls[0].xpath("following-sibling::span")
+            if len(following) != 1:
+                print(f"FAIL to find author_list")
+                continue
+            authors = following[0].text.split(",")
+            for author in authors:
+                match = AUTHOR_RE.match(author)
+                if match:
+                    auth = match.group('auth')
+                    country = match.group('country')
+                    table.append([auth, country, role])
+                else:
+                    print(f"FAIL {author}")
+                    pass
+        df = pd.DataFrame(table, columns=["author", "country", "role"])
+        df.to_html(Path(output_dir, outfilename))
+        return df
+
+    @classmethod
+    def get_author_roles(cls):
+        author_roles = [
+            "Core Writing Team:",
+            "Extended Writing Team:",
+            "Contributing Authors:",
+            "Review Editors:",
+            "Scientific Steering Committee:",
+            "Visual Conception and Information Design:",
+        ]
+        return author_roles
+
+
+class IPCCArgs(AbstractArgs):
+    INPUT  = "input"
+    INFORMAT = "informat"
+    OPERATION = "operation"
+    OTHERARGS = "otherargs"
+    SECTIONS = "sections"
+    VAR = "var"
+
+    PDF2HTML = "pdf2html"
+    AUTHORS = "authors"
+
+    def __init__(self):
+        """arg_dict is set to default"""
+        super().__init__()
+
+
+    def parse_otherargs(self, otherargs, keys=None):
+        otherargs_dict = {}
+        if not otherargs:
+            if keys:
+                print(f"possible keys: {keys}")
+        else:
+            for pair in otherargs:
+                print(f"pair {pair}")
+                key, value = pair.split(':')
+                otherargs_dict[key] = value
+        return otherargs_dict
+
+    def add_arguments(self):
+        """creates adds the arguments for pyami commandline
+
+        """
+        if self.parser is None:
+            self.parser = argparse.ArgumentParser()
+        self.parser.description = textwrap.dedent(
+          'Manage and search IPCC resources and other climate stuff. \n'
+          '----------------------------------------------------------\n' 
+          'see py4ami/IPCC.md'
+          '\nExamples:\n' 
+          f'parse foo.pdf and create default HTML'
+          f'  * IPCC --input foo.pdf\n'
+
+        )
+        self.parser.formatter_class = argparse.RawDescriptionHelpFormatter
+        self.parser.add_argument(f"--{IPCCArgs.INPUT}", nargs="+",
+                                 help="read one or more resources. file/listof files/globs/URLs")
+
+        self.parser.add_argument(f"--{IPCCArgs.INFORMAT}", nargs="+", default="PDF",
+                                 help="input format/s")
+        self.parser.add_argument(f"--{IPCCArgs.OPERATION}", nargs="?", const="all", choices=(IPCCArgs.PDF2HTML, IPCCArgs.AUTHORS),
+                                 help="operation to perform", default=IPCCArgs.PDF2HTML)
+        self.parser.add_argument(f"--{IPCCArgs.OTHERARGS}", nargs="*",
+                                 help="space-separated list of colon_separated keyword-value pairs, format kw1:val1 kw2:val2;\nif empty list gives help")
+        self.parser.add_argument(f"--{IPCCArgs.VAR}", nargs=2,
+                                 help="set environment variable (name value)")
+        return self.parser
+
+    # class ProjectArgs:
+    def process_args(self):
+        """runs parsed args
+        :return:
+
+        """
+
+        if self.arg_dict:
+            print(f"argdict: {self.arg_dict}")
+            informats = self.arg_dict.get(IPCCArgs.INFORMAT)
+            paths = self.get_paths()
+            operation = self.get_operation()
+            otherargs = self.get_other_args()
+            section_regexes = self.get_section_regexes()
+            author_roles = self.get_author_roles()
+
+
+        print(f"processing {len(paths)} paths")
+        if operation == IPCCArgs.PDF2HTML:
+            for path in paths:
+                IPCCCommand.run_toolchain_pdf_to_structured_html(path, section_regexes)
+        elif operation == IPCCArgs.AUTHORS:
+            for path in paths:
+                IPCCCommand.extract_authors_and_roles(path, author_roles)
+        else:
+            print(f"Unknown operation {operation}")
+
+    def get_section_regexes(self):
+        section_regexes = self.arg_dict.get(IPCCArgs.SECTIONS)
+        if not section_regexes:
+            section_regexes = IPCCSections.get_section_regexes()
+        return section_regexes
+
+    def get_other_args(self):
+        otherargs = self.arg_dict.get(IPCCArgs.OTHERARGS)
+        otherargs_dict = self.parse_otherargs(otherargs)
+        print(f"otherargs {otherargs_dict}")
+
+    def get_paths(self):
+        input = self.arg_dict.get(IPCCArgs.INPUT)
+        print(f"input {input}")
+        paths = IPCCCommand.get_paths(input)
+        return paths
+
+    # class ProjectArgs:
+
+    @classmethod
+    def create_default_arg_dict(cls):
+        """returns a new COPY of the default dictionary"""
+        arg_dict = dict()
+        arg_dict[IPCCArgs.INFORMAT] = ['PDF']
+        return arg_dict
+
+    @property
+    def module_stem(self):
+        """name of module"""
+        return Path(__file__).stem
+
+    # def set_var(self):
+    #     """This only works for current session of program
+    #     """
+    #     items = os.environ.items()
+    #     for item in items:
+    #         if item[0].startswith("SC_"):
+    #             print(f"{item[0]}: {item[1]}")
+    #     vars = self.arg_dict.get(IPCCArgs.VAR)
+    #     if vars:
+    #         os.environ[vars[0]] = vars[1]
+    #         # print(f"new vars {os.environ}")
+    #     pass
+
+    def get_operation(self):
+        operation = self.arg_dict.get(IPCCArgs.OPERATION)
+        return operation
+
+    def get_author_roles(self):
+        pass
+
 
 class IPCCSections:
 
@@ -20,6 +234,10 @@ class IPCCSections:
         The dict is more powerful but doesn't work properly yet
 
         """
+        return cls.get_section_regexes(), cls.get_section_regex_dict(front_back)
+
+    @classmethod
+    def get_section_regexes(cls):
         section_regexes = [
             # C: Adaptation...
             ("section",
@@ -39,6 +257,10 @@ class IPCCSections:
              fr"|[A-Z]\.\d+\.\d+)"
              fr")\s+[A-Z].*")  # D.1.3
         ]
+        return section_regexes
+
+    @classmethod
+    def get_section_regex_dict(cls, front_back):
         section_regex_dict = {
             "num_faq": {
                 "file_regex": "NEVER.*/spm/.*",  # check this
@@ -96,7 +318,13 @@ class IPCCSections:
 
             },
         }
-        return section_regex_dict, section_regexes
+        return section_regex_dict
+
+    @classmethod
+    def get_major_section_names(cls):
+        return "Table of Contents|Frequently Asked Questions|Executive Summary|References"
+
+
 
 class IPCCAnchor:
     """holds statements from IPCC Reports and outward links"""

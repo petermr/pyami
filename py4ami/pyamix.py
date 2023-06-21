@@ -19,6 +19,7 @@ from py4ami.ami_convert import ConvType, Converters
 from py4ami.ami_sections import AMIAbsSection
 from py4ami.ami_gui import GUIArgs
 from py4ami.ami_html import HTMLArgs
+from py4ami.ipcc import IPCCArgs
 from py4ami.examples import Examples
 from py4ami.file_lib import FileLib
 from py4ami.pdfreader import Svg2PageConverter, Page2SectConverter, Xml2HtmlConverter, Xml2TxtConverter, Pdf2SvgConverter
@@ -88,9 +89,10 @@ class PyAMI:
     LOGLEVEL = "loglevel"
     PY4AMI = "py4ami"
 
-# parsers
+# parsers are these used??
     DICT_PARSER = "DICT"
     HTML_PARSER = "HTML"
+    IPCC_PARSER = "IPCC"
     PDF_PARSER = "PDF"
     PROJECT_PARSER = "PROJECT"
 
@@ -199,6 +201,7 @@ class PyAMI:
             '  DICT <options>      # create/edit/search dictionaries\n' 
             '  GUI <options>       # run tkinter GUI (prototype)\n' 
             '  HTML <options>      # create/edit HTML\n' 
+            '  IPCC <options>      # customised IPCC tools\n' 
             '  PDF <options>       # convert PDF into HTML and images\n' 
             '  PROJECT <options>   # create and transform a corpus of documents\n' 
             '\n'
@@ -211,68 +214,11 @@ class PyAMI:
             '  py4ami PDF -h # runs PDF help\n'
             '  py4ami PDF --infile foo.pdf --outdir bar/ # converts PDF to HTML\n'
             '  py4ami PROJECT --project foodir/ # converts all PDF in foodir to CTrees\n'
+            '  py4ami IPCC --pdf2html file/ # converts pdf file to html \n'
             '\n'
             '----------------------------------------\n\n'
         )
 
-# obsolete commands
-#         parser.add_argument('--apply', nargs="+",
-#                             #                            choices=['pdf2txt', 'txt2sent', 'xml2txt'],
-#                             choices=apply_choices,
-#                             help='list of sequential transformations (1:1 map) to apply to pipeline '
-#                                  '({self.TXT2SENT} NYI)')
-#
-#         parser.add_argument('--assert', nargs="+",
-#                             help='assertions; failure gives error message (prototype)')
-#         parser.add_argument('--combine', nargs=1,
-#                             help='operation to combine files into final object (e.g. concat text or CSV path')
-
-        # parser.add_argument('--config', '-c', nargs="+",
-        #                     help='path (e.g. ~/pyami/config.ini.master) with list of config path(s) or config vars;'
-        #                          ' "symbols": gives symbols')
-        # parser.add_argument('--copy', nargs="+",
-        #                     help='copy path or directory from=<from> to=<to> overwrite=<yes/no default=no>')
-        # parser.add_argument('--debug', nargs="+", type=str,
-        #                     help='debugging commands , symbols, numbers, (not formalised)')
-        # parser.add_argument('--delete', nargs="+",
-        #                     help='delete globbed files. Argument/s <glob> are relative to `proj`')
-        # parser.add_argument('--dict', '-d', nargs="+",
-        #                     help='dictionaries to ami-search with, _help gives list')
-        # parser.add_argument('--examples', nargs="*", type=str,
-        #                     help='simple demos, empty gives list, "all" runs all. May need downloading corpora')
-        # parser.add_argument('--filter', nargs="+",
-        #                     help='expr to filter with')
-        # parser.add_argument('--flags', nargs="+",
-        #                     help='name-value pairs collected into self.flag_dict, "help" gives list')
-        # parser.add_argument('--glob', '-g', nargs="+",
-        #                     help='glob files; python syntax (* and ** wildcards supported); '
-        #                          'include alternatives in {...,...}. ')
-        # # parser.add_argument('--help', '-h', nargs="?",
-        # #                     help='output help; (NYI) an optional arg gives level')
-        # parser.add_argument('--languages', nargs="+", default=["en"],
-        #                     help='languages (NYI)')
-        # parser.add_argument('--loglevel', '-l', default="info",
-        #                     help='log level (NYI)')
-        # parser.add_argument('--maxbars', nargs="?", type=int, default=25,
-        #                     help='max bars on plot (NYI)')
-        # parser.add_argument('--nosearch', action="store_true",
-        #                     help='search (NYI)')
-        # parser.add_argument('--outfile', type=str,
-        #                     help='output path. default is single path (default is overwrite). '
-        #                          'expands special variables _CPROJ, _CTREE, _PARENT to create iterators NYI')
-        # parser.add_argument('--patt', nargs="+",
-        #                     help='patterns to search with (NYI); regex may need quoting')
-        # parser.add_argument('--plot', action="store_false",
-        #                     help='plot params (NYI)')
-        # parser.add_argument('--proj', '-p', nargs="+",
-        #                     help='projects to search; _help will give list')
-        # parser.add_argument('--sect', '-s', nargs="+",  # default=[AmiSection.INTRO, AmiSection.RESULTS],
-        #                     help='sections to search; _help gives all(?)')
-        # parser.add_argument('--split', nargs="+", choices=['txt2para', 'xml2sect'],  # split fulltext.xml,
-        #                     help='split fulltext.* into paras, sections')
-        # parser.add_argument('--test', nargs="*",
-        #                     choices=TestFile.OPTIONS,  # tests and/or setup/teardown
-        #                     help='run tests for modules; no selection runs all')
         # TODO should tests be run from this menu
 
         subparsers = parser.add_subparsers(help='subcommands', dest="command")
@@ -280,6 +226,7 @@ class PyAMI:
         dict_parser = AmiDictArgs().make_sub_parser(subparsers)
         gui_parser = GUIArgs().make_sub_parser(subparsers)
         html_parser = HTMLArgs().make_sub_parser(subparsers)
+        html_parser = IPCCArgs().make_sub_parser(subparsers)
         pdf_parser = PDFArgs().make_sub_parser(subparsers)
         project_parser = ProjectArgs().make_sub_parser(subparsers)
 
@@ -406,24 +353,14 @@ class PyAMI:
         subparser_type = self.args.get("command")
         logging.debug(f" COMMAND: {subparser_type} {self.args}")
 
-        # if "func" in self.args:
-        #     f_func = self.args["func"]
-        #     print(f"FUNC {f_func}")
-        #     aa = f_func()
-        #     print(f"aa {aa}")
-        # messy - we need to use polymorphism
-        if not subparser_type:
-            abstract_args = None
-        elif subparser_type == "DICT":
-            abstract_args = AmiDictArgs()
-        elif subparser_type == "GUI":
-            abstract_args = GUIArgs()
-        elif subparser_type == "HTML":
-            abstract_args = HTMLArgs()
-        elif subparser_type == "PDF":
-            abstract_args = PDFArgs()
-        elif subparser_type == "PROJECT":
-            abstract_args = ProjectArgs()
+        subparser_dict = {
+            "DICT": AmiDictArgs(),
+            "GUI":  GUIArgs(),
+            "HTML": HTMLArgs(),
+            "IPCC": IPCCArgs(),
+            "PDF": PDFArgs(),
+        }
+        abstract_args = subparser_dict.get(subparser_type)
 
         if abstract_args:
             abstract_args.parse_and_process1(self.args)

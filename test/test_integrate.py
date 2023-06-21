@@ -1,14 +1,16 @@
 import glob
 import re
+import unittest
 from pathlib import Path
 from urllib import request
 
 import lxml
+import pandas as pd
 import requests
 
 from py4ami.ami_html import HtmlStyle
 from py4ami.ami_integrate import HtmlGenerator
-from py4ami.ipcc import IPCCSections
+from py4ami.ipcc import IPCCSections, IPCCCommand
 from py4ami.wikimedia import WikidataLookup
 from py4ami.xml_lib import HtmlLib
 
@@ -57,7 +59,7 @@ INPUT_PDFS = [
     # Path(AR6_DIR, "wg2", "chapters/*.pdf"),
     # Path(AR6_DIR, "wg2", "faqs/*.pdf"),
 
-    Path(AR6_DIR, "wg3", "annexes/*.pdf"),
+    # Path(AR6_DIR, "wg3", "annexes/*.pdf"),
     # Path(AR6_DIR, "wg3", "spm", "fulltext.pdf"),
     # Path(AR6_DIR, "wg3", "ts", "fulltext.pdf"),
     # Path(AR6_DIR, "wg3", "Chapter07.pdf"),
@@ -70,6 +72,7 @@ INPUT_PDFS = [
     # Path(AR6_DIR, "sr15", "spm", "fulltext.pdf"),
     # Path(AR6_DIR, "sr15", "glossary", "fulltext.pdf"),
     #
+    Path(AR6_DIR, "srccl", "chapters", "Chapter05.pdf"),
     # Path(AR6_DIR, "srccl", "spm", "fulltext.pdf"),
     # Path(AR6_DIR, "srccl", "ts", "fulltext.pdf"),
 ]
@@ -175,40 +178,44 @@ REPORTS =  [
 class AmiIntegrateTest(AmiAnyTest):
 
     def test_chapter_toolchain_chapters_HACKATHON(self):
-        total_pages = "total_pages"
-        stem = total_pages
-        group_stem = "groups"
-        use_svg = True  # output surves as svg?
-        pages = "pages/"  # maybe "" in some dirs
         front_back = "Table of Contents|Frequently Asked Questions|Executive Summary|References"
         section_regex_dict, section_regexes = IPCCSections.get_ipcc_regexes(front_back=front_back)
-        old_style = False or True
+
+        # input_pdfs = []
+        # for input_pdf in INPUT_PDFS:
+        #     input_pdfs.extend()
 
         input_pdfs = []
         for input_pdf in INPUT_PDFS:
-            input_pdfs.extend(glob.glob(str(input_pdf)))
+            pdfs = glob.glob(str(input_pdf))
+            input_pdfs.extend(pdfs)
         print(f"globbed pdfs {input_pdfs}")
 
-        if old_style:
-            for input_pdf in input_pdfs:
-                HtmlGenerator.run_section_regexes(input_pdf, section_regexes)
-        else:
-            for input_pdf in input_pdfs:
-                filename = str(input_pdf)
-                print(f"===={filename}====")
-                print(f" section_regex_dict_keys {section_regex_dict.keys()}")
-                for name, rx in section_regex_dict.items():
-                    print(f"key {name} : {rx}")
-                    file_regex = rx.get('file_regex')
-                    if re.match(str(file_regex), filename):
-                        print(f"MATCHED {name}: {file_regex}")
-                        section_regexes_new = [
-                            ('section', rx.get("section")),
-                            ('sub_section', rx.get("sub_section")),
-                            ('sub_sub_section', rx.get("sub_sub_section"))
-                        ]
-                        HtmlGenerator.run_section_regexes(input_pdf, section_regexes_new)
-                    # raise e
+        for input_pdf in input_pdfs:
+            IPCCCommand.run_toolchain_pdf_to_structured_html(input_pdf, section_regexes)
+
+    @unittest.skip("not yet developed nested sections")
+    def test_chapter_toolchain_chapters_DEVELOP(self):
+        """nested sections"""
+        front_back = IPCCSections.get_major_section_names()
+        section_regex_dict, section_regexes = IPCCSections.get_ipcc_regexes(front_back=front_back)
+        input_pdfs = [glob.glob(str(input_pdf)) for input_pdf in INPUT_PDFS]
+        for input_pdf in input_pdfs:
+            filename = str(input_pdf)
+            print(f"===={filename}====")
+            print(f" section_regex_dict_keys {section_regex_dict.keys()}")
+            for name, rx in section_regex_dict.items():
+                print(f"key {name} : {rx}")
+                file_regex = rx.get('file_regex')
+                if re.match(str(file_regex), filename):
+                    print(f"MATCHED {name}: {file_regex}")
+                    section_regexes_new = [
+                        ('section', rx.get("section")),
+                        ('sub_section', rx.get("sub_section")),
+                        ('sub_sub_section', rx.get("sub_sub_section"))
+                    ]
+                    IPCCCommand.run_toolchain_pdf_to_structured_html(input_pdf, section_regexes_new)
+                # raise e
 
     def test_small_pdf_with_styles_KEY(self):
 
@@ -290,40 +297,15 @@ class AmiIntegrateTest(AmiAnyTest):
             qitem0, desc, wikidata_hits = WikidataLookup().lookup_wikidata(term)
             print(f"{term}: qitem {qitem0} desc {desc}")
 
-    def test_extract_suthors(self):
+    def test_extract_authors(self):
         """
         extract authors from chapters using regex
-
         """
-        chap_html = lxml.etree.parse(Path(AR6_DIR, "syr", "lr", "html", "fulltext", "groups_groups.old.html"))
-        author_roles = [
-            "Core Writing Team:",
-            "Extended Writing Team:",
-            "Contributing Authors:",
-            "Review Editors:",
-            "Scientific Steering Committee:",
-            "Visual Conception and Information Design:",
-            # "Date of Draft:",
-
-        ]
-        author_re = re.compile("\s*(?P<auth>.*)\s*(?P<country>.*)")
-        for role in author_roles:
-            htmls = chap_html.xpath(f".//div/span[normalize-space(.)='{role}']")
-            if len(htmls) == 0:
-                print(f"{role} not found")
-                continue
-            following = htmls[0].xpath("following-sibling::span")
-            if len(following) != 1:
-                print(f"FAIL to find author_list")
-                continue
-            authors = following[0].text.split(",")
-            for author in authors:
-                match = author_re.match(author)
-                if match:
-                    print(f"{match.group('auth')}: {match.group('country')} ")
-                else:
-                    print(f"FAIL {author}")
-
+        html_dir = Path(AR6_DIR, "srccl", "chapters", "html", "Chapter05")
+        filename = "groups_groups.html"
+        author_roles = IPCCCommand.get_author_roles()
+        df = IPCCCommand.extract_authors_and_roles(filename, author_roles, html_dir)
+        print(f"df {df}")
 
 
     def test_github_hyperlinks(self):
