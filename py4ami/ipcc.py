@@ -11,6 +11,7 @@ import pandas as pd
 
 from py4ami.ami_html import URLCache, HtmlUtil
 from py4ami.ami_integrate import HtmlGenerator
+from py4ami.file_lib import FileLib
 from py4ami.util import AbstractArgs
 from py4ami.xml_lib import HtmlLib, XmlLib
 
@@ -27,10 +28,10 @@ class IPCCCommand:
             print(f"no input given")
             return paths
 
-        inputs = input if type(input) is list else [input]
+
+        inputs = FileLib.expand_glob_list(input)
+        # inputs = input if type(input) is list else [input]
         print(f"inputs {inputs}")
-
-
         paths = [Path(input) for input in inputs if Path(input).exists() and not Path(input).is_dir()]
         return paths
 
@@ -49,7 +50,7 @@ class IPCCCommand:
         if not output_dir:
             output_dir = Path(filename).parent
         AUTHOR_RE = re.compile("\s*(?P<auth>.*)\s+\((?P<country>.*)\)")
-        chap_html = lxml.etree.parse(Path(output_dir, filename))
+        chap_html = lxml.etree.parse(str(Path(output_dir, filename)))
         table = []
         for role in author_roles:
             htmls = chap_html.xpath(f".//div/span[normalize-space(.)='{role}']")
@@ -71,7 +72,7 @@ class IPCCCommand:
                     print(f"FAIL {author}")
                     pass
         df = pd.DataFrame(table, columns=["author", "country", "role"])
-        df.to_html(Path(output_dir, outfilename))
+        df.to_html(str(Path(output_dir, outfilename)))
         return df
 
     @classmethod

@@ -706,6 +706,10 @@ class AmiLogger:
             print(".", end="")
         self.count[level] += 1
 
+    @classmethod
+    def create_named_logger(cls, file):
+        return logging.getLogger(os.path.basename(file))
+
 
 # sub/Super
 

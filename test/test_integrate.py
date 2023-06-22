@@ -10,7 +10,9 @@ import requests
 
 from py4ami.ami_html import HtmlStyle
 from py4ami.ami_integrate import HtmlGenerator
+from py4ami.file_lib import FileLib
 from py4ami.ipcc import IPCCSections, IPCCCommand
+from py4ami.pyamix import PyAMI
 from py4ami.wikimedia import WikidataLookup
 from py4ami.xml_lib import HtmlLib
 
@@ -82,7 +84,7 @@ def annotate_glossary(glossary_html, style_class, link_class):
     if not Path(glossary_html).exists():
         print(f"Glossary does not exists {glossary_html}")
         return
-    glossary_elem = lxml.etree.parse(glossary_html)
+    glossary_elem = lxml.etree.parse(str(glossary_html))
     annotate_lead_entries(glossary_elem, style_class, use_bold=True)
 
     add_links_to_terms(glossary_elem, link_class)
@@ -181,16 +183,7 @@ class AmiIntegrateTest(AmiAnyTest):
         front_back = "Table of Contents|Frequently Asked Questions|Executive Summary|References"
         section_regex_dict, section_regexes = IPCCSections.get_ipcc_regexes(front_back=front_back)
 
-        # input_pdfs = []
-        # for input_pdf in INPUT_PDFS:
-        #     input_pdfs.extend()
-
-        input_pdfs = []
-        for input_pdf in INPUT_PDFS:
-            pdfs = glob.glob(str(input_pdf))
-            input_pdfs.extend(pdfs)
-        print(f"globbed pdfs {input_pdfs}")
-
+        input_pdfs = FileLib.expand_glob_list(INPUT_PDFS)
         for input_pdf in input_pdfs:
             IPCCCommand.run_toolchain_pdf_to_structured_html(input_pdf, section_regexes)
 
@@ -250,7 +243,7 @@ class AmiIntegrateTest(AmiAnyTest):
                     glossary_elem = annotate_glossary(glossary_html, style_class="s1020", link_class='s100')
                     glossary_file = Path(AR6_DIR, report, "annexes", "html", "glossary", "annotated_glossary.html")
                     if glossary_file.exists():
-                        annotated_glossary = lxml.etree.parse(glossary_file)
+                        annotated_glossary = lxml.etree.parse(str(glossary_file))
 
     def test_merge_glossaries_KEY(self):
         """iterates over 6 glossaries and adds internal links"""
@@ -289,7 +282,7 @@ class AmiIntegrateTest(AmiAnyTest):
         max_entries = 50
         report = "wg1"
         annotated_glossary = lxml.etree.parse(
-            Path(AR6_DIR, report, "annexes", "html", "glossary", "annotated_glossary.html"))
+            str(Path(AR6_DIR, report, "annexes", "html", "glossary", "annotated_glossary.html")))
         lead_divs = annotated_glossary.xpath(".//div[a]")
         for div in lead_divs[:max_entries]:
             term = div.xpath("./a")[0].attrib["name"]
@@ -335,3 +328,9 @@ class AmiIntegrateTest(AmiAnyTest):
         body = html.xpath("/html/body")[0]
         print(f"body {lxml.etree.tostring(body)}")
         assert body is not None
+
+    def test_commandline(self):
+        input_pdf = str(Path(AR6_DIR, "syr", "spm", "fulltext.pdf"))
+        args = ["IPCC", "--input", input_pdf]
+        pyami = PyAMI()
+        pyami.run_command(args)

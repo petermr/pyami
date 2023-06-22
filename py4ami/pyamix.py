@@ -1124,7 +1124,7 @@ class PyAMI:
         This is still a mess. We need to set the version once somewhere.
         """
 
-        version = '0.0.46' # 2023-01-19
+        version = '0.0.47a3' # 2023-06-22
         if False: # this fails - it gets the python distrib
             with open(Path(Path(__file__).parent.parent, "setup.py"), "r") as f:
                 setup_lines = f.readlines()

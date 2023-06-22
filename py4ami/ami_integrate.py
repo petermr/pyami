@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 import lxml
@@ -6,8 +7,13 @@ import pdfplumber
 
 from py4ami.ami_html import HtmlUtil, P_FONTNAME, P_HEIGHT, P_STROKING_COLOR, P_NON_STROKING_COLOR, AmiSpan, P_TEXT, \
     HtmlGroup, HtmlStyle
+from py4ami.util import Util, AmiLogger
 from py4ami.xml_lib import HtmlLib, XmlLib
 
+
+
+
+logger = AmiLogger.create_named_logger(__file__)
 
 class HtmlGenerator:
 
@@ -17,9 +23,9 @@ class HtmlGenerator:
     def run_section_regexes(cls, input_pdf, section_regexes, total_pages="total_pages", group_stem="groups", use_svg=True):
         path = Path(input_pdf)
         if not path.exists():
-            print(f"path does not exist {path}")
+            logger.warning(f"path does not exist {path}")
             return
-        print(f"section_regexes ========== {section_regexes}")
+        logger.info(f"section_regexes ========== {section_regexes}")
 
         try:
             svg_dir = Path(Path(input_pdf).parent, "svg") if use_svg else None
@@ -27,9 +33,6 @@ class HtmlGenerator:
                                 max_edges=5000)
         except Exception as e:
             raise e
-            # traceback.print_exc()
-            # # traceback.print_exception(e)
-            # print(f"*********************\nCannot read/parse {input_pdf} because {e}\n*******************")
 
     # class HtmlGenerator
 
@@ -49,7 +52,7 @@ class HtmlGenerator:
                               max_edges=max_edges, max_lines=max_lines)
 
         outfile = Path(outdir, "fulltext_final.html")
-        input_html_path = Path(outdir, f"{total_pages}.html")
+        input_html_path = str(Path(outdir, f"{total_pages}.html"))
         # self.annotate_div_spans_write_final_html(input_html_path, outfile)
         html_elem = lxml.etree.parse(input_html_path)
 
@@ -72,10 +75,10 @@ class HtmlGenerator:
         total_html_page_body = HtmlLib.get_body(total_html)
 
         pre_parse = HtmlGenerator.pmr_time()
-        print(f"PRE {round(pre_parse - pre_plumber)}")
+        logger.debug(f"PRE {round(pre_parse - pre_plumber)}")
         ami_json_pages = list(ami_plumber_json.get_ami_json_pages())
         post_parse = HtmlGenerator.pmr_time()
-        print(f"PARSE {post_parse - pre_parse}")
+        logger.debug(f"PARSE {post_parse - pre_parse}")
 
         for i, ami_json_page in enumerate(ami_json_pages):
             page_start_time = HtmlGenerator.pmr_time()
@@ -92,7 +95,7 @@ class HtmlGenerator:
             page_time = round(page_end_time - page_start_time, 2)
             html_time = round(total_page_time - page_end_time, 2)
             if page_time > 1 or html_time > 1:
-                print(f"=====================\nLONG PARSE  create_page {page_time} {html_time}\n====================")
+                logger.warning(f"=====================\nLONG PARSE  create_page {page_time} {html_time}\n====================")
 
         if debug:
             cls._check_html_pages(ami_json_pages, output_page_dir)
@@ -123,7 +126,7 @@ class HtmlGenerator:
             try:
                 html_elem = lxml.etree.parse(str(page_file))
             except Exception as e:
-                print(f"could not read XML {page_file} because {e}")
+                logger.error(f"could not read XML {page_file} because {e}")
 
     @classmethod
     def create_html_page(cls, ami_plumber, ami_json_page, output_page_dir, debug=False, page_no=None, svg_dir=None, max_edges=10000,
@@ -136,7 +139,6 @@ class HtmlGenerator:
                                                                                      max_edges=max_edges,
                                                                                      max_lines=max_lines)
             t2 = HtmlGenerator.pmr_time()
-            print(f"NON TEXT {round(t2 - t1, 2)}")
             if len(tables := table_div.xpath("*")):
                 table_html = HtmlLib.create_html_with_empty_head_body()
                 HtmlLib.get_body(table_html).append(table_div)
@@ -154,7 +156,7 @@ class HtmlGenerator:
             path = Path(output_page_dir, f"page_{page_no}.html")
             XmlLib.write_xml(html_page, path, debug=debug)
         except Exception as e:
-            print(f"*******Cannot serialize page (probably strange fonts)******page{page_no} {e}")
+            logger.error(f"*******Cannot serialize page (probably strange fonts)******page{page_no} {e}")
             html_page = None
         return html_page
 
@@ -169,13 +171,13 @@ class HtmlGenerator:
         with pdfplumber.open(input_pdf) as pdf:
             pdf_page = pdf.pages[page_no]
             ami_page = AmiPage()
-            # print(f"crop: {page0.cropbox} media {page0.mediabox}, bbox {page0.bbox}")
-            # print(f"rotation: {page0.rotation} doctop {page0.initial_doctop}")
-            # print(f"width {page0.width} height {page0.height}")
-            # print(f"text {page0.extract_text()[:2]}")
-            # print(f"words {page0.extract_words()[:3]}")
+            # (f"crop: {page0.cropbox} media {page0.mediabox}, bbox {page0.bbox}")
+            # (f"rotation: {page0.rotation} doctop {page0.initial_doctop}")
+            # (f"width {page0.width} height {page0.height}")
+            # (f"text {page0.extract_text()[:2]}")
+            # (f"words {page0.extract_words()[:3]}")
             #
-            # print(f"char {page0.chars[:1]}")
+            # (f"char {page0.chars[:1]}")
             span = None
             span_list = []
             maxchars = 999999
@@ -189,7 +191,7 @@ class HtmlGenerator:
                     continue
                 x0, x1, y0, y1 = AmiPage.get_xy_tuple(ch, ndec_coord)
                 if bbox and not bbox.contains_point((x0, y0)):
-                    # print(f" outside box: {x0, y0}")
+                    logger.warning(f" outside box: {x0, y0}")
                     continue
 
                 text_style = TextStyle()
@@ -221,6 +223,5 @@ class HtmlGenerator:
             col = ch.get('non_stroking_color')
             if col:
                 logging.debug(f"txt {ch.get('text')} : col {col}")
-        # print(f"HTML {html}")
         return html
 

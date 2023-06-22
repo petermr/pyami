@@ -41,13 +41,15 @@ from py4ami.ami_html import STYLE, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, STROKE, C
 from py4ami.ami_svg import AmiSVG
 from py4ami.file_lib import FileLib
 from py4ami.bbox_copy import BBox  # this is horrid, but I don't have a library
-from py4ami.util import Util, AbstractArgs, AmiArgParser
+from py4ami.util import Util, AbstractArgs, AmiArgParser, AmiLogger
 from py4ami.xml_lib import XmlLib, HtmlLib
 
 # local
 
 # text attributes
-from test.test_integrate import HtmlGenerator
+from py4ami.ami_integrate import HtmlGenerator
+
+logger = AmiLogger.create_named_logger(__file__)
 
 FACT = 2.8
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -199,7 +201,7 @@ class AmiPage:
             elif self.data:  # not sure if this is used
                 self.page_element = lxml.etree.fromstring(self.data)
             else:
-                self.logger.warning("no svg file or data")
+                logger.warning("no svg file or data")
                 return
             self.text_elements = self.page_element.findall(f"//{{{SVG_NS}}}text")
             self.create_text_spans_from_text_elements(content_box, rotated_text)
@@ -480,10 +482,10 @@ class AmiPage:
         creates Raw HTML
         """
         if not input_pdf or not Path(input_pdf).exists():
-            logging.logger.error(f"must have not-null, existing pdf {input_pdf} ")
+            logger.error(f"must have not-null, existing pdf {input_pdf} ")
             return
         if not output_dir:
-            logging.logger.error(f"must have not-null output_dir ")
+            logger.error(f"must have not-null output_dir ")
             return
 
         Path(output_dir).mkdir(exist_ok=True, parents=True)
@@ -1132,7 +1134,7 @@ class PDFArgs(AbstractArgs):
             # fmt=self.outform,
             maxpages=maxpage)
         page_tops = ['%.2f'%(pt) for pt in self.pdf_parser.page_tops]
-        print (f"page_tops {page_tops}")
+        logger.debug (f"page_tops {page_tops}")
         if raw_html_element is None:
             raise ValueError(f"null raw_html in convert_write()")
         if not flow:
@@ -1148,7 +1150,7 @@ class PDFArgs(AbstractArgs):
                 outpath = Path(outdir, "tidied.html") # bad hardcoding
             with Util.open_write_utf8(Path(outdir, "raw.html")) as f:
                 f.write(raw_html_element)
-        print(f"outpath {outpath}")
+        logger.debug(f"outpath {outpath}")
 
         html_tidy = HtmlTidy()
         # might need a data transfer object
@@ -2133,9 +2135,9 @@ class AmiPlumberJsonPage:
 
     def print_header_footer_lists(self, footer_span_list, header_span_list):
         for header_span in header_span_list:
-            print(f"header {header_span.text}")
+            logger.info(f"header {header_span.text}")
         for footer_span in footer_span_list:
-            print(f"footer {footer_span.text}")
+            logger.info(f"footer {footer_span.text}")
 
     # AmiPlumberJsonPage:
 
@@ -2216,22 +2218,22 @@ class AmiPlumberJsonPage:
         curve_div.attrib["title"] = "curves"
         line_div = lxml.etree.Element("div")
         line_div.attrib["title"] = "lines"
-        print(f"page {type(self.plumber_page_dict)} {self.plumber_page_dict.get('mediabox')}")
-        print(f"page {self.plumber_page} \n {self.plumber_page.__dir__()}\n"
+        logger.debug(f"page {type(self.plumber_page_dict)} {self.plumber_page_dict.get('mediabox')}")
+        logger.debug(f"page {self.plumber_page} \n {self.plumber_page.__dir__()}\n"
               f"curve_edges: {len(self.plumber_page.curve_edges)}\n"
               # f"{self.pdf_page.curve_edges}\n"
               f"tablefinder: {self.plumber_page.debug_tablefinder()}")
         if lines := self.plumber_page_dict.get(LINES):
-            print(f"debug_lines {len(lines)} - {max_lines}")
+            logger.info(f"debug_lines {len(lines)} - {max_lines}")
             for line in lines[:max_lines]:
                 # print(f"-----------------\ndebug_line: {line} {line.__dir__()}")
                 pass
         if curves := self.plumber_page_dict.get(CURVES):
-            print(f"debug_curves: {len(curves)}")
+            logger.info(f"debug_curves: {len(curves)}")
         #      make svg here
 
         if tables := self.plumber_page_dict.get(TABLES):
-            print(f"debug_tables {len(tables)}")
+            logger.info(f"debug_tables {len(tables)}")
         table_div, svg = self.make_html_tables(curves_to_edges, table_div, max_edges=max_edges)
         return line_div, curve_div, table_div, svg
 
@@ -2250,7 +2252,7 @@ class AmiPlumberJsonPage:
         }
         # Get the bounding boxes of the tables on the page.
         bboxes = [table.bbox for table in p.find_tables(table_settings=ts)]
-        print(f"table_bbox {bboxes}")
+        logger.info(f"table_bbox {bboxes}")
         svg_top = AmiSVG.create_svg()
         box = [float(xy) for xy in self.plumber_page.mediabox]
         media_box = AmiSVG.create_rect(box, parent=svg_top, fill="none", stroke="black", stroke_width=0.3)
@@ -2258,12 +2260,12 @@ class AmiPlumberJsonPage:
             for bbox in bboxes:
                 svg_box = AmiSVG.create_rect(bbox, parent=svg_top)
 
-        print(f"debug_table_finder {len(table_finder.__dict__)}")
+        logger.debug(f"debug_table_finder {len(table_finder.__dict__)}")
         if tables := self.plumber_page.extract_tables():
             table_div = lxml.etree.Element("div")
             for i, table in enumerate(tables):
                 if i == 0:
-                    print(f"table0 {table}")
+                    logger.debug(f"table0 {table}")
                 df = pd.DataFrame(table)
                 html_table = lxml.etree.fromstring(df.to_html())
                 table_div.append(html_table)
@@ -2348,8 +2350,7 @@ class AmiPDFPlumber:
         pdf_json = self._create_pdfplumber_json(pdfplumber_pdf)
         assert (l := len(pdfplumber_pdf.pages)) > 0, f"found {l}"
         page0 = pdfplumber_pdf.pages[0]
-        # print(f"type {type(page0)}")
-        assert type(page0) is Page, print(f"found {t}")
+        assert type(page0) is Page, f"found {t}"
         assert (t := type(pdf_json)) is dict,  f"pdf_json is {t}"
         ami_plumber_json = AmiPlumberJson(pdf_json, pdfplumber_pdf)
         return ami_plumber_json
@@ -2425,7 +2426,7 @@ class AmiPDFPlumber:
         file_type = None
         bytes = string.encode()
         bytes_as_hex = b2a_hex(bytes)
-        print(f"bytes f{bytes_as_hex[:100]}")
+        logger.debug(f"bytes f{bytes_as_hex[:100]}")
         bytes_as_hex = str.encode(bytes_as_hex)
         if bytes_as_hex.startswith('ffd8'):
             file_type = '.jpeg'
@@ -2457,7 +2458,7 @@ class AmiPDFPlumber:
                 raise ValueError(f" not a char {obj_type}")
         upright = cls.get_int(char_dict, "%s" % CH_UPRIGHT)
         if not upright or upright != 1:
-            print(f"NOT %s {upright}" % CH_UPRIGHT)
+            logger.warn(f"NOT %s {upright}" % CH_UPRIGHT)
             return None, ""
         x0, y0, x1, y1 = cls.get_coords(char_dict)
         fontname = char_dict.get(PLUMB_FONTNAME)

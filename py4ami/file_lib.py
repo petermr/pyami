@@ -7,7 +7,7 @@ import copy
 from enum import Enum, auto
 import errno
 import glob
-from glob import glob
+#from glob import glob
 import logging
 import re
 import os
@@ -480,6 +480,19 @@ class FileLib:
             encode = chardet.UniversalDetector()
             encode.close()
             return encode.result
+
+    @classmethod
+    def expand_glob_list(self, pdf_list):
+        """
+        :param pdf_list: list of paths including globs
+        :return: flattened globbed list
+        """
+        if type(pdf_list) is not list:
+            pdf_list = [pdf_list]
+        input_pdfs = []
+        for input_pdf in pdf_list:
+            input_pdfs.extend(glob.glob(str(input_pdf)))
+        return input_pdfs
 
 
 # see https://realpython.com/python-pathlib/

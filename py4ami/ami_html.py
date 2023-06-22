@@ -21,8 +21,10 @@ from sklearn.linear_model import LinearRegression
 # from py4ami.ami_dict import AmiDictionary
 # from py4ami.ami_pdf import AmiPDFPlumber
 from py4ami.bbox_copy import BBox
-from py4ami.util import SScript, AbstractArgs, Util
+from py4ami.util import SScript, AbstractArgs, Util, AmiLogger
 from py4ami.xml_lib import XmlLib, HtmlLib
+
+logger = AmiLogger.create_named_logger(__file__)
 
 # HTML
 H_HTML = "html"
@@ -829,7 +831,10 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
                 parent = new_div
                 parents[level] = new_div
             else:
-                print(f"no parent on stack level {level}")
+                logger.info(f"no parent on stack level {level}")
+
+
+
         parent.append(div)
         return parent
 
@@ -881,7 +886,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
     def collect_floats_to_back(cls, html_elem):
         back = HtmlGroup.get_back_div(html_elem)
         floats = html_elem.xpath(".//div[@class='float']")
-        print(f"floats {len(floats)}")
+        logger.debug(f"floats {len(floats)}")
         for float in floats:
             back.append(float)
 
@@ -962,7 +967,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         """adds sequential paragraph numbering (e.g. 1.2.3 => 1.2.3.a, 1.2.3.b etc"""
         title_para_divs = top_div.xpath(".//div[@title and contains(@class, 'section')]")
         for title_para_div in title_para_divs:
-            print(f"title para divs {len(title_para_divs)}")
+            logger.debug(f"title para divs {len(title_para_divs)}")
             title_id = title_para_div.attrib.get('title')
             if not title_id:
                 continue
@@ -1025,7 +1030,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
         re_curly = re.compile(r"(?P<pre>.*){(?P<body>[^}]+)}(?P<post>.*)")
         TARGETS = "targets"
         curly_spans = html_elem.xpath(f".//span[contains(., '{{') and contains(., '}}')]")
-        print(f"found curlies {len(curly_spans)}")
+        logger.debug(f"found curlies {len(curly_spans)}")
         for span in curly_spans:
             parent = span.getparent()
             match = re_curly.match(span.text)

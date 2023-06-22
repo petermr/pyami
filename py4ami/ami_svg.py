@@ -1,5 +1,6 @@
 import lxml.etree
 
+from py4ami.util import AmiLogger
 from py4ami.xml_lib import NS_MAP, XML_NS, SVG_NS
 
 SVG_SVG = "svg"
@@ -11,6 +12,7 @@ FILL = "fill"
 STROKE = "stroke"
 STROKE_WIDTH = "stroke-width"
 
+logger = AmiLogger.create_named_logger(__file__)
 
 class AmiSVG:
     """for actually rendering SVG?"""
@@ -73,7 +75,7 @@ class AmiSVG:
 
     @classmethod
     def create_rect(cls, bbox, parent=None, fill="gray", stroke="blue", stroke_width=0.3):
-        print(f"box {bbox}")
+        logger.debug(f"box {bbox}")
         svg_rect = AmiSVG.create_SVGElement("rect")
         svg_rect.attrib["fill"] = fill
         svg_rect.attrib["stroke"] = stroke
