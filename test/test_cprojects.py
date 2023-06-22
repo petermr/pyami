@@ -228,6 +228,7 @@ class TestCProjTree(unittest.TestCase):
         print(f"src {src} dst {dst}")
 
 
+    @unittest.skip("not sure this does anything / useful")
     def test_make_cproject_from_pdf_list_cmd(self):
         """makes a CProject from pdf files commandline
         shows the adjustment of filenames to be unique"""

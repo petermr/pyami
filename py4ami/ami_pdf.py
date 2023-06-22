@@ -1878,15 +1878,15 @@ class AmiPlumberJson:
             start = time.time()
             plumber_pages = self.pdfplumber_pdf.pages
             pages = time.time()
-            print(f"PDF PAGES {round(pages - start, 2)}")
+            logger.debug(f"time PDF PAGES {round(pages - start, 2)}")
             json_pages = self.pdf_json_dict.get('pages')
             end = time.time()
-            print(f"DICT GET {round(end - pages, 2)}")
+            logger.debug(f"DICT GET {round(end - pages, 2)}")
             if len(plumber_pages) != len(json_pages):
                 raise ValueError(f"page lists are out of sync {len(plumber_pages)} != {len(json_pages)}")
             self.ami_json_pages = [AmiPlumberJsonPage(j_page, p_page) for j_page, p_page in zip(json_pages, plumber_pages)]
             zipped = time.time()
-            print(f"ZIPPED {round(zipped - end, 2)}")
+            logger.debug(f"ZIPPED {round(zipped - end, 2)}")
             a_page0 = self.ami_json_pages[0]
             assert (t := type(a_page0)) is AmiPlumberJsonPage, f"found {t}"
             assert (t := type(a_page0.plumber_page)) is Page, f"found {t}"

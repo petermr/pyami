@@ -792,7 +792,7 @@ Free Research Preview. ChatGPT may produce inaccurate information about people, 
             # sometimes unbalanced in document
             start_str = start_ends.pop()
             if start_str != end_str:
-                print(f"unbalanced: {START + start_str} and {END + end_str}")
+                logger.warning(f"unbalanced: {START + start_str} and {END + end_str}")
             else:
                 parent = parent.getparent()
         return parent
@@ -3815,7 +3815,8 @@ class CSSStyle:
         """
         extracted = []
         for style in styles:
-            extracted.append(cls.extract_bold_italic_from_font_family_for_style(style))
+            if style:
+                extracted.append(cls.extract_bold_italic_from_font_family_for_style(style))
         return extracted
 
     @classmethod
@@ -4053,12 +4054,16 @@ class AmiFont:
         :param css_style: CSSStyle Object or HTML head/style with unknown font-family
         :return: tuple (symbol_ref, new css_style object with standard font and maybe new weight or style)
         """
+
         if css_style is None:
             return None
+        if type(css_style) is lxml.etree._Element:
+            print (f"element {lxml.etree.tostring(css_style)}")
         if type(css_style) is str:
             css_style = CSSStyle.create_css_style_from_css_string(css_style)
         if css_style is None:
             return None
+        assert type(css_style) is CSSStyle, f"found {type(css_style)}"
         if not css_style.font_family:
             return css_style
         ami_font = AmiFont.extract_name_weight_style_stretched_as_font(css_style.font_family)

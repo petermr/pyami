@@ -910,7 +910,7 @@ class TargetExtractor:
         """
         partly written by ChatGPT (2023-04-06) but mainly by PMR
         """
-        tree = lxml.etree.parse(file)
+        tree = lxml.etree.parse(str(file))
         root = tree.getroot()
         # Initialize the table
         table = []
