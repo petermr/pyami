@@ -1,0 +1,122 @@
+INSTRUCTIONS FOR INSTALLING PY4AMI IN WINDOWS
+
+#PYTHON IS NEEDED (IF NOT INSTALLED, PLEASE INSTALL PYTHON ON YOUR SYSTEM)
+(At times, versions of Python greater than 3.8 have created issues while installing py4ami. So, it is better to have python 3.8 or previous versions)
+
+1) Check if you have Python installed or not
+- Open command prompt
+- Type Python (If Python is installed, it will let you know which version it is and if not,  install Python from the Microsoft app store on Windows machine)
+
+C:\Users\shiwa>python
+Python 3.8.10 (tags/v3.8.10:3d8993a, May  3 2021, 11:48:03) [MSC v.1928 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license" for more information.
+
+Python installed successfully
+
+2) Install pip on your system -python -m ensurepip --upgrade (Code to install)
+
+3) Install py4ami - pip install py4ami==0.0.49
+
+(Errors that can occur - Building wheels for collected packages: py4ami, PyPDF2, future, pdfminer3, pyamiimage, tkinterhtml, tkinterweb, sknw
+  Building wheel for py4ami (pyproject.toml) ... error
+  error: subprocess-exited-with-error_)
+
+OR
+
+(No module named 'numpy.distutils._msvccompiler' in numpy.distutils; trying from distutils
+        error: Microsoft Visual C++ 14.0 or greater is required. Get it with "Microsoft C++ Build Tools": https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+
+OR
+      
+       
+      (error: could not create 'build\lib\py4ami\resources\projects\oil4\PMC5344628\sections\1_body\1_2._results_and_discussion\1_2.1._chemical_composition\2_2.1.2._gc-msd_and_gc-fid_analy': The filename or extension is too long_)
+
+---------LONG PATH NAME ERROR -----To solve the error follow the commands given on this url - https://stackoverflow.com/questions/71477633/the-filename-or-extension-is-too-long-while-installing-confluent-kafka
+
+STEPS TO BE FOLLOWED --------
+
+a) Click Win+R
+b) Type regedit and press Enter
+c) Go to Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem
+d) Edit or create a key named LongPathsEnabled (type: REG_DWORD)
+e) Enter 1 as its value and press OK.
+f) Restart your system and try again. It should work now.
+
+4) After making the  error you can run the same command ---- pip install py4ami==0.0.49
+
+INSTALLATION SUCCESFULL WITH WARNING MESSAGE ---
+
+WARNING: The script py4ami.exe is installed in 'C:\Users\shiwa\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\Scripts' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+Successfully installed py4ami-0.0.49
+
+TO SORT THE WARNING ISSUE CHANGE THE PATH BY WRITING cd IN THE NEXT COMMAND LINE AND COPY PASTE THE PATH FROM THE WARNING MESSAGE --- 
+----cd C:\Users\shiwa\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\Scripts----
+
+POSSIBLE ERROR ---  Resource stopwords not found ---
+
+SOLUTION -- python -m nltk.downloader stopwords
+
+CODE OUTPUT ---
+
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.8_3.8.2800.0_x64__qbz5n2kfra8p0\lib\runpy.py:127: RuntimeWarning: 'nltk.downloader' found in sys.modules after import of package 'nltk', but prior to execution of 'nltk.downloader'; this may result in unpredictable behaviour
+  warn(RuntimeWarning(msg))
+[nltk_data] Downloading package stopwords to
+[nltk_data]     C:\Users\shiwa\AppData\Roaming\nltk_data...
+[nltk_data]   Unzipping corpora\stopwords.zip.
+
+5) Check if py4ami is installed
+
+CODE---C:\Users\shiwa\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\Scripts>py4ami---
+
+CODE OUTPUT --- WARNING:symbol.ini: environment variable $PYAMI_HOME not set, defaulting to bundled config.ini in C:\Users\shiwa\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\py4ami
+WARNING:pyami:No args, running --help
+usage: py4ami [-h] [-v] {DICT,GUI,HTML,IPCC,PDF,PROJECT} ...
+
+Py4AMI: create, manipulate, use CProject
+----------------------------------------
+
+Py4AMI is the largest collection of functionality in the AMI system.It contains executable code and libraries to manage complex documents.
+A key structure is the corpus (CProject directory) which contains a list of subdirectories (CTrees) which themselves contain many different document features (text, tables, images, graphics.
+Py4AMI can create, fill, manipulate, transform many of the components including PDF, HTML, TXT, images, CSV.
+
+The subcommands:
+
+  DICT <options>      # create/edit/search dictionaries
+  GUI <options>       # run tkinter GUI (prototype)
+  HTML <options>      # create/edit HTML
+  IPCC <options>      # customised IPCC tools
+  PDF <options>       # convert PDF into HTML and images
+  PROJECT <options>   # create and transform a corpus of documents
+
+After installation, run
+  py4ami <subcommand> <options>
+
+Examples (# foo is a comment):
+  py4ami        # runs help
+  py4ami -h     # runs help
+  py4ami PDF -h # runs PDF help
+  py4ami PDF --infile foo.pdf --outdir bar/ # converts PDF to HTML
+  py4ami PROJECT --project foodir/ # converts all PDF in foodir to CTrees
+  py4ami IPCC --pdf2html file/ # converts pdf file to html
+
+----------------------------------------
+
+positional arguments:
+  {DICT,GUI,HTML,IPCC,PDF,PROJECT}
+                        subcommands
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --version         show version 0.0.49
+
+run:
+        py4ami <subcommand> <args>
+          where subcommand is in   {DICT,GUI,HTML,PDF,PROJECT} and args depend on subcommand
+
+---- PY4AMI installed successfully----
+
+
+
+
+
